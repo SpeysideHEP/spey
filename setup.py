@@ -5,10 +5,9 @@ with open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
 
 requirements = []
-if os.path.isfile("./requirements.txt"):
-    with open("requirements.txt", "r") as f:
-        requirements = f.read()
-    requirements = [x for x in requirements.split("\n") if x != ""]
+with open("requirements.txt", "r") as f:
+    requirements = f.read()
+requirements = [x for x in requirements.split("\n") if x != ""]
 
 setup(
     name="madstats",
