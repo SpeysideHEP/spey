@@ -1,6 +1,7 @@
 from enum import Enum, auto
-
+from dataclasses import dataclass, field
 import numpy as np
+from typing import Text, List
 
 
 class ExpectationType(Enum):
@@ -67,3 +68,48 @@ class Units(Enum):
             return float(self) * other
         else:
             raise ValueError(f"Multiplication request with unknown type: {type(other)}")
+
+
+@dataclass(frozen=True)
+class Region:
+    nobs: int
+    nb: float
+    delta_nb: float
+    signal_eff: float
+    name: Text = field(default="__unknown_region__")
+
+
+@dataclass(frozen=True)
+class Analysis:
+    name: Text = field(default="__unknown_analysis__")
+    sqrts: float = field(default=13.0 * Units.GeV)
+    regiondata: List[Region] = field(default_factory=list)
+    luminosity: float = field(default=1.0 * Units.fb)
+
+    def __repr__(self):
+        txt = (
+            f"Analysis(\n    name = '{self.name}',"
+            f"\n    sqrts = {self.sqrts:.1f} [GeV],"
+            f"\n    luminosity = {self.luminosity:.1f} [1/fb]"
+            f"\n    number of regions = {len(self)}\n"
+        )
+        for reg in self:
+            txt += "        " + str(repr(reg)) + "\n"
+        txt += "\n)"
+        return txt
+
+    def __len__(self):
+        return len(self.regiondata)
+
+    @property
+    def regions(self):
+        return [reg.name for reg in self.regiondata]
+
+    def __iter__(self):
+        for reg in self.regiondata:
+            yield reg
+
+    def __getitem__(self, item):
+        for reg in self.regiondata:
+            if reg.name == item:
+                return reg
