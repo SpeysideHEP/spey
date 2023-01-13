@@ -5,14 +5,12 @@ import numpy as np
 
 import pyhf
 from pyhf.infer.calculators import generate_asimov_data
-from pyhf.optimize import mixins
 
 from madstats.utils import ExpectationType
 from .utils import compute_negloglikelihood, initialise_workspace, compute_min_negloglikelihood
 
 pyhf.pdf.log.setLevel(logging.CRITICAL)
 pyhf.workspace.log.setLevel(logging.CRITICAL)
-mixins.log.setLevel(logging.CRITICAL)
 pyhf.set_backend("numpy", precision="64b")
 
 
@@ -230,7 +228,7 @@ class PyhfInterface:
         :param expected: observed, expected (true, apriori) or aposteriori
         :param allow_negative_signal: allow negative POI
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
-        :return: muhat
+        :return: muhat, maximum of the likelihood
         """
         self._initialize_statistical_model(expected)
 
@@ -239,6 +237,27 @@ class PyhfInterface:
         )
 
         return muhat, negloglikelihood if nll else np.exp(-negloglikelihood)
+
+    def chi2(
+        self,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        allow_negative_signal: Optional[bool] = True,
+    ) -> float:
+        """
+        Compute $$\chi^2$$
+
+        .. math::
+
+            \chi^2 = -2\log\left(\frac{\mathcal{L}_{\mu = 1}}{\mathcal{L}_{max}}\right)
+
+        :param expected: observed, expected (true, apriori) or aposteriori
+        :param allow_negative_signal: allow negative POI
+        :return: chi^2
+        """
+        return 2.0 * (
+            self.likelihood(1.0, expected, allow_negative_signal, True)
+            - self.maximize_likelihood(True, expected, allow_negative_signal)[1]
+        )
 
     def computeUpperLimitOnMu(
         self, expected: Optional[ExpectationType] = ExpectationType.observed
@@ -249,6 +268,8 @@ class PyhfInterface:
         :param expected: observed, expected (true, apriori) or aposteriori
         :return: mu
         """
+        expected = ExpectationType.as_expectationtype(expected)
+
         kwargs = dict(
             expected=expected,
             CLs_obs=expected in [ExpectationType.apriori, ExpectationType.observed],
