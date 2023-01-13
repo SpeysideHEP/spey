@@ -7,6 +7,7 @@ import pyhf
 from pyhf.infer.calculators import generate_asimov_data
 
 from madstats.utils import ExpectationType
+from madstats.base.backend_base import BackendBase
 from .utils import compute_negloglikelihood, initialise_workspace, compute_min_negloglikelihood
 
 pyhf.pdf.log.setLevel(logging.CRITICAL)
@@ -14,7 +15,7 @@ pyhf.workspace.log.setLevel(logging.CRITICAL)
 pyhf.set_backend("numpy", precision="64b")
 
 
-class PyhfInterface:
+class PyhfInterface(BackendBase):
     """
     Pyhf Interface
 
@@ -31,24 +32,45 @@ class PyhfInterface:
         nb: Optional[float] = None,
         delta_nb: Optional[float] = None,
     ):
-        self.model = None
-        self.data = None
-        self.workspace = None
-        self._exp = None
+        super().__init__(signal, background)
+        self.model, self.data, self.workspace, self._exp = None, None, None, None
 
-        self.background = background
-        self.signal = signal
         self.nb = nb
         self.delta_nb = delta_nb
+        self._expectation_fixed = False
+
+    @classmethod
+    def fixed_expectation(
+        cls,
+        signal: Union[List, float],
+        background: Union[Dict, float],
+        nb: Optional[float] = None,
+        delta_nb: Optional[float] = None,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+    ):
+        """
+        Fixing the expectation prevents reinitialising the
+        statistical model and allows faster computation.
+
+        :param signal: either histfactory type signal patch or float value of number of events
+        :param background: either background only JSON histfactory or float value of observed data
+        :param nb: expected number of background events. In case of statistical model it is not needed
+        :param delta_nb: uncertainty on backgorund. In case of statistical model it is not needed
+        :param expected: observed, expected (true, apriori) or aposteriori
+        """
+        interface = cls(signal, background, nb, delta_nb)
+        interface._initialize_statistical_model(expected)
+        interface._expectation_fixed = True
+        return interface
 
     def _initialize_statistical_model(
         self, expected: Optional[ExpectationType] = ExpectationType.observed
     ) -> None:
         """
         Initialize the statistical model
-        :param expected: expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, expected (true, apriori) or aposteriori
         """
-        if self._exp != expected or self._exp is None:
+        if (self._exp != expected or self._exp is None) and not self._expectation_fixed:
             self._exp = expected
             self.workspace, self.model, self.data = initialise_workspace(
                 self.signal,
@@ -219,6 +241,7 @@ class PyhfInterface:
         nll: Optional[bool] = False,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
+        isAsimov: Optional[bool] = False,
         iteration_threshold: Optional[int] = 3,
     ) -> Tuple[float, float]:
         """
@@ -227,13 +250,25 @@ class PyhfInterface:
         :param nll: if true, likelihood will be returned
         :param expected: observed, expected (true, apriori) or aposteriori
         :param allow_negative_signal: allow negative POI
+        :param isAsimov: if true, computes likelihood for Asimov data
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
         :return: muhat, maximum of the likelihood
         """
         self._initialize_statistical_model(expected)
+        data = self.data
+        if isAsimov:
+            data = generate_asimov_data(
+                0.0,
+                self.data,
+                self.model,
+                self.model.config.suggested_init(),
+                self.model.config.suggested_bounds(),
+                self.model.config.suggested_fixed(),
+                return_fitted_pars=False,
+            )
 
         muhat, negloglikelihood = compute_min_negloglikelihood(
-            self.data, self.model, allow_negative_signal, iteration_threshold
+            data, self.model, allow_negative_signal, iteration_threshold
         )
 
         return muhat, negloglikelihood if nll else np.exp(-negloglikelihood)
