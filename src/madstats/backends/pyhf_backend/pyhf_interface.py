@@ -93,10 +93,9 @@ class PyhfInterface(BackendBase):
         :param mu: POI (signal strength)
         :param expected: observed, expected (true, apriori) or aposteriori
         :param iteration_threshold: sets threshold on when to stop
-        :param kwargs:
         :return: CLs values {"CLs_obs": xx, "CLs_exp": [xx] * 5} or single CLs value
         """
-
+        expected = ExpectationType.as_expectationtype(expected)
         self._initialize_statistical_model(expected)
 
         if self.model is None or self.data is None:
