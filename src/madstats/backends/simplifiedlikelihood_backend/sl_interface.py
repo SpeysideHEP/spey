@@ -7,6 +7,7 @@ from .upper_limit_computer import UpperLimitComputer
 
 from typing import Union, Dict, Optional, Tuple
 import numpy as np
+import scipy
 
 
 class SimplifiedLikelihoodInterface(BackendBase):
@@ -129,13 +130,29 @@ class SimplifiedLikelihoodInterface(BackendBase):
         :param kwargs:
         :return: muhat, maximum of the likelihood
         """
+        # TODO add Asimov construction
         data = self.data
         if expected == ExpectationType.apriori:
             data = self.data.get_expected()
         computer = LikelihoodComputer(data)
-        res = computer.findMuHat(
-            allowNegativeSignals=allow_negative_signal,
-            nll=return_nll,
-            extended_output=True,
+
+        negloglikelihood = lambda mu: computer.likelihood(mu[0], marginalize=False, nll=True)
+
+        muhat = np.random.uniform(-1.0, 1.0, (1,))
+
+        opt = scipy.optimize.minimize(
+            negloglikelihood,
+            muhat,
+            method="COBYLA",
+            tol=1e-6,
+            options={"maxiter": 10000},
         )
-        return res["muhat"], res["lmax"]
+
+        if not opt.success:
+            raise Warning("Optimisation has not been successful.")
+
+        if not allow_negative_signal and opt.x[0] < 0.0:
+            nll = negloglikelihood([0.0])
+            return 0.0, nll if return_nll else np.exp(-nll)
+
+        return opt.x[0], opt.fun if return_nll else np.exp(-opt.fun)
