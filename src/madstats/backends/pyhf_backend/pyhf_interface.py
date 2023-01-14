@@ -1,5 +1,5 @@
 import logging, scipy
-from typing import Sequence, Dict, Union, Optional, Tuple, List
+from typing import Dict, Union, Optional, Tuple, List
 from numpy import warnings, isnan
 import numpy as np
 
@@ -182,7 +182,7 @@ class PyhfInterface(BackendBase):
         mu: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: bool = False,
-        nll: Optional[bool] = False,
+        return_nll: Optional[bool] = False,
         isAsimov: Optional[bool] = False,
         mu_lim: Optional[Tuple[float, float]] = (-20.0, 40.0),
         iteration_threshold: Optional[int] = 3,
@@ -193,7 +193,7 @@ class PyhfInterface(BackendBase):
         :param mu: POI (signal strength)
         :param expected: observed, expected (true, apriori) or aposteriori
         :param allow_negative_signal: if true, POI can get negative values
-        :param nll: if true returns negative log-likelihood value
+        :param return_nll: if true returns negative log-likelihood value
         :param isAsimov: if true, computes likelihood for Asimov data
         :param mu_lim: boundaries for mu
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
@@ -234,11 +234,11 @@ class PyhfInterface(BackendBase):
             iteration_threshold,
         )
 
-        return negloglikelihood if nll else np.exp(-negloglikelihood)
+        return negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
     def maximize_likelihood(
         self,
-        nll: Optional[bool] = False,
+        return_nll: Optional[bool] = False,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
         isAsimov: Optional[bool] = False,
@@ -247,7 +247,7 @@ class PyhfInterface(BackendBase):
         """
         Find the POI that maximizes the likelihood and the value of the maximum likelihood
 
-        :param nll: if true, likelihood will be returned
+        :param return_nll: if true, likelihood will be returned
         :param expected: observed, expected (true, apriori) or aposteriori
         :param allow_negative_signal: allow negative POI
         :param isAsimov: if true, computes likelihood for Asimov data
@@ -271,7 +271,7 @@ class PyhfInterface(BackendBase):
             data, self.model, allow_negative_signal, iteration_threshold
         )
 
-        return muhat, negloglikelihood if nll else np.exp(-negloglikelihood)
+        return muhat, negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
     def chi2(
         self,
