@@ -1,0 +1,1 @@
+available_backends = ["pyhf", "simplified_likelihoods"]
