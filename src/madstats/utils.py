@@ -1,7 +1,7 @@
 from enum import Enum, auto
 from dataclasses import dataclass, field
 import numpy as np
-from typing import Text, List
+from typing import Text, List, Union
 
 
 class ExpectationType(Enum):
@@ -26,20 +26,33 @@ class ExpectationType(Enum):
             return other == current
         elif isinstance(other, bool):
             return self == (ExpectationType.apriori if other else ExpectationType.observed)
+        elif other is None:
+            return False
         else:
-            raise ValueError(f"Unknown comparison: type({other}) == {type(other)}")
+            raise ValueError(f"Unknown comparison: type({other}) = {type(other)}")
 
     @staticmethod
-    def as_expectationtype(other):
+    def as_expectationtype(other: Union[Text, bool]):
+        """
+        Convert string or boolean into expectation type
+
+        :param other: input that needs to be converted to expectation type.
+        :return: ExpectationType object
+        :raises ValueError: if can not find the appropriate expectation type.
+        """
         if isinstance(other, ExpectationType):
             return other
         elif isinstance(other, (str, bool)):
-            if other == "aposteriori":
+            if other in ["aposteriori", "posteriori"]:
                 return ExpectationType.aposteriori
-            elif other == "apriori" or other == True:
+            elif other in ["apriori", "expected"] or other is True:
                 return ExpectationType.apriori
-            else:
+            elif other == "observed" or other is False:
                 return ExpectationType.observed
+            else:
+                raise ValueError(f"Unknown expectation type: {other}")
+        else:
+            raise ValueError(f"Unknown expectation type: {other}")
 
 
 class Units(Enum):
@@ -71,6 +84,15 @@ class Units(Enum):
 
 
 @dataclass(frozen=True)
+class Dataset:
+    xsection: field(default=1.0, repr=True)
+    name: Text = field(default="__unknown_dataset__", repr=True)
+
+    def __repr__(self):
+        return f"Dataset(name = '{self.name}', xsection = {self.xsection:.5f} [pb])"
+
+
+@dataclass(frozen=True)
 class Region:
     nobs: int
     nb: float
@@ -82,9 +104,9 @@ class Region:
 @dataclass(frozen=True)
 class Analysis:
     name: Text = field(default="__unknown_analysis__")
-    sqrts: float = field(default=13.0 * Units.GeV)
+    sqrts: float = field(default=13.0)
     regiondata: List[Region] = field(default_factory=list)
-    luminosity: float = field(default=1.0 * Units.fb)
+    luminosity: float = field(default=1.0)
 
     def __repr__(self):
         txt = (
