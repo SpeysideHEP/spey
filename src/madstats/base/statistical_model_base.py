@@ -21,7 +21,7 @@ class StatisticalModelBase(ABC):
         mu: Optional[float] = 1.0,
         expected: Optional[bool] = False,
         allow_negative_signal: Optional[bool] = False,
-        nll: Optional[bool] = False,
+        return_nll: Optional[bool] = False,
         isAsimov: Optional[bool] = False,
     ) -> float:
         """
@@ -30,7 +30,7 @@ class StatisticalModelBase(ABC):
         :param mu: POI (signal strength)
         :param expected: observed, expected (true, apriori) or aposteriori
         :param allow_negative_signal: if true, POI can get negative values
-        :param nll: if true returns negative log-likelihood value
+        :param return_nll: if true returns negative log-likelihood value
         :param isAsimov: if true, computes likelihood for Asimov data
         :return: (float) likelihood
         """
