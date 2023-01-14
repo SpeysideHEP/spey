@@ -19,7 +19,7 @@ def initialise_workspace(
     nb: Optional[float] = None,
     delta_nb: Optional[float] = None,
     expected: Optional[ExpectationType] = ExpectationType.observed,
-) -> Tuple[pyhf.Workspace, pyhf.pdf, np.ndarray]:
+) -> Tuple[pyhf.Workspace, pyhf.pdf.Model, np.ndarray]:
     """
     Construct the statistical model with respect to the given inputs.
 
