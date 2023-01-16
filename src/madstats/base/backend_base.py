@@ -25,7 +25,7 @@ class BackendBase(ABC):
         :param mu: POI (signal strength)
         :param expected: observed, expected (true, apriori) or aposteriori
         :param kwargs: backend specific inputs
-        :return: CLs values {"CLs_obs": xx, "CLs_exp": [xx] * 5} or single CLs value
+        :return: 1 - CLs values
         """
         raise NotImplemented("This method has not been implemented")
 
