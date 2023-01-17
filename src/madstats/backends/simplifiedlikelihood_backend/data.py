@@ -83,7 +83,11 @@ class DataNew:
     @property
     def var_s(self) -> np.ndarray:
         """Variance of the signal yields"""
-        return np.diag(np.square(self.signal * self.delta_sys))
+        return self.var_smu(1.0)
+
+    def var_smu(self, signal_strength: float) -> np.ndarray:
+        """Variance of the signal yields for a given signal strength"""
+        return np.diag(np.square(signal_strength * self * self.delta_sys))
 
     @property
     def isAlive(self) -> bool:
@@ -103,7 +107,7 @@ class DataNew:
     def compute_expansion(self) -> NamedTuple:
         """Compute the terms described in arXiv:1809.05548 eqs. 3.10, 3.11, 3.12, 3.13"""
         output = namedtuple("expansion", ["A", "B", "C", "rho", "V"])
-        if self.third_moment is None:
+        if self.isLinear:
             return output(None, None, None, None, None)
 
         diag_cov = self.diag_cov
