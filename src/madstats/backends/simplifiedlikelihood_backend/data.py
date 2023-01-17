@@ -1,7 +1,7 @@
 import numpy as np
 import copy
-from dataclasses import dataclass, field
-from typing import List, Text, Union, Optional, NamedTuple
+from dataclasses import dataclass
+from typing import Text, Optional, NamedTuple
 from collections import namedtuple
 
 
@@ -53,6 +53,14 @@ class DataNew:
             assert len(self.diag_cov) == len(
                 self.third_moment
             ), "Dimensionality of the third moment does not match with covariance matrix."
+
+    def __repr__(self):
+        return (
+            f"Data(\n    name='{self.name}',"
+            f"\n    data structure that represents {len(self)} regions,"
+            f"\n    delta_sys={self.delta_sys:.1f},"
+            f"\n    isLinear={self.isLinear}\n)"
+        )
 
     def reset_observations(self, observations: np.ndarray, name: Text):
         """
