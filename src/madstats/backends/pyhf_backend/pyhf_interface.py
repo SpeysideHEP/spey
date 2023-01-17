@@ -93,7 +93,17 @@ class PyhfInterface(BackendBase):
         :param mu: POI (signal strength)
         :param expected: observed, expected (true, apriori) or aposteriori
         :param iteration_threshold: sets threshold on when to stop
-        :return: CLs values {"CLs_obs": xx, "CLs_exp": [xx] * 5} or single CLs value
+        :param kwargs:
+            :param CLs_exp: if true return expected of the posterior fit
+            :param CLs_obs: if true return observed or apriori expectation depending on the
+                            expected flag.
+        :return: 1 - CLs values {"CLs_obs": xx, "CLs_exp": [xx] * 5} or a single 1 - CLs value
+
+        Note CLs_exp output is the expected of the posterior fit and comes with mean,
+        1sigma and 2sigma expected exclusion limits. If `kwargs = {"CLs_exp" : True}` only the mean
+        of CLs_exp will be returned, if `kwargs = {"CLs_obs":True}` only CLs_obs value will be
+        returned. For the expected of the prefit simply set `expected = ExpectationType.apriori`
+        and `kwargs = {"CLs_obs":True}`.
         """
         expected = ExpectationType.as_expectationtype(expected)
         self._initialize_statistical_model(expected)
