@@ -21,6 +21,7 @@ class DataNew:
     :raises TypeError: If the types of the inputs does not match the expected types
     :raises AssertionError: If the dimensionality of the inputs are wrong.
     """
+
     observed: np.ndarray
     signal: np.ndarray
     background: np.ndarray
@@ -53,18 +54,28 @@ class DataNew:
                 self.third_moment
             ), "Dimensionality of the third moment does not match with covariance matrix."
 
-    @property
-    def expected_dataset(self):
-        """Retrieve expected dataset"""
+    def reset_observations(self, observations: np.ndarray, name: Text):
+        """
+        Create the same statistical model with different observed yields
+
+        :param observations: new observed yields
+        :param name: name of the statistical model.
+        :return: creates a new dataset by replacing the observations
+        """
         return DataNew(
-            self.background,
+            observations,
             self.signal,
             self.background,
             self.covariance,
             self.delta_sys,
             self.third_moment,
-            f"{self.name}_exp",
+            name,
         )
+
+    @property
+    def expected_dataset(self):
+        """Retrieve expected dataset"""
+        return self.reset_observations(self.background, f"{self.name}_exp")
 
     def __len__(self) -> int:
         return len(self.observed)
@@ -131,10 +142,10 @@ class DataNew:
     def correlation_matrix(self) -> np.ndarray:
         """Compute correlation matrix computed from covariance matrix"""
         corr = np.zeros(shape=self.covariance.shape)
-        for idx in range(len(self)):
+        for idx in range(self.covariance.shape[0]):
             corr[idx][idx] = 1.0
-            for idy in range(idx + 1, len(self)):
-                rho = corr[idx][idy] / np.sqrt(
+            for idy in range(idx + 1, self.covariance.shape[0]):
+                rho = self.covariance[idx][idy] / np.sqrt(
                     self.covariance[idx][idx] * self.covariance[idy][idy]
                 )
                 corr[idx][idy] = rho
@@ -144,6 +155,10 @@ class DataNew:
     def __mul__(self, signal_strength: float) -> np.ndarray:
         """Multiply signal yields with signal strength"""
         return signal_strength * self.signal
+
+    def __rmul__(self, signal_strength: float) -> np.ndarray:
+        """Multiply signal yields with signal strength"""
+        return self.__mul__(signal_strength)
 
 
 class Data:
