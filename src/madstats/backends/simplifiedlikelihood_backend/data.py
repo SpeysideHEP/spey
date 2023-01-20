@@ -45,11 +45,15 @@ class Data:
         ):
             raise TypeError("Invalid type.")
 
+        assert len(self.covariance.shape) == 2, "Covariance input has to be matrix."
+
         assert (
             len(self.observed)
             == len(self.signal)
             == len(self.background)
             == self.covariance.shape[0]
+            == self.covariance.shape[1]
+            >= 1
         ), "Input shapes does not match"
 
         if self.third_moment is not None:
@@ -72,7 +76,12 @@ class Data:
         :param observations: new observed yields
         :param name: name of the statistical model.
         :return: creates a new dataset by replacing the observations
+        :raises AssertionError: if dimensionality of input does not match the
+                                current statistical model
         """
+        assert len(observations) == len(
+            self
+        ), "Dimensionality of the input does not match the statistical model."
         return Data(
             observations,
             self.signal,
@@ -109,6 +118,11 @@ class Data:
     def isLinear(self) -> bool:
         """Is statistical model linear? i.e. no quadratic term in the poissonians"""
         return self.third_moment is None
+
+    @property
+    def is_single_region(self) -> bool:
+        """Is the statistical model has only one region"""
+        return self.isLinear and len(self) == 1
 
     @property
     def diag_cov(self) -> np.ndarray:
