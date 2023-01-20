@@ -24,6 +24,9 @@ def marginalised_negloglikelihood(
     if model.is_single_region:
         return marginalised_negloglikelihood_singleregion(mu, model)
 
+    if third_moment_expansion is None:
+        third_moment_expansion = model.compute_expansion()
+
     signal_yields = mu * model
 
     thetas = scipy.stats.multivariate_normal.rvs(
