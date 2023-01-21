@@ -1,192 +1,141 @@
-from scipy import optimize
-from numpy import array
-import numpy as np
-import copy
+import scipy
 
-from typing import Text, Optional, Union, Tuple
-
-from smodels.tools.statistics import CLsfromNLL, determineBrentBracket
-from smodels.experiment.exceptions import SModelSExperimentError as SModelSError
+from typing import Optional
 
 from .data import Data
 from .likelihood_computer import LikelihoodComputer
+from .utils_cls import compute_confidence_limit
+from madstats.utils import ExpectationType
 
 
-class UpperLimitComputer:
-    debug_mode = False
+class UpperLimitComputerNew:
+    """
+    Toolset for computing exclusion limit for given statistical model
 
-    def __init__(self, ntoys: float = 30000, cl: float = 0.95):
+    :param model: contains all the information regarding the regions,
+                  yields and correlation matrices
+    :param ntoys: number of toy examples to run for the test statistics
+    """
 
-        """
-        :param ntoys: number of toys when marginalizing
-        :param cl: desired quantile for limits
-        """
-        self.toys = ntoys
-        self.cl = cl
+    __slots__ = "likelihood_computer"
 
-    def getUpperLimitOnSigmaTimesEff(
-        self, model, marginalize=False, toys=None, expected=False, trylasttime=False
-    ):
-        """upper limit on the fiducial cross section sigma times efficiency,
-            summed over all signal regions, i.e. sum_i xsec^prod_i eff_i
-            obtained from the defined Data (using the signal prediction
-            for each signal regio/dataset), by using
-            the q_mu test statistic from the CCGV paper (arXiv:1007.1727).
+    def __init__(self, model: Data, ntoys: Optional[int] = 30000):
+        self.likelihood_computer: LikelihoodComputer = LikelihoodComputer(model, ntoys)
 
-        :params marginalize: if true, marginalize nuisances, else profile them
-        :params toys: specify number of toys. Use default is none
-        :params expected: if false, compute observed,
-                          true: compute a priori expected, "posteriori":
-                          compute a posteriori expected
-        :params trylasttime: if True, then dont try extra
-        :returns: upper limit on fiducial cross section
-        """
-        ul = self.getUpperLimitOnMu(
-            model, marginalize=marginalize, toys=toys, expected=expected, trylasttime=trylasttime
-        )
+    @property
+    def model(self) -> Data:
+        """Return statistical model"""
+        return self.likelihood_computer.model
 
-        if ul == None:
-            return ul
-        if model.lumi is None:
-            raise Exception(
-                f"asked for upper limit on fiducial xsec, but no lumi given with the data"
-            )
-            return ul
-        xsec = sum(model.nsignal) / model.lumi
-        return ul * xsec
-
-    def getCLsRootFunc(
+    def _exclusion_tools(
         self,
-        data: Data,
-        marginalize: Optional[bool] = False,
-        toys: Optional[float] = None,
-        expected: Optional[Union[bool, Text]] = False,
-        trylasttime: Optional[bool] = False,
-    ) -> Tuple:
-        """
-        Obtain the function "CLs-alpha[0.05]" whose root defines the upper limit,
-        plus mu_hat and sigma_mu
-        :param data: statistical model
-        :param marginalize: if true, marginalize nuisances, else profile them
-        :param toys: specify number of toys. Use default is none
-        :param expected: if false, compute observed,
-                          true: compute a priori expected, "posteriori":
-                          compute a posteriori expected
-        :param trylasttime: if True, then dont try extra
-        :return: mu_hat, sigma_mu, CLs-alpha
-        """
-
-        if data.zeroSignal():
-            """only zeroes in efficiencies? cannot give a limit!"""
-            return None, None, None
-        if toys is None:
-            toys = self.toys
-
-        model = copy.deepcopy(data)
-        if expected:
-            # Set expected model where nobs are equal to the nb
-            theta_hat_ = np.zeros(data.observed.shape)
-            if expected == "posteriori":
-                tempc = LikelihoodComputer(data, toys)
-                theta_hat_, _ = tempc.findThetaHat(0)
-            model.observed = model.backgrounds + theta_hat_
-
-        computer = LikelihoodComputer(model, toys)
-        mu_hat = computer.findMuHat(allowNegativeSignals=False, extended_output=False)
-
-        # Compute nuisance parameters that maximizes the likelihood without signal
-        theta_hat0, _ = computer.findThetaHat(0.0)
-        sigma_mu0 = computer.getSigmaMu(mu_hat, theta_hat0)
-
-        nll0 = computer.likelihood(mu_hat, marginalize=marginalize, nll=True)
-        if np.isinf(nll0) and not marginalize and not trylasttime:
-            print(
-                "nll is infinite in profiling! we switch to marginalization, but only for this one!"
-            )
-            marginalize = True
-            # TODO convert rel_signals to signals
-            nll0 = computer.likelihood(mu=mu_hat, marginalize=True, nll=True)
-            if np.isinf(nll0):
-                print("marginalization didnt help either. switch back.")
-                marginalize = False
-            else:
-                print("marginalization worked.")
-
-        aModel = copy.deepcopy(model)
-        aModel.observed = array([x + y for x, y in zip(model.backgrounds, theta_hat0)])
-        aModel.name = aModel.name + "A"
-        compA = LikelihoodComputer(aModel, toys)
-        mu_hatA = compA.findMuHat()
-        nll0A = compA.likelihood(mu=mu_hatA, marginalize=marginalize, nll=True)
-
-        def clsRoot(mu: float, return_type: Text = "CLs-alpha") -> float:
-            """
-            Calculate the root
-            :param mu: float POI
-            :param return_type: (Text) can be "CLs-alpha", "1-CLs", "CLs"
-                        CLs-alpha: returns CLs - 0.05
-                        1-CLs: returns 1-CLs value
-                        CLs: returns CLs value
-            """
-            nll = computer.likelihood(mu, marginalize=marginalize, nll=True)
-            nllA = compA.likelihood(mu, marginalize=marginalize, nll=True)
-            return CLsfromNLL(nllA, nll0A, nll, nll0, return_type=return_type)
-
-        return mu_hat, sigma_mu0, clsRoot
-
-    def getUpperLimitOnMu(
-        self, model, marginalize=False, toys=None, expected=False, trylasttime=False
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        marginalise: Optional[bool] = False,
+        allow_negative_signal: Optional[bool] = False,
+        iteration_threshold: Optional[int] = 10000,
     ):
-        """upper limit on the signal strength multiplier mu
-            obtained from the defined Data (using the signal prediction
-
-            for each signal regio/dataset), by using
-            the q_mu test statistic from the CCGV paper (arXiv:1007.1727).
-
-        :params marginalize: if true, marginalize nuisances, else profile them
-        :params toys: specify number of toys. Use default is none
-        :params expected: if false, compute observed,
-                          true: compute a priori expected, "posteriori":
-                          compute a posteriori expected
-        :params trylasttime: if True, then dont try extra
-        :returns: upper limit on the signal strength multiplier mu
         """
-        mu_hat, sigma_mu, clsRoot = self.getCLsRootFunc(
-            model, marginalize, toys, expected, trylasttime
+        Compute tools needed for exclusion limit computation
+
+        :param expected: observed, expected (true, apriori) or aposteriori
+        :param marginalise: if true, marginalize the likelihood.
+                            if false compute profiled likelihood
+        :param allow_negative_signal: if true, allow negative mu
+        :param iteration_threshold: number of iterations to be held for convergence of the fit.
+        """
+        muhat, min_nll = self.likelihood_computer.maximize_likelihood(
+            return_nll=True,
+            expected=expected,
+            marginalise=marginalise,
+            allow_negative_signal=allow_negative_signal,
+            iteration_threshold=iteration_threshold,
         )
-        if mu_hat == None:
-            return None
-        try:
-            a, b = determineBrentBracket(mu_hat, sigma_mu, clsRoot, allowNegative=False)
-        except SModelSError as e:
-            return None
-        mu_lim = optimize.brentq(clsRoot, a, b, rtol=1e-03, xtol=1e-06)
-        return mu_lim
+
+        muhat_asimov, min_nll_asimov = self.likelihood_computer.maximize_likelihood(
+            return_nll=True,
+            expected=expected,
+            marginalise=marginalise,
+            allow_negative_signal=allow_negative_signal,
+            isAsimov=True,
+            iteration_threshold=iteration_threshold,
+        )
+
+        negloglikelihood = lambda mu: self.likelihood_computer.likelihood(
+            mu[0], expected=expected, return_nll=True, marginalize=marginalise
+        )
+        negloglikelihood_asimov = lambda mu: self.likelihood_computer.likelihood(
+            mu[0], expected=expected, return_nll=True, marginalize=marginalise, isAsimov=True
+        )
+
+        return min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood
 
     def computeCLs(
         self,
-        model: Data,
-        marginalize: bool = False,
-        toys: float = None,
-        expected: Union[bool, Text] = False,
-        trylasttime: bool = False,
-        return_type: Text = "1-CLs",
+        mu: float = 1.0,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        marginalise: Optional[bool] = False,
+        allow_negative_signal: Optional[bool] = False,
+        iteration_threshold: Optional[int] = 10000,
     ) -> float:
         """
-        Compute the exclusion confidence level of the model (1-CLs)
-        :param model: statistical model
-        :param marginalize: if true, marginalize nuisances, else profile them
-        :param toys: specify number of toys. Use default is none
-        :param expected: if false, compute observed,
-                          true: compute a priori expected, "posteriori":
-                          compute a posteriori expected
-        :param trylasttime: if True, then dont try extra
-        :param return_type: (Text) can be "CLs-alpha", "1-CLs", "CLs"
-                        CLs-alpha: returns CLs - 0.05 (alpha)
-                        1-CLs: returns 1-CLs value
-                        CLs: returns CLs value
+        Compute 1 - CLs value
+
+        :param mu: POI (signal strength)
+        :param expected: observed, expected (true, apriori) or aposteriori
+        :param marginalise: if true, marginalize the likelihood.
+                            if false compute profiled likelihood
+        :param allow_negative_signal: if true, allow negative mu
+        :param iteration_threshold: number of iterations to be held for convergence of the fit.
+        :return: 1 - CLs
         """
-        _, _, clsRoot = self.getCLsRootFunc(model, marginalize, toys, expected, trylasttime)
-        ret = clsRoot(1.0, return_type=return_type)
-        # its not an uppser limit on mu, its on nsig
-        return ret
+        min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood = self._exclusion_tools(
+            expected=expected,
+            marginalise=marginalise,
+            allow_negative_signal=allow_negative_signal,
+            iteration_threshold=iteration_threshold,
+        )
+
+        return 1.0 - compute_confidence_limit(
+            mu, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll
+        )
+
+    def computeUpperLimitOnMu(
+        self,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        marginalise: Optional[bool] = False,
+        allow_negative_signal: Optional[bool] = False,
+        iteration_threshold: Optional[int] = 10000,
+    ) -> float:
+        """
+        Compute the POI where the signal is excluded with 95% CL
+
+        :param expected: observed, expected (true, apriori) or aposteriori
+        :param marginalise: if true, marginalize the likelihood.
+                            if false compute profiled likelihood
+        :param allow_negative_signal: if true, allow negative mu
+        :param iteration_threshold: number of iterations to be held for convergence of the fit.
+        :return: excluded POI value at 95% CLs
+        """
+
+        min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood = self._exclusion_tools(
+            expected=expected,
+            marginalise=marginalise,
+            allow_negative_signal=allow_negative_signal,
+            iteration_threshold=iteration_threshold,
+        )
+
+        computer = lambda mu: 0.05 - compute_confidence_limit(
+            mu, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll
+        )
+
+        low, hig = 1.0, 1.0
+        while computer(low) > 0.95:
+            low *= 0.1
+            if low < 1e-10:
+                break
+        while computer(hig) < 0.95:
+            hig *= 10.0
+            if hig > 1e10:
+                break
+
+        return scipy.optimize.brentq(computer, low, hig, xtol=low / 100.0)
