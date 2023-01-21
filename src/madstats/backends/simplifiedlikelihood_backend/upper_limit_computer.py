@@ -8,7 +8,7 @@ from .utils_cls import compute_confidence_limit
 from madstats.utils import ExpectationType
 
 
-class UpperLimitComputerNew:
+class UpperLimitComputer:
     """
     Toolset for computing exclusion limit for given statistical model
 
