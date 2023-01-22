@@ -2,7 +2,7 @@ from madstats.base.backend_base import BackendBase
 from .data import Data, expansion_output
 from .utils_theta import compute_min_negloglikelihood_theta
 from .utils_marginalised import marginalised_negloglikelihood
-from madstats.utils_cls import compute_confidence_level
+from madstats.tools.utils_cls import compute_confidence_level
 from madstats.utils import ExpectationType
 from madstats.backends import AvailableBackends
 

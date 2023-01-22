@@ -6,7 +6,6 @@ from madstats.base.backend_base import BackendBase
 from madstats.backends import AvailableBackends
 
 
-@dataclass(frozen=True)
 class StatisticalModel:
     """
     Statistical model base
@@ -16,14 +15,17 @@ class StatisticalModel:
     :param analysis: name of the analysis
     """
 
-    backend: BackendBase
-    xsection: float
-    analysis: Text = "__unknown_analysis__"
+    def __init__(
+        self, backend: BackendBase, xsection: float, analysis: Text = "__unknown_analysis__"
+    ):
+        self._backend: BackendBase = backend
+        self.xsection: float = xsection
+        self.analysis: Text = analysis
 
-    def __post_init__(self):
-        # validate statistical model
-        assert isinstance(self.backend, BackendBase), "Unknown statistical model."
-        assert isinstance(self.xsection, float), "Cross section is not given as float."
+    @property
+    def backend(self) -> BackendBase:
+        """Get backend"""
+        return self._backend
 
     @property
     def backend_type(self) -> AvailableBackends:
