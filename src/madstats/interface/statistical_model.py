@@ -18,6 +18,7 @@ class StatisticalModel:
     def __init__(
         self, backend: BackendBase, xsection: float, analysis: Text = "__unknown_analysis__"
     ):
+        assert isinstance(backend, BackendBase), "Invalid backend"
         self._backend: BackendBase = backend
         self.xsection: float = xsection
         self.analysis: Text = analysis
