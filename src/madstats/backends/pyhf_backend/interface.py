@@ -10,7 +10,7 @@ from madstats.utils import ExpectationType
 from madstats.base.backend_base import BackendBase
 from .utils import compute_negloglikelihood, compute_min_negloglikelihood
 from .data import Data
-from madstats.backends import available_backends
+from madstats.backends import AvailableBackends
 
 pyhf.pdf.log.setLevel(logging.CRITICAL)
 pyhf.workspace.log.setLevel(logging.CRITICAL)
@@ -37,8 +37,8 @@ class PyhfInterface(BackendBase):
         return self._model
 
     @property
-    def type(self) -> available_backends:
-        return available_backends.pyhf
+    def type(self) -> AvailableBackends:
+        return AvailableBackends.pyhf
 
     def computeCLs(
         self,

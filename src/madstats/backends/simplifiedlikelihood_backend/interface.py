@@ -4,7 +4,7 @@ from .utils_theta import compute_min_negloglikelihood_theta
 from .utils_marginalised import marginalised_negloglikelihood
 from madstats.utils_cls import compute_confidence_level
 from madstats.utils import ExpectationType
-from madstats.backends import available_backends
+from madstats.backends import AvailableBackends
 
 from typing import Optional, Tuple
 import numpy as np
@@ -42,8 +42,8 @@ class SimplifiedLikelihoodInterface(BackendBase):
         return self._third_moment_expansion
 
     @property
-    def type(self) -> available_backends:
-        return available_backends.simplified_likelihoods
+    def type(self) -> AvailableBackends:
+        return AvailableBackends.simplified_likelihoods
 
     def likelihood(
         self,

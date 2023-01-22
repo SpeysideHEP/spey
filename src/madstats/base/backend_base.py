@@ -2,13 +2,13 @@ from abc import ABC, abstractmethod
 from typing import Optional, Union, Dict, Tuple
 
 from madstats.utils import ExpectationType
-from madstats.backends import available_backends
+from madstats.backends import AvailableBackends
 
 
 class BackendBase(ABC):
     @abstractmethod
     @property
-    def type(self) -> available_backends:
+    def type(self) -> AvailableBackends:
         """Type of the backend"""
         raise NotImplementedError("This method has not been implemented")
 

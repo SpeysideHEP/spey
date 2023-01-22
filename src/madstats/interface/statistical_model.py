@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from madstats.utils import ExpectationType
 from madstats.base.backend_base import BackendBase
-from madstats.backends import available_backends
+from madstats.backends import AvailableBackends
 
 
 @dataclass(frozen=True)
@@ -26,7 +26,7 @@ class StatisticalModel:
         assert isinstance(self.xsection, float), "Cross section is not given as float."
 
     @property
-    def backend_type(self) -> available_backends:
+    def backend_type(self) -> AvailableBackends:
         return self.backend.type
 
     def excluded_cross_section(
@@ -54,7 +54,7 @@ class StatisticalModel:
         :param kwargs: backend specific inputs.
         :return: 1-CLs value (float)
         """
-        if self.backend_type is available_backends.pyhf:
+        if self.backend_type is AvailableBackends.pyhf:
             kwargs.update(
                 dict(
                     CLs_obs=expected in [ExpectationType.apriori, ExpectationType.observed],

@@ -3,7 +3,7 @@ from .base.backend_base import BackendBase
 from typing import Text, Union, List, Dict, Optional
 import numpy as np
 
-from madstats.backends import available_backends
+from madstats.backends import AvailableBackends
 from madstats.interface.statistical_model import StatisticalModel
 
 
@@ -15,7 +15,7 @@ def get_single_region_statistical_model(
     xsection: float,
     lumi: float,
     analysis: Text,
-    backend: available_backends,
+    backend: AvailableBackends,
 ) -> StatisticalModel:
     """
     Create statistical model from a single bin
@@ -32,7 +32,7 @@ def get_single_region_statistical_model(
 
     :raises NotImplementedError: If requested backend has not been recognised.
     """
-    if backend == available_backends.pyhf:
+    if backend == AvailableBackends.pyhf:
         from madstats.backends.pyhf_backend.interface import PyhfInterface, Data
 
         model = Data(
@@ -42,7 +42,7 @@ def get_single_region_statistical_model(
             backend=PyhfInterface(model=model), xsection=xsection, analysis=analysis
         )
 
-    elif backend == available_backends.simplified_likelihoods:
+    elif backend == AvailableBackends.simplified_likelihoods:
         from madstats.backends.simplifiedlikelihood_backend.interface import (
             SimplifiedLikelihoodInterface,
             Data,
@@ -63,7 +63,7 @@ def get_single_region_statistical_model(
     else:
         raise NotImplementedError(
             f"Requested backend ({backend}) has not been implemented. "
-            f"Currently available backends are " + ", ".join(available_backends) + "."
+            f"Currently available backends are " + ", ".join(AvailableBackends) + "."
         )
 
 
