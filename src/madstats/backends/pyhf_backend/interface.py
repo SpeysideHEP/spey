@@ -10,6 +10,7 @@ from madstats.utils import ExpectationType
 from madstats.base.backend_base import BackendBase
 from .utils import compute_negloglikelihood, compute_min_negloglikelihood
 from .data import Data
+from madstats.backends import available_backends
 
 pyhf.pdf.log.setLevel(logging.CRITICAL)
 pyhf.workspace.log.setLevel(logging.CRITICAL)
@@ -34,6 +35,10 @@ class PyhfInterface(BackendBase):
     def model(self) -> Data:
         """Retrieve statistical model"""
         return self._model
+
+    @property
+    def type(self) -> available_backends:
+        return available_backends.pyhf
 
     def computeCLs(
         self,
@@ -268,7 +273,7 @@ class PyhfInterface(BackendBase):
         )
 
     def computeUpperLimitOnMu(
-        self, expected: Optional[ExpectationType] = ExpectationType.observed
+        self, expected: Optional[ExpectationType] = ExpectationType.observed, **kwargs
     ) -> float:
         """
         Compute the POI where the signal is excluded with 95% CL
@@ -276,10 +281,12 @@ class PyhfInterface(BackendBase):
         :param expected: observed, expected (true, apriori) or aposteriori
         :return: mu
         """
-        kwargs = dict(
-            expected=expected,
-            CLs_obs=expected in [ExpectationType.apriori, ExpectationType.observed],
-            CLs_exp=expected == ExpectationType.aposteriori,
+        kwargs.update(
+            dict(
+                expected=expected,
+                CLs_obs=expected in [ExpectationType.apriori, ExpectationType.observed],
+                CLs_exp=expected == ExpectationType.aposteriori,
+            )
         )
         computer = lambda mu: self.computeCLs(mu=mu, **kwargs) - 0.95
 

@@ -2,9 +2,16 @@ from abc import ABC, abstractmethod
 from typing import Optional, Union, Dict, Tuple
 
 from madstats.utils import ExpectationType
+from madstats.backends import available_backends
 
 
 class BackendBase(ABC):
+    @abstractmethod
+    @property
+    def type(self) -> available_backends:
+        """Type of the backend"""
+        raise NotImplementedError("This method has not been implemented")
+
     @abstractmethod
     def computeCLs(
         self,
@@ -24,7 +31,7 @@ class BackendBase(ABC):
 
     @abstractmethod
     def computeUpperLimitOnMu(
-        self, expected: Optional[ExpectationType] = ExpectationType.observed
+        self, expected: Optional[ExpectationType] = ExpectationType.observed, **kwargs
     ) -> float:
         """
         Compute the POI where the signal is excluded with 95% CL

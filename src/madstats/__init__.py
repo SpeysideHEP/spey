@@ -4,6 +4,7 @@ from typing import Text, Union, List, Dict, Optional
 import numpy as np
 
 from madstats.backends import available_backends
+from madstats.interface.statistical_model import StatisticalModel
 
 
 def get_single_region_statistical_model(
@@ -13,8 +14,9 @@ def get_single_region_statistical_model(
     signal_eff: float,
     xsection: float,
     lumi: float,
+    analysis: Text,
     backend: available_backends,
-) -> BackendBase:
+) -> StatisticalModel:
     """
     Create statistical model from a single bin
 
@@ -24,6 +26,7 @@ def get_single_region_statistical_model(
     :param signal_eff: signal efficiency
     :param xsection: cross-section in pb
     :param lumi: luminosity in 1/fb
+    :param analysis: name of the analysis
     :param backend: pyhf or simplified_likelihoods
     :return: Statistical model
 
@@ -35,7 +38,9 @@ def get_single_region_statistical_model(
         model = Data(
             signal=signal_eff * xsection * Units.fb * lumi, background=nobs, nb=nb, delta_nb=deltanb
         )
-        return PyhfInterface(model=model)
+        return StatisticalModel(
+            backend=PyhfInterface(model=model), xsection=xsection, analysis=analysis
+        )
 
     elif backend == available_backends.simplified_likelihoods:
         from madstats.backends.simplifiedlikelihood_backend.interface import (
@@ -51,7 +56,9 @@ def get_single_region_statistical_model(
             delta_sys=0.0,
             name="model",
         )
-        return SimplifiedLikelihoodInterface(model=model)
+        return StatisticalModel(
+            backend=SimplifiedLikelihoodInterface(model=model), xsection=xsection, analysis=analysis
+        )
 
     else:
         raise NotImplementedError(
@@ -67,7 +74,9 @@ def get_multi_region_statistical_model(
     nb: Optional[np.ndarray] = None,
     third_moment: Optional[np.ndarray] = None,
     delta_sys: float = 0.2,
-) -> BackendBase:
+    xsection: float = 1.0,
+    analysis: Text = "__unknown_analysis__",
+) -> StatisticalModel:
     """
     Create a statistical model from multibin data.
 
@@ -84,6 +93,8 @@ def get_multi_region_statistical_model(
     :param nb: number of expected background yields. Only used for simplified likelihood backend.
     :param third_moment: third moment. Only used for simplified likelihood backend.
     :param delta_sys: systematic uncertainty on signal. Only used for simplified likelihood backend.
+    :param xsection: cross-section in pb
+    :param analysis: name of the analysis
     :return: Statistical model
 
     :raises NotImplementedError: if input patter does not match to any backend specific input option
@@ -95,7 +106,9 @@ def get_multi_region_statistical_model(
         from madstats.backends.pyhf_backend.data import Data
 
         model = Data(signal=signal, background=background)
-        return PyhfInterface(model=model)
+        return StatisticalModel(
+            backend=PyhfInterface(model=model), xsection=xsection, analysis=analysis
+        )
 
     elif (
         covariance is not None
@@ -123,7 +136,9 @@ def get_multi_region_statistical_model(
             name="model",
         )
 
-        return SimplifiedLikelihoodInterface(model=model)
+        return StatisticalModel(
+            backend=SimplifiedLikelihoodInterface(model=model), xsection=xsection, analysis=analysis
+        )
 
     else:
         raise NotImplementedError("Requested backend has not been recognised.")
