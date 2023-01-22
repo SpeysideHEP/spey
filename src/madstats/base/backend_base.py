@@ -6,11 +6,6 @@ from madstats.utils import ExpectationType
 
 
 class BackendBase(ABC):
-    def __init__(
-        self, signal: Union[List, float, np.ndarray], background: Union[Dict, float, np.ndarray]
-    ):
-        self.signal = signal
-        self.background = background
 
     @abstractmethod
     def computeCLs(

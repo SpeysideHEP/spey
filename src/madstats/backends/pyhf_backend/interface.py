@@ -1,5 +1,5 @@
 import logging, scipy
-from typing import Dict, Union, Optional, Tuple, List
+from typing import Dict, Union, Optional, Tuple
 from numpy import warnings, isnan
 import numpy as np
 
@@ -8,7 +8,8 @@ from pyhf.infer.calculators import generate_asimov_data
 
 from madstats.utils import ExpectationType
 from madstats.base.backend_base import BackendBase
-from .utils import compute_negloglikelihood, initialise_workspace, compute_min_negloglikelihood
+from .utils import compute_negloglikelihood, compute_min_negloglikelihood
+from .data import Data
 
 pyhf.pdf.log.setLevel(logging.CRITICAL)
 pyhf.workspace.log.setLevel(logging.CRITICAL)
@@ -25,60 +26,13 @@ class PyhfInterface(BackendBase):
     :param delta_nb: uncertainty on backgorund. In case of statistical model it is not needed
     """
 
-    def __init__(
-        self,
-        signal: Union[List, float],
-        background: Union[Dict, float],
-        nb: Optional[float] = None,
-        delta_nb: Optional[float] = None,
-    ):
-        super().__init__(signal, background)
-        self.model, self.data, self.workspace, self._exp = None, None, None, None
+    def __init__(self, model: Data):
+        self._model = model
 
-        self.nb = nb
-        self.delta_nb = delta_nb
-        self._expectation_fixed = False
-
-    @classmethod
-    def fixed_expectation(
-        cls,
-        signal: Union[List, float],
-        background: Union[Dict, float],
-        nb: Optional[float] = None,
-        delta_nb: Optional[float] = None,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-    ):
-        """
-        Fixing the expectation prevents reinitialising the
-        statistical model and allows faster computation.
-
-        :param signal: either histfactory type signal patch or float value of number of events
-        :param background: either background only JSON histfactory or float value of observed data
-        :param nb: expected number of background events. In case of statistical model it is not needed
-        :param delta_nb: uncertainty on backgorund. In case of statistical model it is not needed
-        :param expected: observed, expected (true, apriori) or aposteriori
-        """
-        interface = cls(signal, background, nb, delta_nb)
-        interface._initialize_statistical_model(expected)
-        interface._expectation_fixed = True
-        return interface
-
-    def _initialize_statistical_model(
-        self, expected: Optional[ExpectationType] = ExpectationType.observed
-    ) -> None:
-        """
-        Initialize the statistical model
-        :param expected: observed, expected (true, apriori) or aposteriori
-        """
-        if (self._exp != expected or self._exp is None) and not self._expectation_fixed:
-            self._exp = expected
-            self.workspace, self.model, self.data = initialise_workspace(
-                self.signal,
-                self.background,
-                self.nb,
-                self.delta_nb,
-                expected,
-            )
+    @property
+    def model(self) -> Data:
+        """Retrieve statistical model"""
+        return self._model
 
     def computeCLs(
         self,
@@ -105,10 +59,7 @@ class PyhfInterface(BackendBase):
         returned. For the expected of the prefit simply set `expected = ExpectationType.apriori`
         and `kwargs = {"CLs_obs":True}`.
         """
-        expected = ExpectationType.as_expectationtype(expected)
-        self._initialize_statistical_model(expected)
-
-        if self.model is None or self.data is None:
+        if not self.model.isAlive:
             if "CLs_exp" in kwargs.keys() or "CLs_obs" in kwargs.keys():
                 return -1
             else:
@@ -139,34 +90,36 @@ class PyhfInterface(BackendBase):
                 "CLs_exp": list(map(lambda x: float(1.0 - x), CLs_exp)),
             }
 
+        _, model, data = self.model(mu=1.0, expected=expected)
+
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
             # pyhf can raise an error if the poi_test bounds are too stringent
             # they need to be updated dynamically.
-            arguments = dict(bounds=self.model.config.suggested_bounds(), stats="qtilde")
+            arguments = dict(bounds=model.config.suggested_bounds(), stats="qtilde")
             it = 0
             while True:
-                CLs = get_CLs(self.model, self.data, **arguments)
+                CLs = get_CLs(model, data, **arguments)
                 if CLs == "update bounds":
-                    arguments["bounds"][self.model.config.poi_index] = (
-                        arguments["bounds"][self.model.config.poi_index][0],
-                        2 * arguments["bounds"][self.model.config.poi_index][1],
+                    arguments["bounds"][model.config.poi_index] = (
+                        arguments["bounds"][model.config.poi_index][0],
+                        2 * arguments["bounds"][model.config.poi_index][1],
                     )
                     logging.getLogger("MA5").debug(
                         "Hypothesis test inference integration bounds has been increased to "
-                        + str(arguments["bounds"][self.model.config.poi_index])
+                        + str(arguments["bounds"][model.config.poi_index])
                     )
                     it += 1
                 elif isinstance(CLs, dict):
                     if isnan(CLs["CLs_obs"]) or any([isnan(x) for x in CLs["CLs_exp"]]):
                         arguments["stats"] = "q"
-                        arguments["bounds"][self.model.config.poi_index] = (
-                            arguments["bounds"][self.model.config.poi_index][0] - 5,
-                            arguments["bounds"][self.model.config.poi_index][1],
+                        arguments["bounds"][model.config.poi_index] = (
+                            arguments["bounds"][model.config.poi_index][0] - 5,
+                            arguments["bounds"][model.config.poi_index][1],
                         )
                         logging.getLogger("MA5").debug(
                             "Hypothesis test inference integration bounds has been increased to "
-                            + str(arguments["bounds"][self.model.config.poi_index])
+                            + str(arguments["bounds"][model.config.poi_index])
                         )
                     else:
                         break
@@ -208,12 +161,10 @@ class PyhfInterface(BackendBase):
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
         :return: (float) likelihood
         """
-        expected = ExpectationType.as_expectationtype(expected)
 
-        self._initialize_statistical_model(expected)
-        data = self.data
+        _, model, data = self.model(mu=1.0, expected=expected)
 
-        if self.model is None or self.data is None:
+        if not self.model.isAlive:
             return -1
         # set a threshold for mu
         if not isinstance(mu, float):
@@ -227,18 +178,18 @@ class PyhfInterface(BackendBase):
         if isAsimov:
             data = generate_asimov_data(
                 0.0,
-                self.data,
-                self.model,
-                self.model.config.suggested_init(),
-                self.model.config.suggested_bounds(),
-                self.model.config.suggested_fixed(),
+                data,
+                model,
+                model.config.suggested_init(),
+                model.config.suggested_bounds(),
+                model.config.suggested_fixed(),
                 return_fitted_pars=False,
             )
 
         negloglikelihood = compute_negloglikelihood(
             mu,
             data,
-            self.model,
+            model,
             allow_negative_signal,
             iteration_threshold,
         )
@@ -263,21 +214,20 @@ class PyhfInterface(BackendBase):
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
         :return: muhat, maximum of the likelihood
         """
-        self._initialize_statistical_model(expected)
-        data = self.data
+        _, model, data = self.model(mu=1.0, expected=expected)
         if isAsimov:
             data = generate_asimov_data(
                 0.0,
-                self.data,
-                self.model,
-                self.model.config.suggested_init(),
-                self.model.config.suggested_bounds(),
-                self.model.config.suggested_fixed(),
+                data,
+                model,
+                model.config.suggested_init(),
+                model.config.suggested_bounds(),
+                model.config.suggested_fixed(),
                 return_fitted_pars=False,
             )
 
         muhat, negloglikelihood = compute_min_negloglikelihood(
-            data, self.model, allow_negative_signal, iteration_threshold
+            data, model, allow_negative_signal, iteration_threshold
         )
 
         return muhat, negloglikelihood if return_nll else np.exp(-negloglikelihood)
@@ -312,8 +262,6 @@ class PyhfInterface(BackendBase):
         :param expected: observed, expected (true, apriori) or aposteriori
         :return: mu
         """
-        expected = ExpectationType.as_expectationtype(expected)
-
         kwargs = dict(
             expected=expected,
             CLs_obs=expected in [ExpectationType.apriori, ExpectationType.observed],
