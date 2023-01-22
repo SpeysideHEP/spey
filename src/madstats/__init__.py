@@ -13,7 +13,7 @@ def get_single_region_statistical_model(
     signal_eff: float,
     xsection: float,
     lumi: float,
-    backend: Text,
+    backend: available_backends,
 ) -> BackendBase:
     """
     Create statistical model from a single bin
@@ -29,27 +29,29 @@ def get_single_region_statistical_model(
 
     :raises NotImplementedError: If requested backend has not been recognised.
     """
-    if backend == "pyhf":
-        from madstats.backends.pyhf_backend.interface import PyhfInterface
+    if backend == available_backends.pyhf:
+        from madstats.backends.pyhf_backend.interface import PyhfInterface, Data
 
-        return PyhfInterface(
-            signal=signal_eff * xsection * Units.fb * lumi,
-            background=nobs,
-            nb=nb,
-            delta_nb=deltanb,
+        model = Data(
+            signal=signal_eff * xsection * Units.fb * lumi, background=nobs, nb=nb, delta_nb=deltanb
         )
+        return PyhfInterface(model=model)
 
-    elif backend == "simplified_likelihoods":
+    elif backend == available_backends.simplified_likelihoods:
         from madstats.backends.simplifiedlikelihood_backend.interface import (
             SimplifiedLikelihoodInterface,
+            Data,
         )
 
-        return SimplifiedLikelihoodInterface(
+        model = Data(
             signal=np.array([signal_eff * xsection * Units.fb * lumi]),
-            background=np.array([nobs]),
+            observed=np.array([nobs]),
             covariance=np.array([deltanb]),
-            nb=np.array([nb]),
+            background=np.array([nb]),
+            delta_sys=0.0,
+            name="model",
         )
+        return SimplifiedLikelihoodInterface(model=model)
 
     else:
         raise NotImplementedError(
@@ -91,6 +93,7 @@ def get_multi_region_statistical_model(
     if isinstance(signal, list) and isinstance(signal[0], dict) and isinstance(background, dict):
         from madstats.backends.pyhf_backend.interface import PyhfInterface
         from madstats.backends.pyhf_backend.data import Data
+
         model = Data(signal=signal, background=background)
         return PyhfInterface(model=model)
 
@@ -101,21 +104,26 @@ def get_multi_region_statistical_model(
     ):
         from madstats.backends.simplifiedlikelihood_backend.interface import (
             SimplifiedLikelihoodInterface,
+            Data,
         )
 
         # Convert everything to numpy array
         covariance = np.array(covariance) if isinstance(covariance, list) else covariance
         signal = np.array(signal) if isinstance(signal, list) else signal
         background = np.array(background) if isinstance(background, list) else background
+        nb = np.array(nb) if isinstance(nb, list) else nb
 
-        return SimplifiedLikelihoodInterface(
+        model = Data(
+            observed=background,
             signal=signal,
-            background=background,
+            background=nb,
             covariance=covariance,
-            nb=nb,
-            third_moment=third_moment,
             delta_sys=delta_sys,
+            third_moment=third_moment,
+            name="model",
         )
+
+        return SimplifiedLikelihoodInterface(model=model)
 
     else:
         raise NotImplementedError("Requested backend has not been recognised.")
