@@ -30,7 +30,7 @@ def get_single_region_statistical_model(
     :raises NotImplementedError: If requested backend has not been recognised.
     """
     if backend == "pyhf":
-        from madstats.backends.pyhf_backend.pyhf_interface import PyhfInterface
+        from madstats.backends.pyhf_backend.interface import PyhfInterface
 
         return PyhfInterface(
             signal=signal_eff * xsection * Units.fb * lumi,
@@ -40,7 +40,7 @@ def get_single_region_statistical_model(
         )
 
     elif backend == "simplified_likelihoods":
-        from madstats.backends.simplifiedlikelihood_backend.sl_interface import (
+        from madstats.backends.simplifiedlikelihood_backend.interface import (
             SimplifiedLikelihoodInterface,
         )
 
@@ -89,18 +89,20 @@ def get_multi_region_statistical_model(
     assert len(signal) > 1, "Incorrect input shape."
 
     if isinstance(signal, list) and isinstance(signal[0], dict) and isinstance(background, dict):
-        from madstats.backends.pyhf_backend.pyhf_interface import PyhfInterface
-
-        return PyhfInterface(signal=signal, background=background)
+        from madstats.backends.pyhf_backend.interface import PyhfInterface
+        from madstats.backends.pyhf_backend.data import Data
+        model = Data(signal=signal, background=background)
+        return PyhfInterface(model=model)
 
     elif (
         covariance is not None
         and isinstance(signal, (list, np.ndarray))
         and isinstance(background, (list, np.ndarray))
     ):
-        from madstats.backends.simplifiedlikelihood_backend.sl_interface import (
+        from madstats.backends.simplifiedlikelihood_backend.interface import (
             SimplifiedLikelihoodInterface,
         )
+
         # Convert everything to numpy array
         covariance = np.array(covariance) if isinstance(covariance, list) else covariance
         signal = np.array(signal) if isinstance(signal, list) else signal
