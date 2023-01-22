@@ -4,7 +4,7 @@ import scipy
 from typing import Callable, Union
 
 
-def compute_confidence_limit(
+def compute_confidence_level(
     mu: Union[float, np.ndarray],
     negloglikelihood_asimov: Union[Callable[[np.ndarray], float], float],
     min_negloglikelihood_asimov: float,

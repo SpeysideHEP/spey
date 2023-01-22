@@ -20,13 +20,14 @@ class PyhfInterface(BackendBase):
     """
     Pyhf Interface
 
-    :param signal: either histfactory type signal patch or float value of number of events
-    :param background: either background only JSON histfactory or float value of observed data
-    :param nb: expected number of background events. In case of statistical model it is not needed
-    :param delta_nb: uncertainty on backgorund. In case of statistical model it is not needed
+    :param model: contains all the information regarding the regions, yields
+    :raises AssertionError: if the input type is wrong.
     """
 
+    __slots__ = "_model"
+
     def __init__(self, model: Data):
+        assert isinstance(model, Data), "Invalid statistical model."
         self._model = model
 
     @property
@@ -236,6 +237,8 @@ class PyhfInterface(BackendBase):
         self,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
+        isAsimov: Optional[bool] = False,
+        **kwargs,
     ) -> float:
         """
         Compute $$\chi^2$$
@@ -249,8 +252,19 @@ class PyhfInterface(BackendBase):
         :return: chi^2
         """
         return 2.0 * (
-            self.likelihood(1.0, expected, allow_negative_signal, True)
-            - self.maximize_likelihood(True, expected, allow_negative_signal)[1]
+            self.likelihood(
+                mu=1.0,
+                expected=expected,
+                allow_negative_signal=allow_negative_signal,
+                return_nll=True,
+                isAsimov=isAsimov,
+            )
+            - self.maximize_likelihood(
+                return_nll=True,
+                expected=expected,
+                allow_negative_signal=allow_negative_signal,
+                isAsimov=isAsimov,
+            )[1]
         )
 
     def computeUpperLimitOnMu(

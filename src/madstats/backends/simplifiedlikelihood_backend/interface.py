@@ -1,16 +1,18 @@
+from madstats.base.backend_base import BackendBase
+from .data import Data, expansion_output
+from .utils_theta import compute_min_negloglikelihood_theta
+from .utils_marginalised import marginalised_negloglikelihood
+from madstats.utils_cls import compute_confidence_level
+from madstats.utils import ExpectationType
+
 from typing import Optional, Tuple
 import numpy as np
 import scipy
 
-from .data import Data, expansion_output
-from .utils_theta import compute_min_negloglikelihood_theta
-from .utils_marginalised import marginalised_negloglikelihood
-from madstats.utils import ExpectationType
 
-
-class LikelihoodComputer:
+class SimplifiedLikelihoodInterface(BackendBase):
     """
-    Likelihood computer for simplified likelihood construction
+    Simplified Likelihood Interface
 
     :param model: contains all the information regarding the regions,
                   yields and correlation matrices
@@ -22,7 +24,6 @@ class LikelihoodComputer:
 
     def __init__(self, model: Data, ntoys: Optional[int] = 30000):
         assert isinstance(model, Data) and isinstance(ntoys, int), "Invalid statistical model."
-
         self._model = model
         self.ntoys = ntoys
         self._third_moment_expansion: Optional[expansion_output] = None
@@ -41,11 +42,12 @@ class LikelihoodComputer:
 
     def likelihood(
         self,
-        mu: float,
+        mu: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         return_nll: Optional[bool] = True,
         marginalize: Optional[bool] = False,
         isAsimov: Optional[bool] = False,
+        **kwargs,
     ) -> float:
         """
         Compute the likelihood for the statistical model with a given POI
@@ -164,3 +166,116 @@ class LikelihoodComputer:
                 isAsimov=isAsimov,
             )[1]
         )
+
+    def _exclusion_tools(
+        self,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        marginalise: Optional[bool] = False,
+        allow_negative_signal: Optional[bool] = False,
+        iteration_threshold: Optional[int] = 10000,
+    ):
+        """
+        Compute tools needed for exclusion limit computation
+
+        :param expected: observed, expected (true, apriori) or aposteriori
+        :param marginalise: if true, marginalize the likelihood.
+                            if false compute profiled likelihood
+        :param allow_negative_signal: if true, allow negative mu
+        :param iteration_threshold: number of iterations to be held for convergence of the fit.
+        """
+        muhat, min_nll = self.maximize_likelihood(
+            return_nll=True,
+            expected=expected,
+            marginalise=marginalise,
+            allow_negative_signal=allow_negative_signal,
+            iteration_threshold=iteration_threshold,
+        )
+
+        muhat_asimov, min_nll_asimov = self.maximize_likelihood(
+            return_nll=True,
+            expected=expected,
+            marginalise=marginalise,
+            allow_negative_signal=allow_negative_signal,
+            isAsimov=True,
+            iteration_threshold=iteration_threshold,
+        )
+
+        negloglikelihood = lambda mu: self.likelihood(
+            mu[0], expected=expected, return_nll=True, marginalize=marginalise
+        )
+        negloglikelihood_asimov = lambda mu: self.likelihood(
+            mu[0], expected=expected, return_nll=True, marginalize=marginalise, isAsimov=True
+        )
+
+        return min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood
+
+    def computeCLs(
+        self,
+        mu: float = 1.0,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        marginalise: Optional[bool] = False,
+        allow_negative_signal: Optional[bool] = False,
+        iteration_threshold: Optional[int] = 10000,
+    ) -> float:
+        """
+        Compute 1 - CLs value
+
+        :param mu: POI (signal strength)
+        :param expected: observed, expected (true, apriori) or aposteriori
+        :param marginalise: if true, marginalize the likelihood.
+                            if false compute profiled likelihood
+        :param allow_negative_signal: if true, allow negative mu
+        :param iteration_threshold: number of iterations to be held for convergence of the fit.
+        :return: 1 - CLs
+        """
+        min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood = self._exclusion_tools(
+            expected=expected,
+            marginalise=marginalise,
+            allow_negative_signal=allow_negative_signal,
+            iteration_threshold=iteration_threshold,
+        )
+
+        return 1.0 - compute_confidence_level(
+            mu, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll
+        )
+
+    def computeUpperLimitOnMu(
+        self,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        marginalise: Optional[bool] = False,
+        allow_negative_signal: Optional[bool] = False,
+        iteration_threshold: Optional[int] = 10000,
+    ) -> float:
+        """
+        Compute the POI where the signal is excluded with 95% CL
+
+        :param expected: observed, expected (true, apriori) or aposteriori
+        :param marginalise: if true, marginalize the likelihood.
+                            if false compute profiled likelihood
+        :param allow_negative_signal: if true, allow negative mu
+        :param iteration_threshold: number of iterations to be held for convergence of the fit.
+        :return: excluded POI value at 95% CLs
+        """
+
+        min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood = self._exclusion_tools(
+            expected=expected,
+            marginalise=marginalise,
+            allow_negative_signal=allow_negative_signal,
+            iteration_threshold=iteration_threshold,
+        )
+
+        computer = lambda mu: 0.05 - compute_confidence_level(
+            mu, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll
+        )
+
+        low, hig = 1.0, 1.0
+        while computer(low) > 0.95:
+            low *= 0.1
+            if low < 1e-10:
+                break
+        while computer(hig) < 0.95:
+            hig *= 10.0
+            if hig > 1e10:
+                break
+
+        return scipy.optimize.brentq(computer, low, hig, xtol=low / 100.0)
