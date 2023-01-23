@@ -1,0 +1,34 @@
+[
+    {
+        "op": "add",
+        "path": "/channels/0/samples/7",
+        "value": {
+            "name": "MA5_signal_0",
+            "data": [
+                0.0034568299199999996,
+                0.05170841005,
+                0.822004995
+            ],
+            "modifiers": [
+                {
+                    "data": null,
+                    "name": "lumi",
+                    "type": "lumi"
+                },
+                {
+                    "data": null,
+                    "name": "mu_SIG",
+                    "type": "normfactor"
+                }
+            ]
+        }
+    },
+    {
+        "op": "remove",
+        "path": "/channels/2"
+    },
+    {
+        "op": "remove",
+        "path": "/channels/1"
+    }
+]
