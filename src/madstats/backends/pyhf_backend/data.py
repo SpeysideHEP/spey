@@ -1,4 +1,4 @@
-import pyhf
+import pyhf, copy
 from dataclasses import dataclass, field
 from typing import Dict, Union, Optional, List
 import numpy as np
@@ -73,7 +73,11 @@ class Data:
             signal = self.signal
 
         return initialise_workspace(
-            signal, self.background, self.nb, self.delta_nb, expected=expected
+            copy.deepcopy(signal),
+            copy.deepcopy(self.background),
+            copy.deepcopy(self.nb),
+            copy.deepcopy(self.delta_nb),
+            expected=expected,
         )
 
     @property
