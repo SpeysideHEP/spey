@@ -49,3 +49,46 @@ plt.ylabel("negative log-likelihood")
 plt.show()
 ```
 ![Likelihood plot for pyhf backend](./docs/figs/pyhf_test.png)
+
+### Using with Simplified Likelihood type input
+```python
+import madstats
+import numpy as np
+import matplotlib.pyplot as plt
+
+dat = np.load("test/simplified_likelihood_data.npz")
+sl_model = madstats.get_multi_region_statistical_model(
+    analysis="cms_sus_19_006",
+    signal=dat["nsignal"],
+    background=dat["observed"],
+    covariance=dat["covariance"],
+    nb=dat["backgrounds"],
+    xsection=0.000207244,
+    delta_sys=0.
+)
+
+print(sl_model)
+# Out: StatisticalModel(analysis='cms_sus_19_006', xsection=2.072e-04 [pb], backend=simplified_likelihoods)
+
+print(f"1 - CLs : {sl_model.exclusion_confidence_level()}")
+# Out: 1 - CLs : 0.40245643517834495
+
+print(f"Expected exclusion cross-section at 95% CLs : {sl_model.s95exp}")
+# Out: Expected exclusion cross-section at 95% CLs : 0.0011728157614834948
+
+print(f"Observed exclusion cross-section at 95% CLs : {sl_model.s95obs}")
+# Out: Observed exclusion cross-section at 95% CLs : 0.0008587150231679837
+
+print(f"Upper limit on POI : {sl_model.computeUpperLimitOnMu()}")
+# Out: Upper limit on POI : 4.1434976342177245
+
+mu = np.linspace(-4,1,25)
+nll = np.array([sl_model.likelihood(mu=m, return_nll=True, allow_negative_signal=True) for m in mu])
+
+plt.plot(mu, nll)
+plt.title("cms - sus - 19 - 006".upper(), fontsize=20)
+plt.xlabel("$\mu$")
+plt.ylabel("negative log-likelihood")
+plt.show()
+```
+![Likelihood plot for simplified likelihood backend](./docs/figs/sl_test.png)
