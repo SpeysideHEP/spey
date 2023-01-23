@@ -22,13 +22,6 @@ class StatisticalModel:
         self._backend: BackendBase = backend
         self.xsection: float = xsection
         self.analysis: Text = analysis
-        object.__setattr__(self, "__frozen", True)
-
-    def __setattr__(self, key: Text, value: Any) -> None:
-        if hasattr(self, "__frozen"):
-            if getattr(self, "__frozen", False):
-                raise FrozenInstanceError(f"cannot assign to field '{key}'")
-        object.__setattr__(self, key, value)
 
     def __repr__(self):
         return (
