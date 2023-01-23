@@ -1,20 +1,20 @@
-from enum import Enum, auto
+from enum import Enum
 from dataclasses import dataclass, field
 import numpy as np
 from typing import Text, List, Union
 
 
 class ExpectationType(Enum):
-    apriori = auto()
-    aposteriori = auto()
-    observed = auto()
+    apriori = "apriori"
+    aposteriori = "aposteriori"
+    observed = "observed"
 
     def __repr__(self):
         if self == self.apriori:
-            return str(self) + ": Set observed events to expected background events."
+            return str(self.value) + ": Set observed events to expected background events."
         elif self == self.aposteriori:
-            return str(self) + ": Compute likelihood fit with observed events."
-        return str(self)
+            return str(self.value) + ": Compute likelihood fit with observed events."
+        return self.value
 
     def __eq__(self, other):
         current = str(self).split(".")[1]

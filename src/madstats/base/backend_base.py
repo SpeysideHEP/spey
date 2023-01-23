@@ -6,8 +6,8 @@ from madstats.backends import AvailableBackends
 
 
 class BackendBase(ABC):
-    @abstractmethod
     @property
+    @abstractmethod
     def type(self) -> AvailableBackends:
         """Type of the backend"""
         raise NotImplementedError("This method has not been implemented")

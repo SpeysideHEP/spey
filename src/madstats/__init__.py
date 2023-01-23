@@ -68,6 +68,7 @@ def get_single_region_statistical_model(
 
 
 def get_multi_region_statistical_model(
+    analysis: Text,
     signal: Union[np.ndarray, List[Dict[Text, List]], List[float]],
     background: Union[np.ndarray, Dict[Text, List], List[float]],
     covariance: Optional[Union[np.ndarray, List[List[float]]]] = None,
@@ -75,7 +76,6 @@ def get_multi_region_statistical_model(
     third_moment: Optional[np.ndarray] = None,
     delta_sys: float = 0.2,
     xsection: float = 1.0,
-    analysis: Text = "__unknown_analysis__",
 ) -> StatisticalModel:
     """
     Create a statistical model from multibin data.

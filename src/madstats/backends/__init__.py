@@ -1,8 +1,12 @@
-from enum import Enum, auto
+from enum import Enum
+
 
 class AvailableBackends(Enum):
-    pyhf = auto()
-    simplified_likelihoods = auto()
+    pyhf = "pyhf"
+    simplified_likelihoods = "simplified_likelihoods"
 
     def __repr__(self):
-        return str(self).split(".")[-1]
+        return self.value
+
+    def __str__(self):
+        return str(repr(self))
