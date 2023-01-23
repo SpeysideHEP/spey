@@ -193,6 +193,13 @@ def compute_min_negloglikelihood(
         )
 
         bounds = model.config.suggested_bounds()
+        min_bound = (
+            bounds[model.config.poi_index][0] - 5.0 if allow_negative_signal else 0.0
+        )
+        bounds[model.config.poi_index] = (
+            min_bound,
+            2.0 * bounds[model.config.poi_index][1],
+        )
         it = 0
         while True:
             muhat, twice_nllh = compute_nll(model, data, bounds)
