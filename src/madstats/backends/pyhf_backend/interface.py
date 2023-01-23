@@ -149,10 +149,9 @@ class PyhfInterface(BackendBase):
         self,
         mu: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
-        allow_negative_signal: bool = False,
+        allow_negative_signal: bool = True,
         return_nll: Optional[bool] = False,
         isAsimov: Optional[bool] = False,
-        mu_lim: Optional[Tuple[float, float]] = (-20.0, 40.0),
         iteration_threshold: Optional[int] = 3,
     ) -> float:
         """
@@ -170,16 +169,9 @@ class PyhfInterface(BackendBase):
 
         _, model, data = self.model(mu=1.0, expected=expected)
 
-        if not self.model.isAlive:
-            return -1
-        # set a threshold for mu
-        if not isinstance(mu, float):
-            mu = 1.0
-        # protection during the scan
-        if mu < mu_lim[0]:
-            mu = mu_lim[0]
-        elif mu > mu_lim[1]:
-            mu = mu_lim[1]
+        # if not self.model.isAlive:
+        #     return np.inf if return_nll else 0.0
+
 
         if isAsimov:
             data = generate_asimov_data(
@@ -199,6 +191,9 @@ class PyhfInterface(BackendBase):
             allow_negative_signal,
             iteration_threshold,
         )
+
+        if np.isnan(negloglikelihood):
+            return np.inf if return_nll else 0.0
 
         return negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
