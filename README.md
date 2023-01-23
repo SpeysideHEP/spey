@@ -40,9 +40,23 @@ print(f"Upper limit on POI : {stat_model.computeUpperLimitOnMu()}")
 # Out: Upper limit on POI : 4.859564190370204
 
 mu = np.linspace(-2,2,25)
-nll = np.array([stat_model.likelihood(mu=m, return_nll=True, allow_negative_signal=True) for m in mu])
 
-plt.plot(mu, nll)
+nll_apriori = np.array([stat_model.likelihood(mu=m, return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.apriori) for m in mu])
+nll_observed = np.array([stat_model.likelihood(mu=m, return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.observed) for m in mu])
+
+muhat_obs, nll_min_obs = stat_model.maximize_likelihood(return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.observed)
+muhat_apri, nll_min_apri = stat_model.maximize_likelihood(return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.apriori)
+
+fig = plt.figure(figsize=(8,6))
+
+plt.plot(mu, nll_apriori, label=str(madstats.ExpectationType.apriori), color="tab:red")
+plt.scatter([muhat_apri], [nll_min_apri], label=str(madstats.ExpectationType.apriori) + " min NLL", color="tab:red")
+
+plt.plot(mu, nll_observed, label=str(madstats.ExpectationType.observed), color="tab:blue")
+plt.scatter([muhat_obs], [nll_min_obs], label=str(madstats.ExpectationType.observed)+ " min NLL", color="tab:blue", )
+
+plt.legend(loc="best", fontsize=15)
+
 plt.title("atlas - susy - 2018 - 31".upper(), fontsize=20)
 plt.xlabel("$\mu$")
 plt.ylabel("negative log-likelihood")
@@ -83,9 +97,23 @@ print(f"Upper limit on POI : {sl_model.computeUpperLimitOnMu()}")
 # Out: Upper limit on POI : 4.1434976342177245
 
 mu = np.linspace(-4,1,25)
-nll = np.array([sl_model.likelihood(mu=m, return_nll=True, allow_negative_signal=True) for m in mu])
 
-plt.plot(mu, nll)
+nll_apriori = np.array([sl_model.likelihood(mu=m, return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.apriori) for m in mu])
+nll_observed = np.array([sl_model.likelihood(mu=m, return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.observed) for m in mu])
+
+muhat_obs, nll_min_obs = sl_model.maximize_likelihood(return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.observed)
+muhat_apri, nll_min_apri = sl_model.maximize_likelihood(return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.apriori)
+
+fig = plt.figure(figsize=(8,6))
+
+plt.plot(mu, nll_apriori, label=str(madstats.ExpectationType.apriori), color="tab:red")
+plt.scatter([muhat_apri], [nll_min_apri], label=str(madstats.ExpectationType.apriori) + " min NLL", color="tab:red")
+
+plt.plot(mu, nll_observed, label=str(madstats.ExpectationType.observed), color="tab:blue")
+plt.scatter([muhat_obs], [nll_min_obs], label=str(madstats.ExpectationType.observed)+ " min NLL", color="tab:blue", )
+
+plt.legend(loc="best", fontsize=15)
+
 plt.title("cms - sus - 19 - 006".upper(), fontsize=20)
 plt.xlabel("$\mu$")
 plt.ylabel("negative log-likelihood")
