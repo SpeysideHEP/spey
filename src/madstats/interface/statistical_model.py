@@ -1,9 +1,8 @@
-from typing import Optional, Text, Any
+from typing import Optional, Text, Tuple
 
 from madstats.utils import ExpectationType
 from madstats.base.backend_base import BackendBase
 from madstats.backends import AvailableBackends
-from madstats.system.exceptions import FrozenInstanceError
 
 
 class StatisticalModel:
@@ -54,6 +53,47 @@ class StatisticalModel:
         """Observed excluded cross-section"""
         return self.excluded_cross_section(ExpectationType.observed)
 
+    def likelihood(
+        self,
+        mu: Optional[float] = 1.0,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        return_nll: Optional[bool] = False,
+        **kwargs,
+    ) -> float:
+        """
+        Compute the likelihood of the given statistical model
+
+        :param mu: POI (signal strength)
+        :param expected: observed, expected (true, apriori) or aposteriori
+        :param return_nll: if true returns negative log-likelihood value
+        :param kwargs: backend specific inputs.
+        :return: (float) likelihood
+        """
+        return self.backend.likelihood(mu=mu, expected=expected, return_nll=return_nll, **kwargs)
+
+    def maximize_likelihood(
+        self,
+        return_nll: Optional[bool] = False,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        allow_negative_signal: Optional[bool] = True,
+        **kwargs,
+    ) -> Tuple[float, float]:
+        """
+        Find the POI that maximizes the likelihood and the value of the maximum likelihood
+
+        :param return_nll: if true, likelihood will be returned
+        :param expected: observed, expected (true, apriori) or aposteriori
+        :param allow_negative_signal: allow negative POI
+        :param kwargs: backend specific inputs.
+        :return: muhat, maximum of the likelihood
+        """
+        return self.backend.maximize_likelihood(
+            return_nll=return_nll,
+            expected=expected,
+            allow_negative_signal=allow_negative_signal,
+            **kwargs,
+        )
+
     def exclusion_confidence_level(
         self, expected: Optional[ExpectationType] = ExpectationType.observed, **kwargs
     ) -> float:
@@ -72,24 +112,6 @@ class StatisticalModel:
                 )
             )
         return self.backend.computeCLs(mu=1.0, expected=expected, **kwargs)
-
-    def likelihood(
-        self,
-        mu: Optional[float] = 1.0,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        return_nll: Optional[bool] = False,
-        **kwargs,
-    ) -> float:
-        """
-        Compute the likelihood of the given statistical model
-
-        :param mu: POI (signal strength)
-        :param expected: observed, expected (true, apriori) or aposteriori
-        :param return_nll: if true returns negative log-likelihood value
-        :param kwargs: backend specific inputs.
-        :return: (float) likelihood
-        """
-        return self.backend.likelihood(mu=mu, expected=expected, return_nll=return_nll, **kwargs)
 
     def computeUpperLimitOnMu(
         self,
