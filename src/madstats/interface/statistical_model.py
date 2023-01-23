@@ -1,9 +1,9 @@
-from typing import Optional, Text, Union
-from dataclasses import dataclass
+from typing import Optional, Text, Any
 
 from madstats.utils import ExpectationType
 from madstats.base.backend_base import BackendBase
 from madstats.backends import AvailableBackends
+from madstats.system.exceptions import FrozenInstanceError
 
 
 class StatisticalModel:
@@ -15,13 +15,27 @@ class StatisticalModel:
     :param analysis: name of the analysis
     """
 
-    def __init__(
-        self, backend: BackendBase, xsection: float, analysis: Text = "__unknown_analysis__"
-    ):
+    __slots__ = "_backend", "xsection", "analysis"
+
+    def __init__(self, backend: BackendBase, xsection: float, analysis: Text):
         assert isinstance(backend, BackendBase), "Invalid backend"
         self._backend: BackendBase = backend
         self.xsection: float = xsection
         self.analysis: Text = analysis
+        object.__setattr__(self, "__frozen", True)
+
+    def __setattr__(self, key: Text, value: Any) -> None:
+        if hasattr(self, "__frozen"):
+            if getattr(self, "__frozen", False):
+                raise FrozenInstanceError(f"cannot assign to field '{key}'")
+        object.__setattr__(self, key, value)
+
+    def __repr__(self):
+        return (
+            f"StatisticalModel(analysis='{self.analysis}', "
+            f"xsection={self.xsection:.3e} [pb], "
+            f"backend={str(self.backend_type)})"
+        )
 
     @property
     def backend(self) -> BackendBase:
