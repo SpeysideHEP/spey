@@ -120,3 +120,39 @@ plt.ylabel("negative log-likelihood")
 plt.show()
 ```
 ![Likelihood plot for simplified likelihood backend](./docs/figs/sl_test.png)
+
+## Using prediction combiner
+
+```python
+combiner = madstats.PredictionCombiner(sl_model, stat_model)
+
+print(f"1 - CLs : {combiner.computeCLs()}")
+# Out: 1 - CLs : 0.7817905182722031
+
+print(f"Upper limit on POI : {combiner.computeUpperLimitOnMu()}")
+# Out: Upper limit on POI : 2.192564980725874
+
+mu = np.linspace(-3,1,25)
+
+nll_apriori = np.array([combiner.likelihood(mu=m, return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.apriori) for m in mu])
+nll_observed = np.array([combiner.likelihood(mu=m, return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.observed) for m in mu])
+
+muhat_obs, nll_min_obs = combiner.maximize_likelihood(return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.observed)
+muhat_apri, nll_min_apri = combiner.maximize_likelihood(return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.apriori)
+
+fig = plt.figure(figsize=(8,6))
+
+plt.plot(mu, nll_apriori, label=str(madstats.ExpectationType.apriori), color="tab:red")
+plt.scatter([muhat_apri], [nll_min_apri], label=str(madstats.ExpectationType.apriori) + " min NLL", color="tab:red")
+
+plt.plot(mu, nll_observed, label=str(madstats.ExpectationType.observed), color="tab:blue")
+plt.scatter([muhat_obs], [nll_min_obs], label=str(madstats.ExpectationType.observed)+ " min NLL", color="tab:blue", )
+
+plt.legend(loc="best", fontsize=15)
+
+plt.title("Combined", fontsize=20)
+plt.xlabel("$\mu$")
+plt.ylabel("negative log-likelihood")
+plt.show()
+```
+![Likelihood plot for prediction combiner](./docs/figs/combination_test.png)
