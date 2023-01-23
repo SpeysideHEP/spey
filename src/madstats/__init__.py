@@ -5,7 +5,7 @@ import numpy as np
 
 from madstats.backends import AvailableBackends
 from madstats.interface.statistical_model import StatisticalModel
-
+from madstats.combiner.prediction_combiner import PredictionCombiner
 
 def get_single_region_statistical_model(
     nobs: int,
