@@ -1,0 +1,30 @@
+name: Question
+description: Have a question about MadStats? Let us help!
+labels: "question"
+
+body:
+  - type: markdown
+    id: description
+    attributes:
+      value: |
+        ## Before posting a question
+
+        Search existing [GitHub issues](https://github.com/MadAnalysis/madanalysis5/issues) to make sure the issue does not already exist.
+          
+        If your question involves software issues, please include your system settings as shown below;
+        
+        **System Settings:**
+
+        - OS: [e.g. macOS v12.1]
+        - Python version (print the output of `$ python --version`)
+        - MadStats version
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: |
+        How can we help?
+        
+        * **Please use [Markdown syntax](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax).**
+    validations:
+      required: true

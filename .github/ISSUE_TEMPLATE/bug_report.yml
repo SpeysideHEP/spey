@@ -1,0 +1,55 @@
+name: Bug report
+description: Create a report to help us improve
+labels: "bug"
+
+body:
+  - type: markdown
+    id: description
+    attributes:
+      value: |
+        ## Before posting a feature request
+        Search existing [GitHub issues](https://github.com/MadAnalysis/madstats/issues) to make sure the issue does not already exist.
+        
+        * **Please use [Markdown syntax](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax).**
+  - type: textarea
+    id: system
+    attributes:
+      label: System Settings
+      description: |
+        Please provide
+        - OS: [e.g. macOS v12.1]
+        - Python version (print the output of `$ python --version`)
+        - MadStats version
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Describe the bug
+      description: |
+        A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: To Reproduce
+      description: |
+        Steps to reproduce the behaviour:
+          - Please provide a **simplified** and clean code example.
+          - If necessary, please provide example data.
+    validations:
+      required: true
+  - type: textarea
+    id: expectation
+    attributes:
+      label: Expected behaviour
+      description: |
+        A clear and concise description of what you expected to happen.
+  - type: textarea
+    id: info
+    attributes:
+      label: Additional information
+      description: |
+        Add any other context about the problem here.
+
