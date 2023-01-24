@@ -1,8 +1,6 @@
 import pyhf
-import logging
+import logging, warnings
 import numpy as np
-
-from numpy import warnings, isnan
 
 from madstats.utils import ExpectationType
 
