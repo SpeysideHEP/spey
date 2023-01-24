@@ -101,7 +101,7 @@ class PredictionCombiner:
         for statistical_model in self:
 
             current_kwargs = {}
-            current_kwargs.update(kwargs.get(statistical_model.backend_type, {}))
+            current_kwargs.update(kwargs.get(str(statistical_model.backend_type), {}))
 
             nll += statistical_model.backend.likelihood(
                 mu=mu, expected=expected, return_nll=True, **current_kwargs
