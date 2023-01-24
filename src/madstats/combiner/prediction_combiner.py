@@ -141,7 +141,7 @@ class PredictionCombiner:
             mu[0], expected=expected, return_nll=True, **kwargs
         )
 
-        muhat_init = np.random.uniform(-10.0 if allow_negative_signal else 0.0, 10.0, (1,))
+        muhat_init = np.random.uniform(0.0, 10.0, (1,))
 
         # It is possible to allow user to modify the optimiser properties in the future
         opt = scipy.optimize.minimize(
