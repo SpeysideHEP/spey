@@ -115,7 +115,7 @@ def compute_negloglikelihood(
                 par_bounds=bounds,
             )
         except (AssertionError, pyhf.exceptions.FailedMinimization, ValueError) as err:
-            logging.getLogger("MA5").debug(str(err))
+            # warnings.warn(err.args[0], RuntimeWarning)
             return "update bounds"
 
         return twice_nllh
@@ -179,7 +179,7 @@ def compute_min_negloglikelihood(
                 par_bounds=bounds,
             )
         except (AssertionError, pyhf.exceptions.FailedMinimization, ValueError) as err:
-            logging.getLogger("MA5").debug(str(err))
+            # warnings.warn(err.args[0], RuntimeWarning)
             return "update bounds", None
 
         return muhat[model.config.poi_index], twice_nllh
