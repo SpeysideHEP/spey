@@ -1,6 +1,5 @@
-import logging, scipy
+import copy, logging, scipy, warnings
 from typing import Dict, Union, Optional, Tuple
-from numpy import warnings, isnan
 import numpy as np
 
 import pyhf
@@ -117,7 +116,7 @@ class PyhfInterface(BackendBase):
                     )
                     it += 1
                 elif isinstance(CLs, dict):
-                    if isnan(CLs["CLs_obs"]) or any([isnan(x) for x in CLs["CLs_exp"]]):
+                    if np.isnan(CLs["CLs_obs"]) or any([np.isnan(x) for x in CLs["CLs_exp"]]):
                         arguments["stats"] = "q"
                         arguments["bounds"][model.config.poi_index] = (
                             arguments["bounds"][model.config.poi_index][0] - 5,
