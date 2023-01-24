@@ -151,7 +151,7 @@ class PyhfInterface(BackendBase):
         allow_negative_signal: bool = True,
         return_nll: Optional[bool] = False,
         isAsimov: Optional[bool] = False,
-        iteration_threshold: Optional[int] = 3,
+        iteration_threshold: Optional[int] = 10,
     ) -> float:
         """
         Compute the likelihood of the given statistical model
