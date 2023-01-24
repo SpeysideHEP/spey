@@ -183,8 +183,18 @@ class PyhfInterface(BackendBase):
                 return_fitted_pars=False,
             )
 
+        # CHECK THE MODEL BOUNDS!!
+        # POI Test needs to be adjusted according to the boundaries for sake of convergence
+        # see issue https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579235311
+        # comment https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579299831
+        poi_test = copy.deepcopy(mu)
+        bounds = model.config.suggested_bounds()[model.config.poi_index]
+        if not bounds[0] <= poi_test <= bounds[1]:
+            _, model, data = self.model(mu = mu, expected = expected)
+            poi_test = 1.0
+
         negloglikelihood = compute_negloglikelihood(
-            mu,
+            poi_test,
             data,
             model,
             allow_negative_signal,
