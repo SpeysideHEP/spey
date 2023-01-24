@@ -23,7 +23,7 @@ class BackendBase(ABC):
         Compute exclusion confidence level.
 
         :param mu: POI (signal strength)
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :param kwargs: backend specific inputs
         :return: 1 - CLs values
         """
@@ -36,7 +36,7 @@ class BackendBase(ABC):
         """
         Compute the POI where the signal is excluded with 95% CL
 
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :return: mu
         """
         raise NotImplementedError("This method has not been implemented")
@@ -54,7 +54,7 @@ class BackendBase(ABC):
         Compute the likelihood of the given statistical model
 
         :param mu: POI (signal strength)
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: if true, POI can get negative values
         :param return_nll: if true returns negative log-likelihood value
         :param isAsimov: if true, computes likelihood for Asimov data
@@ -76,7 +76,7 @@ class BackendBase(ABC):
         Find the POI that maximizes the likelihood and the value of the maximum likelihood
 
         :param return_nll: if true, likelihood will be returned
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: allow negative POI
         :param isAsimov: if true, computes likelihood for Asimov data
         :param kwargs: backend specific inputs
@@ -99,7 +99,7 @@ class BackendBase(ABC):
 
             \chi^2 = -2\log\left(\frac{\mathcal{L}_{\mu = 1}}{\mathcal{L}_{max}}\right)
 
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :param marginalise: if true, marginalize the likelihood.
                             if false compute profiled likelihood
         :param allow_negative_signal: if true, allow negative mu

@@ -58,7 +58,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         Compute the likelihood for the statistical model with a given POI
 
         :param mu: POI (signal strength)
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :param return_nll: if true returns negative log-likelihood value
         :param marginalize: if true, marginalize the likelihood.
                             if false compute profiled likelihood
@@ -101,7 +101,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         Minimize negative log-likelihood of the statistical model with respect to POI
 
         :param return_nll: if true returns negative log-likelihood value
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :param marginalise: if true, marginalize the likelihood.
                             if false compute profiled likelihood
         :param allow_negative_signal: if true, allow negative mu
@@ -148,7 +148,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
             \chi^2 = -2\log\left(\frac{\mathcal{L}_{\mu = 1}}{\mathcal{L}_{max}}\right)
 
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :param marginalise: if true, marginalize the likelihood.
                             if false compute profiled likelihood
         :param allow_negative_signal: if true, allow negative mu
@@ -182,7 +182,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         """
         Compute tools needed for exclusion limit computation
 
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :param marginalise: if true, marginalize the likelihood.
                             if false compute profiled likelihood
         :param allow_negative_signal: if true, allow negative mu
@@ -226,7 +226,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         Compute 1 - CLs value
 
         :param mu: POI (signal strength)
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :param marginalise: if true, marginalize the likelihood.
                             if false compute profiled likelihood
         :param allow_negative_signal: if true, allow negative mu
@@ -254,7 +254,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         """
         Compute the POI where the signal is excluded with 95% CL
 
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :param marginalise: if true, marginalize the likelihood.
                             if false compute profiled likelihood
         :param allow_negative_signal: if true, allow negative mu

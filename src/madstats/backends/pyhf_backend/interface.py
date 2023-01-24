@@ -50,7 +50,7 @@ class PyhfInterface(BackendBase):
         Compute exclusion confidence level.
 
         :param mu: POI (signal strength)
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :param iteration_threshold: sets threshold on when to stop
         :param kwargs:
             :param CLs_exp: if true return expected of the posterior fit
@@ -157,7 +157,7 @@ class PyhfInterface(BackendBase):
         Compute the likelihood of the given statistical model
 
         :param mu: POI (signal strength)
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: if true, POI can get negative values
         :param return_nll: if true returns negative log-likelihood value
         :param isAsimov: if true, computes likelihood for Asimov data
@@ -218,7 +218,7 @@ class PyhfInterface(BackendBase):
         Find the POI that maximizes the likelihood and the value of the maximum likelihood
 
         :param return_nll: if true, likelihood will be returned
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: allow negative POI
         :param isAsimov: if true, computes likelihood for Asimov data
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
@@ -256,7 +256,7 @@ class PyhfInterface(BackendBase):
 
             \chi^2 = -2\log\left(\frac{\mathcal{L}_{\mu = 1}}{\mathcal{L}_{max}}\right)
 
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: allow negative POI
         :return: chi^2
         """
@@ -282,7 +282,7 @@ class PyhfInterface(BackendBase):
         """
         Compute the POI where the signal is excluded with 95% CL
 
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :return: mu
         """
         kwargs.update(

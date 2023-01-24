@@ -64,7 +64,7 @@ class StatisticalModel:
         Compute the likelihood of the given statistical model
 
         :param mu: POI (signal strength)
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :param return_nll: if true returns negative log-likelihood value
         :param kwargs: backend specific inputs.
         :return: (float) likelihood
@@ -82,7 +82,7 @@ class StatisticalModel:
         Find the POI that maximizes the likelihood and the value of the maximum likelihood
 
         :param return_nll: if true, likelihood will be returned
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: allow negative POI
         :param kwargs: backend specific inputs.
         :return: muhat, maximum of the likelihood
@@ -100,7 +100,7 @@ class StatisticalModel:
         """
         Compute exclusion confidence level of a given statistical model.
 
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :param kwargs: backend specific inputs.
         :return: 1-CLs value (float)
         """
@@ -121,7 +121,7 @@ class StatisticalModel:
         """
         Compute the POI where the signal is excluded with 95% CL
 
-        :param expected: observed, expected (true, apriori) or aposteriori
+        :param expected: observed, apriori or aposteriori
         :param kwargs: backend specific inputs.
         :return: mu
         """
