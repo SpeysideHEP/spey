@@ -88,8 +88,8 @@ class PredictionCombiner:
         .. code-block:: python3
 
             kwargs = {
-                AvailableBackends.pyhf: {"iteration_threshold": 3},
-                AvailableBackends.simplified_likelihoods: {"marginalize": False},
+                str(AvailableBackends.pyhf): {"iteration_threshold": 3},
+                str(AvailableBackends.simplified_likelihoods): {"marginalize": False},
             }
 
         This will allow keyword arguments to be chosen with respect to specific backend.
@@ -128,11 +128,18 @@ class PredictionCombiner:
                        provide the input in the following format
 
         .. code-block:: python3
-
+            import madstats
+            combiner = madstats.PredictionCombiner(stat_model1, stat_model2)
             kwargs = {
-                AvailableBackends.pyhf: {"iteration_threshold": 3},
-                AvailableBackends.simplified_likelihoods: {"marginalize": False},
+                str(AvailableBackends.pyhf): {"iteration_threshold": 20},
+                str(AvailableBackends.simplified_likelihoods): {"marginalize": False},
             }
+            muhat_apri, nll_min_apri = combiner.maximize_likelihood(
+                return_nll=True,
+                allow_negative_signal=True,
+                expected=madstats.ExpectationType.apriori,
+                **kwargs
+            )
 
         This will allow keyword arguments to be chosen with respect to specific backend.
         :return: POI that minimizes the negative log-likelihood, minimum negative log-likelihood
@@ -182,8 +189,8 @@ class PredictionCombiner:
         .. code-block:: python3
 
             kwargs = {
-                AvailableBackends.pyhf: {"iteration_threshold": 3},
-                AvailableBackends.simplified_likelihoods: {"marginalize": False},
+                str(AvailableBackends.pyhf): {"iteration_threshold": 20},
+                str(AvailableBackends.simplified_likelihoods): {"marginalize": False},
             }
 
         This will allow keyword arguments to be chosen with respect to specific backend.
@@ -220,8 +227,8 @@ class PredictionCombiner:
         .. code-block:: python3
 
             kwargs = {
-                AvailableBackends.pyhf: {"iteration_threshold": 3},
-                AvailableBackends.simplified_likelihoods: {"marginalize": False},
+                str(AvailableBackends.pyhf): {"iteration_threshold": 20},
+                str(AvailableBackends.simplified_likelihoods): {"marginalize": False},
             }
 
         This will allow keyword arguments to be chosen with respect to specific backend.
@@ -274,8 +281,8 @@ class PredictionCombiner:
         .. code-block:: python3
 
             kwargs = {
-                AvailableBackends.pyhf: {"iteration_threshold": 3},
-                AvailableBackends.simplified_likelihoods: {"marginalize": False},
+                str(AvailableBackends.pyhf): {"iteration_threshold": 20},
+                str(AvailableBackends.simplified_likelihoods): {"marginalize": False},
             }
 
         This will allow keyword arguments to be chosen with respect to specific backend.
@@ -309,8 +316,8 @@ class PredictionCombiner:
         .. code-block:: python3
 
             kwargs = {
-                AvailableBackends.pyhf: {"iteration_threshold": 3},
-                AvailableBackends.simplified_likelihoods: {"marginalize": False},
+                str(AvailableBackends.pyhf): {"iteration_threshold": 20},
+                str(AvailableBackends.simplified_likelihoods): {"marginalize": False},
             }
 
         This will allow keyword arguments to be chosen with respect to specific backend.
