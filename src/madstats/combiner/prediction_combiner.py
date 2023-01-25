@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 from typing import Optional, List, Text, Union, Generator, Any
 import scipy
@@ -5,12 +7,13 @@ import scipy
 from madstats.interface.statistical_model import StatisticalModel
 from madstats.utils import ExpectationType
 from madstats.tools.utils_cls import compute_confidence_level
-from madstats.system.exceptions import AnalysisQueryError
+from madstats.system.exceptions import AnalysisQueryError, NegativeExpectedYields
 
 
 class PredictionCombiner:
-
-    __slots__ = ["_statistical_models", ]
+    __slots__ = [
+        "_statistical_models",
+    ]
 
     def __init__(self, *args):
         self._statistical_models = list()
@@ -103,9 +106,14 @@ class PredictionCombiner:
             current_kwargs = {}
             current_kwargs.update(kwargs.get(str(statistical_model.backend_type), {}))
 
-            nll += statistical_model.backend.likelihood(
-                mu=mu, expected=expected, return_nll=True, **current_kwargs
-            )
+            try:
+                nll += statistical_model.backend.likelihood(
+                    mu=mu, expected=expected, return_nll=True, **current_kwargs
+                )
+            except NegativeExpectedYields as err:
+                warnings.warn(err.args[0] + f" Setting NLL({mu}) = inf", category=RuntimeWarning)
+                nll = np.inf
+                break
 
         return nll if return_nll else np.exp(-nll)
 
