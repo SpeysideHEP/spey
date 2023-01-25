@@ -58,22 +58,19 @@ class Data:
         if mu == 1.0 and expected == self.default_expectation:
             return self._workspace, self._model, self._data
 
+        signal = copy.deepcopy(self.signal)
         if mu != 1.0:
             if isinstance(self.signal, float):
-                signal = self.signal * mu
+                signal *= mu
             else:
-                signal = []
-                for channel in self.signal:
-                    signal.append(channel)
-                    if signal[-1].get("value", False):
-                        signal[-1]["value"]["data"] = [
-                            nsig * mu for nsig in signal[-1]["value"]["data"]
+                for ids, channel in enumerate(signal):
+                    if signal[ids].get("value", False):
+                        signal[ids]["value"]["data"] = [
+                            nsig * mu for nsig in signal[ids]["value"]["data"]
                         ]
-        else:
-            signal = self.signal
 
         return initialise_workspace(
-            copy.deepcopy(signal),
+            signal,
             copy.deepcopy(self.background),
             copy.deepcopy(self.nb),
             copy.deepcopy(self.delta_nb),
