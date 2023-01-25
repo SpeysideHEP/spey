@@ -55,6 +55,8 @@ class Data:
         :param mu: POI (signal strength)
         :param expected: observed, expected (true, apriori) or aposteriori
         :return: workspace, statistical model and data
+        :raises NegativeExpectedYields: if `mu * signal + background` becomes
+                                        negative for the requested POI test.
         """
         if mu == 1.0 and expected == self.default_expectation:
             return self._workspace, self._model, self._data
