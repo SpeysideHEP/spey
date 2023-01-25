@@ -6,6 +6,7 @@ from pyhf import Workspace, Model
 
 from madstats.utils import ExpectationType
 from .utils import initialise_workspace
+from madstats.system.exceptions import NegativeExpectedYields
 
 
 @dataclass(frozen=True)
@@ -69,13 +70,30 @@ class Data:
                             nsig * mu for nsig in signal[ids]["value"]["data"]
                         ]
 
-        return initialise_workspace(
+        workspace, model, data = initialise_workspace(
             signal,
             copy.deepcopy(self.background),
             copy.deepcopy(self.nb),
             copy.deepcopy(self.delta_nb),
             expected=expected,
         )
+
+        # Check if there is any negative number of events
+        if mu < 0.0:
+            for channel in model.spec.get("channels", []):
+                current = []
+                for ch in channel["samples"]:
+                    if len(current) == 0:
+                        current = np.zeros((len(ch["data"]), ))
+                    current += np.array(ch["data"])
+                if np.any(np.array(current) < 0.0):
+                    raise NegativeExpectedYields(
+                        f"Statistical model involves negative expected "
+                        f"bin yields in region '{channel['name']}'. Bin values: "
+                        + ", ".join([f"{x:.3f}" for x in current])
+                    )
+
+        return workspace, model, data
 
     @property
     def isAlive(self) -> bool:
