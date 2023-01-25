@@ -90,17 +90,20 @@ class Data:
                     )
             else:
                 for channel in model.spec.get("channels", []):
-                    current = []
-                    for ch in channel["samples"]:
-                        if len(current) == 0:
-                            current = np.zeros((len(ch["data"]),))
-                        current += np.array(ch["data"])
-                    if np.any(np.array(current) < 0.0):
-                        raise NegativeExpectedYields(
-                            f"Statistical model involves negative expected "
-                            f"bin yields in region '{channel['name']}'. Bin values: "
-                            + ", ".join([f"{x:.3f}" for x in current])
-                        )
+                    current: Union[np.ndarray, None] = None
+                    for idx, ch in enumerate(channel.get("samples", [])):
+                        is_valid: bool = "data" in ch.keys()
+                        if current is None and is_valid:
+                            current = np.zeros(shape=(len(ch["data"]),))
+                        elif current is not None and is_valid:
+                            current += np.array(ch["data"])
+                    if current is not None:
+                        if np.any(current < 0.0):
+                            raise NegativeExpectedYields(
+                                f"Statistical model involves negative expected "
+                                f"bin yields in region '{channel['name']}'. Bin values: "
+                                + ", ".join([f"{x:.3f}" for x in current])
+                            )
 
         return workspace, model, data
 
