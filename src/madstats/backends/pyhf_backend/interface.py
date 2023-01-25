@@ -150,9 +150,11 @@ class PyhfInterface(BackendBase):
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: bool = True,
         return_nll: Optional[bool] = False,
+        return_theta: Optional[bool] = False,
         isAsimov: Optional[bool] = False,
         iteration_threshold: Optional[int] = 10,
-    ) -> float:
+        options: Optional[Dict] = None,
+    ) -> Union[float, Tuple[float, np.ndarray]]:
         """
         Compute the likelihood of the given statistical model
 
@@ -160,17 +162,37 @@ class PyhfInterface(BackendBase):
         :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: if true, POI can get negative values
         :param return_nll: if true returns negative log-likelihood value
+        :param return_theta: return fitted parameters
         :param isAsimov: if true, computes likelihood for Asimov data
-        :param mu_lim: boundaries for mu
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
+        :param options: optimizer options where the default values are
+                :param maxiter: maximum iterations (default 200)
+                :param verbose: verbosity (default False)
+                :param tolerance: Tolerance for termination. See specific optimizer
+                                  for detailed meaning. (default None)
+                :param solver_options: (dict) additional solver options. See
+                                :func:`scipy.optimize.show_options` for additional options of
+                                optimization solvers. (default {})
+                :param method: optimisation method (default SLSQP)
+                        Available methods are:
+                        - 'Nelder-Mead' :ref:`(see here) <scipy.optimize.minimize-neldermead>`
+                        - 'Powell'      :ref:`(see here) <scipy.optimize.minimize-powell>`
+                        - 'CG'          :ref:`(see here) <scipy.optimize.minimize-cg>`
+                        - 'BFGS'        :ref:`(see here) <scipy.optimize.minimize-bfgs>`
+                        - 'Newton-CG'   :ref:`(see here) <scipy.optimize.minimize-newtoncg>`
+                        - 'L-BFGS-B'    :ref:`(see here) <scipy.optimize.minimize-lbfgsb>`
+                        - 'TNC'         :ref:`(see here) <scipy.optimize.minimize-tnc>`
+                        - 'COBYLA'      :ref:`(see here) <scipy.optimize.minimize-cobyla>`
+                        - 'SLSQP'       :ref:`(see here) <scipy.optimize.minimize-slsqp>`
+                        - 'trust-constr':ref:`(see here) <scipy.optimize.minimize-trustconstr>`
+                        - 'dogleg'      :ref:`(see here) <scipy.optimize.minimize-dogleg>`
+                        - 'trust-ncg'   :ref:`(see here) <scipy.optimize.minimize-trustncg>`
+                        - 'trust-exact' :ref:`(see here) <scipy.optimize.minimize-trustexact>`
+                        - 'trust-krylov' :ref:`(see here) <scipy.optimize.minimize-trustkrylov>`
         :return: (float) likelihood
         """
 
         _, model, data = self.model(mu=1.0, expected=expected)
-
-        # if not self.model.isAlive:
-        #     return np.inf if return_nll else 0.0
-
 
         if isAsimov:
             data = generate_asimov_data(
@@ -193,18 +215,27 @@ class PyhfInterface(BackendBase):
             _, model, data = self.model(mu = mu, expected = expected)
             poi_test = 1.0
 
-        negloglikelihood = compute_negloglikelihood(
+        negloglikelihood, theta = compute_negloglikelihood(
             poi_test,
             data,
             model,
             allow_negative_signal,
             iteration_threshold,
+            options,
         )
 
+        returns = []
         if np.isnan(negloglikelihood):
-            return np.inf if return_nll else 0.0
+            returns.append(np.inf if return_nll else 0.0)
+        else:
+            returns.append(negloglikelihood if return_nll else np.exp(-negloglikelihood))
+        if return_theta:
+            returns.append(theta)
 
-        return negloglikelihood if return_nll else np.exp(-negloglikelihood)
+        if len(returns) == 1:
+            return returns[0]
+
+        return tuple(returns)
 
     def maximize_likelihood(
         self,

@@ -86,7 +86,8 @@ def compute_negloglikelihood(
     model: pyhf.pdf,
     allow_negative_signal: bool,
     iteration_threshold: int,
-) -> float:
+    options: Optional[Dict] = None,
+) -> Tuple[float, np.ndarray]:
     """
     Compute negative log-likelihood for given statistical model at a certain POI
 
@@ -96,29 +97,64 @@ def compute_negloglikelihood(
     :param allow_negative_signal: if true, POI can get negative values
     :param iteration_threshold: number of iterations to be held for convergence of the fit.
                                 this should not need to be larger than 3.
+    :param options: optimizer options where the default values are
+                    :param maxiter: maximum iterations (default 200)
+                    :param verbose: verbosity (default False)
+                    :param tolerance: Tolerance for termination. See specific optimizer
+                                      for detailed meaning. (default None)
+                    :param solver_options: (dict) additional solver options. See
+                                    :func:`scipy.optimize.show_options` for additional options of
+                                    optimization solvers. (default {})
+                    :param method: optimisation method (default SLSQP)
+                            Available methods are:
+                            - 'Nelder-Mead' :ref:`(see here) <scipy.optimize.minimize-neldermead>`
+                            - 'Powell'      :ref:`(see here) <scipy.optimize.minimize-powell>`
+                            - 'CG'          :ref:`(see here) <scipy.optimize.minimize-cg>`
+                            - 'BFGS'        :ref:`(see here) <scipy.optimize.minimize-bfgs>`
+                            - 'Newton-CG'   :ref:`(see here) <scipy.optimize.minimize-newtoncg>`
+                            - 'L-BFGS-B'    :ref:`(see here) <scipy.optimize.minimize-lbfgsb>`
+                            - 'TNC'         :ref:`(see here) <scipy.optimize.minimize-tnc>`
+                            - 'COBYLA'      :ref:`(see here) <scipy.optimize.minimize-cobyla>`
+                            - 'SLSQP'       :ref:`(see here) <scipy.optimize.minimize-slsqp>`
+                            - 'trust-constr':ref:`(see here) <scipy.optimize.minimize-trustconstr>`
+                            - 'dogleg'      :ref:`(see here) <scipy.optimize.minimize-dogleg>`
+                            - 'trust-ncg'   :ref:`(see here) <scipy.optimize.minimize-trustncg>`
+                            - 'trust-exact' :ref:`(see here) <scipy.optimize.minimize-trustexact>`
+                            - 'trust-krylov' :ref:`(see here) <scipy.optimize.minimize-trustkrylov>`
     :return: (float) negative log-likelihood
 
     .. code-block:: python3
 
         workspace, model, data = initialise_workspace(3., 5., 4., 0.5)
-        nll = compute_negloglikelihood(1., data, model, True, 3)
+        nll, theta = compute_negloglikelihood(1., data, model, True, 3)
     """
+    if options is None:
+        options = {}
+
+    _options = dict()
+    _options = dict(
+        maxiter=options.get("maxiter", 200),
+        verbose=options.get("verbose", False),
+        method=options.get("method", "SLSQP"),
+        tolerance=options.get("tolerance", None),
+        solver_options=options.get("solver_options", {}),
+    )
 
     def compute_nll(model, data, bounds):
         try:
-            _, twice_nllh = pyhf.infer.mle.fixed_poi_fit(
+            theta, twice_nllh = pyhf.infer.mle.fixed_poi_fit(
                 mu,
                 data,
                 model,
                 return_fitted_val=True,
-                maxiter=200,
                 par_bounds=bounds,
+                **_options,
             )
         except (AssertionError, pyhf.exceptions.FailedMinimization, ValueError) as err:
             warnings.warn(err.args[0], RuntimeWarning)
-            return "update bounds"
+            return "update bounds", None
 
-        return twice_nllh
+        return twice_nllh, theta
 
     with warnings.catch_warnings():
         warnings.filterwarnings(
@@ -129,7 +165,7 @@ def compute_negloglikelihood(
         bounds = model.config.suggested_bounds()
         it = 0
         while True:
-            twice_nllh = compute_nll(model, data, bounds)
+            twice_nllh, theta = compute_nll(model, data, bounds)
             if twice_nllh == "update bounds":
                 min_bound = (
                     bounds[model.config.poi_index][0] - 5.0 if allow_negative_signal else 0.0
@@ -143,9 +179,9 @@ def compute_negloglikelihood(
                 break
             if it >= iteration_threshold:
                 logging.getLogger("MA5").debug("pyhf mle.fit failed")
-                return float("nan")
+                return float("nan"), theta
 
-        return twice_nllh / 2.0
+        return twice_nllh / 2.0, theta
 
 
 def compute_min_negloglikelihood(
@@ -191,9 +227,7 @@ def compute_min_negloglikelihood(
         )
 
         bounds = model.config.suggested_bounds()
-        min_bound = (
-            bounds[model.config.poi_index][0] - 5.0 if allow_negative_signal else 0.0
-        )
+        min_bound = bounds[model.config.poi_index][0] - 5.0 if allow_negative_signal else 0.0
         bounds[model.config.poi_index] = (
             min_bound,
             2.0 * bounds[model.config.poi_index][1],
