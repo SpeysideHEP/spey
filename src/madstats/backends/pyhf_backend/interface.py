@@ -1,5 +1,5 @@
 import copy, logging, scipy, warnings
-from typing import Dict, Union, Optional, Tuple
+from typing import Dict, Union, Optional, Tuple, List
 import numpy as np
 
 import pyhf
@@ -24,7 +24,7 @@ class PyhfInterface(BackendBase):
     :raises AssertionError: if the input type is wrong.
     """
 
-    __slots__ = "_model"
+    __slots__ = ["_model", ]
 
     def __init__(self, model: Data):
         assert isinstance(model, Data), "Invalid statistical model."
@@ -56,6 +56,8 @@ class PyhfInterface(BackendBase):
             :param CLs_exp: if true return expected of the posterior fit
             :param CLs_obs: if true return observed or apriori expectation depending on the
                             expected flag.
+            :param CLs_exp_full: if true returns expected posterior fit with 1sigma and 2sigma
+                                 regions
         :return: 1 - CLs values {"CLs_obs": xx, "CLs_exp": [xx] * 5} or a single 1 - CLs value
 
         Note CLs_exp output is the expected of the posterior fit and comes with mean,
@@ -139,6 +141,8 @@ class PyhfInterface(BackendBase):
 
         if kwargs.get("CLs_exp", False):
             return CLs["CLs_exp"][2]
+        if kwargs.get("CLs_exp_full", False):
+            return CLs["CLs_exp"]
         elif kwargs.get("CLs_obs", False):
             return CLs["CLs_obs"]
 
@@ -154,7 +158,7 @@ class PyhfInterface(BackendBase):
         isAsimov: Optional[bool] = False,
         iteration_threshold: Optional[int] = 10,
         options: Optional[Dict] = None,
-    ) -> Union[float, Tuple[float, np.ndarray]]:
+    ) -> Union[float, List[float, np.ndarray]]:
         """
         Compute the likelihood of the given statistical model
 
@@ -212,7 +216,7 @@ class PyhfInterface(BackendBase):
         poi_test = copy.deepcopy(mu)
         bounds = model.config.suggested_bounds()[model.config.poi_index]
         if not bounds[0] <= poi_test <= bounds[1]:
-            _, model, data = self.model(mu = mu, expected = expected)
+            _, model, data = self.model(mu=mu, expected=expected)
             poi_test = 1.0
 
         negloglikelihood, theta = compute_negloglikelihood(
@@ -235,7 +239,7 @@ class PyhfInterface(BackendBase):
         if len(returns) == 1:
             return returns[0]
 
-        return tuple(returns)
+        return returns
 
     def maximize_likelihood(
         self,

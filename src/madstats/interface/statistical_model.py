@@ -14,7 +14,7 @@ class StatisticalModel:
     :param analysis: name of the analysis
     """
 
-    __slots__ = "_backend", "xsection", "analysis"
+    __slots__ = ["_backend", "xsection", "analysis"]
 
     def __init__(self, backend: BackendBase, xsection: float, analysis: Text):
         assert isinstance(backend, BackendBase), "Invalid backend"

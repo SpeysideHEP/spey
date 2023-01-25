@@ -10,7 +10,7 @@ from madstats.system.exceptions import AnalysisQueryError
 
 class PredictionCombiner:
 
-    __slots__ = "_statistical_models"
+    __slots__ = ["_statistical_models", ]
 
     def __init__(self, *args):
         self._statistical_models = list()

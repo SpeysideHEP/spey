@@ -21,7 +21,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
     :raises AssertionError: if the input type is wrong.
     """
 
-    __slots__ = "_model", "ntoys", "_third_moment_expansion"
+    __slots__ = ["_model", "ntoys", "_third_moment_expansion"]
 
     def __init__(self, model: Data, ntoys: Optional[int] = 30000):
         assert isinstance(model, Data) and isinstance(ntoys, int), "Invalid statistical model."
