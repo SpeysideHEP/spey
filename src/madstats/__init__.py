@@ -7,6 +7,7 @@ from madstats.backends import AvailableBackends
 from madstats.interface.statistical_model import StatisticalModel
 from madstats.combiner.prediction_combiner import PredictionCombiner
 
+
 def get_single_region_statistical_model(
     nobs: int,
     nb: float,
@@ -36,7 +37,7 @@ def get_single_region_statistical_model(
         from madstats.backends.pyhf_backend.interface import PyhfInterface, Data
 
         model = Data(
-            signal=signal_eff * xsection * Units.fb * lumi, background=nobs, nb=nb, delta_nb=deltanb
+            signal=signal_eff * xsection * 1000.0 * lumi, background=nobs, nb=nb, delta_nb=deltanb
         )
         return StatisticalModel(
             backend=PyhfInterface(model=model), xsection=xsection, analysis=analysis
@@ -49,7 +50,7 @@ def get_single_region_statistical_model(
         )
 
         model = Data(
-            signal=np.array([signal_eff * xsection * Units.fb * lumi]),
+            signal=np.array([signal_eff * xsection * 1000.0 * lumi]),
             observed=np.array([nobs]),
             covariance=np.array([deltanb]),
             background=np.array([nb]),

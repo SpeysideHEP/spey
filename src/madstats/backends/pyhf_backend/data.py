@@ -84,7 +84,7 @@ class Data:
                 if signal + self.background < 0.0:
                     raise NegativeExpectedYields(
                         f"Statistical model involves negative expected bin yields. "
-                        f"Bin values: {signal + self.background:.3f}"
+                        f"Bin value: {signal + self.background:.3f}"
                     )
             else:
                 for channel in model.spec.get("channels", []):
