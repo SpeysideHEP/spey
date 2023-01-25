@@ -80,18 +80,25 @@ class Data:
 
         # Check if there is any negative number of events
         if mu < 0.0:
-            for channel in model.spec.get("channels", []):
-                current = []
-                for ch in channel["samples"]:
-                    if len(current) == 0:
-                        current = np.zeros((len(ch["data"]), ))
-                    current += np.array(ch["data"])
-                if np.any(np.array(current) < 0.0):
+            if isinstance(signal, float):
+                if signal + self.background < 0.0:
                     raise NegativeExpectedYields(
-                        f"Statistical model involves negative expected "
-                        f"bin yields in region '{channel['name']}'. Bin values: "
-                        + ", ".join([f"{x:.3f}" for x in current])
+                        f"Statistical model involves negative expected bin yields. "
+                        f"Bin values: {signal + self.background:.3f}"
                     )
+            else:
+                for channel in model.spec.get("channels", []):
+                    current = []
+                    for ch in channel["samples"]:
+                        if len(current) == 0:
+                            current = np.zeros((len(ch["data"]),))
+                        current += np.array(ch["data"])
+                    if np.any(np.array(current) < 0.0):
+                        raise NegativeExpectedYields(
+                            f"Statistical model involves negative expected "
+                            f"bin yields in region '{channel['name']}'. Bin values: "
+                            + ", ".join([f"{x:.3f}" for x in current])
+                        )
 
         return workspace, model, data
 
