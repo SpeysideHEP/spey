@@ -158,7 +158,7 @@ class PyhfInterface(BackendBase):
         isAsimov: Optional[bool] = False,
         iteration_threshold: Optional[int] = 10,
         options: Optional[Dict] = None,
-    ) -> Union[float, List[float, np.ndarray]]:
+    ) -> Union[float, List[float]]:
         """
         Compute the likelihood of the given statistical model
 
