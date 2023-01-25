@@ -23,7 +23,7 @@ def compute_confidence_level(
     :return: confidence limit
     """
     if isinstance(mu, (float, int)):
-        mu = np.array([mu]).astype(np.float)
+        mu = np.array([float(mu)])
     elif len(mu) == 0:
         mu = np.array([mu])
 
