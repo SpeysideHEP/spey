@@ -1,5 +1,4 @@
-import pyhf
-import logging, warnings
+import pyhf, logging, warnings, copy
 import numpy as np
 
 from madstats.utils import ExpectationType
@@ -189,6 +188,7 @@ def compute_min_negloglikelihood(
     model: pyhf.pdf,
     allow_negative_signal: bool,
     iteration_threshold: int,
+    minimum_poi_test: Optional[float] = None,
 ) -> Tuple[float, float]:
     """
     Compute minimum negative log-likelihood (i.e. maximum likelihood) for given statistical model
@@ -197,6 +197,7 @@ def compute_min_negloglikelihood(
     :param model: statistical model
     :param allow_negative_signal: if true, POI can get negative values
     :param iteration_threshold: number of iterations to be held for convergence of the fit.
+    :param minimum_poi_test: declare minimum safe POI test
     :return: muhat, negative log-likelihood
 
     .. code-block:: python3
@@ -216,9 +217,26 @@ def compute_min_negloglikelihood(
             )
         except (AssertionError, pyhf.exceptions.FailedMinimization, ValueError) as err:
             warnings.warn(err.args[0], RuntimeWarning)
-            return "update bounds", None
+            return None, "update bounds"
 
         return muhat[model.config.poi_index], twice_nllh
+
+    def update_bounds(current_bounds: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+        """Update given bounds with respect to min POI criteria"""
+        min_bound = (
+            current_bounds[model.config.poi_index][0] - 5.0 if allow_negative_signal else 0.0
+        )
+        if allow_negative_signal and minimum_poi_test is not None:
+            min_bound = (
+                minimum_poi_test
+                if not np.isinf(minimum_poi_test)
+                else current_bounds[model.config.poi_index][0] - 5.0
+            )
+        current_bounds[model.config.poi_index] = (
+            min_bound,
+            2.0 * current_bounds[model.config.poi_index][1],
+        )
+        return current_bounds
 
     with warnings.catch_warnings():
         warnings.filterwarnings(
@@ -226,28 +244,17 @@ def compute_min_negloglikelihood(
             "Values in x were outside bounds during a minimize step, clipping to bounds",
         )
 
-        bounds = model.config.suggested_bounds()
-        min_bound = bounds[model.config.poi_index][0] - 5.0 if allow_negative_signal else 0.0
-        bounds[model.config.poi_index] = (
-            min_bound,
-            2.0 * bounds[model.config.poi_index][1],
-        )
+        bounds = update_bounds(copy.deepcopy(model.config.suggested_bounds()))
         it = 0
         while True:
             muhat, twice_nllh = compute_nll(model, data, bounds)
             if twice_nllh == "update bounds":
-                min_bound = (
-                    bounds[model.config.poi_index][0] - 5.0 if allow_negative_signal else 0.0
-                )
-                bounds[model.config.poi_index] = (
-                    min_bound,
-                    2.0 * bounds[model.config.poi_index][1],
-                )
+                bounds = update_bounds(bounds)
                 it += 1
             else:
                 break
-            if it >= iteration_threshold:
-                logging.getLogger("MA5").debug("pyhf mle.fit failed")
-                return float("nan"), float("nan")
+            if it >= iteration_threshold and isinstance(twice_nllh, str):
+                warnings.warn("pyhf mle.fit failed", RuntimeWarning)
+                return np.nan, np.nan
 
-        return muhat, twice_nllh / 2.0
+    return muhat, twice_nllh / 2.0

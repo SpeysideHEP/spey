@@ -10,6 +10,7 @@ from madstats.base.backend_base import BackendBase
 from .utils import compute_negloglikelihood, compute_min_negloglikelihood
 from .data import Data
 from madstats.backends import AvailableBackends
+from madstats.system.exceptions import NegativeExpectedYields
 
 pyhf.pdf.log.setLevel(logging.CRITICAL)
 pyhf.workspace.log.setLevel(logging.CRITICAL)
@@ -24,7 +25,9 @@ class PyhfInterface(BackendBase):
     :raises AssertionError: if the input type is wrong.
     """
 
-    __slots__ = ["_model", ]
+    __slots__ = [
+        "_model",
+    ]
 
     def __init__(self, model: Data):
         assert isinstance(model, Data), "Invalid statistical model."
@@ -214,19 +217,29 @@ class PyhfInterface(BackendBase):
         # see issue https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579235311
         # comment https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579299831
         poi_test = copy.deepcopy(mu)
+        execute = True
         bounds = model.config.suggested_bounds()[model.config.poi_index]
         if not bounds[0] <= poi_test <= bounds[1]:
-            _, model, data = self.model(mu=mu, expected=expected)
-            poi_test = 1.0
+            try:
+                _, model, data = self.model(mu=mu, expected=expected)
+                poi_test = 1.0
+            except NegativeExpectedYields as err:
+                warnings.warn(
+                    err.args[0] + f"\nSetting NLL({mu:.3f}) = inf.", category=RuntimeWarning
+                )
+                execute = False
 
-        negloglikelihood, theta = compute_negloglikelihood(
-            poi_test,
-            data,
-            model,
-            allow_negative_signal,
-            iteration_threshold,
-            options,
-        )
+        if execute:
+            negloglikelihood, theta = compute_negloglikelihood(
+                poi_test,
+                data,
+                model,
+                allow_negative_signal,
+                iteration_threshold,
+                options,
+            )
+        else:
+            negloglikelihood, theta = np.nan, np.nan
 
         returns = []
         if np.isnan(negloglikelihood):
@@ -272,7 +285,7 @@ class PyhfInterface(BackendBase):
             )
 
         muhat, negloglikelihood = compute_min_negloglikelihood(
-            data, model, allow_negative_signal, iteration_threshold
+            data, model, allow_negative_signal, iteration_threshold, self.model.minimum_poi_test
         )
 
         return muhat, negloglikelihood if return_nll else np.exp(-negloglikelihood)
