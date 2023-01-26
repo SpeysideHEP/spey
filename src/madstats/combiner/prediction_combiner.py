@@ -96,7 +96,6 @@ class PredictionCombiner:
         results = [model.s95exp for model in self]
         return self[results.index(min(results))]
 
-
     def likelihood(
         self,
         mu: Optional[float] = 1.0,
@@ -340,6 +339,7 @@ class PredictionCombiner:
     def computeUpperLimitOnMu(
         self,
         expected: Optional[ExpectationType] = ExpectationType.observed,
+        confidence_level: float = 0.95,
         iteration_threshold: Optional[int] = 10000,
         **kwargs,
     ) -> float:
@@ -347,6 +347,7 @@ class PredictionCombiner:
         Compute the POI where the signal is excluded with 95% CL
 
         :param expected: observed, apriori or aposteriori
+        :param confidence_level: confidence level (default 95%)
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
         :param kwargs: model dependent arguments. In order to specify backend specific inputs
                        provide the input in the following format
@@ -361,6 +362,7 @@ class PredictionCombiner:
         This will allow keyword arguments to be chosen with respect to specific backend.
         :return: excluded POI value at 95% CLs
         """
+        assert 0. <= confidence_level <= 1., "Confidence level must be between zero and one."
 
         min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood = self._exclusion_tools(
             expected=expected,
@@ -369,8 +371,12 @@ class PredictionCombiner:
             **kwargs,
         )
 
-        computer = lambda mu: 0.05 - compute_confidence_level(
-            mu, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll
+        computer = (
+            lambda mu: 1.0
+            - compute_confidence_level(
+                mu, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll
+            )
+            - confidence_level
         )
         low, hig = find_root_limits(computer, loc=0.0)
 

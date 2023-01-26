@@ -250,31 +250,32 @@ class SimplifiedLikelihoodInterface(BackendBase):
     def computeUpperLimitOnMu(
         self,
         expected: Optional[ExpectationType] = ExpectationType.observed,
+        confidence_level: float = 0.95,
         marginalise: Optional[bool] = False,
-        allow_negative_signal: Optional[bool] = False,
         iteration_threshold: Optional[int] = 10000,
     ) -> float:
         """
         Compute the POI where the signal is excluded with 95% CL
 
         :param expected: observed, apriori or aposteriori
+        :param confidence_level: confidence level (default 95%)
         :param marginalise: if true, marginalize the likelihood.
                             if false compute profiled likelihood
-        :param allow_negative_signal: if true, allow negative mu
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
         :return: excluded POI value at 95% CLs
         """
+        assert 0. <= confidence_level <= 1., "Confidence level must be between zero and one."
 
         min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood = self._exclusion_tools(
             expected=expected,
             marginalise=marginalise,
-            allow_negative_signal=allow_negative_signal,
+            allow_negative_signal=False,
             iteration_threshold=iteration_threshold,
         )
 
-        computer = lambda mu: 0.05 - compute_confidence_level(
+        computer = lambda mu: 1.0 - compute_confidence_level(
             mu, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll
-        )
+        ) - confidence_level
         low, hig = find_root_limits(computer, loc = 0.0)
 
         return scipy.optimize.brentq(computer, low, hig, xtol=low / 100.0)

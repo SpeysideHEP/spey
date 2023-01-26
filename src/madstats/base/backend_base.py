@@ -31,12 +31,16 @@ class BackendBase(ABC):
 
     @abstractmethod
     def computeUpperLimitOnMu(
-        self, expected: Optional[ExpectationType] = ExpectationType.observed, **kwargs
+        self,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        confidence_level: float = 0.95,
+        **kwargs,
     ) -> float:
         """
         Compute the POI where the signal is excluded with 95% CL
 
         :param expected: observed, apriori or aposteriori
+        :param confidence_level: confidence level (default 95%)
         :return: mu
         """
         raise NotImplementedError("This method has not been implemented")

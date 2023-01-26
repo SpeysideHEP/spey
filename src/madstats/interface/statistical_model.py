@@ -129,13 +129,17 @@ class StatisticalModel:
     def computeUpperLimitOnMu(
         self,
         expected: Optional[ExpectationType] = ExpectationType.observed,
+        confidence_level: float = 0.95,
         **kwargs,
     ) -> float:
         """
         Compute the POI where the signal is excluded with 95% CL
 
         :param expected: observed, apriori or aposteriori
+        :param confidence_level: confidence level (default 95%)
         :param kwargs: backend specific inputs.
         :return: mu
         """
-        return self.backend.computeUpperLimitOnMu(expected=expected, **kwargs)
+        return self.backend.computeUpperLimitOnMu(
+            expected=expected, confidence_level=confidence_level, **kwargs
+        )

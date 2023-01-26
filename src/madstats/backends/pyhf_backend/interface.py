@@ -324,14 +324,20 @@ class PyhfInterface(BackendBase):
         )
 
     def computeUpperLimitOnMu(
-        self, expected: Optional[ExpectationType] = ExpectationType.observed, **kwargs
+        self,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        confidence_level: float = 0.95,
+        **kwargs,
     ) -> float:
         """
         Compute the POI where the signal is excluded with 95% CL
 
         :param expected: observed, apriori or aposteriori
+        :param confidence_level: confidence level (default 95%)
         :return: mu
         """
+        assert 0. <= confidence_level <= 1., "Confidence level must be between zero and one."
+
         kwargs.update(
             dict(
                 expected=expected,
@@ -339,7 +345,7 @@ class PyhfInterface(BackendBase):
                 CLs_exp=expected == ExpectationType.aposteriori,
             )
         )
-        computer = lambda mu: self.computeCLs(mu=mu, **kwargs) - 0.95
-        low, hig = find_root_limits(computer, loc = 0.0)
+        computer = lambda mu: self.computeCLs(mu=mu, **kwargs) - confidence_level
+        low, hig = find_root_limits(computer, loc=0.0)
 
         return scipy.optimize.brentq(computer, low, hig, xtol=low / 100.0)
