@@ -1,8 +1,7 @@
-import copy, logging, scipy, warnings
+import copy, logging, scipy, warnings, pyhf
 from typing import Dict, Union, Optional, Tuple, List
 import numpy as np
 
-import pyhf
 from pyhf.infer.calculators import generate_asimov_data
 
 from madstats.utils import ExpectationType

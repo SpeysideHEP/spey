@@ -272,7 +272,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood = self._exclusion_tools(
             expected=expected,
             marginalise=marginalise,
-            allow_negative_signal=False,
+            allow_negative_signal=True,
             iteration_threshold=iteration_threshold,
         )
 
