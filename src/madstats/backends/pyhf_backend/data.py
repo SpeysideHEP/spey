@@ -85,7 +85,7 @@ class Data:
             if isinstance(signal, float):
                 if signal + self.background < 0.0:
                     raise NegativeExpectedYields(
-                        f"Statistical model involves negative expected bin yields. "
+                        f"PyhfInterface::Statistical model involves negative expected bin yields. "
                         f"Bin value: {signal + self.background:.3f}"
                     )
             else:
@@ -100,7 +100,7 @@ class Data:
                     if current is not None:
                         if np.any(current < 0.0):
                             raise NegativeExpectedYields(
-                                f"Statistical model involves negative expected "
+                                f"PyhfInterface::Statistical model involves negative expected "
                                 f"bin yields in region '{channel['name']}'. Bin values: "
                                 + ", ".join([f"{x:.3f}" for x in current])
                             )

@@ -76,6 +76,7 @@ class PredictionCombiner:
             yield model
 
     def __len__(self):
+        """Number of statistical models within the stack"""
         return len(self._statistical_models)
 
     def items(self) -> Generator[tuple[Any, Any], Any, None]:

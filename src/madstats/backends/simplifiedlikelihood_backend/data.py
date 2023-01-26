@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from typing import Text, Optional
 from collections import namedtuple
 
+from madstats.system.exceptions import NegativeExpectedYields
+
 expansion_output = output = namedtuple(
     "expansion", ["A", "B", "C", "rho", "V", "logdet_covariance", "inv_covariance"]
 )
@@ -189,7 +191,22 @@ class Data:
         return corr
 
     def __mul__(self, signal_strength: float) -> np.ndarray:
-        """Multiply signal yields with signal strength"""
+        """
+        Multiply signal yields with signal strength
+
+        :param signal_strength: POI test
+        :return: scaled signal yields
+        :raises NegativeExpectedYields: if any bin has negative expected yields.
+        """
+        signal_yields = signal_strength * self.signal
+        if signal_strength < 0.0:
+            bin_values = signal_yields + self.background
+            if np.any(bin_values < 0.0):
+                raise NegativeExpectedYields(
+                    f"SimplifiedLikelihoodInterface::Statistical model involves negative "
+                    f"expected bin yields'. Bin values: "
+                    + ", ".join([f"{x:.3f}" for x in bin_values])
+                )
         return signal_strength * self.signal
 
     def __rmul__(self, signal_strength: float) -> np.ndarray:
