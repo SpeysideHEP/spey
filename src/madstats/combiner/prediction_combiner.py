@@ -57,6 +57,11 @@ class PredictionCombiner:
         """List of analyses that are included in combiner database"""
         return [model.analysis for model in self]
 
+    @property
+    def minimum_poi_test(self) -> float:
+        """Find minimum POI test that can be applied to this statistical model"""
+        return max([model.backend.model.minimum_poi_test for model in self])
+
     def __getitem__(self, item: Union[Text, int]) -> StatisticalModel:
         """Retrieve a statistical model"""
         if isinstance(item, int):
@@ -169,13 +174,16 @@ class PredictionCombiner:
             mu[0], expected=expected, return_nll=True, **kwargs
         )
 
-        muhat_init = np.random.uniform(0.0, 10.0, (1,))
+        muhat_init = np.random.uniform(
+            self.minimum_poi_test if allow_negative_signal else 0.0, 10.0, (1,)
+        )
 
         # It is possible to allow user to modify the optimiser properties in the future
         opt = scipy.optimize.minimize(
             negloglikelihood,
             muhat_init,
-            method="COBYLA",
+            method="SLSQP",
+            bounds=[(self.minimum_poi_test if allow_negative_signal else 0.0, 40.0)],
             tol=1e-6,
             options={"maxiter": iteration_threshold},
         )
