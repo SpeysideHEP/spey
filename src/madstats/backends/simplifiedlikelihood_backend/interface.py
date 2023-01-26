@@ -114,13 +114,16 @@ class SimplifiedLikelihoodInterface(BackendBase):
             mu[0], expected=expected, return_nll=True, marginalize=marginalise, isAsimov=isAsimov
         )
 
-        muhat_init = np.random.uniform(-10.0 if allow_negative_signal else 0.0, 10.0, (1,))
+        muhat_init = np.random.uniform(
+            self.model.minimum_poi_test if allow_negative_signal else 0.0, 10.0, (1,)
+        )
 
         # It is possible to allow user to modify the optimiser properties in the future
         opt = scipy.optimize.minimize(
             negloglikelihood,
             muhat_init,
-            method="COBYLA",
+            method="SLSQP",
+            bounds=[(self.model.minimum_poi_test if allow_negative_signal else 0.0, 40.0)],
             tol=1e-6,
             options={"maxiter": iteration_threshold},
         )
