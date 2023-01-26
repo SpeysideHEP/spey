@@ -33,6 +33,7 @@ class Data:
     _workspace: Optional[pyhf.Workspace] = field(default=None, init=False, repr=False)
     _model: Optional[pyhf.pdf.Model] = field(default=None, init=False, repr=False)
     _data: Optional[List[float]] = field(default=None, init=False, repr=False)
+    _minimum_poi_test: float = field(default=0.0, init=False, repr=False)
 
     def __post_init__(self):
         workspace, model, data = initialise_workspace(
@@ -42,6 +43,42 @@ class Data:
         object.__setattr__(self, "_workspace", workspace)
         object.__setattr__(self, "_model", model)
         object.__setattr__(self, "_data", data)
+
+        # Find minimum POI test that can be applied to this statistical model
+        if isinstance(self.signal, float):
+            if self.signal > 0.0:
+                object.__setattr__(self, "_minimum_poi_test", -self.background / self.signal)
+            else:
+                object.__setattr__(self, "_minimum_poi_test", -np.inf)
+        else:
+            min_ratio = []
+            for idc, channel in enumerate(self.background.get("channels", [])):
+                current_signal = []
+                for sigch in self.signal:
+                    if idc == int(sigch["path"].split("/")[2]):
+                        current_signal = np.array(
+                            sigch.get("value", {}).get("data", []), dtype=np.float32
+                        )
+                        break
+                if len(current_signal) == 0:
+                    continue
+                current_bkg = []
+                for ch in channel["samples"]:
+                    if len(current_bkg) == 0:
+                        current_bkg = np.zeros(shape=(len(ch["data"]),), dtype=np.float32)
+                    current_bkg += np.array(ch["data"], dtype=np.float32)
+                min_ratio.append(
+                    np.min(current_bkg / np.where(current_signal == 0.0, 1e-99, current_signal))
+                )
+            if len(min_ratio) > 0:
+                # TODO algorithm has error up to 0.0531 find a way to fix this
+                object.__setattr__(
+                    self,
+                    "_minimum_poi_test",
+                    -np.min(np.array(min_ratio, dtype=np.float32)) + np.float32(0.0531),
+                )
+            else:
+                object.__setattr__(self, "_minimum_poi_test", -np.inf)
 
     def __call__(
         self,
@@ -124,33 +161,4 @@ class Data:
     @property
     def minimum_poi_test(self):
         """Find minimum POI test that can be applied to this statistical model"""
-        if isinstance(self.signal, float):
-            if self.signal > 0.0:
-                return -self.background / self.signal
-            else:
-                return -np.inf
-        else:
-            min_ratio = []
-            for idc, channel in enumerate(self.background.get("channels", [])):
-                current_signal = []
-                for sigch in self.signal:
-                    if idc == int(sigch["path"].split("/")[2]):
-                        current_signal = np.array(
-                            sigch.get("value", {}).get("data", []), dtype=np.float32
-                        )
-                        break
-                if len(current_signal) == 0:
-                    continue
-                current_bkg = []
-                for ch in channel["samples"]:
-                    if len(current_bkg) == 0:
-                        current_bkg = np.zeros(shape=(len(ch["data"]),), dtype=np.float32)
-                    current_bkg += np.array(ch["data"], dtype=np.float32)
-                min_ratio.append(
-                    np.min(current_bkg / np.where(current_signal == 0.0, 1e-99, current_signal))
-                )
-            if len(min_ratio) > 0:
-                # TODO algorithm has error up to 0.0531 find a way to fix this
-                return -np.min(np.array(min_ratio, dtype=np.float32)) + np.float32(0.0531)
-            else:
-                return -np.inf
+        return self._minimum_poi_test

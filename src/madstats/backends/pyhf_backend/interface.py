@@ -25,9 +25,7 @@ class PyhfInterface(BackendBase):
     :raises AssertionError: if the input type is wrong.
     """
 
-    __slots__ = [
-        "_model",
-    ]
+    __slots__ = ["_model"]
 
     def __init__(self, model: Data):
         assert isinstance(model, Data), "Invalid statistical model."
