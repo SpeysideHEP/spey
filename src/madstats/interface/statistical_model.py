@@ -1,8 +1,11 @@
 from typing import Optional, Text, Tuple
 
+import numpy as np
+
 from madstats.utils import ExpectationType
 from madstats.base.backend_base import BackendBase
 from madstats.backends import AvailableBackends
+from madstats.system.exceptions import UnknownCrossSection
 
 
 class StatisticalModel:
@@ -16,7 +19,7 @@ class StatisticalModel:
 
     __slots__ = ["_backend", "xsection", "analysis"]
 
-    def __init__(self, backend: BackendBase, xsection: float, analysis: Text):
+    def __init__(self, backend: BackendBase, analysis: Text, xsection: float = np.NaN):
         assert isinstance(backend, BackendBase), "Invalid backend"
         self._backend: BackendBase = backend
         self.xsection: float = xsection
@@ -41,6 +44,16 @@ class StatisticalModel:
     def excluded_cross_section(
         self, expected: Optional[ExpectationType] = ExpectationType.observed
     ) -> float:
+        """
+        Compute excluded cross section
+
+        :param expected: observed, apriori or aposteriori
+        :return: excluded cross section value in pb
+        :raises UnknownCrossSection: if cross section is nan.
+        """
+        if np.isnan(self.xsection):
+            raise UnknownCrossSection("Cross-section value has not been initialised.")
+
         return self.computeUpperLimitOnMu(expected=expected) * self.xsection
 
     @property

@@ -1,8 +1,6 @@
-import warnings
-
+import warnings, scipy
 import numpy as np
 from typing import Optional, List, Text, Union, Generator, Any
-import scipy
 
 from madstats.interface.statistical_model import StatisticalModel
 from madstats.utils import ExpectationType
@@ -11,9 +9,13 @@ from madstats.system.exceptions import AnalysisQueryError, NegativeExpectedYield
 
 
 class PredictionCombiner:
-    __slots__ = [
-        "_statistical_models",
-    ]
+    """
+    Statistical model combination routine
+
+    :param args: Statistical models
+    """
+
+    __slots__ = ["_statistical_models"]
 
     def __init__(self, *args):
         self._statistical_models = list()
@@ -21,7 +23,15 @@ class PredictionCombiner:
             self.append(arg)
 
     def append(self, statistical_model: StatisticalModel) -> None:
+        """
+        Add new analysis to the statistical model stack
+
+        :param statistical_model: statistical model to be added to the stack
+        :raises AnalysisQueryError: if analysis name matches with another analysis within the stack
+        """
         if isinstance(statistical_model, StatisticalModel):
+            if statistical_model.analysis in self.analyses:
+                raise AnalysisQueryError(f"{statistical_model.analysis} already exists.")
             self._statistical_models.append(statistical_model)
         else:
             raise TypeError(f"Can not append type {type(statistical_model)}.")
@@ -53,7 +63,7 @@ class PredictionCombiner:
             if item < len(self):
                 return self.statistical_models[item]
             else:
-                raise AnalysisQueryError(f"Request exceed number of statistical models available.")
+                raise AnalysisQueryError(f"Request exceeds number of statistical models available.")
 
         for model in self:
             if model.analysis == item:
@@ -111,8 +121,10 @@ class PredictionCombiner:
                     mu=mu, expected=expected, return_nll=True, **current_kwargs
                 )
             except NegativeExpectedYields as err:
-                warnings.warn(err.args[0] + f" Setting NLL({mu}) = inf", category=RuntimeWarning)
+                warnings.warn(err.args[0] + f" Setting NLL({mu:3f}) = inf", category=RuntimeWarning)
                 nll = np.inf
+
+            if np.isinf(nll):
                 break
 
         return nll if return_nll else np.exp(-nll)
