@@ -6,6 +6,7 @@ import numpy as np
 from madstats.backends import AvailableBackends
 from madstats.interface.statistical_model import StatisticalModel
 from madstats.combiner.prediction_combiner import PredictionCombiner
+from ._version import __version__
 
 
 def get_single_region_statistical_model(

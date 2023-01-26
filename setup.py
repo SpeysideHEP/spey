@@ -1,17 +1,18 @@
 from setuptools import setup
-import os
 
 with open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
 
-requirements = []
 with open("requirements.txt", "r") as f:
     requirements = f.read()
 requirements = [x for x in requirements.split("\n") if x != ""]
 
+with open("src/ma5_expert/_version.py", "r") as f:
+    version = f.readlines()[-1].split()[-1].strip("\"'")
+
 setup(
     name="madstats",
-    version="0.0.1",
+    version=version,
     description=("A universal statistics package for LHC reinterpretation"),
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -19,7 +20,7 @@ setup(
     project_urls={
         "Bug Tracker": "https://github.com/MadAnalysis/madstats/issues",
     },
-    #download_url="https://github.com/MadAnalysis/madstats/archive/refs/tags/v0.0.1.tar.gz",
+    #download_url=f"https://github.com/MadAnalysis/madstats/archive/refs/tags/v{version}.tar.gz",
     author="Jack Y. Araz",
     author_email=("jack.araz@durham.ac.uk"),
     license="MIT",
