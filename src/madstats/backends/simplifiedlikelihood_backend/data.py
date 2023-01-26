@@ -45,7 +45,14 @@ class Data:
             and isinstance(self.delta_sys, float)
             and (self.third_moment is None or isinstance(self.third_moment, np.ndarray))
         ):
-            raise TypeError("Invalid type.")
+            raise TypeError(
+                f"Invalid type.\nobserved: {type(self.observed)}, "
+                f"\nsignal: {type(self.signal)}, "
+                f"\nbackground: {type(self.background)}, "
+                f"\ncovariance: {type(self.covariance)}, "
+                f"\ndelta_sys: {type(self.delta_sys)}, "
+                f"\nthird_moment: {type(self.third_moment)}"
+            )
 
         assert len(self.covariance.shape) == 2, "Covariance input has to be matrix."
 
