@@ -186,6 +186,7 @@ class PredictionCombiner:
             self.minimum_poi_test if allow_negative_signal else 0.0, 10.0, (1,)
         )
 
+        # TODO upper limit 40 might be too arbitrary
         # It is possible to allow user to modify the optimiser properties in the future
         opt = scipy.optimize.minimize(
             negloglikelihood,

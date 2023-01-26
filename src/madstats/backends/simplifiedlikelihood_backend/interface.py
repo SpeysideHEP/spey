@@ -8,7 +8,7 @@ from madstats.backends import AvailableBackends
 
 from typing import Optional, Tuple
 import numpy as np
-import scipy
+import scipy, warnings
 
 
 class SimplifiedLikelihoodInterface(BackendBase):
@@ -129,7 +129,10 @@ class SimplifiedLikelihoodInterface(BackendBase):
         )
 
         if not opt.success:
-            raise RuntimeWarning("Optimiser was not able to reach required precision.")
+            warnings.warn(
+                message="Optimiser was not able to reach required precision.",
+                category=RuntimeWarning,
+            )
 
         nll, muhat = opt.fun, opt.x[0]
         if not allow_negative_signal and muhat < 0.0:
@@ -264,7 +267,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
         :return: excluded POI value at 95% CLs
         """
-        assert 0. <= confidence_level <= 1., "Confidence level must be between zero and one."
+        assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
 
         min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood = self._exclusion_tools(
             expected=expected,
@@ -273,9 +276,13 @@ class SimplifiedLikelihoodInterface(BackendBase):
             iteration_threshold=iteration_threshold,
         )
 
-        computer = lambda mu: 1.0 - compute_confidence_level(
-            mu, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll
-        ) - confidence_level
-        low, hig = find_root_limits(computer, loc = 0.0)
+        computer = (
+            lambda mu: 1.0
+            - compute_confidence_level(
+                mu, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll
+            )
+            - confidence_level
+        )
+        low, hig = find_root_limits(computer, loc=0.0)
 
         return scipy.optimize.brentq(computer, low, hig, xtol=low / 100.0)
