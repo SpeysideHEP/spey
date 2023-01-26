@@ -88,6 +88,15 @@ class PredictionCombiner:
         """Returns a generator for analysis name and corresponding statistical model"""
         return ((model.analysis, model) for model in self)
 
+    def find_most_sensitive(self) -> StatisticalModel:
+        """
+        Find the most sensitive statistical model which will return
+        the model with minimum expected excluded cross-section
+        """
+        results = [model.s95exp for model in self]
+        return self[results.index(min(results))]
+
+
     def likelihood(
         self,
         mu: Optional[float] = 1.0,
