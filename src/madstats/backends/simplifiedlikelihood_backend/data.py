@@ -203,8 +203,8 @@ class Data:
             bin_values = signal_yields + self.background
             if np.any(bin_values < 0.0):
                 raise NegativeExpectedYields(
-                    f"SimplifiedLikelihoodInterface::Statistical model involves negative "
-                    f"expected bin yields'. Bin values: "
+                    "SimplifiedLikelihoodInterface::Statistical model involves negative "
+                    "expected bin yields'. Bin values: "
                     + ", ".join([f"{x:.3f}" for x in bin_values])
                 )
         return signal_strength * self.signal

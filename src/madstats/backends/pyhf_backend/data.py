@@ -1,6 +1,6 @@
 import pyhf, copy
 from dataclasses import dataclass, field
-from typing import Dict, Union, Optional, List
+from typing import Dict, Union, Optional, List, Text
 import numpy as np
 from pyhf import Workspace, Model
 
@@ -18,6 +18,7 @@ class Data:
     :param background: either background only JSON histfactory or float value of observed data
     :param nb: expected number of background events. In case of statistical model it is not needed
     :param delta_nb: uncertainty on backgorund. In case of statistical model it is not needed
+    :param name: name of the statistical model.
     :raises AssertionError: if the statistical model is not valid
     """
 
@@ -28,6 +29,7 @@ class Data:
     default_expectation: Optional[ExpectationType] = field(
         default=ExpectationType.observed, repr=False
     )
+    name: Text = "__unknown_model__"
     _workspace: Optional[pyhf.Workspace] = field(default=None, init=False, repr=False)
     _model: Optional[pyhf.pdf.Model] = field(default=None, init=False, repr=False)
     _data: Optional[List[float]] = field(default=None, init=False, repr=False)
