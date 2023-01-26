@@ -365,11 +365,11 @@ class PredictionCombiner:
         )
 
         low, hig = 1.0, 1.0
-        while computer(low) > 0.95:
+        while computer(low) > 0.0:
             low *= 0.1
             if low < 1e-10:
                 break
-        while computer(hig) < 0.95:
+        while computer(hig) < 0.0:
             hig *= 10.0
             if hig > 1e10:
                 break
