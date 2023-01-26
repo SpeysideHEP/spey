@@ -4,7 +4,7 @@ from typing import Optional, List, Text, Union, Generator, Any
 
 from madstats.interface.statistical_model import StatisticalModel
 from madstats.utils import ExpectationType
-from madstats.tools.utils_cls import compute_confidence_level
+from madstats.tools.utils_cls import compute_confidence_level, find_root_limits
 from madstats.system.exceptions import AnalysisQueryError, NegativeExpectedYields
 
 
@@ -363,15 +363,6 @@ class PredictionCombiner:
         computer = lambda mu: 0.05 - compute_confidence_level(
             mu, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll
         )
-
-        low, hig = 1.0, 1.0
-        while computer(low) > 0.0:
-            low *= 0.1
-            if low < 1e-10:
-                break
-        while computer(hig) < 0.0:
-            hig *= 10.0
-            if hig > 1e10:
-                break
+        low, hig = find_root_limits(computer, loc=0.0)
 
         return scipy.optimize.brentq(computer, low, hig, xtol=low / 100.0)

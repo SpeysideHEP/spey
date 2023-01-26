@@ -1,7 +1,7 @@
 import numpy as np
 import scipy
 
-from typing import Callable, Union
+from typing import Callable, Union, Tuple
 
 
 def compute_confidence_level(
@@ -55,3 +55,23 @@ def compute_confidence_level(
         return 0.0
 
     return CLsb / CLb
+
+
+def find_root_limits(computer: Callable[[float], float], loc: float = 0.0) -> Tuple[float, float]:
+    """
+    Find roots for brent bracketing
+
+    :param computer: POI dependent function
+    :param loc: location of the root
+    :return: lower and upper bound
+    """
+    low, hig = 1.0, 1.0
+    while computer(low) > loc:
+        low *= 0.1
+        if low < 1e-10:
+            break
+    while computer(hig) < loc:
+        hig *= 10.0
+        if hig > 1e10:
+            break
+    return low, hig

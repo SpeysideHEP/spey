@@ -11,6 +11,7 @@ from .utils import compute_negloglikelihood, compute_min_negloglikelihood
 from .data import Data
 from madstats.backends import AvailableBackends
 from madstats.system.exceptions import NegativeExpectedYields
+from madstats.tools.utils_cls import find_root_limits
 
 pyhf.pdf.log.setLevel(logging.CRITICAL)
 pyhf.workspace.log.setLevel(logging.CRITICAL)
@@ -339,15 +340,6 @@ class PyhfInterface(BackendBase):
             )
         )
         computer = lambda mu: self.computeCLs(mu=mu, **kwargs) - 0.95
-
-        low, hig = 1.0, 1.0
-        while computer(low) > 0.95:
-            low *= 0.1
-            if low < 1e-10:
-                break
-        while computer(hig) < 0.95:
-            hig *= 10.0
-            if hig > 1e10:
-                break
+        low, hig = find_root_limits(computer, loc = 0.0)
 
         return scipy.optimize.brentq(computer, low, hig, xtol=low / 100.0)
