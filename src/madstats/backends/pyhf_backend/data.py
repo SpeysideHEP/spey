@@ -70,9 +70,9 @@ class Data:
             else:
                 for ids, channel in enumerate(signal):
                     if signal[ids].get("value", False):
-                        signal[ids]["value"]["data"] = [
-                            nsig * mu for nsig in signal[ids]["value"]["data"]
-                        ]
+                        signal[ids]["value"]["data"] = np.array(
+                            [nsig * mu for nsig in signal[ids]["value"]["data"]], dtype=np.float32
+                        ).tolist()
 
         workspace, model, data = initialise_workspace(
             signal,
@@ -96,9 +96,9 @@ class Data:
                     for idx, ch in enumerate(channel.get("samples", [])):
                         is_valid: bool = "data" in ch.keys()
                         if current is None and is_valid:
-                            current = np.zeros(shape=(len(ch["data"]),))
+                            current = np.zeros(shape=(len(ch["data"]),), dtype=np.float32)
                         elif current is not None and is_valid:
-                            current += np.array(ch["data"])
+                            current += np.array(ch["data"], dtype=np.float32)
                     if current is not None:
                         if np.any(current < 0.0):
                             raise NegativeExpectedYields(
@@ -120,3 +120,37 @@ class Data:
                     if np.any([nsig > 0.0 for nsig in channel["value"].get("data", list())]):
                         return True
             return False
+
+    @property
+    def minimum_poi_test(self):
+        """Find minimum POI test that can be applied to this statistical model"""
+        if isinstance(self.signal, float):
+            if self.signal > 0.0:
+                return -self.background / self.signal
+            else:
+                return -np.inf
+        else:
+            min_ratio = []
+            for idc, channel in enumerate(self.background.get("channels", [])):
+                current_signal = []
+                for sigch in self.signal:
+                    if idc == int(sigch["path"].split("/")[2]):
+                        current_signal = np.array(
+                            sigch.get("value", {}).get("data", []), dtype=np.float32
+                        )
+                        break
+                if len(current_signal) == 0:
+                    continue
+                current_bkg = []
+                for ch in channel["samples"]:
+                    if len(current_bkg) == 0:
+                        current_bkg = np.zeros(shape=(len(ch["data"]),), dtype=np.float32)
+                    current_bkg += np.array(ch["data"], dtype=np.float32)
+                min_ratio.append(
+                    np.min(current_bkg / np.where(current_signal == 0.0, 1e-99, current_signal))
+                )
+            if len(min_ratio) > 0:
+                # TODO algorithm has error up to 0.0531 find a way to fix this
+                return -np.min(np.array(min_ratio, dtype=np.float32)) + np.float32(0.0531)
+            else:
+                return -np.inf

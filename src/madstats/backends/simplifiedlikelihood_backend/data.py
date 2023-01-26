@@ -190,6 +190,11 @@ class Data:
                 corr[idy][idx] = rho
         return corr
 
+    @property
+    def minimum_poi_test(self):
+        """Find minimum POI test that can be applied to this statistical model"""
+        return -np.min(self.background / np.where(self.signal == 0.0, 1e-99, self.signal))
+
     def __mul__(self, signal_strength: float) -> np.ndarray:
         """
         Multiply signal yields with signal strength
