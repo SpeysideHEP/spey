@@ -1,3 +1,11 @@
+__all__ = [
+    "FrozenInstanceError",
+    "AnalysisQueryError",
+    "NegativeExpectedYields",
+    "UnknownCrossSection",
+]
+
+
 class FrozenInstanceError(Exception):
     """Frozen instance exception"""
 

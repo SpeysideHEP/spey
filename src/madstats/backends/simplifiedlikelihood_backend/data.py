@@ -200,9 +200,13 @@ class Data:
         return corr
 
     @property
-    def minimum_poi_test(self):
+    def minimum_poi_test(self) -> float:
         """Find minimum POI test that can be applied to this statistical model"""
-        return -np.min(self.background / np.where(self.signal == 0.0, 1e-99, self.signal))
+        if np.all(self.signal == 0.0):
+            return -np.inf
+        return -np.min(
+            np.true_divide(self.background[self.signal != 0.0], self.signal[self.signal != 0.0])
+        )
 
     def __mul__(self, signal_strength: float) -> np.ndarray:
         """

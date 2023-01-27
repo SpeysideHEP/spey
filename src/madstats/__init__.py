@@ -82,7 +82,7 @@ def get_single_region_statistical_model(
 def get_multi_region_statistical_model(
     analysis: Text,
     signal: Union[np.ndarray, List[Dict[Text, List]], List[float]],
-    background: Union[np.ndarray, Dict[Text, List], List[float]],
+    observed: Union[np.ndarray, Dict[Text, List], List[float]],
     covariance: Optional[Union[np.ndarray, List[List[float]]]] = None,
     nb: Optional[np.ndarray] = None,
     third_moment: Optional[np.ndarray] = None,
@@ -96,9 +96,9 @@ def get_multi_region_statistical_model(
                    contain `np.array` or `List[float]` which contains signal yields per region.
                    For `pyhf` backend this input expected to be a JSON-patch i.e. `List[Dict]`,
                    see `pyhf` documentation for details on JSON-patch format.
-    :param background: number of observed events. For simplified likelihood backend this input can
+    :param observed: number of observed events. For simplified likelihood backend this input can
                        be `np.ndarray` or `List[float]` which contains observations. For `pyhf`
-                       backend this contains background only JSON sterilized HistFactory
+                       backend this contains **background only** JSON sterilized HistFactory
                        i.e. `Dict[List]`.
     :param covariance: Covariance matrix either in the form of `List` or NumPy array. Only used for
                        simplified likelihood backend.
@@ -113,11 +113,11 @@ def get_multi_region_statistical_model(
     """
     assert len(signal) > 1, "Incorrect input shape."
 
-    if isinstance(signal, list) and isinstance(signal[0], dict) and isinstance(background, dict):
+    if isinstance(signal, list) and isinstance(signal[0], dict) and isinstance(observed, dict):
         from madstats.backends.pyhf_backend.interface import PyhfInterface
         from madstats.backends.pyhf_backend.data import Data
 
-        model = Data(signal=signal, background=background)
+        model = Data(signal=signal, background=observed)
         return StatisticalModel(
             backend=PyhfInterface(model=model), xsection=xsection, analysis=analysis
         )
@@ -125,7 +125,7 @@ def get_multi_region_statistical_model(
     elif (
         covariance is not None
         and isinstance(signal, (list, np.ndarray))
-        and isinstance(background, (list, np.ndarray))
+        and isinstance(observed, (list, np.ndarray))
     ):
         from madstats.backends.simplifiedlikelihood_backend.interface import (
             SimplifiedLikelihoodInterface,
@@ -135,11 +135,11 @@ def get_multi_region_statistical_model(
         # Convert everything to numpy array
         covariance = np.array(covariance) if isinstance(covariance, list) else covariance
         signal = np.array(signal) if isinstance(signal, list) else signal
-        background = np.array(background) if isinstance(background, list) else background
+        observed = np.array(observed) if isinstance(observed, list) else observed
         nb = np.array(nb) if isinstance(nb, list) else nb
 
         model = Data(
-            observed=background,
+            observed=observed,
             signal=signal,
             background=nb,
             covariance=covariance,

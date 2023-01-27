@@ -131,7 +131,7 @@ class StatisticalModel:
         Compute the POI where the signal is excluded with 95% CL
 
         :param expected: observed, apriori or aposteriori
-        :param confidence_level: confidence level (default 95%)
+        :param confidence_level: exclusion confidence level (default 1 - CLs = 95%)
         :param kwargs: backend specific inputs.
         :return: mu
         """

@@ -49,7 +49,9 @@ class Data:
         # Find minimum POI test that can be applied to this statistical model
         if isinstance(self.signal, float):
             if self.signal > 0.0:
-                object.__setattr__(self, "_minimum_poi_test", -self.background / self.signal)
+                object.__setattr__(
+                    self, "_minimum_poi_test", -np.true_divide(self.background, self.signal)
+                )
             else:
                 object.__setattr__(self, "_minimum_poi_test", -np.inf)
         else:
@@ -70,15 +72,18 @@ class Data:
                         current_bkg = np.zeros(shape=(len(ch["data"]),), dtype=np.float32)
                     current_bkg += np.array(ch["data"], dtype=np.float32)
                 min_ratio.append(
-                    np.min(current_bkg / np.where(current_signal == 0.0, 1e-99, current_signal))
+                    -np.min(
+                        np.true_divide(
+                            current_bkg[current_signal != 0.0],
+                            current_signal[current_signal != 0.0],
+                        )
+                    )
+                    if np.any(current_signal != 0.0)
+                    else -np.inf
                 )
             if len(min_ratio) > 0:
                 # TODO algorithm has error up to 0.0531 find a way to fix this
-                object.__setattr__(
-                    self,
-                    "_minimum_poi_test",
-                    -np.min(np.array(min_ratio, dtype=np.float32)) + np.float32(0.0531),
-                )
+                object.__setattr__(self, "_minimum_poi_test", max(min_ratio))
             else:
                 object.__setattr__(self, "_minimum_poi_test", -np.inf)
 
