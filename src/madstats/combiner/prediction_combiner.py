@@ -7,6 +7,7 @@ from madstats.utils import ExpectationType
 from madstats.tools.utils_cls import compute_confidence_level, find_root_limits
 from madstats.system.exceptions import AnalysisQueryError, NegativeExpectedYields
 
+__all__ = ["PredictionCombiner"]
 
 class PredictionCombiner:
     """

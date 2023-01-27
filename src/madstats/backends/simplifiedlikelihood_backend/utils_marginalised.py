@@ -5,6 +5,8 @@ import scipy, math
 
 from .data import Data, expansion_output
 
+__all__ = ["marginalised_negloglikelihood", "marginalised_negloglikelihood_singleregion"]
+
 
 def marginalised_negloglikelihood(
     mu: float,

@@ -5,6 +5,9 @@ from madstats.utils import ExpectationType
 from madstats.backends import AvailableBackends
 
 
+__all__ = ["BackendBase"]
+
+
 class BackendBase(ABC):
     @property
     @abstractmethod

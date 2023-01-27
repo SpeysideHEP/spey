@@ -1,3 +1,7 @@
+from typing import Optional, Tuple, List
+import numpy as np
+import scipy, warnings
+
 from madstats.base.backend_base import BackendBase
 from .data import Data, expansion_output
 from .utils_theta import compute_min_negloglikelihood_theta
@@ -6,9 +10,7 @@ from madstats.tools.utils_cls import compute_confidence_level, find_root_limits
 from madstats.utils import ExpectationType
 from madstats.backends import AvailableBackends
 
-from typing import Optional, Tuple
-import numpy as np
-import scipy, warnings
+__all__ = ["SimplifiedLikelihoodInterface"]
 
 
 class SimplifiedLikelihoodInterface(BackendBase):

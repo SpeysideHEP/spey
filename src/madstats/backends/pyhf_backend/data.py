@@ -8,6 +8,8 @@ from madstats.utils import ExpectationType
 from .utils import initialise_workspace
 from madstats.system.exceptions import NegativeExpectedYields
 
+__all__ = ["Data"]
+
 
 @dataclass(frozen=True)
 class Data:

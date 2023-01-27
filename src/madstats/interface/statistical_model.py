@@ -7,6 +7,8 @@ from madstats.base.backend_base import BackendBase
 from madstats.backends import AvailableBackends
 from madstats.system.exceptions import UnknownCrossSection
 
+__all__ = ["StatisticalModel"]
+
 
 class StatisticalModel:
     """

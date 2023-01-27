@@ -9,6 +9,8 @@ pyhf.pdf.log.setLevel(logging.CRITICAL)
 pyhf.workspace.log.setLevel(logging.CRITICAL)
 pyhf.set_backend("numpy", precision="64b")
 
+__all__ = ["initialise_workspace", "compute_negloglikelihood", "compute_min_negloglikelihood"]
+
 
 def initialise_workspace(
     signal: Union[Sequence, float],

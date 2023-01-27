@@ -17,6 +17,14 @@ import scipy
 
 from .data import Data, expansion_output
 
+__all__ = [
+    "initialize_thetahat",
+    "compute_negloglikelihood_theta",
+    "compute_dnegloglikelihood_dtheta",
+    "compute_d2negloglikelihood_dtheta2",
+    "compute_min_negloglikelihood_theta",
+]
+
 
 def initialize_thetahat(mu: float, model: Data) -> np.ndarray:
     """

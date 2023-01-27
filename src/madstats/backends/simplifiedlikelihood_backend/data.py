@@ -5,6 +5,8 @@ from collections import namedtuple
 
 from madstats.system.exceptions import NegativeExpectedYields
 
+__all__ = ["Data", "expansion_output"]
+
 expansion_output = output = namedtuple(
     "expansion", ["A", "B", "C", "rho", "V", "logdet_covariance", "inv_covariance"]
 )
