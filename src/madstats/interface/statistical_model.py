@@ -1,4 +1,4 @@
-from typing import Optional, Text, Tuple
+from typing import Optional, Text, Tuple, List
 
 import numpy as np
 
@@ -111,7 +111,7 @@ class StatisticalModel:
 
     def exclusion_confidence_level(
         self, expected: Optional[ExpectationType] = ExpectationType.observed, **kwargs
-    ) -> float:
+    ) -> List[float]:
         """
         Compute exclusion confidence level of a given statistical model.
 
