@@ -37,7 +37,7 @@ body:
       description: |
         Steps to reproduce the behaviour:
           - Please provide a **simplified** and clean code example.
-          - If necessary, please provide example data.
+          - If necessary, please provide example data. Note that if GitHub does not accept the data format, it can be uploaded by converting it to `.txt` file.
     validations:
       required: true
   - type: textarea
