@@ -135,7 +135,9 @@ class PredictionCombiner:
                     mu=mu, expected=expected, return_nll=True, **current_kwargs
                 )
             except NegativeExpectedYields as err:
-                warnings.warn(err.args[0] + f" Setting NLL({mu:3f}) = inf", category=RuntimeWarning)
+                warnings.warn(
+                    err.args[0] + f"\nSetting NLL({mu:.3f}) = inf", category=RuntimeWarning
+                )
                 nll = np.inf
 
             if np.isinf(nll):
