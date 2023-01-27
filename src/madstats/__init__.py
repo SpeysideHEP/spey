@@ -8,6 +8,16 @@ from madstats.interface.statistical_model import StatisticalModel
 from madstats.combiner.prediction_combiner import PredictionCombiner
 from ._version import __version__
 
+__all__ = [
+    "__version__",
+    "StatisticalModel",
+    "PredictionCombiner",
+    "ExpectationType",
+    "AvailableBackends",
+    "get_multi_region_statistical_model",
+    "get_single_region_statistical_model"
+]
+
 
 def get_single_region_statistical_model(
     nobs: int,

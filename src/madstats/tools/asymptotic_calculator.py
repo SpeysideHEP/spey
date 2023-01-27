@@ -4,7 +4,7 @@ import scipy
 
 __all__ = ["AsymptoticTestStatisticsDistribution"]
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class AsymptoticTestStatisticsDistribution:
     """
     The distribution the test statistic in the asymptotic case.

@@ -35,6 +35,7 @@ def compute_confidence_level(
 
     if expected in [ExpectationType.observed, ExpectationType.apriori]:
         CLsb, CLb, CLs = pvalues(test_statistic, sig_plus_bkg_distribution, bkg_only_distribution)
+        CLsb, CLb, CLs = [CLsb], [CLb], [CLs] # for output consistency
     else:
         CLsb, CLb, CLs = expected_pvalues(sig_plus_bkg_distribution, bkg_only_distribution)
 
@@ -98,7 +99,7 @@ def pvalues(
     teststatistic: float,
     sig_plus_bkg_distribution: AsymptoticTestStatisticsDistribution,
     bkg_only_distribution: AsymptoticTestStatisticsDistribution,
-) -> Tuple[List[float], List[float], List[float]]:
+) -> Tuple[float, float, float]:
     """
     Calculate the :math:`p`-values for the observed test statistic under the
     signal + background and background-only model hypotheses.
@@ -113,7 +114,7 @@ def pvalues(
     CLb = bkg_only_distribution.pvalue(teststatistic)
     with warnings.catch_warnings(record=True):
         CLs = np.true_divide(CLsb, CLb, dtype=np.float32)
-    return [CLsb], [CLb], [CLs if CLb != 0.0 else 0.0]
+    return CLsb, CLb, CLs if CLb != 0.0 else 0.0
 
 
 def expected_pvalues(

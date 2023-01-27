@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Union, Dict, Tuple
+from typing import Optional, List, Tuple
 
 from madstats.utils import ExpectationType
 from madstats.backends import AvailableBackends
