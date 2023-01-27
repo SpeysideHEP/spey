@@ -27,7 +27,7 @@ def compute_confidence_level(
     :param sqrt_qmuA: The calculated test statistic for asimov data
     :param test_statistic: test statistics
     :param expected: observed, apriori or aposteriori
-    :param test_stat: type of test statistics
+    :param test_stat: type of test statistics, qtilde, or q0
     :return: confidence limit
     """
     sig_plus_bkg_distribution = AsymptoticTestStatisticsDistribution(-sqrt_qmuA, -np.inf)
@@ -35,7 +35,7 @@ def compute_confidence_level(
 
     if expected in [ExpectationType.observed, ExpectationType.apriori]:
         CLsb, CLb, CLs = pvalues(test_statistic, sig_plus_bkg_distribution, bkg_only_distribution)
-        CLsb, CLb, CLs = [CLsb], [CLb], [CLs] # for output consistency
+        CLsb, CLb, CLs = [CLsb], [CLb], [CLs]  # for output consistency
     else:
         CLsb, CLb, CLs = expected_pvalues(sig_plus_bkg_distribution, bkg_only_distribution)
 
@@ -70,18 +70,15 @@ def teststatistics(
     elif len(poi_test) == 0:
         poi_test = np.array([poi_test])
 
-    if callable(negloglikelihood_asimov):
-        nllA = negloglikelihood_asimov(poi_test)
-    else:
-        nllA = negloglikelihood_asimov
+    nllA = (
+        negloglikelihood_asimov(poi_test)
+        if callable(negloglikelihood_asimov)
+        else negloglikelihood_asimov
+    )
+    nll = negloglikelihood(poi_test) if callable(negloglikelihood) else negloglikelihood
 
-    if callable(negloglikelihood):
-        nll = negloglikelihood(poi_test)
-    else:
-        nll = negloglikelihood
-
-    qmu = 0.0 if 2.0 * (nll - min_negloglikelihood) < 0.0 else 2.0 * (nll - min_negloglikelihood)
-    qmuA = max(2.0 * (nllA - min_negloglikelihood_asimov), 0.0)
+    qmu = np.clip(2.0 * (nll - min_negloglikelihood), 0.0, None, dtype=np.float32)
+    qmuA = np.clip(2.0 * (nllA - min_negloglikelihood_asimov), 0.0, None, dtype=np.float32)
     sqrt_qmu, sqrt_qmuA = np.sqrt(qmu), np.sqrt(qmuA)
 
     if test_stat in ["q", "q0"]:

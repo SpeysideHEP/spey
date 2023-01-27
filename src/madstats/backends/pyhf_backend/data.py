@@ -79,7 +79,7 @@ class Data:
                         )
                     )
                     if np.any(current_signal != 0.0)
-                    else -np.inf
+                    else np.inf
                 )
             if len(min_ratio) > 0:
                 # TODO algorithm has error up to 0.0531 find a way to fix this
