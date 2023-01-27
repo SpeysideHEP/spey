@@ -6,7 +6,7 @@ from madstats.base.backend_base import BackendBase
 from .data import Data, expansion_output
 from .utils_theta import compute_min_negloglikelihood_theta
 from .utils_marginalised import marginalised_negloglikelihood
-from madstats.tools.utils_cls import compute_confidence_level, find_root_limits
+from madstats.tools.utils_cls import compute_confidence_level, find_root_limits, teststatistics
 from madstats.utils import ExpectationType
 from madstats.backends import AvailableBackends
 
@@ -25,7 +25,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
     __slots__ = ["_model", "ntoys", "_third_moment_expansion"]
 
-    def __init__(self, model: Data, ntoys: Optional[int] = 30000):
+    def __init__(self, model: Data, ntoys: Optional[int] = 10000):
         assert isinstance(model, Data) and isinstance(ntoys, int), "Invalid statistical model."
         self._model = model
         self.ntoys = ntoys
@@ -229,7 +229,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         marginalise: Optional[bool] = False,
         allow_negative_signal: Optional[bool] = False,
         iteration_threshold: Optional[int] = 10000,
-    ) -> float:
+    ) -> List[float]:
         """
         Compute 1 - CLs value
 
@@ -248,9 +248,15 @@ class SimplifiedLikelihoodInterface(BackendBase):
             iteration_threshold=iteration_threshold,
         )
 
-        return 1.0 - compute_confidence_level(
-            mu, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll
+        _, sqrt_qmuA, test_statistic = teststatistics(
+            mu, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll, "qtilde"
         )
+
+        CLs = list(
+            map(lambda x: 1.0 - x, compute_confidence_level(sqrt_qmuA, test_statistic, expected))
+        )
+
+        return CLs
 
     def computeUpperLimitOnMu(
         self,
@@ -278,13 +284,22 @@ class SimplifiedLikelihoodInterface(BackendBase):
             iteration_threshold=iteration_threshold,
         )
 
-        computer = (
-            lambda mu: 1.0
-            - compute_confidence_level(
-                mu, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll
+        def computer(poi_test: float) -> float:
+            _, sqrt_qmuA, test_statistic = teststatistics(
+                poi_test,
+                negloglikelihood_asimov,
+                min_nll_asimov,
+                negloglikelihood,
+                min_nll,
+                "qtilde",
             )
-            - confidence_level
-        )
+            CLs = list(
+                map(
+                    lambda x: 1.0 - x, compute_confidence_level(sqrt_qmuA, test_statistic, expected)
+                )
+            )
+            return CLs[2 if expected == ExpectationType.aposteriori else 0] - confidence_level
+
         low, hig = find_root_limits(computer, loc=0.0)
 
         return scipy.optimize.brentq(computer, low, hig, xtol=low / 100.0)

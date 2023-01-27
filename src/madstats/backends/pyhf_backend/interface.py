@@ -45,33 +45,17 @@ class PyhfInterface(BackendBase):
         mu: float = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         iteration_threshold: int = 3,
-        **kwargs,
-    ) -> Union[float, Dict]:
+    ) -> List[float]:
         """
         Compute exclusion confidence level.
 
         :param mu: POI (signal strength)
         :param expected: observed, apriori or aposteriori
         :param iteration_threshold: sets threshold on when to stop
-        :param kwargs:
-            :param CLs_exp: if true return expected of the posterior fit
-            :param CLs_obs: if true return observed or apriori expectation depending on the
-                            expected flag.
-            :param CLs_exp_full: if true returns expected posterior fit with 1sigma and 2sigma
-                                 regions
-        :return: 1 - CLs values {"CLs_obs": xx, "CLs_exp": [xx] * 5} or a single 1 - CLs value
-
-        Note CLs_exp output is the expected of the posterior fit and comes with mean,
-        1sigma and 2sigma expected exclusion limits. If `kwargs = {"CLs_exp" : True}` only the mean
-        of CLs_exp will be returned, if `kwargs = {"CLs_obs":True}` only CLs_obs value will be
-        returned. For the expected of the prefit simply set `expected = ExpectationType.apriori`
-        and `kwargs = {"CLs_obs":True}`.
+        :return: 1 - CLs values
         """
         if not self.model.isAlive:
-            if "CLs_exp" in kwargs.keys() or "CLs_obs" in kwargs.keys():
-                return -1
-            else:
-                return {"CLs_obs": -1, "CLs_exp": [-1] * 5}
+            return [-1] * 5 if expected == ExpectationType.aposteriori else [-1]
 
         def get_CLs(model, data, **keywordargs):
             try:
@@ -94,7 +78,7 @@ class PyhfInterface(BackendBase):
             CLs_obs = float(CLs_obs[0]) if isinstance(CLs_obs, (list, tuple)) else float(CLs_obs)
 
             return {
-                "CLs_obs": 1.0 - CLs_obs,
+                "CLs_obs": [1.0 - CLs_obs],
                 "CLs_exp": list(map(lambda x: float(1.0 - x), CLs_exp)),
             }
 
@@ -119,7 +103,7 @@ class PyhfInterface(BackendBase):
                     )
                     it += 1
                 elif isinstance(CLs, dict):
-                    if np.isnan(CLs["CLs_obs"]) or any([np.isnan(x) for x in CLs["CLs_exp"]]):
+                    if np.isnan(CLs["CLs_obs"][0]) or any([np.isnan(x) for x in CLs["CLs_exp"]]):
                         arguments["stats"] = "q"
                         arguments["bounds"][model.config.poi_index] = (
                             arguments["bounds"][model.config.poi_index][0] - 5,
@@ -136,18 +120,9 @@ class PyhfInterface(BackendBase):
                 # hard limit on iteration required if it exceeds this value it means
                 # Nsig >>>>> Nobs
                 if it >= iteration_threshold:
-                    if "CLs_exp" in kwargs.keys() or "CLs_obs" in kwargs.keys():
-                        return 1
-                    return {"CLs_obs": 1.0, "CLs_exp": [1.0] * 5}
+                    return [1.0] * 5 if expected == ExpectationType.aposteriori else [1.0]
 
-        if kwargs.get("CLs_exp", False):
-            return CLs["CLs_exp"][2]
-        if kwargs.get("CLs_exp_full", False):
-            return CLs["CLs_exp"]
-        elif kwargs.get("CLs_obs", False):
-            return CLs["CLs_obs"]
-
-        return CLs
+        return CLs["CLs_exp" if expected == ExpectationType.aposteriori else "CLs_obs"]
 
     def likelihood(
         self,
@@ -335,16 +310,12 @@ class PyhfInterface(BackendBase):
         :param confidence_level: confidence level (default 95%)
         :return: mu
         """
-        assert 0. <= confidence_level <= 1., "Confidence level must be between zero and one."
+        assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
 
-        kwargs.update(
-            dict(
-                expected=expected,
-                CLs_obs=expected in [ExpectationType.apriori, ExpectationType.observed],
-                CLs_exp=expected == ExpectationType.aposteriori,
-            )
-        )
-        computer = lambda mu: self.computeCLs(mu=mu, **kwargs) - confidence_level
+        def computer(mu: float) -> float:
+            cls = self.computeCLs(mu=mu, expected=expected)
+            return cls[2 if expected == ExpectationType.aposteriori else 0] - confidence_level
+
         low, hig = find_root_limits(computer, loc=0.0)
 
         return scipy.optimize.brentq(computer, low, hig, xtol=low / 100.0)

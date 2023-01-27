@@ -4,7 +4,7 @@ from typing import Optional, List, Text, Union, Generator, Any
 
 from madstats.interface.statistical_model import StatisticalModel
 from madstats.utils import ExpectationType
-from madstats.tools.utils_cls import compute_confidence_level, find_root_limits
+from madstats.tools.utils_cls import compute_confidence_level, find_root_limits, teststatistics
 from madstats.system.exceptions import AnalysisQueryError, NegativeExpectedYields
 
 __all__ = ["PredictionCombiner"]
@@ -309,7 +309,7 @@ class PredictionCombiner:
         expected: Optional[ExpectationType] = ExpectationType.observed,
         iteration_threshold: Optional[int] = 10000,
         **kwargs,
-    ) -> float:
+    ) -> List[float]:
         """
         Compute 1 - CLs value
 
@@ -335,10 +335,15 @@ class PredictionCombiner:
             iteration_threshold=iteration_threshold,
             **kwargs,
         )
-
-        return 1.0 - compute_confidence_level(
-            1.0, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll
+        _, sqrt_qmuA, test_statistic = teststatistics(
+            1.0, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll, "qtilde"
         )
+
+        CLs = list(
+            map(lambda x: 1.0 - x, compute_confidence_level(sqrt_qmuA, test_statistic, expected))
+        )
+
+        return CLs
 
     def computeUpperLimitOnMu(
         self,
@@ -366,7 +371,7 @@ class PredictionCombiner:
         This will allow keyword arguments to be chosen with respect to specific backend.
         :return: excluded POI value at 95% CLs
         """
-        assert 0. <= confidence_level <= 1., "Confidence level must be between zero and one."
+        assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
 
         min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood = self._exclusion_tools(
             expected=expected,
@@ -375,13 +380,22 @@ class PredictionCombiner:
             **kwargs,
         )
 
-        computer = (
-            lambda mu: 1.0
-            - compute_confidence_level(
-                mu, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll
+        def computer(poi_test: float) -> float:
+            _, sqrt_qmuA, test_statistic = teststatistics(
+                poi_test,
+                negloglikelihood_asimov,
+                min_nll_asimov,
+                negloglikelihood,
+                min_nll,
+                "qtilde",
             )
-            - confidence_level
-        )
+            CLs = list(
+                map(
+                    lambda x: 1.0 - x, compute_confidence_level(sqrt_qmuA, test_statistic, expected)
+                )
+            )
+            return CLs[2 if expected == ExpectationType.aposteriori else 0] - confidence_level
+
         low, hig = find_root_limits(computer, loc=0.0)
 
         return scipy.optimize.brentq(computer, low, hig, xtol=low / 100.0)

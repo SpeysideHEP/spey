@@ -119,13 +119,6 @@ class StatisticalModel:
         :param kwargs: backend specific inputs.
         :return: 1-CLs value (float)
         """
-        if self.backend_type is AvailableBackends.pyhf:
-            kwargs.update(
-                dict(
-                    CLs_obs=expected in [ExpectationType.apriori, ExpectationType.observed],
-                    CLs_exp=expected == ExpectationType.aposteriori,
-                )
-            )
         return self.backend.computeCLs(mu=1.0, expected=expected, **kwargs)
 
     def computeUpperLimitOnMu(

@@ -21,7 +21,7 @@ class BackendBase(ABC):
         mu: float = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         **kwargs,
-    ) -> Union[float, Dict]:
+    ) -> List[float]:
         """
         Compute exclusion confidence level.
 
