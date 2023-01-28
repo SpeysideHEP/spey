@@ -57,7 +57,7 @@ class PyhfInterface(BackendBase):
         :return: 1 - CLs values
         """
         if not self.model.isAlive:
-            return [-1] * 5 if expected == ExpectationType.aposteriori else [-1]
+            return [-1] if expected == ExpectationType.observed else [-1] * 5
 
         def get_CLs(model, data, **keywordargs):
             try:
@@ -122,7 +122,7 @@ class PyhfInterface(BackendBase):
                 # hard limit on iteration required if it exceeds this value it means
                 # Nsig >>>>> Nobs
                 if it >= iteration_threshold:
-                    return [1.0] * 5 if expected == ExpectationType.aposteriori else [1.0]
+                    return [1.0] if expected == ExpectationType.observed else [1.0] * 5
 
         return CLs["CLs_obs" if expected == ExpectationType.observed else "CLs_exp"]
 
