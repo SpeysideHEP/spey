@@ -416,7 +416,7 @@ class PredictionCombiner:
                     lambda x: 1.0 - x, compute_confidence_level(sqrt_qmuA, test_statistic, expected)
                 )
             )
-            return CLs[2 if expected == ExpectationType.aposteriori else 0] - confidence_level
+            return CLs[0 if expected == ExpectationType.observed else 2] - confidence_level
 
         low, hig = find_root_limits(computer, loc=0.0)
 

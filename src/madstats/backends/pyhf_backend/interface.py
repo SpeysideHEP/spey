@@ -124,7 +124,7 @@ class PyhfInterface(BackendBase):
                 if it >= iteration_threshold:
                     return [1.0] * 5 if expected == ExpectationType.aposteriori else [1.0]
 
-        return CLs["CLs_exp" if expected == ExpectationType.aposteriori else "CLs_obs"]
+        return CLs["CLs_obs" if expected == ExpectationType.observed else "CLs_exp"]
 
     def likelihood(
         self,
@@ -330,8 +330,8 @@ class PyhfInterface(BackendBase):
         assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
 
         def computer(mu: float) -> float:
-            cls = self.computeCLs(mu=mu, expected=expected)
-            return cls[2 if expected == ExpectationType.aposteriori else 0] - confidence_level
+            CLs = self.computeCLs(mu=mu, expected=expected)
+            return CLs[0 if expected == ExpectationType.observed else 2] - confidence_level
 
         low, hig = find_root_limits(computer, loc=0.0)
 

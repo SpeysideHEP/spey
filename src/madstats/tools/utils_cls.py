@@ -33,7 +33,7 @@ def compute_confidence_level(
     sig_plus_bkg_distribution = AsymptoticTestStatisticsDistribution(-sqrt_qmuA, -np.inf)
     bkg_only_distribution = AsymptoticTestStatisticsDistribution(0.0, -np.inf)
 
-    if expected in [ExpectationType.observed, ExpectationType.apriori]:
+    if expected == ExpectationType.observed:
         CLsb, CLb, CLs = pvalues(test_statistic, sig_plus_bkg_distribution, bkg_only_distribution)
         CLsb, CLb, CLs = [CLsb], [CLb], [CLs]  # for output consistency
     else:
