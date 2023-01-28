@@ -57,7 +57,8 @@ class Recorder:
         """Retrieve NLL value for given poi test and expectation value"""
         poi_test = np.float32(poi_test)
         if self.is_on():
-            return self._poi_test_record[str(expected)].get(poi_test, False)
+            nll = self._poi_test_record[str(expected)].get(poi_test, False)
+            return float(nll) if nll is not False else False
         else:
             return False
 
