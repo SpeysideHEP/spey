@@ -140,10 +140,10 @@ class PredictionCombiner:
 
                 try:
                     nll += statistical_model.backend.likelihood(
+                        poi_test=poi_test,
                         expected=expected,
                         return_nll=True,
                         isAsimov=isAsimov,
-                        poi_test=poi_test,
                         **current_kwargs,
                     )
                 except NegativeExpectedYields as err:

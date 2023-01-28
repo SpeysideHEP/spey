@@ -85,8 +85,8 @@ class StatisticalModel:
         :return: (float) likelihood
         """
         return self.backend.likelihood(
-            poi_test = poi_test, expected = expected, return_nll = return_nll, **kwargs
-            )
+            poi_test=poi_test, expected=expected, return_nll=return_nll, **kwargs
+        )
 
     def maximize_likelihood(
         self,
@@ -121,7 +121,7 @@ class StatisticalModel:
         :param kwargs: backend specific inputs.
         :return: 1-CLs value (float)
         """
-        return self.backend.computeCLs(poi_test = 1.0, expected = expected, **kwargs)
+        return self.backend.computeCLs(poi_test=1.0, expected=expected, **kwargs)
 
     def computeUpperLimitOnMu(
         self,
