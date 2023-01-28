@@ -79,7 +79,7 @@ class PredictionCombiner:
                 return model
         raise AnalysisQueryError(f"'{item}' is not among the analyses.")
 
-    def __iter__(self):
+    def __iter__(self) -> StatisticalModel:
         """Iterate over statistical models"""
         for model in self._statistical_models:
             yield model
@@ -201,6 +201,9 @@ class PredictionCombiner:
         if self._recorder.get_maximum_likelihood(expected) is not False and not isAsimov:
             muhat, nll = self._recorder.get_maximum_likelihood(expected)
         else:
+            for current_model in self:
+                current_model.backend._recorder.pause()
+
             negloglikelihood = lambda mu: self.likelihood(
                 mu[0], expected=expected, return_nll=True, isAsimov=isAsimov, **kwargs
             )
@@ -229,6 +232,9 @@ class PredictionCombiner:
 
             if not isAsimov:
                 self._recorder.record_maximum_likelihood(expected, muhat, nll)
+
+            for current_model in self:
+                current_model.backend._recorder.play()
 
         return muhat, nll if return_nll else np.exp(-nll)
 
