@@ -102,6 +102,7 @@ class PredictionCombiner:
         mu: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         return_nll: Optional[bool] = True,
+        isAsimov: Optional[bool] = False,
         **kwargs,
     ) -> float:
         """
@@ -110,6 +111,7 @@ class PredictionCombiner:
         :param mu: POI (signal strength)
         :param expected: observed, apriori or aposteriori
         :param return_nll: if true returns negative log-likelihood value
+        :param isAsimov: if true, computes likelihood for Asimov data
         :param kwargs: model dependent arguments. In order to specify backend specific inputs
                        provide the input in the following format
 
@@ -131,15 +133,19 @@ class PredictionCombiner:
             current_kwargs = {}
             current_kwargs.update(kwargs.get(str(statistical_model.backend_type), {}))
 
-            try:
-                nll += statistical_model.backend.likelihood(
-                    mu=mu, expected=expected, return_nll=True, **current_kwargs
-                )
-            except NegativeExpectedYields as err:
-                warnings.warn(
-                    err.args[0] + f"\nSetting NLL({mu:.3f}) = inf", category=RuntimeWarning
-                )
-                nll = np.inf
+                try:
+                    nll += statistical_model.backend.likelihood(
+                        mu=mu,
+                        expected=expected,
+                        return_nll=True,
+                        isAsimov=isAsimov,
+                        **current_kwargs,
+                    )
+                except NegativeExpectedYields as err:
+                    warnings.warn(
+                        err.args[0] + f"\nSetting NLL({mu:.3f}) = inf", category=RuntimeWarning
+                    )
+                    nll = np.inf
 
             if np.isinf(nll):
                 break
@@ -151,6 +157,7 @@ class PredictionCombiner:
         return_nll: Optional[bool] = True,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
+        isAsimov: Optional[bool] = True,
         iteration_threshold: Optional[int] = 10000,
         **kwargs,
     ):
@@ -160,6 +167,7 @@ class PredictionCombiner:
         :param return_nll: if true returns negative log-likelihood value
         :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: if true, allow negative mu
+        :param isAsimov: if true, computes likelihood for Asimov data
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
         :param kwargs: model dependent arguments. In order to specify backend specific inputs
                        provide the input in the following format
