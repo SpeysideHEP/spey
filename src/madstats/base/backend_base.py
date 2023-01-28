@@ -18,14 +18,14 @@ class BackendBase(ABC):
     @abstractmethod
     def computeCLs(
         self,
-        mu: float = 1.0,
+        poi_test: float = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         **kwargs,
     ) -> List[float]:
         """
         Compute exclusion confidence level.
 
-        :param mu: POI (signal strength)
+        :param poi_test: POI (signal strength)
         :param expected: observed, apriori or aposteriori
         :param kwargs: backend specific inputs
         :return: 1 - CLs values
@@ -51,7 +51,7 @@ class BackendBase(ABC):
     @abstractmethod
     def likelihood(
         self,
-        mu: Optional[float] = 1.0,
+        poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         return_nll: Optional[bool] = False,
         isAsimov: Optional[bool] = False,
@@ -60,7 +60,7 @@ class BackendBase(ABC):
         """
         Compute the likelihood of the given statistical model
 
-        :param mu: POI (signal strength)
+        :param poi_test: POI (signal strength)
         :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: if true, POI can get negative values
         :param return_nll: if true returns negative log-likelihood value

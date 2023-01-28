@@ -102,7 +102,7 @@ class PredictionCombiner:
 
     def likelihood(
         self,
-        mu: Optional[float] = 1.0,
+        poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         return_nll: Optional[bool] = True,
         isAsimov: Optional[bool] = False,
@@ -111,7 +111,7 @@ class PredictionCombiner:
         """
         Compute the likelihood for the statistical model with a given POI
 
-        :param mu: POI (signal strength)
+        :param poi_test: POI (signal strength)
         :param expected: observed, apriori or aposteriori
         :param return_nll: if true returns negative log-likelihood value
         :param isAsimov: if true, computes likelihood for Asimov data
@@ -129,8 +129,8 @@ class PredictionCombiner:
 
         :return: likelihood value
         """
-        if self._recorder.get_poi_test(expected, mu) is not False and not isAsimov:
-            nll = self._recorder.get_poi_test(expected, mu)
+        if self._recorder.get_poi_test(expected, poi_test) is not False and not isAsimov:
+            nll = self._recorder.get_poi_test(expected, poi_test)
         else:
             nll = 0.0
             for statistical_model in self:
@@ -140,15 +140,16 @@ class PredictionCombiner:
 
                 try:
                     nll += statistical_model.backend.likelihood(
-                        mu=mu,
                         expected=expected,
                         return_nll=True,
                         isAsimov=isAsimov,
+                        poi_test=poi_test,
                         **current_kwargs,
                     )
                 except NegativeExpectedYields as err:
                     warnings.warn(
-                        err.args[0] + f"\nSetting NLL({mu:.3f}) = inf", category=RuntimeWarning
+                        err.args[0] + f"\nSetting NLL({poi_test:.3f}) = inf",
+                        category=RuntimeWarning,
                     )
                     nll = np.inf
 
@@ -156,7 +157,7 @@ class PredictionCombiner:
                     break
 
             if not isAsimov:
-                self._recorder.record_poi_test(expected, mu, nll)
+                self._recorder.record_poi_test(expected, poi_test, nll)
 
         return nll if return_nll else np.exp(-nll)
 
@@ -260,7 +261,7 @@ class PredictionCombiner:
         :return: chi^2
         """
         return 2.0 * (
-            self.likelihood(mu=1.0, expected=expected, return_nll=True, **kwargs)
+            self.likelihood(poi_test=1.0, expected=expected, return_nll=True, **kwargs)
             - self.maximize_likelihood(
                 return_nll=True,
                 expected=expected,
@@ -317,11 +318,7 @@ class PredictionCombiner:
             mu[0], expected=expected, return_nll=True, **kwargs
         )
         negloglikelihood_asimov = lambda mu: self.likelihood(
-            mu[0],
-            expected=expected,
-            return_nll=True,
-            isAsimov=True,
-            **kwargs,
+            mu[0], expected=expected, return_nll=True, isAsimov=True, **kwargs
         )
 
         return min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood

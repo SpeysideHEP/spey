@@ -44,14 +44,14 @@ class PyhfInterface(BackendBase):
 
     def computeCLs(
         self,
-        mu: float = 1.0,
+        poi_test: float = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         iteration_threshold: int = 3,
     ) -> List[float]:
         """
         Compute exclusion confidence level.
 
-        :param mu: POI (signal strength)
+        :param poi_test: POI (signal strength)
         :param expected: observed, apriori or aposteriori
         :param iteration_threshold: sets threshold on when to stop
         :return: 1 - CLs values
@@ -62,7 +62,7 @@ class PyhfInterface(BackendBase):
         def get_CLs(model, data, **keywordargs):
             try:
                 CLs_obs, CLs_exp = pyhf.infer.hypotest(
-                    mu,
+                    poi_test,
                     data,
                     model,
                     test_stat=keywordargs.get("stats", "qtilde"),
@@ -128,7 +128,7 @@ class PyhfInterface(BackendBase):
 
     def likelihood(
         self,
-        mu: Optional[float] = 1.0,
+        poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: bool = True,
         return_nll: Optional[bool] = False,
@@ -140,7 +140,7 @@ class PyhfInterface(BackendBase):
         """
         Compute the likelihood of the given statistical model
 
-        :param mu: POI (signal strength)
+        :param poi_test: POI (signal strength)
         :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: if true, POI can get negative values
         :param return_nll: if true returns negative log-likelihood value
@@ -174,11 +174,11 @@ class PyhfInterface(BackendBase):
         :return: (float) likelihood
         """
         if (
-            self._recorder.get_poi_test(expected, mu) is not False
+            self._recorder.get_poi_test(expected, poi_test) is not False
             and not isAsimov
             and not return_theta
         ):
-            returns = [self._recorder.get_poi_test(expected, mu)]
+            returns = [self._recorder.get_poi_test(expected, poi_test)]
         else:
             _, model, data = self.model(mu=1.0, expected=expected)
 
@@ -197,22 +197,23 @@ class PyhfInterface(BackendBase):
             # POI Test needs to be adjusted according to the boundaries for sake of convergence
             # see issue https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579235311
             # comment https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579299831
-            poi_test = copy.deepcopy(mu)
+            new_poi_test = copy.deepcopy(poi_test)
             execute = True
             bounds = model.config.suggested_bounds()[model.config.poi_index]
-            if not bounds[0] <= poi_test <= bounds[1]:
+            if not bounds[0] <= new_poi_test <= bounds[1]:
                 try:
-                    _, model, data = self.model(mu=mu, expected=expected)
-                    poi_test = 1.0
+                    _, model, data = self.model(mu=new_poi_test, expected=expected)
+                    new_poi_test = 1.0
                 except NegativeExpectedYields as err:
                     warnings.warn(
-                        err.args[0] + f"\nSetting NLL({mu:.3f}) = inf.", category=RuntimeWarning
+                        err.args[0] + f"\nSetting NLL({poi_test:.3f}) = inf.",
+                        category=RuntimeWarning,
                     )
                     execute = False
 
             if execute:
                 negloglikelihood, theta = compute_negloglikelihood(
-                    poi_test,
+                    new_poi_test,
                     data,
                     model,
                     allow_negative_signal,
@@ -220,10 +221,10 @@ class PyhfInterface(BackendBase):
                     options,
                 )
             else:
-                negloglikelihood, theta = np.nan, np.nan
+                negloglikelihood, theta = np.inf, np.nan
 
             if not isAsimov:
-                self._recorder.record_poi_test(expected, mu, negloglikelihood)
+                self._recorder.record_poi_test(expected, poi_test, negloglikelihood)
 
             returns = []
             if np.isnan(negloglikelihood):
@@ -300,7 +301,7 @@ class PyhfInterface(BackendBase):
         """
         return 2.0 * (
             self.likelihood(
-                mu=1.0,
+                poi_test=1.0,
                 expected=expected,
                 allow_negative_signal=allow_negative_signal,
                 return_nll=True,
@@ -329,8 +330,8 @@ class PyhfInterface(BackendBase):
         """
         assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
 
-        def computer(mu: float) -> float:
-            CLs = self.computeCLs(mu=mu, expected=expected)
+        def computer(poi_test: float) -> float:
+            CLs = self.computeCLs(expected=expected, poi_test=poi_test)
             return CLs[0 if expected == ExpectationType.observed else 2] - confidence_level
 
         low, hig = find_root_limits(computer, loc=0.0)

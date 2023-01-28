@@ -70,7 +70,7 @@ class StatisticalModel:
 
     def likelihood(
         self,
-        mu: Optional[float] = 1.0,
+        poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         return_nll: Optional[bool] = False,
         **kwargs,
@@ -78,13 +78,15 @@ class StatisticalModel:
         """
         Compute the likelihood of the given statistical model
 
-        :param mu: POI (signal strength)
+        :param poi_test: POI (signal strength)
         :param expected: observed, apriori or aposteriori
         :param return_nll: if true returns negative log-likelihood value
         :param kwargs: backend specific inputs.
         :return: (float) likelihood
         """
-        return self.backend.likelihood(mu=mu, expected=expected, return_nll=return_nll, **kwargs)
+        return self.backend.likelihood(
+            poi_test = poi_test, expected = expected, return_nll = return_nll, **kwargs
+            )
 
     def maximize_likelihood(
         self,
@@ -119,7 +121,7 @@ class StatisticalModel:
         :param kwargs: backend specific inputs.
         :return: 1-CLs value (float)
         """
-        return self.backend.computeCLs(mu=1.0, expected=expected, **kwargs)
+        return self.backend.computeCLs(poi_test = 1.0, expected = expected, **kwargs)
 
     def computeUpperLimitOnMu(
         self,

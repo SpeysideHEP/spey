@@ -51,7 +51,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
     def likelihood(
         self,
-        mu: Optional[float] = 1.0,
+        poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         return_nll: Optional[bool] = True,
         marginalize: Optional[bool] = False,
@@ -61,7 +61,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         """
         Compute the likelihood for the statistical model with a given POI
 
-        :param mu: POI (signal strength)
+        :param poi_test: POI (signal strength)
         :param expected: observed, apriori or aposteriori
         :param return_nll: if true returns negative log-likelihood value
         :param marginalize: if true, marginalize the likelihood.
@@ -69,8 +69,8 @@ class SimplifiedLikelihoodInterface(BackendBase):
         :param isAsimov: if true, computes likelihood for Asimov data
         :return: (float) likelihood
         """
-        if self._recorder.get_poi_test(expected, mu) is not False and not isAsimov:
-            nll = self._recorder.get_poi_test(expected, mu)
+        if self._recorder.get_poi_test(expected, poi_test) is not False and not isAsimov:
+            nll = self._recorder.get_poi_test(expected, poi_test)
         else:
             current_model: Data = (
                 self.model if expected != ExpectationType.apriori else self.model.expected_dataset
@@ -86,15 +86,15 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
             if marginalize:
                 nll = marginalised_negloglikelihood(
-                    mu, current_model, self.third_moment_expansion, self.ntoys
+                    poi_test, current_model, self.third_moment_expansion, self.ntoys
                 )
             else:
                 nll, theta_hat = compute_min_negloglikelihood_theta(
-                    mu, current_model, self.third_moment_expansion
+                    poi_test, current_model, self.third_moment_expansion
                 )
 
             if not isAsimov:
-                self._recorder.record_poi_test(expected, mu, nll)
+                self._recorder.record_poi_test(expected, poi_test, nll)
 
         return nll if return_nll else np.exp(-nll)
 
@@ -124,7 +124,11 @@ class SimplifiedLikelihoodInterface(BackendBase):
             muhat, nll = self._recorder.get_maximum_likelihood(expected)
         else:
             negloglikelihood = lambda mu: self.likelihood(
-                mu[0], expected=expected, return_nll=True, marginalize=marginalise, isAsimov=isAsimov
+                mu[0],
+                expected=expected,
+                return_nll=True,
+                marginalize=marginalise,
+                isAsimov=isAsimov,
             )
 
             muhat_init = np.random.uniform(
@@ -179,7 +183,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         """
         return 2.0 * (
             self.likelihood(
-                mu=1.0,
+                poi_test=1.0,
                 expected=expected,
                 return_nll=True,
                 marginalize=marginalise,
@@ -238,7 +242,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
     def computeCLs(
         self,
-        mu: float = 1.0,
+        poi_test: float = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         marginalise: Optional[bool] = False,
         allow_negative_signal: Optional[bool] = False,
@@ -247,7 +251,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         """
         Compute 1 - CLs value
 
-        :param mu: POI (signal strength)
+        :param poi_test: POI (signal strength)
         :param expected: observed, apriori or aposteriori
         :param marginalise: if true, marginalize the likelihood.
                             if false compute profiled likelihood
@@ -263,7 +267,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         )
 
         _, sqrt_qmuA, test_statistic = teststatistics(
-            mu, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll, "qtilde"
+            poi_test, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll, "qtilde"
         )
 
         CLs = list(
