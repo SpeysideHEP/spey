@@ -20,6 +20,7 @@ class Recorder:
     By default, recorder is off, but it still records all the computations held by each statistical
     model. It will only use these values when the recorder is turned on.
     """
+
     RECORD = False
 
     def __init__(self):
@@ -38,6 +39,7 @@ class Recorder:
             str(ExpectationType.aposteriori): False,
             str(ExpectationType.apriori): False,
         }
+        self._freeze_record = False
 
     @staticmethod
     def turn_off() -> None:
@@ -53,18 +55,32 @@ class Recorder:
     def is_on() -> bool:
         return Recorder.RECORD
 
+    def pause(self):
+        self._freeze_record = True
+        return self
+
+    def play(self):
+        self._freeze_record = False
+        return self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.play()
+
     def get_poi_test(self, expected: ExpectationType, poi_test: float) -> Union[float, bool]:
         """Retrieve NLL value for given poi test and expectation value"""
         poi_test = np.float32(poi_test)
-        if self.is_on():
+        if self.is_on() and not self._freeze_record:
             nll = self._poi_test_record[str(expected)].get(poi_test, False)
-            return float(nll) if nll is not False else False
+            return nll if nll is not False else False
         else:
             return False
 
     def get_maximum_likelihood(self, expected: ExpectationType) -> Union[Tuple[float, float], bool]:
         """Retrieve maximum likelihood and fit param"""
-        if self.is_on():
+        if self.is_on() and not self._freeze_record:
             return self._maximum_likelihood_record[str(expected)]
         else:
             return False
@@ -72,19 +88,15 @@ class Recorder:
     def record_poi_test(
         self, expected: ExpectationType, poi_test: float, negative_loglikelihood: float
     ) -> None:
-        poi_test = np.float32(poi_test)
-        negative_loglikelihood = np.float32(negative_loglikelihood)
-        self._poi_test_record[str(expected)].update({poi_test: negative_loglikelihood})
+        if not self._freeze_record:
+            poi_test = np.float32(poi_test)
+            negative_loglikelihood = np.float32(negative_loglikelihood)
+            self._poi_test_record[str(expected)].update({poi_test: negative_loglikelihood})
 
     def record_maximum_likelihood(
         self, expected: ExpectationType, poi_test: float, negative_loglikelihood: float
     ) -> None:
-        poi_test = np.float32(poi_test)
-        negative_loglikelihood = np.float32(negative_loglikelihood)
-
-        record = True
-        if self.get_maximum_likelihood(expected) is not False:
-            if self.get_maximum_likelihood(expected)[1] < negative_loglikelihood:
-                record = False
-        if record:
+        if not self._freeze_record:
+            poi_test = np.float32(poi_test)
+            negative_loglikelihood = np.float32(negative_loglikelihood)
             self._maximum_likelihood_record[str(expected)] = (poi_test, negative_loglikelihood)
