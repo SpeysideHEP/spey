@@ -165,7 +165,7 @@ class PredictionCombiner:
         return_nll: Optional[bool] = True,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
-        isAsimov: Optional[bool] = True,
+        isAsimov: Optional[bool] = False,
         iteration_threshold: Optional[int] = 10000,
         **kwargs,
     ):
