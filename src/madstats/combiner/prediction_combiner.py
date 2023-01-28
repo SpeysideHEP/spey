@@ -6,8 +6,10 @@ from madstats.interface.statistical_model import StatisticalModel
 from madstats.utils import ExpectationType
 from madstats.tools.utils_cls import compute_confidence_level, find_root_limits, teststatistics
 from madstats.system.exceptions import AnalysisQueryError, NegativeExpectedYields
+from madstats.base.recorder import Recorder
 
 __all__ = ["PredictionCombiner"]
+
 
 class PredictionCombiner:
     """
@@ -16,10 +18,11 @@ class PredictionCombiner:
     :param args: Statistical models
     """
 
-    __slots__ = ["_statistical_models"]
+    __slots__ = ["_statistical_models", "_recorder"]
 
     def __init__(self, *args):
         self._statistical_models = list()
+        self._recorder = Recorder()
         for arg in args:
             self.append(arg)
 
@@ -126,12 +129,14 @@ class PredictionCombiner:
 
         :return: likelihood value
         """
+        if self._recorder.get_poi_test(expected, mu) is not False and not isAsimov:
+            nll = self._recorder.get_poi_test(expected, mu)
+        else:
+            nll = 0.0
+            for statistical_model in self:
 
-        nll = 0.0
-        for statistical_model in self:
-
-            current_kwargs = {}
-            current_kwargs.update(kwargs.get(str(statistical_model.backend_type), {}))
+                current_kwargs = {}
+                current_kwargs.update(kwargs.get(str(statistical_model.backend_type), {}))
 
                 try:
                     nll += statistical_model.backend.likelihood(
@@ -147,8 +152,11 @@ class PredictionCombiner:
                     )
                     nll = np.inf
 
-            if np.isinf(nll):
-                break
+                if np.isinf(nll):
+                    break
+
+            if not isAsimov:
+                self._recorder.record_poi_test(expected, mu, nll)
 
         return nll if return_nll else np.exp(-nll)
 
@@ -189,31 +197,37 @@ class PredictionCombiner:
         This will allow keyword arguments to be chosen with respect to specific backend.
         :return: POI that minimizes the negative log-likelihood, minimum negative log-likelihood
         """
-        negloglikelihood = lambda mu: self.likelihood(
-            mu[0], expected=expected, return_nll=True, **kwargs
-        )
+        if self._recorder.get_maximum_likelihood(expected) is not False and not isAsimov:
+            muhat, nll = self._recorder.get_maximum_likelihood(expected)
+        else:
+            negloglikelihood = lambda mu: self.likelihood(
+                mu[0], expected=expected, return_nll=True, isAsimov=isAsimov, **kwargs
+            )
 
-        muhat_init = np.random.uniform(
-            self.minimum_poi_test if allow_negative_signal else 0.0, 10.0, (1,)
-        )
+            muhat_init = np.random.uniform(
+                self.minimum_poi_test if allow_negative_signal else 0.0, 10.0, (1,)
+            )
 
-        # TODO upper limit 40 might be too arbitrary
-        # It is possible to allow user to modify the optimiser properties in the future
-        opt = scipy.optimize.minimize(
-            negloglikelihood,
-            muhat_init,
-            method="SLSQP",
-            bounds=[(self.minimum_poi_test if allow_negative_signal else 0.0, 40.0)],
-            tol=1e-6,
-            options={"maxiter": iteration_threshold},
-        )
+            # TODO upper limit 40 might be too arbitrary
+            # It is possible to allow user to modify the optimiser properties in the future
+            opt = scipy.optimize.minimize(
+                negloglikelihood,
+                muhat_init,
+                method="SLSQP",
+                bounds=[(self.minimum_poi_test if allow_negative_signal else 0.0, 40.0)],
+                tol=1e-6,
+                options={"maxiter": iteration_threshold},
+            )
 
-        if not opt.success:
-            raise RuntimeWarning("Optimiser was not able to reach required precision.")
+            if not opt.success:
+                raise RuntimeWarning("Optimiser was not able to reach required precision.")
 
-        nll, muhat = opt.fun, opt.x[0]
-        if not allow_negative_signal and muhat < 0.0:
-            muhat, nll = 0.0, negloglikelihood([0.0])
+            nll, muhat = opt.fun, opt.x[0]
+            if not allow_negative_signal and muhat < 0.0:
+                muhat, nll = 0.0, negloglikelihood([0.0])
+
+            if not isAsimov:
+                self._recorder.record_maximum_likelihood(expected, muhat, nll)
 
         return muhat, nll if return_nll else np.exp(-nll)
 

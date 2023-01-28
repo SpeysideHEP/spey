@@ -6,6 +6,7 @@ import numpy as np
 from madstats.backends import AvailableBackends
 from madstats.interface.statistical_model import StatisticalModel
 from madstats.combiner.prediction_combiner import PredictionCombiner
+from madstats.base.recorder import Recorder
 from ._version import __version__
 
 __all__ = [
@@ -15,7 +16,8 @@ __all__ = [
     "ExpectationType",
     "AvailableBackends",
     "get_multi_region_statistical_model",
-    "get_single_region_statistical_model"
+    "get_single_region_statistical_model",
+    "Recorder",
 ]
 
 

@@ -11,18 +11,21 @@ class ExpectationType(Enum):
 
     def __repr__(self):
         if self == self.apriori:
-            return str(self.value) + ": Set observed events to expected background events."
+            return str(self.value) + ": Retrieve pre-fit expectations."
         elif self == self.aposteriori:
-            return str(self.value) + ": Compute likelihood fit with observed events."
+            return str(self.value) + ": Retrieve post-fit expectations."
         return self.value
 
+    def __str__(self):
+        return str(self.value)
+
     def __eq__(self, other):
-        current = str(self).split(".")[1]
+        current = str(self)
         if isinstance(other, ExpectationType):
-            other = str(other).split(".")[1]
+            other = str(other)
             return current == other
         elif isinstance(other, str):
-            current = str(self).split(".")[1]
+            current = str(self)
             return other == current
         elif isinstance(other, bool):
             return self == (ExpectationType.apriori if other else ExpectationType.observed)

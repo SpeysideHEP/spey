@@ -11,6 +11,7 @@ from .data import Data
 from madstats.backends import AvailableBackends
 from madstats.system.exceptions import NegativeExpectedYields
 from madstats.tools.utils_cls import find_root_limits
+from madstats.base.recorder import Recorder
 
 pyhf.pdf.log.setLevel(logging.CRITICAL)
 pyhf.workspace.log.setLevel(logging.CRITICAL)
@@ -30,6 +31,7 @@ class PyhfInterface(BackendBase):
     def __init__(self, model: Data):
         assert isinstance(model, Data), "Invalid statistical model."
         self._model = model
+        self._recorder = Recorder()
 
     @property
     def model(self) -> Data:
@@ -171,59 +173,68 @@ class PyhfInterface(BackendBase):
                         - 'trust-krylov' :ref:`(see here) <scipy.optimize.minimize-trustkrylov>`
         :return: (float) likelihood
         """
+        if (
+            self._recorder.get_poi_test(expected, mu) is not False
+            and not isAsimov
+            and not return_theta
+        ):
+            returns = [self._recorder.get_poi_test(expected, mu)]
+        else:
+            _, model, data = self.model(mu=1.0, expected=expected)
 
-        _, model, data = self.model(mu=1.0, expected=expected)
-
-        if isAsimov:
-            data = generate_asimov_data(
-                0.0,
-                data,
-                model,
-                model.config.suggested_init(),
-                model.config.suggested_bounds(),
-                model.config.suggested_fixed(),
-                return_fitted_pars=False,
-            )
-
-        # CHECK THE MODEL BOUNDS!!
-        # POI Test needs to be adjusted according to the boundaries for sake of convergence
-        # see issue https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579235311
-        # comment https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579299831
-        poi_test = copy.deepcopy(mu)
-        execute = True
-        bounds = model.config.suggested_bounds()[model.config.poi_index]
-        if not bounds[0] <= poi_test <= bounds[1]:
-            try:
-                _, model, data = self.model(mu=mu, expected=expected)
-                poi_test = 1.0
-            except NegativeExpectedYields as err:
-                warnings.warn(
-                    err.args[0] + f"\nSetting NLL({mu:.3f}) = inf.", category=RuntimeWarning
+            if isAsimov:
+                data = generate_asimov_data(
+                    0.0,
+                    data,
+                    model,
+                    model.config.suggested_init(),
+                    model.config.suggested_bounds(),
+                    model.config.suggested_fixed(),
+                    return_fitted_pars=False,
                 )
-                execute = False
 
-        if execute:
-            negloglikelihood, theta = compute_negloglikelihood(
-                poi_test,
-                data,
-                model,
-                allow_negative_signal,
-                iteration_threshold,
-                options,
-            )
-        else:
-            negloglikelihood, theta = np.nan, np.nan
+            # CHECK THE MODEL BOUNDS!!
+            # POI Test needs to be adjusted according to the boundaries for sake of convergence
+            # see issue https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579235311
+            # comment https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579299831
+            poi_test = copy.deepcopy(mu)
+            execute = True
+            bounds = model.config.suggested_bounds()[model.config.poi_index]
+            if not bounds[0] <= poi_test <= bounds[1]:
+                try:
+                    _, model, data = self.model(mu=mu, expected=expected)
+                    poi_test = 1.0
+                except NegativeExpectedYields as err:
+                    warnings.warn(
+                        err.args[0] + f"\nSetting NLL({mu:.3f}) = inf.", category=RuntimeWarning
+                    )
+                    execute = False
 
-        returns = []
-        if np.isnan(negloglikelihood):
-            returns.append(np.inf if return_nll else 0.0)
-        else:
-            returns.append(negloglikelihood if return_nll else np.exp(-negloglikelihood))
-        if return_theta:
-            returns.append(theta)
+            if execute:
+                negloglikelihood, theta = compute_negloglikelihood(
+                    poi_test,
+                    data,
+                    model,
+                    allow_negative_signal,
+                    iteration_threshold,
+                    options,
+                )
+            else:
+                negloglikelihood, theta = np.nan, np.nan
 
-        if len(returns) == 1:
-            return returns[0]
+            if not isAsimov:
+                self._recorder.record_poi_test(expected, mu, negloglikelihood)
+
+            returns = []
+            if np.isnan(negloglikelihood):
+                returns.append(np.inf if return_nll else 0.0)
+            else:
+                returns.append(negloglikelihood if return_nll else np.exp(-negloglikelihood))
+            if return_theta:
+                returns.append(theta)
+
+            if len(returns) == 1:
+                return returns[0]
 
         return returns
 
@@ -245,21 +256,27 @@ class PyhfInterface(BackendBase):
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
         :return: muhat, maximum of the likelihood
         """
-        _, model, data = self.model(mu=1.0, expected=expected)
-        if isAsimov:
-            data = generate_asimov_data(
-                0.0,
-                data,
-                model,
-                model.config.suggested_init(),
-                model.config.suggested_bounds(),
-                model.config.suggested_fixed(),
-                return_fitted_pars=False,
+        if self._recorder.get_maximum_likelihood(expected) is not False and not isAsimov:
+            muhat, negloglikelihood = self._recorder.get_maximum_likelihood(expected)
+        else:
+            _, model, data = self.model(mu=1.0, expected=expected)
+            if isAsimov:
+                data = generate_asimov_data(
+                    0.0,
+                    data,
+                    model,
+                    model.config.suggested_init(),
+                    model.config.suggested_bounds(),
+                    model.config.suggested_fixed(),
+                    return_fitted_pars=False,
+                )
+
+            muhat, negloglikelihood = compute_min_negloglikelihood(
+                data, model, allow_negative_signal, iteration_threshold, self.model.minimum_poi_test
             )
 
-        muhat, negloglikelihood = compute_min_negloglikelihood(
-            data, model, allow_negative_signal, iteration_threshold, self.model.minimum_poi_test
-        )
+            if not isAsimov:
+                self._recorder.record_maximum_likelihood(expected, muhat, negloglikelihood)
 
         return muhat, negloglikelihood if return_nll else np.exp(-negloglikelihood)
 

@@ -9,6 +9,7 @@ from .utils_marginalised import marginalised_negloglikelihood
 from madstats.tools.utils_cls import compute_confidence_level, find_root_limits, teststatistics
 from madstats.utils import ExpectationType
 from madstats.backends import AvailableBackends
+from madstats.base.recorder import Recorder
 
 __all__ = ["SimplifiedLikelihoodInterface"]
 
@@ -30,6 +31,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         self._model = model
         self.ntoys = ntoys
         self._third_moment_expansion: Optional[expansion_output] = None
+        self._recorder = Recorder()
 
     @property
     def model(self) -> Data:
@@ -67,26 +69,32 @@ class SimplifiedLikelihoodInterface(BackendBase):
         :param isAsimov: if true, computes likelihood for Asimov data
         :return: (float) likelihood
         """
-        current_model: Data = (
-            self.model if expected != ExpectationType.apriori else self.model.expected_dataset
-        )
-        if isAsimov:
-            # Generate the asimov data by fittin nuissance parameters to the observations
-            nll0, thetahat_mu0 = compute_min_negloglikelihood_theta(
-                0.0, current_model, self.third_moment_expansion
-            )
-            current_model = current_model.reset_observations(
-                current_model.background + thetahat_mu0, f"{current_model.name}_asimov"
-            )
-
-        if marginalize:
-            nll = marginalised_negloglikelihood(
-                mu, current_model, self.third_moment_expansion, self.ntoys
-            )
+        if self._recorder.get_poi_test(expected, mu) is not False and not isAsimov:
+            nll = self._recorder.get_poi_test(expected, mu)
         else:
-            nll, theta_hat = compute_min_negloglikelihood_theta(
-                mu, current_model, self.third_moment_expansion
+            current_model: Data = (
+                self.model if expected != ExpectationType.apriori else self.model.expected_dataset
             )
+            if isAsimov:
+                # Generate the asimov data by fittin nuissance parameters to the observations
+                nll0, thetahat_mu0 = compute_min_negloglikelihood_theta(
+                    0.0, current_model, self.third_moment_expansion
+                )
+                current_model = current_model.reset_observations(
+                    current_model.background + thetahat_mu0, f"{current_model.name}_asimov"
+                )
+
+            if marginalize:
+                nll = marginalised_negloglikelihood(
+                    mu, current_model, self.third_moment_expansion, self.ntoys
+                )
+            else:
+                nll, theta_hat = compute_min_negloglikelihood_theta(
+                    mu, current_model, self.third_moment_expansion
+                )
+
+            if not isAsimov:
+                self._recorder.record_poi_test(expected, mu, nll)
 
         return nll if return_nll else np.exp(-nll)
 
@@ -112,33 +120,39 @@ class SimplifiedLikelihoodInterface(BackendBase):
         :return: POI that minimizes the negative log-likelihood, minimum negative log-likelihood
         :raises RuntimeWarning: if optimiser cant reach required precision
         """
-        negloglikelihood = lambda mu: self.likelihood(
-            mu[0], expected=expected, return_nll=True, marginalize=marginalise, isAsimov=isAsimov
-        )
-
-        muhat_init = np.random.uniform(
-            self.model.minimum_poi_test if allow_negative_signal else 0.0, 10.0, (1,)
-        )
-
-        # It is possible to allow user to modify the optimiser properties in the future
-        opt = scipy.optimize.minimize(
-            negloglikelihood,
-            muhat_init,
-            method="SLSQP",
-            bounds=[(self.model.minimum_poi_test if allow_negative_signal else 0.0, 40.0)],
-            tol=1e-6,
-            options={"maxiter": iteration_threshold},
-        )
-
-        if not opt.success:
-            warnings.warn(
-                message="Optimiser was not able to reach required precision.",
-                category=RuntimeWarning,
+        if self._recorder.get_maximum_likelihood(expected) is not False and not isAsimov:
+            muhat, nll = self._recorder.get_maximum_likelihood(expected)
+        else:
+            negloglikelihood = lambda mu: self.likelihood(
+                mu[0], expected=expected, return_nll=True, marginalize=marginalise, isAsimov=isAsimov
             )
 
-        nll, muhat = opt.fun, opt.x[0]
-        if not allow_negative_signal and muhat < 0.0:
-            muhat, nll = 0.0, negloglikelihood([0.0])
+            muhat_init = np.random.uniform(
+                self.model.minimum_poi_test if allow_negative_signal else 0.0, 10.0, (1,)
+            )
+
+            # It is possible to allow user to modify the optimiser properties in the future
+            opt = scipy.optimize.minimize(
+                negloglikelihood,
+                muhat_init,
+                method="SLSQP",
+                bounds=[(self.model.minimum_poi_test if allow_negative_signal else 0.0, 40.0)],
+                tol=1e-6,
+                options={"maxiter": iteration_threshold},
+            )
+
+            if not opt.success:
+                warnings.warn(
+                    message="Optimiser was not able to reach required precision.",
+                    category=RuntimeWarning,
+                )
+
+            nll, muhat = opt.fun, opt.x[0]
+            if not allow_negative_signal and muhat < 0.0:
+                muhat, nll = 0.0, negloglikelihood([0.0])
+
+            if not isAsimov:
+                self._recorder.record_maximum_likelihood(expected, muhat, nll)
 
         return muhat, nll if return_nll else np.exp(-nll)
 
