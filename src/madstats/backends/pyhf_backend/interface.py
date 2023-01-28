@@ -221,21 +221,21 @@ class PyhfInterface(BackendBase):
                     options,
                 )
             else:
-                negloglikelihood, theta = np.inf, np.nan
+                negloglikelihood, theta = np.nan, np.nan
 
             if not isAsimov:
                 self._recorder.record_poi_test(expected, poi_test, negloglikelihood)
 
             returns = []
             if np.isnan(negloglikelihood):
-                returns.append(np.inf if return_nll else 0.0)
+                returns.append(float(np.inf if return_nll else 0.0))
             else:
                 returns.append(negloglikelihood if return_nll else np.exp(-negloglikelihood))
             if return_theta:
                 returns.append(theta)
 
-            if len(returns) == 1:
-                return returns[0]
+        if len(returns) == 1:
+            return returns[0]
 
         return returns
 
