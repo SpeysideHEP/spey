@@ -208,6 +208,22 @@ class Data:
             np.true_divide(self.background[self.signal != 0.0], self.signal[self.signal != 0.0])
         )
 
+    def suggested_theta_init(self, poi_test: float = 1.0) -> np.ndarray:
+        """
+        Compute nuisance parameter theta that minimizes the negative log-likelihood by setting
+        dNLL / dtheta = 0
+
+        :param poi_test: POI (signal strength)
+        :return:
+        """
+        diag_cov = np.diag(self.var_smu(poi_test) + self.covariance)
+        total_expected = self.background + poi_test * self
+
+        q = diag_cov * (total_expected - self.observed)
+        p = total_expected + diag_cov
+
+        return -p / 2.0 + np.sign(p) * np.sqrt(np.square(p) / 4.0 - q)
+
     def __mul__(self, signal_strength: float) -> np.ndarray:
         """
         Multiply signal yields with signal strength

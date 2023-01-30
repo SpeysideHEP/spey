@@ -11,9 +11,10 @@ compute_d2negloglikelihood_dtheta2: compute second order derivative of negative 
 
 for details see https://arxiv.org/abs/1809.05548
 """
+import warnings, scipy
+
 import numpy as np
 from typing import Optional, Tuple
-import scipy
 
 from .data import Data, expansion_output
 
@@ -24,24 +25,6 @@ __all__ = [
     "compute_d2negloglikelihood_dtheta2",
     "compute_min_negloglikelihood_theta",
 ]
-
-
-def initialize_thetahat(mu: float, model: Data) -> np.ndarray:
-    """
-    Compute nuisance parameter theta that minimizes the negative log-likelihood by setting
-    dNLL / dtheta = 0
-
-    :param mu: POI (signal strength)
-    :param model: statistical model
-    :return:
-    """
-    diag_cov = np.diag(model.var_smu(mu) + model.covariance)
-    total_expected = model.background + mu * model
-
-    q = diag_cov * (total_expected - model.observed)
-    p = total_expected + diag_cov
-
-    return -p / 2.0 + np.sign(p) * np.sqrt(np.square(p) / 4.0 - q)
 
 
 def compute_negloglikelihood_theta(
@@ -74,7 +57,7 @@ def compute_negloglikelihood_theta(
             + theta
             + third_moment_expansion.C * np.square(theta) / np.square(third_moment_expansion.B)
         )
-    lmbda = np.where(lmbda <= 0.0, 1e-30, lmbda)
+    lmbda = np.clip(lmbda, 1e-30, None)
 
     # scipy.stats.poisson.logpmf is faster than computing by hand
     if model.observed.dtype in [np.int32, np.int16, np.int64]:
@@ -111,8 +94,7 @@ def _common_gradient_computation(
     signal_yields = mu * model
 
     if model.isLinear:
-        total_expected = theta + model.background + signal_yields
-        total_expected = np.where(total_expected <= 0.0, 1e-30, total_expected)
+        total_expected = np.clip(theta + model.background + signal_yields, 1e-30, None)
         return total_expected, None
 
     lmbda = (
@@ -214,7 +196,7 @@ def compute_min_negloglikelihood_theta(
     if third_moment_expansion is None:
         third_moment_expansion = model.compute_expansion()
 
-    initial_theta = initialize_thetahat(mu, model)
+    initial_theta = model.suggested_theta_init(mu)
 
     nll_theta = lambda theta: compute_negloglikelihood_theta(
         mu=mu, model=model, theta=theta, third_moment_expansion=third_moment_expansion
@@ -239,5 +221,9 @@ def compute_min_negloglikelihood_theta(
     opt = scipy.optimize.fmin_tnc(
         func=nll_theta, x0=res[0], fprime=dnll_dtheta, disp=0, bounds=bounds
     )
+    if not 0 <= opt[-1] <= 2:
+        warnings.warn(
+            message=f"Can not converge within {opt[1]} iterations.", category=RuntimeWarning
+        )
 
     return nll_theta(opt[0]), opt[0]
