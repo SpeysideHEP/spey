@@ -13,6 +13,7 @@ class DataBase(ABC):
     Data base is a class that keeps track of the input data which then wrapped with a statistical
     model class which is based on BackendBase class.
     """
+    @property
     @abstractmethod
     def minimum_poi_test(self) -> float:
         """Find minimum POI test that can be applied to this statistical model"""
