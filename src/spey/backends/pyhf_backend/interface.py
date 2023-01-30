@@ -4,14 +4,14 @@ import numpy as np
 
 from pyhf.infer.calculators import generate_asimov_data
 
-from madstats.utils import ExpectationType
-from madstats.base.backend_base import BackendBase
+from spey.utils import ExpectationType
+from spey.base.backend_base import BackendBase
 from .utils import compute_negloglikelihood, compute_min_negloglikelihood
 from .data import Data
-from madstats.backends import AvailableBackends
-from madstats.system.exceptions import NegativeExpectedYields
-from madstats.tools.utils_cls import find_root_limits
-from madstats.base.recorder import Recorder
+from spey.backends import AvailableBackends
+from spey.system.exceptions import NegativeExpectedYields
+from spey.tools.utils_cls import find_root_limits
+from spey.base.recorder import Recorder
 
 pyhf.pdf.log.setLevel(logging.CRITICAL)
 pyhf.workspace.log.setLevel(logging.CRITICAL)
@@ -170,7 +170,7 @@ class PyhfInterface(BackendBase):
 
             returns = []
             if np.isnan(negloglikelihood):
-                returns.append(float(np.inf if return_nll else 0.0))
+                returns.append(np.inf if return_nll else 0.0)
             else:
                 returns.append(negloglikelihood if return_nll else np.exp(-negloglikelihood))
             if return_theta:

@@ -2,14 +2,14 @@ from typing import Optional, Tuple, List
 import numpy as np
 import scipy, warnings
 
-from madstats.base.backend_base import BackendBase
+from spey.base.backend_base import BackendBase
 from .data import Data, expansion_output
 from .utils_theta import fixed_poi_fit
 from .utils_marginalised import marginalised_negloglikelihood
-from madstats.tools.utils_cls import compute_confidence_level, find_root_limits, teststatistics
-from madstats.utils import ExpectationType
-from madstats.backends import AvailableBackends
-from madstats.base.recorder import Recorder
+from spey.tools.utils_cls import compute_confidence_level, find_root_limits, teststatistics
+from spey.utils import ExpectationType
+from spey.backends import AvailableBackends
+from spey.base.recorder import Recorder
 
 __all__ = ["SimplifiedLikelihoodInterface"]
 

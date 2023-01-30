@@ -4,10 +4,10 @@ from typing import Dict, Union, Optional, List, Text
 import numpy as np
 from pyhf import Workspace, Model
 
-from madstats.utils import ExpectationType
+from spey.utils import ExpectationType
 from .utils import initialise_workspace
-from madstats.system.exceptions import NegativeExpectedYields
-from madstats.base.backend_base import DataBase
+from spey.system.exceptions import NegativeExpectedYields
+from spey.base.backend_base import DataBase
 
 __all__ = ["Data"]
 

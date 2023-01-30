@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List, Tuple
 
-from madstats.utils import ExpectationType
-from madstats.backends import AvailableBackends
+from spey.utils import ExpectationType
+from spey.backends import AvailableBackends
 
 
 __all__ = ["BackendBase", "DataBase"]

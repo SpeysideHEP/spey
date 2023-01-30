@@ -7,20 +7,20 @@ with open("requirements.txt", "r") as f:
     requirements = f.read()
 requirements = [x for x in requirements.split("\n") if x != ""]
 
-with open("src/ma5_expert/_version.py", "r") as f:
+with open("src/spey/_version.py", "r") as f:
     version = f.readlines()[-1].split()[-1].strip("\"'")
 
 setup(
-    name="madstats",
+    name="spey",
     version=version,
     description=("A universal statistics package for LHC reinterpretation"),
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/MadAnalysis/madstats",
+    url="https://github.com/MadAnalysis/spey",
     project_urls={
         "Bug Tracker": "https://github.com/MadAnalysis/madstats/issues",
     },
-    #download_url=f"https://github.com/MadAnalysis/madstats/archive/refs/tags/v{version}.tar.gz",
+    #download_url=f"https://github.com/MadAnalysis/spey/archive/refs/tags/v{version}.tar.gz",
     author="Jack Y. Araz",
     author_email=("jack.araz@durham.ac.uk"),
     license="MIT",

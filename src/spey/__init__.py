@@ -3,10 +3,10 @@ from .base.backend_base import BackendBase
 from typing import Text, Union, List, Dict, Optional
 import numpy as np
 
-from madstats.backends import AvailableBackends
-from madstats.interface.statistical_model import StatisticalModel
-from madstats.combiner.prediction_combiner import PredictionCombiner
-from madstats.base.recorder import Recorder
+from spey.backends import AvailableBackends
+from spey.interface.statistical_model import StatisticalModel
+from spey.combiner.prediction_combiner import PredictionCombiner
+from spey.base.recorder import Recorder
 from ._version import __version__
 
 __all__ = [
@@ -47,7 +47,7 @@ def get_single_region_statistical_model(
     :raises NotImplementedError: If requested backend has not been recognised.
     """
     if backend == AvailableBackends.pyhf:
-        from madstats.backends.pyhf_backend.interface import PyhfInterface, Data
+        from spey.backends.pyhf_backend.interface import PyhfInterface, Data
 
         model = Data(
             signal=signal_eff * xsection * 1000.0 * lumi, background=nobs, nb=nb, delta_nb=deltanb
@@ -57,7 +57,7 @@ def get_single_region_statistical_model(
         )
 
     elif backend == AvailableBackends.simplified_likelihoods:
-        from madstats.backends.simplifiedlikelihood_backend.interface import (
+        from spey.backends.simplifiedlikelihood_backend.interface import (
             SimplifiedLikelihoodInterface,
             Data,
         )
@@ -116,8 +116,8 @@ def get_multi_region_statistical_model(
     assert len(signal) > 1, "Incorrect input shape."
 
     if isinstance(signal, list) and isinstance(signal[0], dict) and isinstance(observed, dict):
-        from madstats.backends.pyhf_backend.interface import PyhfInterface
-        from madstats.backends.pyhf_backend.data import Data
+        from spey.backends.pyhf_backend.interface import PyhfInterface
+        from spey.backends.pyhf_backend.data import Data
 
         model = Data(signal=signal, background=observed)
         return StatisticalModel(
@@ -129,7 +129,7 @@ def get_multi_region_statistical_model(
         and isinstance(signal, (list, np.ndarray))
         and isinstance(observed, (list, np.ndarray))
     ):
-        from madstats.backends.simplifiedlikelihood_backend.interface import (
+        from spey.backends.simplifiedlikelihood_backend.interface import (
             SimplifiedLikelihoodInterface,
             Data,
         )

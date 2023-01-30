@@ -3,8 +3,8 @@ import warnings
 
 from typing import Callable, Union, Tuple, Text, List, Optional
 
-from madstats.tools.asymptotic_calculator import AsymptoticTestStatisticsDistribution
-from madstats.utils import ExpectationType
+from spey.tools.asymptotic_calculator import AsymptoticTestStatisticsDistribution
+from spey.utils import ExpectationType
 
 __all__ = [
     "compute_confidence_level",

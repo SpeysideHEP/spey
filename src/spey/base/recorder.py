@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Tuple, Union
 
-from madstats.utils import ExpectationType
+from spey.utils import ExpectationType
 
 __all__ = ["Recorder"]
 

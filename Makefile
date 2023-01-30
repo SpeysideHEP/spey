@@ -12,7 +12,7 @@ install:
 
 .PHONY: uninstall
 uninstall:
-	pip uninstall madstats
+	pip uninstall spey
 
 .PHONY: test
 test:

@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from typing import Text, Optional
 from collections import namedtuple
 
-from madstats.system.exceptions import NegativeExpectedYields
-from madstats.base.backend_base import DataBase
+from spey.system.exceptions import NegativeExpectedYields
+from spey.base.backend_base import DataBase
 
 __all__ = ["Data", "expansion_output"]
 

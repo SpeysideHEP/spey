@@ -2,11 +2,11 @@ import warnings, scipy
 import numpy as np
 from typing import Optional, List, Text, Union, Generator, Any
 
-from madstats.interface.statistical_model import StatisticalModel
-from madstats.utils import ExpectationType
-from madstats.tools.utils_cls import compute_confidence_level, find_root_limits, teststatistics
-from madstats.system.exceptions import AnalysisQueryError, NegativeExpectedYields
-from madstats.base.recorder import Recorder
+from spey.interface.statistical_model import StatisticalModel
+from spey.utils import ExpectationType
+from spey.tools.utils_cls import compute_confidence_level, find_root_limits, teststatistics
+from spey.system.exceptions import AnalysisQueryError, NegativeExpectedYields
+from spey.base.recorder import Recorder
 
 __all__ = ["PredictionCombiner"]
 
@@ -182,8 +182,8 @@ class PredictionCombiner:
                        provide the input in the following format
 
         .. code-block:: python3
-            import madstats
-            combiner = madstats.PredictionCombiner(stat_model1, stat_model2)
+            import spey
+            combiner = spey.PredictionCombiner(stat_model1, stat_model2)
             kwargs = {
                 str(AvailableBackends.pyhf): {"iteration_threshold": 20},
                 str(AvailableBackends.simplified_likelihoods): {"marginalize": False},
@@ -191,7 +191,7 @@ class PredictionCombiner:
             muhat_apri, nll_min_apri = combiner.maximize_likelihood(
                 return_nll=True,
                 allow_negative_signal=True,
-                expected=madstats.ExpectationType.apriori,
+                expected=spey.ExpectationType.apriori,
                 **kwargs
             )
 

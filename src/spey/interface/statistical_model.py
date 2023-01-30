@@ -2,10 +2,10 @@ from typing import Optional, Text, Tuple, List
 
 import numpy as np
 
-from madstats.utils import ExpectationType
-from madstats.base.backend_base import BackendBase
-from madstats.backends import AvailableBackends
-from madstats.system.exceptions import UnknownCrossSection
+from spey.utils import ExpectationType
+from spey.base.backend_base import BackendBase
+from spey.backends import AvailableBackends
+from spey.system.exceptions import UnknownCrossSection
 
 __all__ = ["StatisticalModel"]
 

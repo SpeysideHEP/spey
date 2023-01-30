@@ -1,7 +1,7 @@
 import pyhf, logging, warnings, copy
 import numpy as np
 
-from madstats.utils import ExpectationType
+from spey.utils import ExpectationType
 
 from typing import Sequence, Dict, Union, Optional, Tuple, List
 
