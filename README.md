@@ -1,8 +1,21 @@
-# madstats
+# Spey: Statistical analysis of Phenomenology for Experimental Yields
 A universal statistics package for LHC reinterpretation
+
+# Outline
+* [Installation](#installation)
+* [What is Spey?](#what-is-spey)
+* [Usage](#usage)
 
 ## Installation
 `make install` or `pip install -e .`
+
+## What is Spey?
+
+Spey is a statistics tool which can simultaneously use various backends and efficiently combine 
+them within one global statistical model assumption.
+
+The name "Spey" originally comes from the Spey river, a river in mid-Highlands of Scotland. 
+The area "Speyside" is famous for its smooth whiskey.
 
 ## Usage
 
