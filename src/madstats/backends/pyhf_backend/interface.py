@@ -26,12 +26,16 @@ class PyhfInterface(BackendBase):
     :raises AssertionError: if the input type is wrong.
     """
 
-    __slots__ = ["_model"]
+    __slots__ = ["_model", "_recorder", "_asimov_nuisance"]
 
     def __init__(self, model: Data):
         assert isinstance(model, Data), "Invalid statistical model."
         self._model = model
         self._recorder = Recorder()
+        self._asimov_nuisance = {
+            str(ExpectationType.observed): False,
+            str(ExpectationType.apriori): False,
+        }
 
     @property
     def model(self) -> Data:
@@ -42,98 +46,46 @@ class PyhfInterface(BackendBase):
     def type(self) -> AvailableBackends:
         return AvailableBackends.pyhf
 
-    def computeCLs(
+    def _get_asimov_data(
         self,
-        poi_test: float = 1.0,
+        model: pyhf.pdf.Model,
+        data: np.ndarray,
         expected: Optional[ExpectationType] = ExpectationType.observed,
-        iteration_threshold: int = 3,
-    ) -> List[float]:
+    ) -> np.ndarray:
         """
-        Compute exclusion confidence level.
+        Generate asimov data for the statistical model (only valid for teststat = qtilde)
 
-        :param poi_test: POI (signal strength)
+        :param model: statistical model
+        :param data: data
         :param expected: observed, apriori or aposteriori
-        :param iteration_threshold: sets threshold on when to stop
-        :return: 1 - CLs values
+        :return: asimov data
         """
-        if not self.model.isAlive:
-            return [-1] if expected == ExpectationType.observed else [-1] * 5
-
-        def get_CLs(model, data, **keywordargs):
-            try:
-                CLs_obs, CLs_exp = pyhf.infer.hypotest(
-                    poi_test,
-                    data,
-                    model,
-                    test_stat=keywordargs.get("stats", "qtilde"),
-                    par_bounds=keywordargs.get("bounds", model.config.suggested_bounds()),
-                    return_expected_set=True,
-                )
-
-            except (AssertionError, pyhf.exceptions.FailedMinimization, ValueError) as err:
-                logging.getLogger("MA5").debug(str(err))
-                # dont use false here 1.-CLs = 0 can be interpreted as false
-                return "update bounds"
-
-            # if isnan(float(CLs_obs)) or any([isnan(float(x)) for x in CLs_exp]):
-            #     return "update mu"
-            CLs_obs = float(CLs_obs[0]) if isinstance(CLs_obs, (list, tuple)) else float(CLs_obs)
-
-            return {
-                "CLs_obs": [1.0 - CLs_obs],
-                "CLs_exp": list(map(lambda x: float(1.0 - x), CLs_exp)),
-            }
-
-        _, model, data = self.model(mu=1.0, expected=expected)
-
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            # pyhf can raise an error if the poi_test bounds are too stringent
-            # they need to be updated dynamically.
-            arguments = dict(bounds=model.config.suggested_bounds(), stats="qtilde")
-            it = 0
-            while True:
-                CLs = get_CLs(model, data, **arguments)
-                if CLs == "update bounds":
-                    arguments["bounds"][model.config.poi_index] = (
-                        arguments["bounds"][model.config.poi_index][0],
-                        2 * arguments["bounds"][model.config.poi_index][1],
-                    )
-                    logging.getLogger("MA5").debug(
-                        "Hypothesis test inference integration bounds has been increased to "
-                        + str(arguments["bounds"][model.config.poi_index])
-                    )
-                    it += 1
-                elif isinstance(CLs, dict):
-                    if np.isnan(CLs["CLs_obs"][0]) or any([np.isnan(x) for x in CLs["CLs_exp"]]):
-                        arguments["stats"] = "q"
-                        arguments["bounds"][model.config.poi_index] = (
-                            arguments["bounds"][model.config.poi_index][0] - 5,
-                            arguments["bounds"][model.config.poi_index][1],
-                        )
-                        logging.getLogger("MA5").debug(
-                            "Hypothesis test inference integration bounds has been increased to "
-                            + str(arguments["bounds"][model.config.poi_index])
-                        )
-                    else:
-                        break
-                else:
-                    it += 1
-                # hard limit on iteration required if it exceeds this value it means
-                # Nsig >>>>> Nobs
-                if it >= iteration_threshold:
-                    return [1.0] if expected == ExpectationType.observed else [1.0] * 5
-
-        return CLs["CLs_obs" if expected == ExpectationType.observed else "CLs_exp"]
+        asimov_nuisance_key = (
+            str(ExpectationType.apriori)
+            if expected == ExpectationType.apriori
+            else str(ExpectationType.observed)
+        )
+        asimov_data = self._asimov_nuisance.get(asimov_nuisance_key, False)
+        if asimov_data is False:
+            asimov_data = generate_asimov_data(
+                0.0,  # this is for test stat = qtilde!!!
+                data,
+                model,
+                model.config.suggested_init(),
+                model.config.suggested_bounds(),
+                model.config.suggested_fixed(),
+                return_fitted_pars=False,
+            )
+            self._asimov_nuisance[asimov_nuisance_key] = copy.deepcopy(asimov_data)
+        return asimov_data
 
     def likelihood(
         self,
         poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
-        allow_negative_signal: bool = True,
-        return_nll: Optional[bool] = False,
-        return_theta: Optional[bool] = False,
+        return_nll: Optional[bool] = True,
         isAsimov: Optional[bool] = False,
+        return_theta: Optional[bool] = False,
         iteration_threshold: Optional[int] = 10,
         options: Optional[Dict] = None,
     ) -> Union[float, List[float]]:
@@ -142,7 +94,6 @@ class PyhfInterface(BackendBase):
 
         :param poi_test: POI (signal strength)
         :param expected: observed, apriori or aposteriori
-        :param allow_negative_signal: if true, POI can get negative values
         :param return_nll: if true returns negative log-likelihood value
         :param return_theta: return fitted parameters
         :param isAsimov: if true, computes likelihood for Asimov data
@@ -183,15 +134,7 @@ class PyhfInterface(BackendBase):
             _, model, data = self.model(mu=1.0, expected=expected)
 
             if isAsimov:
-                data = generate_asimov_data(
-                    0.0,
-                    data,
-                    model,
-                    model.config.suggested_init(),
-                    model.config.suggested_bounds(),
-                    model.config.suggested_fixed(),
-                    return_fitted_pars=False,
-                )
+                data = self._get_asimov_data(model, data, expected)
 
             # CHECK THE MODEL BOUNDS!!
             # POI Test needs to be adjusted according to the boundaries for sake of convergence
@@ -216,7 +159,6 @@ class PyhfInterface(BackendBase):
                     new_poi_test,
                     data,
                     model,
-                    allow_negative_signal,
                     iteration_threshold,
                     options,
                 )
@@ -262,15 +204,7 @@ class PyhfInterface(BackendBase):
         else:
             _, model, data = self.model(mu=1.0, expected=expected)
             if isAsimov:
-                data = generate_asimov_data(
-                    0.0,
-                    data,
-                    model,
-                    model.config.suggested_init(),
-                    model.config.suggested_bounds(),
-                    model.config.suggested_fixed(),
-                    return_fitted_pars=False,
-                )
+                data = self._get_asimov_data(model, data, expected)
 
             muhat, negloglikelihood = compute_min_negloglikelihood(
                 data, model, allow_negative_signal, iteration_threshold, self.model.minimum_poi_test
@@ -296,14 +230,14 @@ class PyhfInterface(BackendBase):
             \chi^2 = -2\log\left(\frac{\mathcal{L}_{\mu = 1}}{\mathcal{L}_{max}}\right)
 
         :param expected: observed, apriori or aposteriori
-        :param allow_negative_signal: allow negative POI
+        :param allow_negative_signal: if true, allow negative mu
+        :param isAsimov: if true, computes likelihood for Asimov data
         :return: chi^2
         """
         return 2.0 * (
             self.likelihood(
                 poi_test=1.0,
                 expected=expected,
-                allow_negative_signal=allow_negative_signal,
                 return_nll=True,
                 isAsimov=isAsimov,
             )
@@ -315,10 +249,89 @@ class PyhfInterface(BackendBase):
             )[1]
         )
 
-    def computeUpperLimitOnMu(
+    def exclusion_confidence_level(
+        self,
+        poi_test: float = 1.0,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        allow_negative_signal: Optional[bool] = True,
+        iteration_threshold: int = 3,
+    ) -> List[float]:
+        """
+        Compute exclusion confidence level.
+
+        :param poi_test: POI (signal strength)
+        :param expected: observed, apriori or aposteriori
+        :param allow_negative_signal: if true, allow negative mu
+        :param iteration_threshold: sets threshold on when to stop
+        :return: 1 - CLs values
+        """
+        if not self.model.isAlive:
+            return [-1] if expected == ExpectationType.observed else [-1] * 5
+
+        def get_CLs(model, data, **keywordargs):
+            try:
+                CLs_obs, CLs_exp = pyhf.infer.hypotest(
+                    poi_test,
+                    data,
+                    model,
+                    test_stat="qtilde" if allow_negative_signal else "q0",
+                    par_bounds=keywordargs.get("bounds", model.config.suggested_bounds()),
+                    return_expected_set=True,
+                )
+
+            except (AssertionError, pyhf.exceptions.FailedMinimization, ValueError) as err:
+                logging.getLogger("MA5").debug(str(err))
+                # dont use false here 1.-CLs = 0 can be interpreted as false
+                return "update bounds"
+
+            # if isnan(float(CLs_obs)) or any([isnan(float(x)) for x in CLs_exp]):
+            #     return "update mu"
+            CLs_obs = float(CLs_obs[0]) if isinstance(CLs_obs, (list, tuple)) else float(CLs_obs)
+
+            return {
+                "CLs_obs": [1.0 - CLs_obs],
+                "CLs_exp": list(map(lambda x: float(1.0 - x), CLs_exp)),
+            }
+
+        _, model, data = self.model(mu=1.0, expected=expected)
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore")
+            # pyhf can raise an error if the poi_test bounds are too stringent
+            # they need to be updated dynamically.
+            arguments = dict(bounds=model.config.suggested_bounds(), stats="qtilde")
+            it = 0
+            while True:
+                CLs = get_CLs(model, data, **arguments)
+                if CLs == "update bounds":
+                    arguments["bounds"][model.config.poi_index] = (
+                        arguments["bounds"][model.config.poi_index][0],
+                        2 * arguments["bounds"][model.config.poi_index][1],
+                    )
+                    it += 1
+                elif isinstance(CLs, dict):
+                    if np.isnan(CLs["CLs_obs"][0]) or any([np.isnan(x) for x in CLs["CLs_exp"]]):
+                        arguments["stats"] = "q"
+                        arguments["bounds"][model.config.poi_index] = (
+                            arguments["bounds"][model.config.poi_index][0] - 5,
+                            arguments["bounds"][model.config.poi_index][1],
+                        )
+                    else:
+                        break
+                else:
+                    it += 1
+                # hard limit on iteration required if it exceeds this value it means
+                # Nsig >>>>> Nobs
+                if it >= iteration_threshold:
+                    return [1.0] if expected == ExpectationType.observed else [1.0] * 5
+
+        return CLs["CLs_obs" if expected == ExpectationType.observed else "CLs_exp"]
+
+    def poi_upper_limit(
         self,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         confidence_level: float = 0.95,
+        allow_negative_signal: Optional[bool] = True,
         **kwargs,
     ) -> float:
         """
@@ -326,12 +339,15 @@ class PyhfInterface(BackendBase):
 
         :param expected: observed, apriori or aposteriori
         :param confidence_level: confidence level (default 95%)
+        :param allow_negative_signal: if true, allow negative mu
         :return: mu
         """
         assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
 
         def computer(poi_test: float) -> float:
-            CLs = self.computeCLs(expected=expected, poi_test=poi_test)
+            CLs = self.exclusion_confidence_level(
+                expected=expected, poi_test=poi_test, allow_negative_signal=allow_negative_signal
+            )
             return CLs[0 if expected == ExpectationType.observed else 2] - confidence_level
 
         low, hig = find_root_limits(computer, loc=0.0)

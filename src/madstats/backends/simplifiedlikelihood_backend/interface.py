@@ -32,7 +32,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         self.ntoys = ntoys
         self._third_moment_expansion: Optional[expansion_output] = None
         self._recorder = Recorder()
-        self._asimov_theta0 = {
+        self._asimov_nuisance = {
             str(ExpectationType.observed): False,
             str(ExpectationType.apriori): False,
         }
@@ -43,23 +43,23 @@ class SimplifiedLikelihoodInterface(BackendBase):
         return self._model
 
     @property
+    def type(self) -> AvailableBackends:
+        return AvailableBackends.simplified_likelihoods
+
+    @property
     def third_moment_expansion(self) -> expansion_output:
         """Get third moment expansion"""
         if self._third_moment_expansion is None:
             self._third_moment_expansion = self.model.compute_expansion()
         return self._third_moment_expansion
 
-    @property
-    def type(self) -> AvailableBackends:
-        return AvailableBackends.simplified_likelihoods
-
     def likelihood(
         self,
         poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         return_nll: Optional[bool] = True,
-        marginalize: Optional[bool] = False,
         isAsimov: Optional[bool] = False,
+        marginalize: Optional[bool] = False,
         **kwargs,
     ) -> float:
         """
@@ -68,9 +68,9 @@ class SimplifiedLikelihoodInterface(BackendBase):
         :param poi_test: POI (signal strength)
         :param expected: observed, apriori or aposteriori
         :param return_nll: if true returns negative log-likelihood value
+        :param isAsimov: if true, computes likelihood for Asimov data
         :param marginalize: if true, marginalize the likelihood.
                             if false compute profiled likelihood
-        :param isAsimov: if true, computes likelihood for Asimov data
         :return: (float) likelihood
         """
         if self._recorder.get_poi_test(expected, poi_test) is not False and not isAsimov:
@@ -80,19 +80,19 @@ class SimplifiedLikelihoodInterface(BackendBase):
                 self.model if expected != ExpectationType.apriori else self.model.expected_dataset
             )
             if isAsimov:
-                thetahat_mu0_key = (
+                asimov_nuisance_key = (
                     str(ExpectationType.apriori)
                     if expected == ExpectationType.apriori
                     else str(ExpectationType.observed)
                 )
-                thetahat_mu0 = self._asimov_theta0.get(thetahat_mu0_key, False)
+                thetahat_mu0 = self._asimov_nuisance.get(asimov_nuisance_key, False)
                 # NOTE for test_stat = q0 asimov mu should be 1, default qtilde!!!
                 if thetahat_mu0 is False:
                     # Generate the asimov data by fittin nuissance parameters to the observations
                     nll0, thetahat_mu0 = fixed_poi_fit(
                         0.0, current_model, self.third_moment_expansion
                     )
-                    self._asimov_theta0[thetahat_mu0_key] = thetahat_mu0
+                    self._asimov_nuisance[asimov_nuisance_key] = thetahat_mu0
                 current_model = current_model.reset_observations(
                     np.clip(current_model.background + thetahat_mu0, 0.0, None),
                     f"{current_model.name}_asimov",
@@ -114,9 +114,9 @@ class SimplifiedLikelihoodInterface(BackendBase):
         self,
         return_nll: Optional[bool] = True,
         expected: Optional[ExpectationType] = ExpectationType.observed,
-        marginalise: Optional[bool] = False,
         allow_negative_signal: Optional[bool] = True,
         isAsimov: Optional[bool] = False,
+        marginalise: Optional[bool] = False,
         iteration_threshold: Optional[int] = 10000,
     ) -> Tuple[float, float]:
         """
@@ -124,10 +124,10 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
         :param return_nll: if true returns negative log-likelihood value
         :param expected: observed, apriori or aposteriori
-        :param marginalise: if true, marginalize the likelihood.
-                            if false compute profiled likelihood
         :param allow_negative_signal: if true, allow negative mu
         :param isAsimov: if true, computes likelihood for Asimov data
+        :param marginalise: if true, marginalize the likelihood.
+                            if false compute profiled likelihood
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
         :return: POI that minimizes the negative log-likelihood, minimum negative log-likelihood
         :raises RuntimeWarning: if optimiser cant reach required precision
@@ -139,8 +139,8 @@ class SimplifiedLikelihoodInterface(BackendBase):
                 mu[0],
                 expected=expected,
                 return_nll=True,
-                marginalize=marginalise,
                 isAsimov=isAsimov,
+                marginalize=marginalise,
             )
 
             muhat_init = np.random.uniform(
@@ -175,9 +175,9 @@ class SimplifiedLikelihoodInterface(BackendBase):
     def chi2(
         self,
         expected: Optional[ExpectationType] = ExpectationType.observed,
-        marginalise: Optional[bool] = False,
         allow_negative_signal: Optional[bool] = True,
         isAsimov: Optional[bool] = False,
+        marginalise: Optional[bool] = False,
     ) -> float:
         """
         Compute $$\chi^2$$
@@ -187,10 +187,10 @@ class SimplifiedLikelihoodInterface(BackendBase):
             \chi^2 = -2\log\left(\frac{\mathcal{L}_{\mu = 1}}{\mathcal{L}_{max}}\right)
 
         :param expected: observed, apriori or aposteriori
-        :param marginalise: if true, marginalize the likelihood.
-                            if false compute profiled likelihood
         :param allow_negative_signal: if true, allow negative mu
         :param isAsimov: if true, computes likelihood for Asimov data
+        :param marginalise: if true, marginalize the likelihood.
+                            if false compute profiled likelihood
         :return: \chi^2
         """
         return 2.0 * (
@@ -198,8 +198,8 @@ class SimplifiedLikelihoodInterface(BackendBase):
                 poi_test=1.0,
                 expected=expected,
                 return_nll=True,
-                marginalize=marginalise,
                 isAsimov=isAsimov,
+                marginalize=marginalise,
             )
             - self.maximize_likelihood(
                 return_nll=True,
@@ -243,21 +243,21 @@ class SimplifiedLikelihoodInterface(BackendBase):
             iteration_threshold=iteration_threshold,
         )
 
-        negloglikelihood = lambda mu: self.likelihood(
-            mu[0], expected=expected, return_nll=True, marginalize=marginalise
+        negloglikelihood = lambda poi_test: self.likelihood(
+            poi_test[0], expected=expected, return_nll=True, marginalize=marginalise
         )
-        negloglikelihood_asimov = lambda mu: self.likelihood(
-            mu[0], expected=expected, return_nll=True, marginalize=marginalise, isAsimov=True
+        negloglikelihood_asimov = lambda poi_test: self.likelihood(
+            poi_test[0], expected=expected, return_nll=True, isAsimov=True, marginalize=marginalise
         )
 
         return min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood
 
-    def computeCLs(
+    def exclusion_confidence_level(
         self,
         poi_test: float = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
+        allow_negative_signal: Optional[bool] = True,
         marginalise: Optional[bool] = False,
-        allow_negative_signal: Optional[bool] = False,
         iteration_threshold: Optional[int] = 10000,
     ) -> List[float]:
         """
@@ -265,9 +265,9 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
         :param poi_test: POI (signal strength)
         :param expected: observed, apriori or aposteriori
+        :param allow_negative_signal: if true, allow negative mu
         :param marginalise: if true, marginalize the likelihood.
                             if false compute profiled likelihood
-        :param allow_negative_signal: if true, allow negative mu
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
         :return: 1 - CLs
         """
@@ -278,8 +278,9 @@ class SimplifiedLikelihoodInterface(BackendBase):
             iteration_threshold=iteration_threshold,
         )
 
+        test_stat = "qtilde" if allow_negative_signal else "q0"
         _, sqrt_qmuA, test_statistic = teststatistics(
-            poi_test, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll, "qtilde"
+            poi_test, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll, test_stat
         )
 
         CLs = list(
@@ -288,18 +289,20 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
         return CLs
 
-    def computeUpperLimitOnMu(
+    def poi_upper_limit(
         self,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         confidence_level: float = 0.95,
+        allow_negative_signal: Optional[bool] = True,
         marginalise: Optional[bool] = False,
         iteration_threshold: Optional[int] = 10000,
     ) -> float:
         """
-        Compute the POI where the signal is excluded with 95% CL
+        Compute the upper limit on parameter of interest
 
         :param expected: observed, apriori or aposteriori
         :param confidence_level: confidence level (default 95%)
+        :param allow_negative_signal: if true, allow negative mu
         :param marginalise: if true, marginalize the likelihood.
                             if false compute profiled likelihood
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
@@ -310,7 +313,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood = self._exclusion_tools(
             expected=expected,
             marginalise=marginalise,
-            allow_negative_signal=True,
+            allow_negative_signal=allow_negative_signal,
             iteration_threshold=iteration_threshold,
         )
 
@@ -321,7 +324,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
                 min_nll_asimov,
                 negloglikelihood,
                 min_nll,
-                "qtilde",
+                "qtilde" if allow_negative_signal else "q0",
             )
             CLs = list(
                 map(

@@ -7,12 +7,13 @@ from pyhf import Workspace, Model
 from madstats.utils import ExpectationType
 from .utils import initialise_workspace
 from madstats.system.exceptions import NegativeExpectedYields
+from madstats.base.backend_base import DataBase
 
 __all__ = ["Data"]
 
 
 @dataclass(frozen=True)
-class Data:
+class Data(DataBase):
     """
     Dataclass for pyhf interface
 

@@ -85,7 +85,6 @@ def compute_negloglikelihood(
     mu: float,
     data: np.ndarray,
     model: pyhf.pdf,
-    allow_negative_signal: bool,
     iteration_threshold: int,
     options: Optional[Dict] = None,
 ) -> Tuple[float, np.ndarray]:
@@ -95,7 +94,6 @@ def compute_negloglikelihood(
     :param mu: POI (signal strength)
     :param data: dataset retreived from `pyhf.Workspace.data(model)`
     :param model: statistical model
-    :param allow_negative_signal: if true, POI can get negative values
     :param iteration_threshold: number of iterations to be held for convergence of the fit.
                                 this should not need to be larger than 3.
     :param options: optimizer options where the default values are
@@ -168,13 +166,11 @@ def compute_negloglikelihood(
         while True:
             twice_nllh, theta = compute_nll(model, data, bounds)
             if twice_nllh == "update bounds":
-                min_bound = (
-                    bounds[model.config.poi_index][0] - 5.0 if allow_negative_signal else 0.0
-                )
-                bounds[model.config.poi_index] = (
-                    min_bound,
-                    2.0 * bounds[model.config.poi_index][1],
-                )
+                for idx, bound in enumerate(bounds):
+                    if idx != model.config.poi_index:
+                        min_bound = bound[0] * 2.0 if bound[0] < 0.0 else 0.0
+                        max_bound = bound[1] * 2.0
+                        bounds[idx] = (min_bound, max_bound)
                 it += 1
             else:
                 break

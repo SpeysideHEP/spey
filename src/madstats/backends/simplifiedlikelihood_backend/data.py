@@ -4,6 +4,7 @@ from typing import Text, Optional
 from collections import namedtuple
 
 from madstats.system.exceptions import NegativeExpectedYields
+from madstats.base.backend_base import DataBase
 
 __all__ = ["Data", "expansion_output"]
 
@@ -13,7 +14,7 @@ expansion_output = output = namedtuple(
 
 
 @dataclass(frozen=True)
-class Data:
+class Data(DataBase):
     """
     Data structure for simplified likelihoods
 

@@ -47,7 +47,7 @@ class StatisticalModel:
         self, expected: Optional[ExpectationType] = ExpectationType.observed
     ) -> float:
         """
-        Compute excluded cross section
+        Compute excluded cross section at 95% CLs
 
         :param expected: observed, apriori or aposteriori
         :return: excluded cross section value in pb
@@ -56,7 +56,7 @@ class StatisticalModel:
         if np.isnan(self.xsection):
             raise UnknownCrossSection("Cross-section value has not been initialised.")
 
-        return self.computeUpperLimitOnMu(expected=expected) * self.xsection
+        return self.poi_upper_limit(expected=expected, confidence_level=0.95) * self.xsection
 
     @property
     def s95exp(self) -> float:
@@ -72,7 +72,7 @@ class StatisticalModel:
         self,
         poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
-        return_nll: Optional[bool] = False,
+        return_nll: Optional[bool] = True,
         **kwargs,
     ) -> float:
         """
@@ -90,7 +90,7 @@ class StatisticalModel:
 
     def maximize_likelihood(
         self,
-        return_nll: Optional[bool] = False,
+        return_nll: Optional[bool] = True,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
         **kwargs,
@@ -121,9 +121,11 @@ class StatisticalModel:
         :param kwargs: backend specific inputs.
         :return: 1-CLs value (float)
         """
-        return self.backend.computeCLs(poi_test=1.0, expected=expected, **kwargs)
+        return self.backend.exclusion_confidence_level(
+            poi_test=1.0, expected=expected, allow_negative_signal=True, **kwargs
+        )
 
-    def computeUpperLimitOnMu(
+    def poi_upper_limit(
         self,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         confidence_level: float = 0.95,
@@ -137,6 +139,9 @@ class StatisticalModel:
         :param kwargs: backend specific inputs.
         :return: mu
         """
-        return self.backend.computeUpperLimitOnMu(
-            expected=expected, confidence_level=confidence_level, **kwargs
+        return self.backend.poi_upper_limit(
+            expected=expected,
+            confidence_level=confidence_level,
+            allow_negative_signal=True,
+            **kwargs,
         )
