@@ -32,6 +32,10 @@ class SimplifiedLikelihoodInterface(BackendBase):
         self.ntoys = ntoys
         self._third_moment_expansion: Optional[expansion_output] = None
         self._recorder = Recorder()
+        self._asimov_theta0 = {
+            str(ExpectationType.observed): False,
+            str(ExpectationType.apriori): False,
+        }
 
     @property
     def model(self) -> Data:
@@ -76,12 +80,22 @@ class SimplifiedLikelihoodInterface(BackendBase):
                 self.model if expected != ExpectationType.apriori else self.model.expected_dataset
             )
             if isAsimov:
-                # Generate the asimov data by fittin nuissance parameters to the observations
-                nll0, thetahat_mu0 = compute_min_negloglikelihood_theta(
-                    0.0, current_model, self.third_moment_expansion
+                thetahat_mu0_key = (
+                    str(ExpectationType.apriori)
+                    if expected == ExpectationType.apriori
+                    else str(ExpectationType.observed)
                 )
+                thetahat_mu0 = self._asimov_theta0.get(thetahat_mu0_key, False)
+                # NOTE for test_stat = q0 asimov mu should be 1, default qtilde!!!
+                if thetahat_mu0 is False:
+                    # Generate the asimov data by fittin nuissance parameters to the observations
+                    nll0, thetahat_mu0 = fixed_poi_fit(
+                        0.0, current_model, self.third_moment_expansion
+                    )
+                    self._asimov_theta0[thetahat_mu0_key] = thetahat_mu0
                 current_model = current_model.reset_observations(
-                    current_model.background + thetahat_mu0, f"{current_model.name}_asimov"
+                    np.clip(current_model.background + thetahat_mu0, 0.0, None),
+                    f"{current_model.name}_asimov",
                 )
 
             if marginalize:
