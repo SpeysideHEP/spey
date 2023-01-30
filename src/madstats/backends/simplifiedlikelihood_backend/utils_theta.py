@@ -19,11 +19,10 @@ from typing import Optional, Tuple
 from .data import Data, expansion_output
 
 __all__ = [
-    "initialize_thetahat",
     "compute_negloglikelihood_theta",
     "compute_dnegloglikelihood_dtheta",
     "compute_d2negloglikelihood_dtheta2",
-    "compute_min_negloglikelihood_theta",
+    "fixed_poi_fit",
 ]
 
 
@@ -178,7 +177,7 @@ def compute_d2negloglikelihood_dtheta2(
     )
 
 
-def compute_min_negloglikelihood_theta(
+def fixed_poi_fit(
     mu: float,
     model: Data,
     third_moment_expansion: Optional[expansion_output] = None,

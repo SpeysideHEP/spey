@@ -4,7 +4,7 @@ import scipy, warnings
 
 from madstats.base.backend_base import BackendBase
 from .data import Data, expansion_output
-from .utils_theta import compute_min_negloglikelihood_theta
+from .utils_theta import fixed_poi_fit
 from .utils_marginalised import marginalised_negloglikelihood
 from madstats.tools.utils_cls import compute_confidence_level, find_root_limits, teststatistics
 from madstats.utils import ExpectationType
@@ -89,9 +89,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
                     poi_test, current_model, self.third_moment_expansion, self.ntoys
                 )
             else:
-                nll, theta_hat = compute_min_negloglikelihood_theta(
-                    poi_test, current_model, self.third_moment_expansion
-                )
+                nll, theta_hat = fixed_poi_fit(poi_test, current_model, self.third_moment_expansion)
 
             if not isAsimov:
                 self._recorder.record_poi_test(expected, poi_test, nll)
