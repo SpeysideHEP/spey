@@ -8,7 +8,7 @@ body:
     attributes:
       value: |
         ## Before posting a feature request
-        Search existing [GitHub issues](https://github.com/MadAnalysis/madstats/issues) to make sure the issue does not already exist.
+        Search existing [GitHub issues](https://github.com/MadAnalysis/spey/issues) to make sure the issue does not already exist.
         
         * **Please use [Markdown syntax](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax).**
   - type: textarea
@@ -19,7 +19,7 @@ body:
         Please provide
         - OS: [e.g. macOS v12.1]
         - Python version (print the output of `$ python --version`)
-        - MadStats version (`madstats.__version__` or if you are working on a branch please report the name of the branch and last commit ID. The abbreviated commit ID can be found via `git log -n1 --format="%h"` command. To retreive the branch name please use `git rev-parse --abbrev-ref HEAD` command.)
+        - Spey version (`spey.__version__` or if you are working on a branch please report the name of the branch and last commit ID. The abbreviated commit ID can be found via `git log -n1 --format="%h"` command. To retreive the branch name please use `git rev-parse --abbrev-ref HEAD` command.)
     validations:
       required: true
   - type: textarea
