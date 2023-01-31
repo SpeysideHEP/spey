@@ -1,4 +1,4 @@
-# Spey: Statistical analysis of Phenomenology for Experimental Yields
+# Spey: Statistical analysis for Phenomenology from Experimental Yields
 A universal statistics package for LHC reinterpretation
 
 # Outline
