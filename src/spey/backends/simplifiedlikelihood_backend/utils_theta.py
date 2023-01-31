@@ -11,22 +11,22 @@ compute_d2negloglikelihood_dtheta2: compute second order derivative of negative 
 
 for details see https://arxiv.org/abs/1809.05548
 """
-import warnings, scipy
+import scipy, warnings
+from typing import Optional, Tuple
 
 import numpy as np
-from typing import Optional, Tuple
 
 from .data import Data, expansion_output
 
 __all__ = [
-    "compute_negloglikelihood_theta",
+    "minus_logpdf",
     "compute_dnegloglikelihood_dtheta",
     "compute_d2negloglikelihood_dtheta2",
     "fixed_poi_fit",
 ]
 
 
-def compute_negloglikelihood_theta(
+def minus_logpdf(
     mu: float,
     model: Data,
     theta: np.ndarray,
@@ -197,9 +197,9 @@ def fixed_poi_fit(
 
     initial_theta = model.suggested_theta_init(mu)
 
-    nll_theta = lambda theta: compute_negloglikelihood_theta(
-        mu=mu, model=model, theta=theta, third_moment_expansion=third_moment_expansion
-    )
+    nll_theta = lambda theta: minus_logpdf(
+        mu = mu, model = model, theta = theta, third_moment_expansion = third_moment_expansion
+        )
     dnll_dtheta = lambda theta: compute_dnegloglikelihood_dtheta(
         mu=mu, model=model, theta=theta, third_moment_expansion=third_moment_expansion
     )
@@ -217,12 +217,24 @@ def fixed_poi_fit(
     )
     bounds = [[-10 * obs, 10 * obs] for obs in model.observed]
 
-    opt = scipy.optimize.fmin_tnc(
+    x, nfeval, rc = scipy.optimize.fmin_tnc(
         func=nll_theta, x0=res[0], fprime=dnll_dtheta, disp=0, bounds=bounds
     )
-    if not 0 <= opt[-1] <= 2:
+    if not 0 <= rc <= 2:
+        return_code = {
+            -1: "Infeasible (lower bound > upper bound)",
+            0: "Local minimum reached (|pg| ~= 0)",
+            1: "Converged (|f_n-f_(n-1)| ~= 0)",
+            2: "Converged (|x_n-x_(n-1)| ~= 0)",
+            3: "Max. number of function evaluations reached",
+            4: "Linear search failed",
+            5: "All lower bounds are equal to the upper bounds",
+            6: "Unable to progress",
+            7: "User requested end of minimization",
+        }
         warnings.warn(
-            message=f"Can not converge within {opt[1]} iterations.", category=RuntimeWarning
+            message=f"Can not converge within {nfeval} iterations. {return_code[rc]}",
+            category=RuntimeWarning,
         )
 
-    return nll_theta(opt[0]), opt[0]
+    return nll_theta(x), x

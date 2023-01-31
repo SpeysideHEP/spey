@@ -167,7 +167,7 @@ class PredictionCombiner:
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
         isAsimov: Optional[bool] = False,
-        iteration_threshold: Optional[int] = 10000,
+        iteration_threshold: Optional[int] = 200,
         **kwargs,
     ):
         """
@@ -218,7 +218,7 @@ class PredictionCombiner:
                 negloglikelihood,
                 muhat_init,
                 method="SLSQP",
-                bounds=[(self.minimum_poi_test if allow_negative_signal else 0.0, 40.0)],
+                bounds=[(self.minimum_poi_test if allow_negative_signal else 0.0, 10.0)],
                 tol=1e-6,
                 options={"maxiter": iteration_threshold},
             )

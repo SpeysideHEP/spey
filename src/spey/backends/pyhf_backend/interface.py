@@ -131,7 +131,7 @@ class PyhfInterface(BackendBase):
         ):
             returns = [self._recorder.get_poi_test(expected, poi_test)]
         else:
-            _, model, data = self.model(mu=1.0, expected=expected)
+            _, model, data = self.model(poi_test=1.0, expected=expected)
 
             if isAsimov:
                 data = self._get_asimov_data(model, data, expected)
@@ -145,7 +145,7 @@ class PyhfInterface(BackendBase):
             bounds = model.config.suggested_bounds()[model.config.poi_index]
             if not bounds[0] <= new_poi_test <= bounds[1]:
                 try:
-                    _, model, data = self.model(mu=new_poi_test, expected=expected)
+                    _, model, _ = self.model(poi_test=new_poi_test, expected=expected)
                     new_poi_test = 1.0
                 except NegativeExpectedYields as err:
                     warnings.warn(
@@ -155,24 +155,16 @@ class PyhfInterface(BackendBase):
                     execute = False
 
             if execute:
-                negloglikelihood, theta = compute_negloglikelihood(
-                    new_poi_test,
-                    data,
-                    model,
-                    iteration_threshold,
-                    options,
+                negloglikelihood, theta = fixed_poi_fit(
+                    new_poi_test, data, model, iteration_threshold, options
                 )
             else:
-                negloglikelihood, theta = np.nan, np.nan
+                negloglikelihood, theta = np.inf, np.nan
 
             if not isAsimov:
                 self._recorder.record_poi_test(expected, poi_test, negloglikelihood)
 
-            returns = []
-            if np.isnan(negloglikelihood):
-                returns.append(np.inf if return_nll else 0.0)
-            else:
-                returns.append(negloglikelihood if return_nll else np.exp(-negloglikelihood))
+            returns = [negloglikelihood if return_nll else np.exp(-negloglikelihood)]
             if return_theta:
                 returns.append(theta)
 
@@ -202,7 +194,7 @@ class PyhfInterface(BackendBase):
         if self._recorder.get_maximum_likelihood(expected) is not False and not isAsimov:
             muhat, negloglikelihood = self._recorder.get_maximum_likelihood(expected)
         else:
-            _, model, data = self.model(mu=1.0, expected=expected)
+            _, model, data = self.model(poi_test=1.0, expected=expected)
             if isAsimov:
                 data = self._get_asimov_data(model, data, expected)
 
@@ -268,10 +260,10 @@ class PyhfInterface(BackendBase):
         if not self.model.isAlive:
             return [-1] if expected == ExpectationType.observed else [-1] * 5
 
-        def get_CLs(model, data, **keywordargs):
+        def get_CLs(poi: float, model: pyhf.pdf.Model, data: np.ndarray, **keywordargs):
             try:
                 CLs_obs, CLs_exp = pyhf.infer.hypotest(
-                    poi_test,
+                    poi,
                     data,
                     model,
                     test_stat="qtilde" if allow_negative_signal else "q0",
@@ -293,37 +285,46 @@ class PyhfInterface(BackendBase):
                 "CLs_exp": list(map(lambda x: float(1.0 - x), CLs_exp)),
             }
 
-        _, model, data = self.model(mu=1.0, expected=expected)
+        _, model, data = self.model(poi_test=1.0, expected=expected)
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            # pyhf can raise an error if the poi_test bounds are too stringent
-            # they need to be updated dynamically.
-            arguments = dict(bounds=model.config.suggested_bounds(), stats="qtilde")
-            it = 0
-            while True:
-                CLs = get_CLs(model, data, **arguments)
-                if CLs == "update bounds":
-                    arguments["bounds"][model.config.poi_index] = (
-                        arguments["bounds"][model.config.poi_index][0],
-                        2 * arguments["bounds"][model.config.poi_index][1],
-                    )
-                    it += 1
-                elif isinstance(CLs, dict):
-                    if np.isnan(CLs["CLs_obs"][0]) or any([np.isnan(x) for x in CLs["CLs_exp"]]):
-                        arguments["stats"] = "q"
-                        arguments["bounds"][model.config.poi_index] = (
-                            arguments["bounds"][model.config.poi_index][0] - 5,
-                            arguments["bounds"][model.config.poi_index][1],
-                        )
-                    else:
-                        break
+        def update_bounds(bounds: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+            current_bounds = []
+            for idx, bound in enumerate(bounds):
+                if idx != model.config.poi_index:
+                    min_bound = bound[0] * 2.0 if bound[0] < 0.0 else 0.0
+                    max_bound = bound[1] * 2.0
+                    current_bounds.append((min_bound, max_bound))
                 else:
-                    it += 1
-                # hard limit on iteration required if it exceeds this value it means
-                # Nsig >>>>> Nobs
-                if it >= iteration_threshold:
-                    return [1.0] if expected == ExpectationType.observed else [1.0] * 5
+                    min_bound = bound[0] - 5.0 if allow_negative_signal else 0.0
+                    if allow_negative_signal and self.model.minimum_poi_test is not None:
+                        min_bound = (
+                            self.model.minimum_poi_test
+                            if not np.isinf(self.model.minimum_poi_test)
+                            else bound[0] - 5.0
+                        )
+                        current_bounds.append((min_bound, 2.0 * bound[1]))
+            return current_bounds
+
+        # pyhf can raise an error if the poi_test bounds are too stringent
+        # they need to be updated dynamically.
+        arguments = dict(bounds=model.config.suggested_bounds(), stats="qtilde")
+        poi_test_bounds = model.config.suggested_bounds()[model.config.poi_index]
+        poi_update = False
+        if not poi_test_bounds[0] <= poi_test <= poi_test_bounds[1]:
+            _, model, data = self.model(poi_test = poi_test, expected = expected)
+            poi_update = True
+        it = 0
+        while True:
+            CLs = get_CLs(1. if poi_update else poi_test, model, data, **arguments)
+            if CLs == "update bounds" or np.isnan(CLs["CLs_obs"][0]):
+                arguments["bounds"] = update_bounds(arguments["bounds"])
+                it += 1
+            else:
+                break
+            # hard limit on iteration required if it exceeds this value it means
+            # Nsig >>>>> Nobs
+            if it >= iteration_threshold:
+                return [1.0] if expected == ExpectationType.observed else [1.0] * 5
 
         return CLs["CLs_obs" if expected == ExpectationType.observed else "CLs_exp"]
 

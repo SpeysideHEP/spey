@@ -83,14 +83,13 @@ class Data(DataBase):
                     else np.inf
                 )
             if len(min_ratio) > 0:
-                # TODO algorithm has error up to 0.0531 find a way to fix this
                 object.__setattr__(self, "_minimum_poi_test", max(min_ratio))
             else:
                 object.__setattr__(self, "_minimum_poi_test", -np.inf)
 
     def __call__(
         self,
-        mu: Optional[float] = 1.0,
+        poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
     ) -> Union[
         tuple[Optional[Workspace], Optional[Model], Optional[list[float]]],
@@ -99,24 +98,29 @@ class Data(DataBase):
         """
         Create pyhf workspace with respect to given POI and expectation
 
-        :param mu: POI (signal strength)
+        :param poi_test: POI (signal strength)
         :param expected: observed, expected (true, apriori) or aposteriori
         :return: workspace, statistical model and data
         :raises NegativeExpectedYields: if `mu * signal + background` becomes
                                         negative for the requested POI test.
         """
-        if mu == 1.0 and expected == self.default_expectation:
-            return self._workspace, self._model, self._data
+        if poi_test == 1.0 and expected == self.default_expectation:
+            return (
+                copy.deepcopy(self._workspace),
+                copy.deepcopy(self._model),
+                copy.deepcopy(self._data),
+            )
 
         signal = copy.deepcopy(self.signal)
-        if mu != 1.0:
+        if poi_test != 1.0:
             if isinstance(self.signal, float):
-                signal *= mu
+                signal *= poi_test
             else:
                 for ids, channel in enumerate(signal):
                     if signal[ids].get("value", False):
                         signal[ids]["value"]["data"] = np.array(
-                            [nsig * mu for nsig in signal[ids]["value"]["data"]], dtype=np.float32
+                            [nsig * poi_test for nsig in signal[ids]["value"]["data"]],
+                            dtype=np.float32,
                         ).tolist()
 
         workspace, model, data = initialise_workspace(
@@ -128,7 +132,7 @@ class Data(DataBase):
         )
 
         # Check if there is any negative number of events
-        if mu < 0.0:
+        if poi_test < 0.0:
             if isinstance(signal, float):
                 if signal + self.background < 0.0:
                     raise NegativeExpectedYields(

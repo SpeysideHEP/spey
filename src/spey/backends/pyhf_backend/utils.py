@@ -9,7 +9,7 @@ pyhf.pdf.log.setLevel(logging.CRITICAL)
 pyhf.workspace.log.setLevel(logging.CRITICAL)
 pyhf.set_backend("numpy", precision="64b")
 
-__all__ = ["initialise_workspace", "compute_negloglikelihood", "compute_min_negloglikelihood"]
+__all__ = ["initialise_workspace", "fixed_poi_fit", "compute_min_negloglikelihood"]
 
 
 def initialise_workspace(
@@ -81,7 +81,7 @@ def initialise_workspace(
     return workspace, model, data
 
 
-def compute_negloglikelihood(
+def fixed_poi_fit(
     mu: float,
     data: np.ndarray,
     model: pyhf.pdf,
@@ -130,16 +130,15 @@ def compute_negloglikelihood(
     if options is None:
         options = {}
 
-    _options = dict()
     _options = dict(
         maxiter=options.get("maxiter", 200),
         verbose=options.get("verbose", False),
         method=options.get("method", "SLSQP"),
-        tolerance=options.get("tolerance", None),
+        tolerance=options.get("tolerance", 1e-6),
         solver_options=options.get("solver_options", {}),
     )
 
-    def compute_nll(model, data, bounds):
+    def compute_nll(model: pyhf.pdf.Model, data: np.ndarray, bounds: List[Tuple[float, float]]):
         try:
             theta, twice_nllh = pyhf.infer.mle.fixed_poi_fit(
                 mu,
@@ -155,30 +154,31 @@ def compute_negloglikelihood(
 
         return twice_nllh, theta
 
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            "Values in x were outside bounds during a minimize step, clipping to bounds",
-        )
-
-        bounds = model.config.suggested_bounds()
-        it = 0
-        while True:
-            twice_nllh, theta = compute_nll(model, data, bounds)
-            if twice_nllh == "update bounds":
-                for idx, bound in enumerate(bounds):
-                    if idx != model.config.poi_index:
-                        min_bound = bound[0] * 2.0 if bound[0] < 0.0 else 0.0
-                        max_bound = bound[1] * 2.0
-                        bounds[idx] = (min_bound, max_bound)
-                it += 1
+    def update_bounds(bounds):
+        current_bounds = []
+        for idx, bound in enumerate(bounds):
+            if idx != model.config.poi_index:
+                min_bound = bound[0] * 2.0 if bound[0] < 0.0 else 0.0
+                max_bound = bound[1] * 2.0
+                current_bounds.append((min_bound, max_bound))
             else:
-                break
-            if it >= iteration_threshold:
-                logging.getLogger("MA5").debug("pyhf mle.fit failed")
-                return float("nan"), theta
+                current_bounds.append(bound)
+        return current_bounds
 
-        return twice_nllh / 2.0, theta
+    bounds = update_bounds(model.config.suggested_bounds())
+    it = 0
+    while True:
+        twice_nllh, theta = compute_nll(model, data, bounds)
+        if twice_nllh == "update bounds":
+            bounds = update_bounds(bounds)
+            it += 1
+        else:
+            break
+        if it >= iteration_threshold:
+            warnings.warn(message="pyhf mle.fit failed", category=RuntimeWarning)
+            return np.inf, theta
+
+    return twice_nllh / 2.0, theta
 
 
 def compute_min_negloglikelihood(
@@ -236,23 +236,18 @@ def compute_min_negloglikelihood(
         )
         return current_bounds
 
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            "Values in x were outside bounds during a minimize step, clipping to bounds",
-        )
-
-        bounds = update_bounds(copy.deepcopy(model.config.suggested_bounds()))
-        it = 0
-        while True:
-            muhat, twice_nllh = compute_nll(model, data, bounds)
-            if twice_nllh == "update bounds":
-                bounds = update_bounds(bounds)
-                it += 1
-            else:
-                break
-            if it >= iteration_threshold and isinstance(twice_nllh, str):
-                warnings.warn("pyhf mle.fit failed", RuntimeWarning)
-                return np.nan, np.nan
+    bounds = update_bounds(copy.deepcopy(model.config.suggested_bounds()))
+    it = 0
+    while True:
+        muhat, twice_nllh = compute_nll(model, data, bounds)
+        if twice_nllh == "update bounds":
+            print("updating bounds")
+            bounds = update_bounds(bounds)
+            it += 1
+        else:
+            break
+        if it >= iteration_threshold and isinstance(twice_nllh, str):
+            warnings.warn("pyhf mle.fit failed", RuntimeWarning)
+            return np.nan, np.nan
 
     return muhat, twice_nllh / 2.0
