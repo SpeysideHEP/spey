@@ -79,6 +79,44 @@ class PyhfInterface(BackendBase):
             self._asimov_nuisance[asimov_nuisance_key] = copy.deepcopy(asimov_data)
         return asimov_data
 
+    def logpdf(
+        self,
+        poi_test: float,
+        nuisance_parameters: np.ndarray,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        isAsimov: Optional[bool] = False,
+    ) -> float:
+        """
+        Compute the log value of the full density.
+
+        :param poi_test: parameter of interest
+        :param nuisance_parameters: nuisance parameters
+        :param expected: observed, apriori or aposteriori
+        :param isAsimov:
+        :return: negative log-likelihood
+        """
+        assert len(nuisance_parameters) == self.model.npar, (
+            f"Parameters must be {self.model.npar} dimensional vector, "
+            f"{len(nuisance_parameters)} dimensions has been given."
+        )
+        _, model, data = self.model(poi_test=1.0, expected=expected)
+        poi_bounds = self.model.suggested_bounds[self.model.poi_index]
+
+        if isAsimov:
+            data = self._get_asimov_data(model, data, expected)
+
+        if not poi_bounds[0] <= poi_test <= poi_bounds[1]:
+            _, model, _ = self.model(poi_test=poi_test, expected=expected)
+            poi_test = 1.0
+
+        complete_pars = np.array(
+            nuisance_parameters.tolist()[: model.config.poi_index]
+            + [poi_test]
+            + nuisance_parameters.tolist()[model.config.poi_index :]
+        )
+
+        return model.logpdf(complete_pars, data).astype(np.float32)[0]
+
     def likelihood(
         self,
         poi_test: Optional[float] = 1.0,

@@ -4,7 +4,7 @@ import scipy, warnings
 
 from spey.base.backend_base import BackendBase
 from .data import Data, expansion_output
-from .utils_theta import fixed_poi_fit, minus_logpdf
+from .utils_theta import fixed_poi_fit, logpdf
 from .utils_marginalised import marginalised_negloglikelihood
 from spey.tools.utils_cls import compute_confidence_level, find_root_limits, teststatistics
 from spey.utils import ExpectationType
@@ -53,6 +53,55 @@ class SimplifiedLikelihoodInterface(BackendBase):
             self._third_moment_expansion = self.model.compute_expansion()
         return self._third_moment_expansion
 
+    def _get_asimov_data(
+        self, model: Data, expected: Optional[ExpectationType] = ExpectationType.observed
+    ) -> Data:
+        asimov_nuisance_key = (
+            str(ExpectationType.apriori)
+            if expected == ExpectationType.apriori
+            else str(ExpectationType.observed)
+        )
+        thetahat_mu0 = self._asimov_nuisance.get(asimov_nuisance_key, False)
+        # NOTE for test_stat = q0 asimov mu should be 1, default qtilde!!!
+        if thetahat_mu0 is False:
+            # Generate the asimov data by fittin nuissance parameters to the observations
+            nll0, thetahat_mu0 = fixed_poi_fit(0.0, model, self.third_moment_expansion)
+            self._asimov_nuisance[asimov_nuisance_key] = thetahat_mu0
+
+        return model.reset_observations(
+            np.clip(model.background + thetahat_mu0, 0.0, None),
+            f"{model.name}_asimov",
+        )
+
+    def logpdf(
+        self,
+        poi_test: float,
+        nuisance_parameters: np.ndarray,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        isAsimov: Optional[bool] = False,
+    ) -> float:
+        """
+        Compute the log value of the full density.
+
+        :param poi_test: parameter of interest
+        :param nuisance_parameters: nuisance parameters
+        :param expected: observed, apriori or aposteriori
+        :param isAsimov: if true, computes likelihood for Asimov data
+        :return: negative log-likelihood
+        """
+        current_model: Data = (
+            self.model if expected != ExpectationType.apriori else self.model.expected_dataset
+        )
+        if isAsimov:
+            current_model = self._get_asimov_data(current_model, expected)
+
+        return logpdf(
+            mu=poi_test,
+            model=current_model,
+            theta=nuisance_parameters,
+            third_moment_expansion=self.third_moment_expansion,
+        )
+
     def likelihood(
         self,
         poi_test: Optional[float] = 1.0,
@@ -80,23 +129,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
                 self.model if expected != ExpectationType.apriori else self.model.expected_dataset
             )
             if isAsimov:
-                asimov_nuisance_key = (
-                    str(ExpectationType.apriori)
-                    if expected == ExpectationType.apriori
-                    else str(ExpectationType.observed)
-                )
-                thetahat_mu0 = self._asimov_nuisance.get(asimov_nuisance_key, False)
-                # NOTE for test_stat = q0 asimov mu should be 1, default qtilde!!!
-                if thetahat_mu0 is False:
-                    # Generate the asimov data by fittin nuissance parameters to the observations
-                    nll0, thetahat_mu0 = fixed_poi_fit(
-                        0.0, current_model, self.third_moment_expansion
-                    )
-                    self._asimov_nuisance[asimov_nuisance_key] = thetahat_mu0
-                current_model = current_model.reset_observations(
-                    np.clip(current_model.background + thetahat_mu0, 0.0, None),
-                    f"{current_model.name}_asimov",
-                )
+                current_model = self._get_asimov_data(current_model, expected)
 
             if marginalize:
                 nll = marginalised_negloglikelihood(

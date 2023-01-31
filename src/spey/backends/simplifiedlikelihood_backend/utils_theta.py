@@ -19,21 +19,21 @@ import numpy as np
 from .data import Data, expansion_output
 
 __all__ = [
-    "minus_logpdf",
+    "logpdf",
     "compute_dnegloglikelihood_dtheta",
     "compute_d2negloglikelihood_dtheta2",
     "fixed_poi_fit",
 ]
 
 
-def minus_logpdf(
+def logpdf(
     mu: float,
     model: Data,
     theta: np.ndarray,
     third_moment_expansion: Optional[expansion_output] = None,
 ) -> float:
     """
-    Compute likelihood of the statistical model with respect to given theta at a POI
+    Compute the log value of the full density.
 
     :param mu: POI (signal strength)
     :param model: statistical model
@@ -71,7 +71,7 @@ def minus_logpdf(
     )
     gaussian = -0.5 * np.dot(np.dot(theta, third_moment_expansion.inv_covariance), theta) + logcoeff
 
-    return -gaussian - np.sum(poisson)
+    return gaussian + np.sum(poisson)
 
 
 def _common_gradient_computation(
@@ -197,9 +197,9 @@ def fixed_poi_fit(
 
     initial_theta = model.suggested_theta_init(mu)
 
-    nll_theta = lambda theta: minus_logpdf(
-        mu = mu, model = model, theta = theta, third_moment_expansion = third_moment_expansion
-        )
+    nll_theta = lambda theta: -logpdf(
+        mu=mu, model=model, theta=theta, third_moment_expansion=third_moment_expansion
+    )
     dnll_dtheta = lambda theta: compute_dnegloglikelihood_dtheta(
         mu=mu, model=model, theta=theta, third_moment_expansion=third_moment_expansion
     )

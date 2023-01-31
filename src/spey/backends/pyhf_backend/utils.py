@@ -3,7 +3,7 @@ import numpy as np
 
 from spey.utils import ExpectationType
 
-from typing import Sequence, Dict, Union, Optional, Tuple, List
+from typing import Sequence, Dict, Union, Optional, Tuple, List, Text
 
 pyhf.pdf.log.setLevel(logging.CRITICAL)
 pyhf.workspace.log.setLevel(logging.CRITICAL)
