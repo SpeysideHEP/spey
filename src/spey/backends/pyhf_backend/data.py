@@ -1,6 +1,6 @@
 import pyhf, copy
 from dataclasses import dataclass, field
-from typing import Dict, Union, Optional, List, Text
+from typing import Dict, Union, Optional, List, Text, Tuple
 import numpy as np
 from pyhf import Workspace, Model
 
@@ -86,6 +86,43 @@ class Data(DataBase):
                 object.__setattr__(self, "_minimum_poi_test", -np.min(min_ratio).astype(np.float32))
             else:
                 object.__setattr__(self, "_minimum_poi_test", -np.inf)
+
+    @property
+    def npar(self) -> int:
+        """Number of nuisance parameters except poi"""
+        return self._model.config.npars - 1
+
+    @property
+    def poi_index(self) -> int:
+        return self._model.config.poi_index
+
+    @property
+    def suggested_init(self) -> np.ndarray:
+        """Suggested initial nuisance parameters (except poi)"""
+        pars = self._model.config.suggested_init()
+        return pars[: self.poi_index] + pars[self.poi_index + 1 :]
+
+    @property
+    def suggested_bounds(self) -> List[Tuple[float, float]]:
+        """Suggested bounds for nuisance parameters (except poi)"""
+        pars = self._model.config.suggested_bounds()
+        return pars[: self.poi_index] + pars[self.poi_index + 1 :]
+
+    @property
+    def suggested_fixed(self) -> List[bool]:
+        """Suggested fixed nuisance parameters (except poi)"""
+        pars = self._model.config.suggested_fixed()
+        return pars[: self.poi_index] + pars[self.poi_index + 1 :]
+
+    @property
+    def suggested_poi_init(self) -> np.ndarray:
+        """Suggested initial nuisance parameters (except poi)"""
+        return self._model.config.suggested_init()[self.poi_index]
+
+    @property
+    def suggested_poi_bounds(self) -> Tuple[float, float]:
+        """Suggested bounds for nuisance parameters (except poi)"""
+        return self._model.config.suggested_bounds()[self.poi_index]
 
     def __call__(
         self,
