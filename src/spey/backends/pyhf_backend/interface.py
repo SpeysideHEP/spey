@@ -6,7 +6,7 @@ from pyhf.infer.calculators import generate_asimov_data
 
 from spey.utils import ExpectationType
 from spey.base.backend_base import BackendBase
-from .utils import compute_negloglikelihood, compute_min_negloglikelihood
+from .utils import fixed_poi_fit, compute_min_negloglikelihood
 from .data import Data
 from spey.backends import AvailableBackends
 from spey.system.exceptions import NegativeExpectedYields
@@ -86,11 +86,11 @@ class PyhfInterface(BackendBase):
         return_nll: Optional[bool] = True,
         isAsimov: Optional[bool] = False,
         return_theta: Optional[bool] = False,
-        iteration_threshold: Optional[int] = 10,
+        iteration_threshold: Optional[int] = 3,
         options: Optional[Dict] = None,
     ) -> Union[float, List[float]]:
         """
-        Compute the likelihood of the given statistical model
+        Compute  likelihood of the given statistical model
 
         :param poi_test: POI (signal strength)
         :param expected: observed, apriori or aposteriori

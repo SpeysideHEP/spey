@@ -8,10 +8,10 @@ from spey.tools.utils_cls import compute_confidence_level, find_root_limits, tes
 from spey.system.exceptions import AnalysisQueryError, NegativeExpectedYields
 from spey.base.recorder import Recorder
 
-__all__ = ["PredictionCombiner"]
+__all__ = ["StatisticsCombiner"]
 
 
-class PredictionCombiner:
+class StatisticsCombiner:
     """
     Statistical model combination routine
 

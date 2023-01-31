@@ -5,14 +5,14 @@ import numpy as np
 
 from spey.backends import AvailableBackends
 from spey.interface.statistical_model import StatisticalModel
-from spey.combiner.prediction_combiner import PredictionCombiner
+from spey.combiner.statistics_combiner import StatisticsCombiner
 from spey.base.recorder import Recorder
 from ._version import __version__
 
 __all__ = [
     "__version__",
     "StatisticalModel",
-    "PredictionCombiner",
+    "StatisticsCombiner",
     "ExpectationType",
     "AvailableBackends",
     "get_multi_region_statistical_model",

@@ -4,7 +4,7 @@ import scipy, warnings
 
 from spey.base.backend_base import BackendBase
 from .data import Data, expansion_output
-from .utils_theta import fixed_poi_fit
+from .utils_theta import fixed_poi_fit, minus_logpdf
 from .utils_marginalised import marginalised_negloglikelihood
 from spey.tools.utils_cls import compute_confidence_level, find_root_limits, teststatistics
 from spey.utils import ExpectationType
