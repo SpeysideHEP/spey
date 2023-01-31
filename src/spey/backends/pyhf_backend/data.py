@@ -73,7 +73,7 @@ class Data(DataBase):
                         current_bkg = np.zeros(shape=(len(ch["data"]),), dtype=np.float32)
                     current_bkg += np.array(ch["data"], dtype=np.float32)
                 min_ratio.append(
-                    -np.min(
+                    np.min(
                         np.true_divide(
                             current_bkg[current_signal != 0.0],
                             current_signal[current_signal != 0.0],
@@ -83,7 +83,7 @@ class Data(DataBase):
                     else np.inf
                 )
             if len(min_ratio) > 0:
-                object.__setattr__(self, "_minimum_poi_test", max(min_ratio))
+                object.__setattr__(self, "_minimum_poi_test", -np.min(min_ratio).astype(np.float32))
             else:
                 object.__setattr__(self, "_minimum_poi_test", -np.inf)
 
@@ -145,7 +145,7 @@ class Data(DataBase):
                     for idx, ch in enumerate(channel.get("samples", [])):
                         is_valid: bool = "data" in ch.keys()
                         if current is None and is_valid:
-                            current = np.zeros(shape=(len(ch["data"]),), dtype=np.float32)
+                            current = np.array(ch["data"], dtype=np.float32)
                         elif current is not None and is_valid:
                             current += np.array(ch["data"], dtype=np.float32)
                     if current is not None:
