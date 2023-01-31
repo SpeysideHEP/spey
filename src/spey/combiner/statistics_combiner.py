@@ -167,6 +167,7 @@ class StatisticsCombiner:
         return_nll: Optional[bool] = True,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
+        poi_upper_bound: Optional[float] = 10.0,
         isAsimov: Optional[bool] = False,
         maxiter: Optional[int] = 200,
         **kwargs,
@@ -177,6 +178,7 @@ class StatisticsCombiner:
         :param return_nll: if true returns negative log-likelihood value
         :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: if true, allow negative mu
+        :param poi_upper_bound: Set upper bound for POI
         :param isAsimov: if true, computes likelihood for Asimov data
         :param maxiter: number of iterations to be held for convergence of the fit.
         :param kwargs: model dependent arguments. In order to specify backend specific inputs
@@ -190,7 +192,12 @@ class StatisticsCombiner:
             >>>     str(spey.AvailableBackends.pyhf): {"iteration_threshold": 20},
             >>>     str(spey.AvailableBackends.simplified_likelihoods): {"marginalize": False},
             >>> }
-            >>> muhat_apri, nll_min_apri = combiner.maximize_likelihood(return_nll=True,expected=spey.ExpectationType.apriori,allow_negative_signal=True,**kwargs)
+            >>> muhat_apri, nll_min_apri = combiner.maximize_likelihood(
+            >>>     return_nll=True,
+            >>>     expected=spey.ExpectationType.apriori,
+            >>>     allow_negative_signal=True,
+            >>>     **kwargs
+            >>> )
 
         This will allow keyword arguments to be chosen with respect to specific backend.
         :return: POI that minimizes the negative log-likelihood, minimum negative log-likelihood
@@ -211,13 +218,12 @@ class StatisticsCombiner:
                 dtype=np.float64,
             )
 
-            # TODO upper limit 40 might be too arbitrary
             # It is possible to allow user to modify the optimiser properties in the future
             opt = scipy.optimize.minimize(
                 twice_nll,
                 [0.0],
                 method="SLSQP",
-                bounds=[(self.minimum_poi_test if allow_negative_signal else 0.0, 10.0)],
+                bounds=[(self.minimum_poi_test if allow_negative_signal else 0.0, poi_upper_bound)],
                 tol=1e-6,
                 options={"maxiter": maxiter},
             )
