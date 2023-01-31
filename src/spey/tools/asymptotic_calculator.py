@@ -1,4 +1,4 @@
-import scipy
+from scipy.stats import multivariate_normal
 from numpy import nan, inf
 
 __all__ = ["AsymptoticTestStatisticsDistribution"]
@@ -27,7 +27,7 @@ class AsymptoticTestStatisticsDistribution:
         :return: The integrated probability to observe a value at
                  least as large as the observed one.
         """
-        return_value = scipy.stats.multivariate_normal.cdf(self.shift - value)
+        return_value = multivariate_normal.cdf(self.shift - value)
         return return_value if return_value >= self.cutoff else nan
 
     def cdf(self, value: float) -> float:
@@ -39,7 +39,7 @@ class AsymptoticTestStatisticsDistribution:
         :return: The integrated probability to observe a test statistic
                  less than or equal to the observed value.
         """
-        return scipy.stats.multivariate_normal.cdf(value - self.shift)
+        return multivariate_normal.cdf(value - self.shift)
 
     def expected_value(self, nsigma: float) -> float:
         """
