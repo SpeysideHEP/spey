@@ -1,10 +1,9 @@
-import numpy as np
-from dataclasses import dataclass
 import scipy
+from numpy import nan, inf
 
 __all__ = ["AsymptoticTestStatisticsDistribution"]
 
-@dataclass(frozen=True)
+
 class AsymptoticTestStatisticsDistribution:
     """
     The distribution the test statistic in the asymptotic case.
@@ -12,8 +11,11 @@ class AsymptoticTestStatisticsDistribution:
     :param shift: The displacement of the test statistic distribution.
     """
 
-    shift: float
-    cutoff: float = -np.inf
+    __slots__ = ["shift", "cutoff"]
+
+    def __init__(self, shift: float, cutoff: float = -inf):
+        self.shift = shift
+        self.cutoff = cutoff
 
     def pvalue(self, value: float) -> float:
         """
@@ -26,7 +28,7 @@ class AsymptoticTestStatisticsDistribution:
                  least as large as the observed one.
         """
         return_value = scipy.stats.multivariate_normal.cdf(self.shift - value)
-        return return_value if return_value >= self.cutoff else np.nan
+        return return_value if return_value >= self.cutoff else nan
 
     def cdf(self, value: float) -> float:
         """
