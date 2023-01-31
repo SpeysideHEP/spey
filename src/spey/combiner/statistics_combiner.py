@@ -326,7 +326,7 @@ class StatisticsCombiner:
 
         return min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood
 
-    def computeCLs(
+    def exclusion_confidence_level(
         self,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         iteration_threshold: Optional[int] = 10000,
@@ -335,7 +335,6 @@ class StatisticsCombiner:
         """
         Compute 1 - CLs value
 
-        :param mu: POI (signal strength)
         :param expected: observed, apriori or aposteriori
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
         :param kwargs: model dependent arguments. In order to specify backend specific inputs
@@ -367,7 +366,7 @@ class StatisticsCombiner:
 
         return CLs
 
-    def computeUpperLimitOnMu(
+    def poi_upper_limit(
         self,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         confidence_level: float = 0.95,
