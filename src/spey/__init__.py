@@ -112,8 +112,49 @@ def get_multi_region_statistical_model(
     :return: Statistical model
 
     :raises NotImplementedError: if input patter does not match to any backend specific input option
+
+    `pyhf` interface example
+
+    .. code-block:: python3
+
+        >>> import spey
+        >>> background = {
+        >>>   "channels": [
+        >>>     { "name": "singlechannel",
+        >>>       "samples": [
+        >>>         { "name": "background",
+        >>>           "data": [50.0, 52.0],
+        >>>           "modifiers": [{ "name": "uncorr_bkguncrt", "type": "shapesys", "data": [3.0, 7.0]}]
+        >>>         }
+        >>>       ]
+        >>>     }
+        >>>   ],
+        >>>   "observations": [{"name": "singlechannel", "data": [51.0, 48.0]}],
+        >>>   "measurements": [{"name": "Measurement", "config": { "poi": "mu", "parameters": []} }],
+        >>>   "version": "1.0.0"
+        >>> }
+        >>> signal = [{"op": "add",
+        >>>     "path": "/channels/0/samples/1",
+        >>>     "value": {"name": "signal", "data": [12.0, 11.0],
+        >>>       "modifiers": [{"name": "mu", "type": "normfactor", "data": None}]}}]
+        >>> multi_bin = spey.get_multi_region_statistical_model(
+        >>>     "simpleanalysis", signal, background, xsection=1.
+        >>> )
+        >>> print(multi_bin)
+        >>> # StatisticalModel(analysis='simpleanalysis', xsection=1.000e+00 [pb], backend=pyhf)
+        >>> multi_bin.exclusion_confidence_level()
+        >>> # [0.9474850257628679] # 1-CLs
+        >>> multi_bin.s95exp
+        >>> # 1.0685773410460155 # prefit excluded cross section in pb
+        >>> multi_bin.maximize_likelihood()
+        >>> # (-0.0669277855002002, 12.483595567080783) # muhat and maximum negative log-likelihood
+        >>> multi_bin.likelihood(poi_test=1.5)
+        >>> # 16.59756909879556
+        >>> multi_bin.exclusion_confidence_level(expected=spey.ExpectationType.aposteriori)
+        >>> # [0.9973937390501324, 0.9861799464393675, 0.9355467946443513, 0.7647435613928496, 0.4269637940897122]
+
     """
-    assert len(signal) > 1, "Incorrect input shape."
+    # assert len(signal) > 1, "Incorrect input shape."
 
     if isinstance(signal, list) and isinstance(signal[0], dict) and isinstance(observed, dict):
         from spey.backends.pyhf_backend.interface import PyhfInterface
