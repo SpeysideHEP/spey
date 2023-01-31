@@ -138,23 +138,27 @@ def fixed_poi_fit(
         solver_options=options.get("solver_options", {}),
     )
 
-    def compute_nll(model: pyhf.pdf.Model, data: np.ndarray, bounds: List[Tuple[float, float]]):
+    def compute_nll(
+        current_model: pyhf.pdf.Model,
+        current_data: np.ndarray,
+        new_bounds: List[Tuple[float, float]],
+    ) -> Union[Tuple[float, np.ndarray], Tuple[Text, None]]:
         try:
-            theta, twice_nllh = pyhf.infer.mle.fixed_poi_fit(
+            pars, twice_nllh = pyhf.infer.mle.fixed_poi_fit(
                 mu,
-                data,
-                model,
+                current_data,
+                current_model,
                 return_fitted_val=True,
-                par_bounds=bounds,
+                par_bounds=new_bounds,
                 **_options,
             )
         except (AssertionError, pyhf.exceptions.FailedMinimization, ValueError) as err:
             warnings.warn(err.args[0], RuntimeWarning)
             return "update bounds", None
 
-        return twice_nllh, theta
+        return twice_nllh, pars
 
-    def update_bounds(bounds):
+    def update_bounds(bounds: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
         current_bounds = []
         for idx, bound in enumerate(bounds):
             if idx != model.config.poi_index:
@@ -165,10 +169,10 @@ def fixed_poi_fit(
                 current_bounds.append(bound)
         return current_bounds
 
-    bounds = update_bounds(model.config.suggested_bounds())
+    bounds = model.config.suggested_bounds()
     it = 0
     while True:
-        twice_nllh, theta = compute_nll(model, data, bounds)
+        twice_nllh, pars = compute_nll(model, data, bounds)
         if twice_nllh == "update bounds":
             bounds = update_bounds(bounds)
             it += 1
@@ -176,9 +180,9 @@ def fixed_poi_fit(
             break
         if it >= iteration_threshold:
             warnings.warn(message="pyhf mle.fit failed", category=RuntimeWarning)
-            return np.inf, theta
+            return np.inf, pars
 
-    return twice_nllh / 2.0, theta
+    return twice_nllh / 2.0, pars
 
 
 def compute_min_negloglikelihood(

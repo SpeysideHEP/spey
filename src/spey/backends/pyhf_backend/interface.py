@@ -159,12 +159,16 @@ class PyhfInterface(BackendBase):
                     new_poi_test, data, model, iteration_threshold, options
                 )
             else:
-                negloglikelihood, theta = np.inf, np.nan
+                negloglikelihood, theta = np.nan, np.nan
 
             if not isAsimov:
                 self._recorder.record_poi_test(expected, poi_test, negloglikelihood)
 
-            returns = [negloglikelihood if return_nll else np.exp(-negloglikelihood)]
+            returns = [
+                negloglikelihood
+                if return_nll or np.isnan(negloglikelihood)
+                else np.exp(-negloglikelihood)
+            ]
             if return_theta:
                 returns.append(theta)
 
@@ -311,11 +315,11 @@ class PyhfInterface(BackendBase):
         poi_test_bounds = model.config.suggested_bounds()[model.config.poi_index]
         poi_update = False
         if not poi_test_bounds[0] <= poi_test <= poi_test_bounds[1]:
-            _, model, data = self.model(poi_test = poi_test, expected = expected)
+            _, model, data = self.model(poi_test=poi_test, expected=expected)
             poi_update = True
         it = 0
         while True:
-            CLs = get_CLs(1. if poi_update else poi_test, model, data, **arguments)
+            CLs = get_CLs(1.0 if poi_update else poi_test, model, data, **arguments)
             if CLs == "update bounds" or np.isnan(CLs["CLs_obs"][0]):
                 arguments["bounds"] = update_bounds(arguments["bounds"])
                 it += 1

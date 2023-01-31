@@ -120,10 +120,11 @@ class StatisticsCombiner:
 
         .. code-block:: python3
 
-            kwargs = {
-                str(AvailableBackends.pyhf): {"iteration_threshold": 3},
-                str(AvailableBackends.simplified_likelihoods): {"marginalize": False},
-            }
+            >>> from spey import AvailableBackends
+            >>> kwargs = {
+            >>>     str(AvailableBackends.pyhf): {"iteration_threshold": 3},
+            >>>     str(AvailableBackends.simplified_likelihoods): {"marginalize": False},
+            >>> }
 
         This will allow keyword arguments to be chosen with respect to specific backend.
 
@@ -151,15 +152,15 @@ class StatisticsCombiner:
                         err.args[0] + f"\nSetting NLL({poi_test:.3f}) = inf",
                         category=RuntimeWarning,
                     )
-                    nll = np.inf
+                    nll = np.nan
 
-                if np.isinf(nll):
+                if np.isnan(nll):
                     break
 
             if not isAsimov:
                 self._recorder.record_poi_test(expected, poi_test, nll)
 
-        return nll if return_nll else np.exp(-nll)
+        return nll if return_nll or np.isnan(nll) else np.exp(-nll)
 
     def maximize_likelihood(
         self,
@@ -167,7 +168,7 @@ class StatisticsCombiner:
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
         isAsimov: Optional[bool] = False,
-        iteration_threshold: Optional[int] = 200,
+        maxiter: Optional[int] = 200,
         **kwargs,
     ):
         """
@@ -177,23 +178,19 @@ class StatisticsCombiner:
         :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: if true, allow negative mu
         :param isAsimov: if true, computes likelihood for Asimov data
-        :param iteration_threshold: number of iterations to be held for convergence of the fit.
+        :param maxiter: number of iterations to be held for convergence of the fit.
         :param kwargs: model dependent arguments. In order to specify backend specific inputs
                        provide the input in the following format
 
         .. code-block:: python3
-            import spey
-            combiner = spey.PredictionCombiner(stat_model1, stat_model2)
-            kwargs = {
-                str(AvailableBackends.pyhf): {"iteration_threshold": 20},
-                str(AvailableBackends.simplified_likelihoods): {"marginalize": False},
-            }
-            muhat_apri, nll_min_apri = combiner.maximize_likelihood(
-                return_nll=True,
-                allow_negative_signal=True,
-                expected=spey.ExpectationType.apriori,
-                **kwargs
-            )
+
+            >>> import spey
+            >>> combiner = spey.StatisticsCombiner(stat_model1, stat_model2)
+            >>> kwargs = {
+            >>>     str(spey.AvailableBackends.pyhf): {"iteration_threshold": 20},
+            >>>     str(spey.AvailableBackends.simplified_likelihoods): {"marginalize": False},
+            >>> }
+            >>> muhat_apri, nll_min_apri = combiner.maximize_likelihood(return_nll=True,expected=spey.ExpectationType.apriori,allow_negative_signal=True,**kwargs)
 
         This will allow keyword arguments to be chosen with respect to specific backend.
         :return: POI that minimizes the negative log-likelihood, minimum negative log-likelihood
@@ -204,31 +201,31 @@ class StatisticsCombiner:
             for current_model in self:
                 current_model.backend._recorder.pause()
 
-            negloglikelihood = lambda mu: self.likelihood(
-                mu[0], expected=expected, return_nll=True, isAsimov=isAsimov, **kwargs
-            )
-
-            muhat_init = np.random.uniform(
-                self.minimum_poi_test if allow_negative_signal else 0.0, 10.0, (1,)
+            twice_nll = lambda mu: np.array(
+                [
+                    2
+                    * self.likelihood(
+                        mu[0], expected=expected, return_nll=True, isAsimov=isAsimov, **kwargs
+                    )
+                ],
+                dtype=np.float64,
             )
 
             # TODO upper limit 40 might be too arbitrary
             # It is possible to allow user to modify the optimiser properties in the future
             opt = scipy.optimize.minimize(
-                negloglikelihood,
-                muhat_init,
+                twice_nll,
+                [0.0],
                 method="SLSQP",
                 bounds=[(self.minimum_poi_test if allow_negative_signal else 0.0, 10.0)],
                 tol=1e-6,
-                options={"maxiter": iteration_threshold},
+                options={"maxiter": maxiter},
             )
 
             if not opt.success:
                 raise RuntimeWarning("Optimiser was not able to reach required precision.")
 
-            nll, muhat = opt.fun, opt.x[0]
-            if not allow_negative_signal and muhat < 0.0:
-                muhat, nll = 0.0, negloglikelihood([0.0])
+            nll, muhat = opt.fun / 2.0, opt.x[0]
 
             if not isAsimov:
                 self._recorder.record_maximum_likelihood(expected, muhat, nll)
@@ -307,7 +304,7 @@ class StatisticsCombiner:
             return_nll=True,
             expected=expected,
             allow_negative_signal=allow_negative_signal,
-            iteration_threshold=iteration_threshold,
+            maxiter=iteration_threshold,
             **kwargs,
         )
 
@@ -315,8 +312,8 @@ class StatisticsCombiner:
             return_nll=True,
             expected=expected,
             allow_negative_signal=allow_negative_signal,
-            iteration_threshold=iteration_threshold,
             isAsimov=True,
+            maxiter=iteration_threshold,
             **kwargs,
         )
 
