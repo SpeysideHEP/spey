@@ -10,7 +10,7 @@ from .utils import fixed_poi_fit, compute_min_negloglikelihood
 from .data import Data
 from spey.backends import AvailableBackends
 from spey.system.exceptions import NegativeExpectedYields
-from spey.tools.utils_cls import find_root_limits
+from spey.hypothesis_testing.utils_cls import find_root_limits
 from spey.base.recorder import Recorder
 
 pyhf.pdf.log.setLevel(logging.CRITICAL)
@@ -308,7 +308,7 @@ class PyhfInterface(BackendBase):
                     poi,
                     data,
                     model,
-                    test_stat="qtilde" if allow_negative_signal else "q0",
+                    test_stat="q" if allow_negative_signal else "qtilde",
                     par_bounds=keywordargs.get("bounds", model.config.suggested_bounds()),
                     return_expected_set=True,
                 )

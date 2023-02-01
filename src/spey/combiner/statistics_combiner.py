@@ -4,7 +4,7 @@ from typing import Optional, List, Text, Union, Generator, Any
 
 from spey.interface.statistical_model import StatisticalModel
 from spey.utils import ExpectationType
-from spey.tools.utils_cls import compute_confidence_level, find_root_limits, teststatistics
+from spey.hypothesis_testing.utils_cls import compute_confidence_level, find_root_limits, teststatistics
 from spey.system.exceptions import AnalysisQueryError, NegativeExpectedYields
 from spey.base.recorder import Recorder
 
@@ -423,6 +423,7 @@ class StatisticsCombiner:
             )
             return CLs[0 if expected == ExpectationType.observed else 2] - confidence_level
 
+        # low = muhat + 1.5 * sigma_mu ; hig = muhat + 2.5 * sigma_mu
         low, hig = find_root_limits(computer, loc=0.0)
 
         return scipy.optimize.brentq(computer, low, hig, xtol=low / 100.0)

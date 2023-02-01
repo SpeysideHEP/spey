@@ -3,7 +3,7 @@ import warnings
 
 from typing import Callable, Union, Tuple, Text, List, Optional
 
-from spey.tools.asymptotic_calculator import AsymptoticTestStatisticsDistribution
+from spey.hypothesis_testing.asymptotic_calculator import AsymptoticTestStatisticsDistribution
 from spey.utils import ExpectationType
 
 __all__ = [

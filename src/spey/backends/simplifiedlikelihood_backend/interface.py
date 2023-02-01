@@ -6,7 +6,7 @@ from spey.base.backend_base import BackendBase
 from .data import Data, expansion_output
 from .utils_theta import fixed_poi_fit, logpdf
 from .utils_marginalised import marginalised_negloglikelihood
-from spey.tools.utils_cls import compute_confidence_level, find_root_limits, teststatistics
+from spey.hypothesis_testing.utils_cls import compute_confidence_level, find_root_limits, teststatistics
 from spey.utils import ExpectationType
 from spey.backends import AvailableBackends
 from spey.base.recorder import Recorder
