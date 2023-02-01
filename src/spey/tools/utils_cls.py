@@ -17,7 +17,7 @@ __all__ = [
 
 def compute_confidence_level(
     sqrt_qmuA: float,
-    test_statistic: float,
+    delta_test_statistic: float,
     expected: Optional[ExpectationType] = ExpectationType.observed,
     test_stat: Text = "qtilde",
 ) -> List[float]:
@@ -25,7 +25,7 @@ def compute_confidence_level(
     Compute confidence level
 
     :param sqrt_qmuA: The calculated test statistic for asimov data
-    :param test_statistic: test statistics
+    :param delta_test_statistic: test statistics
     :param expected: observed, apriori or aposteriori
     :param test_stat: type of test statistics, qtilde, or q0
     :return: confidence limit
@@ -34,7 +34,9 @@ def compute_confidence_level(
     bkg_only_distribution = AsymptoticTestStatisticsDistribution(0.0, -np.inf)
 
     if expected == ExpectationType.observed:
-        CLsb, CLb, CLs = pvalues(test_statistic, sig_plus_bkg_distribution, bkg_only_distribution)
+        CLsb, CLb, CLs = pvalues(
+            delta_test_statistic, sig_plus_bkg_distribution, bkg_only_distribution
+        )
         CLsb, CLb, CLs = [CLsb], [CLb], [CLs]  # for output consistency
     else:
         CLsb, CLb, CLs = expected_pvalues(sig_plus_bkg_distribution, bkg_only_distribution)
@@ -82,18 +84,18 @@ def teststatistics(
     sqrt_qmu, sqrt_qmuA = np.sqrt(qmu), np.sqrt(qmuA)
 
     if test_stat in ["q", "q0"]:
-        test_statistics = sqrt_qmu - sqrt_qmuA
+        delta_test_statistic = sqrt_qmu - sqrt_qmuA
     else:
         if sqrt_qmu <= sqrt_qmuA:
-            test_statistics = sqrt_qmu - sqrt_qmuA
+            delta_test_statistic = sqrt_qmu - sqrt_qmuA
         else:
-            test_statistics = (qmu - qmuA) / (2.0 * sqrt_qmuA)
+            delta_test_statistic = (qmu - qmuA) / (2.0 * sqrt_qmuA)
 
-    return sqrt_qmu, sqrt_qmuA, test_statistics
+    return sqrt_qmu, sqrt_qmuA, delta_test_statistic
 
 
 def pvalues(
-    teststatistic: float,
+    delta_test_statistic: float,
     sig_plus_bkg_distribution: AsymptoticTestStatisticsDistribution,
     bkg_only_distribution: AsymptoticTestStatisticsDistribution,
 ) -> Tuple[float, float, float]:
@@ -101,14 +103,14 @@ def pvalues(
     Calculate the :math:`p`-values for the observed test statistic under the
     signal + background and background-only model hypotheses.
 
-    :param teststatistic: The test statistic.
+    :param delta_test_statistic: The test statistic.
     :param sig_plus_bkg_distribution: The distribution for the signal + background hypothesis.
     :param bkg_only_distribution: The distribution for the background-only hypothesis.
     :return: The p-values for the test statistic corresponding to the `\mathrm{CL}_{s+b}`,
             `\mathrm{CL}_{b}`, and `\mathrm{CL}_{s}`.
     """
-    CLsb = sig_plus_bkg_distribution.pvalue(teststatistic)
-    CLb = bkg_only_distribution.pvalue(teststatistic)
+    CLsb = sig_plus_bkg_distribution.pvalue(delta_test_statistic)
+    CLb = bkg_only_distribution.pvalue(delta_test_statistic)
     with warnings.catch_warnings(record=True):
         CLs = np.true_divide(CLsb, CLb, dtype=np.float32)
     return CLsb, CLb, CLs if CLb != 0.0 else 0.0
