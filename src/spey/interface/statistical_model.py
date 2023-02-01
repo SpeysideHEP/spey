@@ -7,8 +7,7 @@ from spey.utils import ExpectationType
 from spey.base.backend_base import BackendBase
 from spey.backends import AvailableBackends
 from spey.system.exceptions import UnknownCrossSection
-from spey.hypothesis_testing.test_statistics import compute_teststatistics
-from spey.hypothesis_testing.utils import compute_confidence_level, find_poi_upper_limit
+from spey.hypothesis_testing.utils import hypothesis_test, find_poi_upper_limit
 
 __all__ = ["StatisticalModel"]
 
@@ -148,6 +147,7 @@ class StatisticalModel:
 
     def exclusion_confidence_level(
         self,
+        poi_test: float = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: bool = True,
         **kwargs,
@@ -155,13 +155,15 @@ class StatisticalModel:
         """
         Compute exclusion confidence level of a given statistical model.
 
+        :param poi_test: parameter of interest
         :param expected: observed, apriori or aposteriori
+        :param allow_negative_signal: if true muhat is allowed to be negative
         :param kwargs: backend specific inputs.
         :return: 1-CLs value (float)
         """
-        if hasattr(self.backend, "exclusion_confidence_level"):
+        if hasattr(self.backend, "exclusion_confidence_level") and not kwargs.pop("overwrite", False):
             return self.backend.exclusion_confidence_level(
-                poi_test=1.0,
+                poi_test=poi_test,
                 expected=expected,
                 allow_negative_signal=allow_negative_signal,
                 **kwargs,
@@ -170,16 +172,16 @@ class StatisticalModel:
             maximize_likelihood, logpdf = self._hypotest_tools(
                 expected=expected, allow_negative_signal=allow_negative_signal, **kwargs
             )
-            test_stat = "q" if allow_negative_signal else "qtilde"
-            _, sqrt_qmuA, delta_teststat = compute_teststatistics(
-                1.0, maximize_likelihood, logpdf, test_stat
+            pvalues, expected_pvalues = hypothesis_test(
+                poi_test, maximize_likelihood, logpdf, allow_negative_signal
             )
-            pvalue = list(
+
+            return list(
                 map(
-                    lambda x: 1.0 - x, compute_confidence_level(sqrt_qmuA, delta_teststat, expected)
+                    lambda x: 1.0 - x,
+                    pvalues if expected == ExpectationType.observed else expected_pvalues,
                 )
             )
-            return pvalue
 
     def poi_upper_limit(
         self,
@@ -192,6 +194,7 @@ class StatisticalModel:
         Compute the upper limit on parameter of interest, described by the confidence level
 
         :param expected: observed, apriori or aposteriori
+        :param allow_negative_signal: if true muhat is allowed to be negative
         :param confidence_level: exclusion confidence level (default 1 - CLs = 95%)
         :param kwargs: backend specific inputs.
         :return: excluded parameter of interest

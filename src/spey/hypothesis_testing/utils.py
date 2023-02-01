@@ -17,11 +17,8 @@ __all__ = [
 
 
 def compute_confidence_level(
-    sqrt_qmuA: float,
-    delta_test_statistic: float,
-    expected: Optional[ExpectationType] = ExpectationType.observed,
-    test_stat: Text = "qtilde",
-) -> List[float]:
+    sqrt_qmuA: float, delta_test_statistic: float, test_stat: Text = "qtilde"
+) -> Tuple[List[float], List[float]]:
     """
     Compute confidence level
 
@@ -34,15 +31,12 @@ def compute_confidence_level(
     sig_plus_bkg_distribution = AsymptoticTestStatisticsDistribution(-sqrt_qmuA, -np.inf)
     bkg_only_distribution = AsymptoticTestStatisticsDistribution(0.0, -np.inf)
 
-    if expected == ExpectationType.observed:
-        CLsb, CLb, CLs = pvalues(
-            delta_test_statistic, sig_plus_bkg_distribution, bkg_only_distribution
-        )
-        CLsb, CLb, CLs = [CLsb], [CLb], [CLs]  # for output consistency
-    else:
-        CLsb, CLb, CLs = expected_pvalues(sig_plus_bkg_distribution, bkg_only_distribution)
+    CLsb_obs, CLb_obs, CLs_obs = pvalues(
+        delta_test_statistic, sig_plus_bkg_distribution, bkg_only_distribution
+    )
+    CLsb_exp, CLb_exp, CLs_exp = expected_pvalues(sig_plus_bkg_distribution, bkg_only_distribution)
 
-    return CLsb if test_stat == "q0" else CLs
+    return ([CLsb_obs], CLsb_exp) if test_stat == "q0" else ([CLs_obs], CLs_exp)
 
 
 def pvalues(
@@ -128,7 +122,7 @@ def find_root_limits(
 def find_poi_upper_limit(
     maximize_likelihood: Callable[[bool], Tuple[float, float]],
     logpdf: Callable[[float, bool], float],
-    expected: Optional[ExpectationType],
+    expected: ExpectationType,
     sigma_mu: float = 1.0,
     confidence_level: float = 0.95,
     allow_negative_signal: bool = True,
@@ -162,30 +156,31 @@ def find_poi_upper_limit(
         pvalue = list(
             map(
                 lambda x: 1.0 - x,
-                compute_confidence_level(sqrt_qmuA, delta_teststat, expected),
+                compute_confidence_level(sqrt_qmuA, delta_teststat, test_stat)[
+                    0 if expected == ExpectationType.observed else 1
+                ],
             )
         )
         # always get the median
         return pvalue[0 if expected == ExpectationType.observed else 2] - confidence_level
 
     low, hig = find_root_limits(
-        computer, loc=0.0, low_ini=muhat + 1.5 * sigma_mu, hig_ini=muhat + 2.5 * sigma_mu
+        computer,
+        loc=0.0,
+        low_ini=muhat + 1.5 * sigma_mu if muhat >= 0.0 else 1.0,
+        hig_ini=muhat + 2.5 * sigma_mu if muhat >= 0.0 else 1.0,
     )
-    return scipy.optimize.brentq(computer, low, hig, xtol=low / 100.0)
+    return scipy.optimize.brentq(computer, low, hig, xtol=abs(low / 100.0))
 
 
 def hypothesis_test(
+    poi_test: float,
     maximize_likelihood: Callable[[bool], Tuple[float, float]],
     logpdf: Callable[[float, bool], float],
     allow_negative_signal: bool = True,
 ):
+    test_stat = "q" if allow_negative_signal else "qtilde"
     _, sqrt_qmuA, delta_teststat = compute_teststatistics(
-        1.0, maximize_likelihood, logpdf, "q" if allow_negative_signal else "qtilde"
+        poi_test, maximize_likelihood, logpdf, test_stat
     )
-
-    pvalues = compute_confidence_level(sqrt_qmuA, delta_teststat, ExpectationType.observed)
-    expected_pvalues = compute_confidence_level(
-        sqrt_qmuA, delta_teststat, ExpectationType.aposteriori
-    )
-
-    return pvalues, expected_pvalues
+    return compute_confidence_level(sqrt_qmuA, delta_teststat, test_stat)

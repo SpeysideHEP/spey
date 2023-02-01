@@ -4,8 +4,7 @@ from typing import Optional, List, Text, Union, Generator, Any, Callable, Tuple
 
 from spey.interface.statistical_model import StatisticalModel
 from spey.utils import ExpectationType
-from spey.hypothesis_testing.utils import compute_confidence_level, find_poi_upper_limit
-from spey.hypothesis_testing.test_statistics import compute_teststatistics
+from spey.hypothesis_testing.utils import hypothesis_test, find_poi_upper_limit
 from spey.system.exceptions import AnalysisQueryError, NegativeExpectedYields
 from spey.base.recorder import Recorder
 
@@ -328,6 +327,7 @@ class StatisticsCombiner:
 
     def exclusion_confidence_level(
         self,
+        poi_test: float = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: bool = True,
         iteration_threshold: Optional[int] = 10000,
@@ -357,14 +357,15 @@ class StatisticsCombiner:
             iteration_threshold=iteration_threshold,
             **kwargs,
         )
-        test_stat = "q" if allow_negative_signal else "qtilde"
-        _, sqrt_qmuA, delta_teststat = compute_teststatistics(
-            1.0, maximize_likelihood, logpdf, test_stat
+        pvalues, expected_pvalues = hypothesis_test(
+            poi_test, maximize_likelihood, logpdf, allow_negative_signal
         )
-        pvalue = list(
-            map(lambda x: 1.0 - x, compute_confidence_level(sqrt_qmuA, delta_teststat, expected))
+        return list(
+            map(
+                lambda x: 1.0 - x,
+                pvalues if expected == ExpectationType.observed else expected_pvalues,
+            )
         )
-        return pvalue
 
     def poi_upper_limit(
         self,
@@ -379,6 +380,7 @@ class StatisticsCombiner:
 
         :param expected: observed, apriori or aposteriori
         :param confidence_level: confidence level (default 95%)
+        :param allow_negative_signal: if true allow muhat to be negative
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
         :param kwargs: model dependent arguments. In order to specify backend specific inputs
                        provide the input in the following format

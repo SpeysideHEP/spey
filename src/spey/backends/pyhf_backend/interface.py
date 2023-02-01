@@ -13,6 +13,8 @@ from spey.system.exceptions import NegativeExpectedYields
 from spey.hypothesis_testing.utils import find_root_limits
 from spey.base.recorder import Recorder
 
+__all__ = ["PyhfInterface"]
+
 pyhf.pdf.log.setLevel(logging.CRITICAL)
 pyhf.workspace.log.setLevel(logging.CRITICAL)
 pyhf.set_backend("numpy", precision="64b")
@@ -387,6 +389,15 @@ class PyhfInterface(BackendBase):
             )
             return CLs[0 if expected == ExpectationType.observed else 2] - confidence_level
 
-        low, hig = find_root_limits(computer, loc=0.0)
+        muhat, nllmin = self.maximize_likelihood(
+            expected=expected, allow_negative_signal=allow_negative_signal
+        )
+
+        low, hig = find_root_limits(
+            computer,
+            loc=0.0,
+            low_ini=muhat + 1.5 if muhat >= 0.0 else 1.0,
+            hig_ini=muhat + 2.5 if muhat >= 0.0 else 1.0,
+        )
 
         return scipy.optimize.brentq(computer, low, hig, xtol=low / 100.0)
