@@ -1,4 +1,5 @@
-from typing import Optional, Text, Tuple, List
+from typing import Optional, Text, Tuple, List, Callable
+import scipy
 
 import numpy as np
 
@@ -6,6 +7,8 @@ from spey.utils import ExpectationType
 from spey.base.backend_base import BackendBase
 from spey.backends import AvailableBackends
 from spey.system.exceptions import UnknownCrossSection
+from spey.hypothesis_testing.test_statistics import compute_teststatistics
+from spey.hypothesis_testing.utils import compute_confidence_level, find_poi_upper_limit
 
 __all__ = ["StatisticalModel"]
 
@@ -111,8 +114,43 @@ class StatisticalModel:
             **kwargs,
         )
 
+    def _hypotest_tools(
+        self,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        allow_negative_signal: Optional[bool] = False,
+        **kwargs,
+    ) -> Tuple[Callable[[bool], Tuple[float, float]], Callable[[float, bool], float]]:
+        """
+
+        :param expected: observed, apriori or aposteriori
+        :param allow_negative_signal: if true, allow negative mu
+        :param kwargs: backend specific arguments
+        :return: muhat, minimum logpdf, muhat for asimov dataset, minimum logpdf for asimov dataset
+                and logpdf function
+        """
+        maximize_likelihood = lambda isAsimov: self.maximize_likelihood(
+            return_nll=True,
+            expected=expected,
+            allow_negative_signal=allow_negative_signal,
+            isAsimov=isAsimov,
+            **kwargs,
+        )
+
+        logpdf = lambda mu, isAsimov: -self.likelihood(
+            poi_test=mu if isinstance(mu, float) else mu[0],
+            expected=expected,
+            return_nll=True,
+            isAsimov=isAsimov,
+            **kwargs,
+        )
+
+        return maximize_likelihood, logpdf
+
     def exclusion_confidence_level(
-        self, expected: Optional[ExpectationType] = ExpectationType.observed, **kwargs
+        self,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        allow_negative_signal: bool = True,
+        **kwargs,
     ) -> List[float]:
         """
         Compute exclusion confidence level of a given statistical model.
@@ -121,27 +159,61 @@ class StatisticalModel:
         :param kwargs: backend specific inputs.
         :return: 1-CLs value (float)
         """
-        return self.backend.exclusion_confidence_level(
-            poi_test=1.0, expected=expected, allow_negative_signal=True, **kwargs
-        )
+        if hasattr(self.backend, "exclusion_confidence_level"):
+            return self.backend.exclusion_confidence_level(
+                poi_test=1.0,
+                expected=expected,
+                allow_negative_signal=allow_negative_signal,
+                **kwargs,
+            )
+        else:
+            maximize_likelihood, logpdf = self._hypotest_tools(
+                expected=expected, allow_negative_signal=allow_negative_signal, **kwargs
+            )
+            test_stat = "q" if allow_negative_signal else "qtilde"
+            _, sqrt_qmuA, delta_teststat = compute_teststatistics(
+                1.0, maximize_likelihood, logpdf, test_stat
+            )
+            pvalue = list(
+                map(
+                    lambda x: 1.0 - x, compute_confidence_level(sqrt_qmuA, delta_teststat, expected)
+                )
+            )
+            return pvalue
 
     def poi_upper_limit(
         self,
         expected: Optional[ExpectationType] = ExpectationType.observed,
+        allow_negative_signal: bool = True,
         confidence_level: float = 0.95,
         **kwargs,
     ) -> float:
         """
-        Compute the POI where the signal is excluded with 95% CL
+        Compute the upper limit on parameter of interest, described by the confidence level
 
         :param expected: observed, apriori or aposteriori
         :param confidence_level: exclusion confidence level (default 1 - CLs = 95%)
         :param kwargs: backend specific inputs.
-        :return: mu
+        :return: excluded parameter of interest
         """
-        return self.backend.poi_upper_limit(
-            expected=expected,
-            confidence_level=confidence_level,
-            allow_negative_signal=True,
-            **kwargs,
-        )
+        assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
+        if hasattr(self.backend, "poi_upper_limit"):
+            return self.backend.poi_upper_limit(
+                expected=expected,
+                allow_negative_signal=allow_negative_signal,
+                confidence_level=confidence_level,
+                **kwargs,
+            )
+        else:
+            maximize_likelihood, logpdf = self._hypotest_tools(
+                expected=expected, allow_negative_signal=allow_negative_signal, **kwargs
+            )
+
+            return find_poi_upper_limit(
+                maximize_likelihood=maximize_likelihood,
+                logpdf=logpdf,
+                expected=expected,
+                sigma_mu=1.0,
+                confidence_level=confidence_level,
+                allow_negative_signal=allow_negative_signal,
+            )

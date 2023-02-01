@@ -10,7 +10,7 @@ from .utils import fixed_poi_fit, compute_min_negloglikelihood
 from .data import Data
 from spey.backends import AvailableBackends
 from spey.system.exceptions import NegativeExpectedYields
-from spey.hypothesis_testing.utils_cls import find_root_limits
+from spey.hypothesis_testing.utils import find_root_limits
 from spey.base.recorder import Recorder
 
 pyhf.pdf.log.setLevel(logging.CRITICAL)
@@ -337,19 +337,13 @@ class PyhfInterface(BackendBase):
                     max_bound = bound[1] * 2.0
                     current_bounds.append((min_bound, max_bound))
                 else:
-                    min_bound = bound[0] - 5.0 if allow_negative_signal else 0.0
-                    if allow_negative_signal and self.model.minimum_poi_test is not None:
-                        min_bound = (
-                            self.model.minimum_poi_test
-                            if not np.isinf(self.model.minimum_poi_test)
-                            else bound[0] - 5.0
-                        )
-                        current_bounds.append((min_bound, 2.0 * bound[1]))
+                    min_bound = self.model.minimum_poi_test if allow_negative_signal else 0.0
+                    current_bounds.append((min_bound, 2.0 * bound[1]))
             return current_bounds
 
         # pyhf can raise an error if the poi_test bounds are too stringent
         # they need to be updated dynamically.
-        arguments = dict(bounds=model.config.suggested_bounds(), stats="qtilde")
+        arguments = dict(bounds=update_bounds(model.config.suggested_bounds()))
         poi_test_bounds = model.config.suggested_bounds()[model.config.poi_index]
         poi_update = False
         if not poi_test_bounds[0] <= poi_test <= poi_test_bounds[1]:

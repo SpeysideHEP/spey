@@ -13,6 +13,7 @@ class DataBase(ABC):
     Data base is a class that keeps track of the input data which then wrapped with a statistical
     model class which is based on BackendBase class.
     """
+
     @property
     @abstractmethod
     def minimum_poi_test(self) -> float:
@@ -106,41 +107,3 @@ class BackendBase(ABC):
         :return: \chi^2
         """
         raise NotImplementedError("This method has not been implemented")
-
-    @abstractmethod
-    def exclusion_confidence_level(
-        self,
-        poi_test: float = 1.0,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        allow_negative_signal: Optional[bool] = True,
-        **kwargs,
-    ) -> List[float]:
-        """
-        Compute exclusion confidence level.
-
-        :param poi_test: POI (signal strength)
-        :param expected: observed, apriori or aposteriori
-        :param allow_negative_signal: if true, allow negative mu
-        :param kwargs: backend specific inputs
-        :return: 1 - CLs values
-        """
-        raise NotImplementedError("This method has not been implemented")
-
-    @abstractmethod
-    def poi_upper_limit(
-        self,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        confidence_level: float = 0.95,
-        allow_negative_signal: Optional[bool] = True,
-        **kwargs,
-    ) -> float:
-        """
-        Compute the POI where the signal is excluded with 95% CL
-
-        :param expected: observed, apriori or aposteriori
-        :param confidence_level: confidence level (default 95%)
-        :param allow_negative_signal: if true, allow negative mu
-        :return: POI
-        """
-        raise NotImplementedError("This method has not been implemented")
-

@@ -1,10 +1,11 @@
 import warnings, scipy
 import numpy as np
-from typing import Optional, List, Text, Union, Generator, Any
+from typing import Optional, List, Text, Union, Generator, Any, Callable, Tuple
 
 from spey.interface.statistical_model import StatisticalModel
 from spey.utils import ExpectationType
-from spey.hypothesis_testing.utils_cls import compute_confidence_level, find_root_limits, teststatistics
+from spey.hypothesis_testing.utils import compute_confidence_level, find_poi_upper_limit
+from spey.hypothesis_testing.test_statistics import compute_teststatistics
 from spey.system.exceptions import AnalysisQueryError, NegativeExpectedYields
 from spey.base.recorder import Recorder
 
@@ -279,13 +280,13 @@ class StatisticsCombiner:
             )[1]
         )
 
-    def _exclusion_tools(
+    def _hypotest_tools(
         self,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = False,
         iteration_threshold: Optional[int] = 10000,
         **kwargs,
-    ):
+    ) -> Tuple[Callable[[bool], Tuple[float, float]], Callable[[float, bool], float]]:
         """
         Compute tools needed for exclusion limit computation
 
@@ -306,35 +307,29 @@ class StatisticsCombiner:
 
         This will allow keyword arguments to be chosen with respect to specific backend.
         """
-        muhat, min_nll = self.maximize_likelihood(
+        maximize_likelihood = lambda isAsimov: self.maximize_likelihood(
             return_nll=True,
             expected=expected,
             allow_negative_signal=allow_negative_signal,
+            isAsimov=isAsimov,
             maxiter=iteration_threshold,
             **kwargs,
         )
 
-        muhat_asimov, min_nll_asimov = self.maximize_likelihood(
-            return_nll=True,
+        logpdf = lambda mu, isAsimov: -self.likelihood(
+            poi_test=mu if isinstance(mu, float) else mu[0],
             expected=expected,
-            allow_negative_signal=allow_negative_signal,
-            isAsimov=True,
-            maxiter=iteration_threshold,
+            return_nll=True,
+            isAsimov=isAsimov,
             **kwargs,
         )
 
-        negloglikelihood = lambda mu: self.likelihood(
-            mu[0], expected=expected, return_nll=True, **kwargs
-        )
-        negloglikelihood_asimov = lambda mu: self.likelihood(
-            mu[0], expected=expected, return_nll=True, isAsimov=True, **kwargs
-        )
-
-        return min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood
+        return maximize_likelihood, logpdf
 
     def exclusion_confidence_level(
         self,
         expected: Optional[ExpectationType] = ExpectationType.observed,
+        allow_negative_signal: bool = True,
         iteration_threshold: Optional[int] = 10000,
         **kwargs,
     ) -> List[float]:
@@ -356,26 +351,26 @@ class StatisticsCombiner:
         This will allow keyword arguments to be chosen with respect to specific backend.
         :return: 1 - CLs
         """
-        min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood = self._exclusion_tools(
+        maximize_likelihood, logpdf = self._hypotest_tools(
             expected=expected,
-            allow_negative_signal=True,
+            allow_negative_signal=allow_negative_signal,
             iteration_threshold=iteration_threshold,
             **kwargs,
         )
-        _, sqrt_qmuA, test_statistic = teststatistics(
-            1.0, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll, "qtilde"
+        test_stat = "q" if allow_negative_signal else "qtilde"
+        _, sqrt_qmuA, delta_teststat = compute_teststatistics(
+            1.0, maximize_likelihood, logpdf, test_stat
         )
-
-        CLs = list(
-            map(lambda x: 1.0 - x, compute_confidence_level(sqrt_qmuA, test_statistic, expected))
+        pvalue = list(
+            map(lambda x: 1.0 - x, compute_confidence_level(sqrt_qmuA, delta_teststat, expected))
         )
-
-        return CLs
+        return pvalue
 
     def poi_upper_limit(
         self,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         confidence_level: float = 0.95,
+        allow_negative_signal: bool = True,
         iteration_threshold: Optional[int] = 10000,
         **kwargs,
     ) -> float:
@@ -400,30 +395,18 @@ class StatisticsCombiner:
         """
         assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
 
-        min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood = self._exclusion_tools(
+        maximize_likelihood, logpdf = self._hypotest_tools(
             expected=expected,
-            allow_negative_signal=True,
+            allow_negative_signal=allow_negative_signal,
             iteration_threshold=iteration_threshold,
             **kwargs,
         )
 
-        def computer(poi_test: float) -> float:
-            _, sqrt_qmuA, test_statistic = teststatistics(
-                poi_test,
-                negloglikelihood_asimov,
-                min_nll_asimov,
-                negloglikelihood,
-                min_nll,
-                "qtilde",
-            )
-            CLs = list(
-                map(
-                    lambda x: 1.0 - x, compute_confidence_level(sqrt_qmuA, test_statistic, expected)
-                )
-            )
-            return CLs[0 if expected == ExpectationType.observed else 2] - confidence_level
-
-        # low = muhat + 1.5 * sigma_mu ; hig = muhat + 2.5 * sigma_mu
-        low, hig = find_root_limits(computer, loc=0.0)
-
-        return scipy.optimize.brentq(computer, low, hig, xtol=low / 100.0)
+        return find_poi_upper_limit(
+            maximize_likelihood=maximize_likelihood,
+            logpdf=logpdf,
+            expected=expected,
+            sigma_mu=1.0,
+            confidence_level=confidence_level,
+            allow_negative_signal=allow_negative_signal,
+        )

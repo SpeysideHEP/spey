@@ -3,6 +3,7 @@ __all__ = [
     "AnalysisQueryError",
     "NegativeExpectedYields",
     "UnknownCrossSection",
+    "UnknownTestStatistics",
 ]
 
 
@@ -32,3 +33,10 @@ class UnknownCrossSection(Exception):
 
     def __init__(self, message="Please initialise cross section value."):
         super(UnknownCrossSection, self).__init__(message)
+
+
+class UnknownTestStatistics(Exception):
+    """Unknown test statistics exception"""
+
+    def __init__(self, message="Unknown test statistics."):
+        super(UnknownTestStatistics, self).__init__(message)

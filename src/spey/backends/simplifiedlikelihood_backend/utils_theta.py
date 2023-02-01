@@ -56,7 +56,7 @@ def logpdf(
             + theta
             + third_moment_expansion.C * np.square(theta) / np.square(third_moment_expansion.B)
         )
-    lmbda = np.clip(lmbda, 1e-30, None)
+    lmbda = np.clip(lmbda, 1e-10, None)
 
     # scipy.stats.poisson.logpmf is faster than computing by hand
     if model.observed.dtype in [np.int32, np.int16, np.int64]:

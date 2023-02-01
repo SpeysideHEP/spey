@@ -1,17 +1,18 @@
 import numpy as np
-import warnings
+import warnings, scipy
 
-from typing import Callable, Union, Tuple, Text, List, Optional
+from typing import Callable, Tuple, Text, List, Optional
 
 from spey.hypothesis_testing.asymptotic_calculator import AsymptoticTestStatisticsDistribution
+from spey.hypothesis_testing.test_statistics import compute_teststatistics
 from spey.utils import ExpectationType
 
 __all__ = [
     "compute_confidence_level",
-    "teststatistics",
     "find_root_limits",
     "pvalues",
     "expected_pvalues",
+    "find_poi_upper_limit",
 ]
 
 
@@ -41,57 +42,7 @@ def compute_confidence_level(
     else:
         CLsb, CLb, CLs = expected_pvalues(sig_plus_bkg_distribution, bkg_only_distribution)
 
-    if test_stat == "qtilde":
-        return CLs
-
-    return CLsb
-
-
-def teststatistics(
-    poi_test: Union[float, np.ndarray],
-    negloglikelihood_asimov: Union[Callable[[np.ndarray], float], float],
-    min_negloglikelihood_asimov: float,
-    negloglikelihood: Union[Callable[[np.ndarray], float], float],
-    min_negloglikelihood: float,
-    test_stat: Text = "qtilde",
-) -> Tuple[float, float, float]:
-    """
-
-    :param poi_test: POI (signal strength)
-    :param negloglikelihood_asimov: POI dependent negative log-likelihood function
-                                    based on asimov data
-    :param min_negloglikelihood_asimov: minimum negative log-likelihood for asimov data
-    :param negloglikelihood: POI dependent negative log-likelihood function
-    :param min_negloglikelihood: minimum negative log-likelihood
-    :param test_stat: The test statistic to use as a numerical summary of the data:
-                      `qtilde`, `q`, or `q0`.
-    :return: sqrt_qmu, sqrt_qmuA, test_statistics
-    """
-    if isinstance(poi_test, (float, int)):
-        poi_test = np.array([float(poi_test)])
-    elif len(poi_test) == 0:
-        poi_test = np.array([poi_test])
-
-    nllA = (
-        negloglikelihood_asimov(poi_test)
-        if callable(negloglikelihood_asimov)
-        else negloglikelihood_asimov
-    )
-    nll = negloglikelihood(poi_test) if callable(negloglikelihood) else negloglikelihood
-
-    qmu = np.clip(2.0 * (nll - min_negloglikelihood), 0.0, None, dtype=np.float32)
-    qmuA = np.clip(2.0 * (nllA - min_negloglikelihood_asimov), 0.0, None, dtype=np.float32)
-    sqrt_qmu, sqrt_qmuA = np.sqrt(qmu), np.sqrt(qmuA)
-
-    if test_stat in ["q", "q0"]:
-        delta_test_statistic = sqrt_qmu - sqrt_qmuA
-    else:
-        if sqrt_qmu <= sqrt_qmuA:
-            delta_test_statistic = sqrt_qmu - sqrt_qmuA
-        else:
-            delta_test_statistic = (qmu - qmuA) / (2.0 * sqrt_qmuA)
-
-    return sqrt_qmu, sqrt_qmuA, delta_test_statistic
+    return CLsb if test_stat == "q0" else CLs
 
 
 def pvalues(
@@ -148,17 +99,21 @@ def expected_pvalues(
     )
 
 
-def find_root_limits(computer: Callable[[float], float], loc: float = 0.0) -> Tuple[float, float]:
+def find_root_limits(
+    computer: Callable[[float], float], loc: float = 0.0, low_ini: float = 1.0, hig_ini: float = 1.0
+) -> Tuple[float, float]:
     """
     Find limits for brent bracketing
 
+    :param hig_ini:
+    :param low_ini:
     :param computer: POI dependent function
     :param loc: location of the root
     :return: lower and upper bound
     """
     assert callable(computer), "Invalid input. Computer must be callable."
 
-    low, hig = 1.0, 1.0
+    low, hig = low_ini, hig_ini
     while computer(low) > loc:
         low *= 0.1
         if low < 1e-10:
@@ -168,3 +123,69 @@ def find_root_limits(computer: Callable[[float], float], loc: float = 0.0) -> Tu
         if hig > 1e10:
             break
     return low, hig
+
+
+def find_poi_upper_limit(
+    maximize_likelihood: Callable[[bool], Tuple[float, float]],
+    logpdf: Callable[[float, bool], float],
+    expected: Optional[ExpectationType],
+    sigma_mu: float = 1.0,
+    confidence_level: float = 0.95,
+    allow_negative_signal: bool = True,
+) -> float:
+    """
+    Compute the upper limit on parameter of interest, described by the confidence level
+
+    :param maximize_likelihood: function to retrieve muhat and minimum negative log-likelihood.
+                               The function should take a boolean as an input which indicates
+                               that the function is an Asimov construction or not.
+    :param logpdf: log of the full density
+    :param expected: observed, apriori or aposteriori
+    :param sigma_mu: uncertainty on parameter of interest
+    :param confidence_level: exclusion confidence level (default 1 - CLs = 95%)
+    :param allow_negative_signal: allow negative signals while minimising negative log-likelihood
+    :return: excluded parameter of interest
+    """
+
+    # compute these values in advance to save time
+    muhat, min_nll = maximize_likelihood(False)
+    muhatA, min_nllA = maximize_likelihood(True)
+    maximizer = lambda isAsimov: (muhatA, min_nllA) if isAsimov else (muhat, min_nll)
+
+    test_stat = "q" if allow_negative_signal else "qtilde"
+
+    def computer(poi_test: float) -> float:
+        """Compute 1 - CLs(POI) = `confidence_level`"""
+        _, sqrt_qmuA, delta_teststat = compute_teststatistics(
+            poi_test, maximizer, logpdf, test_stat
+        )
+        pvalue = list(
+            map(
+                lambda x: 1.0 - x,
+                compute_confidence_level(sqrt_qmuA, delta_teststat, expected),
+            )
+        )
+        # always get the median
+        return pvalue[0 if expected == ExpectationType.observed else 2] - confidence_level
+
+    low, hig = find_root_limits(
+        computer, loc=0.0, low_ini=muhat + 1.5 * sigma_mu, hig_ini=muhat + 2.5 * sigma_mu
+    )
+    return scipy.optimize.brentq(computer, low, hig, xtol=low / 100.0)
+
+
+def hypothesis_test(
+    maximize_likelihood: Callable[[bool], Tuple[float, float]],
+    logpdf: Callable[[float, bool], float],
+    allow_negative_signal: bool = True,
+):
+    _, sqrt_qmuA, delta_teststat = compute_teststatistics(
+        1.0, maximize_likelihood, logpdf, "q" if allow_negative_signal else "qtilde"
+    )
+
+    pvalues = compute_confidence_level(sqrt_qmuA, delta_teststat, ExpectationType.observed)
+    expected_pvalues = compute_confidence_level(
+        sqrt_qmuA, delta_teststat, ExpectationType.aposteriori
+    )
+
+    return pvalues, expected_pvalues

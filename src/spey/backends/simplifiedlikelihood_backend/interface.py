@@ -1,12 +1,11 @@
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, Union, List
 import numpy as np
 import scipy, warnings
 
 from spey.base.backend_base import BackendBase
 from .data import Data, expansion_output
-from .utils_theta import fixed_poi_fit, logpdf
+from .utils_theta import fixed_poi_fit, logpdf, compute_d2negloglikelihood_dtheta2
 from .utils_marginalised import marginalised_negloglikelihood
-from spey.hypothesis_testing.utils_cls import compute_confidence_level, find_root_limits, teststatistics
 from spey.utils import ExpectationType
 from spey.backends import AvailableBackends
 from spey.base.recorder import Recorder
@@ -243,129 +242,3 @@ class SimplifiedLikelihoodInterface(BackendBase):
             )[1]
         )
 
-    def _exclusion_tools(
-        self,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        marginalise: Optional[bool] = False,
-        allow_negative_signal: Optional[bool] = False,
-        iteration_threshold: Optional[int] = 10000,
-    ):
-        """
-        Compute tools needed for exclusion limit computation
-
-        :param expected: observed, apriori or aposteriori
-        :param marginalise: if true, marginalize the likelihood.
-                            if false compute profiled likelihood
-        :param allow_negative_signal: if true, allow negative mu
-        :param iteration_threshold: number of iterations to be held for convergence of the fit.
-        """
-        muhat, min_nll = self.maximize_likelihood(
-            return_nll=True,
-            expected=expected,
-            marginalise=marginalise,
-            allow_negative_signal=allow_negative_signal,
-            iteration_threshold=iteration_threshold,
-        )
-
-        muhat_asimov, min_nll_asimov = self.maximize_likelihood(
-            return_nll=True,
-            expected=expected,
-            marginalise=marginalise,
-            allow_negative_signal=allow_negative_signal,
-            isAsimov=True,
-            iteration_threshold=iteration_threshold,
-        )
-
-        negloglikelihood = lambda poi_test: self.likelihood(
-            poi_test[0], expected=expected, return_nll=True, marginalize=marginalise
-        )
-        negloglikelihood_asimov = lambda poi_test: self.likelihood(
-            poi_test[0], expected=expected, return_nll=True, isAsimov=True, marginalize=marginalise
-        )
-
-        return min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood
-
-    def exclusion_confidence_level(
-        self,
-        poi_test: float = 1.0,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        allow_negative_signal: Optional[bool] = True,
-        marginalise: Optional[bool] = False,
-        iteration_threshold: Optional[int] = 10000,
-    ) -> List[float]:
-        """
-        Compute 1 - CLs value
-
-        :param poi_test: POI (signal strength)
-        :param expected: observed, apriori or aposteriori
-        :param allow_negative_signal: if true, allow negative mu
-        :param marginalise: if true, marginalize the likelihood.
-                            if false compute profiled likelihood
-        :param iteration_threshold: number of iterations to be held for convergence of the fit.
-        :return: 1 - CLs
-        """
-        min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood = self._exclusion_tools(
-            expected=expected,
-            marginalise=marginalise,
-            allow_negative_signal=allow_negative_signal,
-            iteration_threshold=iteration_threshold,
-        )
-
-        test_stat = "qtilde" if allow_negative_signal else "q0"
-        _, sqrt_qmuA, test_statistic = teststatistics(
-            poi_test, negloglikelihood_asimov, min_nll_asimov, negloglikelihood, min_nll, test_stat
-        )
-
-        CLs = list(
-            map(lambda x: 1.0 - x, compute_confidence_level(sqrt_qmuA, test_statistic, expected))
-        )
-
-        return CLs
-
-    def poi_upper_limit(
-        self,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        confidence_level: float = 0.95,
-        allow_negative_signal: Optional[bool] = True,
-        marginalise: Optional[bool] = False,
-        iteration_threshold: Optional[int] = 10000,
-    ) -> float:
-        """
-        Compute the upper limit on parameter of interest
-
-        :param expected: observed, apriori or aposteriori
-        :param confidence_level: confidence level (default 95%)
-        :param allow_negative_signal: if true, allow negative mu
-        :param marginalise: if true, marginalize the likelihood.
-                            if false compute profiled likelihood
-        :param iteration_threshold: number of iterations to be held for convergence of the fit.
-        :return: excluded POI value at 95% CLs
-        """
-        assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
-
-        min_nll_asimov, negloglikelihood_asimov, min_nll, negloglikelihood = self._exclusion_tools(
-            expected=expected,
-            marginalise=marginalise,
-            allow_negative_signal=allow_negative_signal,
-            iteration_threshold=iteration_threshold,
-        )
-
-        def computer(poi_test: float) -> float:
-            _, sqrt_qmuA, test_statistic = teststatistics(
-                poi_test,
-                negloglikelihood_asimov,
-                min_nll_asimov,
-                negloglikelihood,
-                min_nll,
-                "qtilde" if allow_negative_signal else "q0",
-            )
-            CLs = list(
-                map(
-                    lambda x: 1.0 - x, compute_confidence_level(sqrt_qmuA, test_statistic, expected)
-                )
-            )
-            return CLs[0 if expected == ExpectationType.observed else 2] - confidence_level
-
-        low, hig = find_root_limits(computer, loc=0.0)
-
-        return scipy.optimize.brentq(computer, low, hig, xtol=low / 100.0)
