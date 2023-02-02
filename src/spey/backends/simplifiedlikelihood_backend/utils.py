@@ -34,16 +34,15 @@ def twice_nll(
     third_moment_expansion: Optional[expansion_output],
 ) -> float:
     """
-    Compute the log value of the full density.
+    Compute twice negative log-likelihood
 
-    :param mu: POI (signal strength)
-    :param model: statistical model
-    :param theta: nuisance parameters
-    :param third_moment_expansion: computed results for the third moment
-           expansion of the statistical model
-    :return: (float) negative log-likelihood
+    :param pars: nuisance parameters
+    :param signal: signal yields
+    :param background: expected background yields
+    :param observed: observations
+    :param third_moment_expansion: third moment expansion
+    :return: twice negative log-likelihood
     """
-
     if third_moment_expansion.A is None:
         lmbda = background + pars[1:] + pars[0] * signal
     else:
