@@ -11,7 +11,7 @@ compute_d2negloglikelihood_dtheta2: compute second order derivative of negative 
 
 for details see https://arxiv.org/abs/1809.05548
 """
-import scipy, warnings
+import warnings
 from typing import Optional, Tuple, List
 
 from .data import Data, expansion_output
@@ -20,7 +20,6 @@ from autograd.scipy.stats.poisson import logpmf
 from autograd.scipy.special import gammaln
 from autograd import numpy as np
 from autograd import grad, hessian
-from autograd.scipy.stats.multivariate_normal import logpdf
 from scipy.optimize import minimize
 
 __all__ = ["twice_nll", "fit", "compute_sigma_mu"]
