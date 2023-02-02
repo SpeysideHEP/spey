@@ -81,8 +81,7 @@ class StatisticsCombiner:
 
     def __iter__(self) -> StatisticalModel:
         """Iterate over statistical models"""
-        for model in self._statistical_models:
-            yield model
+        yield from self._statistical_models
 
     def __len__(self):
         """Number of statistical models within the stack"""
