@@ -20,14 +20,14 @@ from autograd.scipy.stats.poisson import logpmf
 from autograd.scipy.special import gammaln
 from autograd import numpy as np
 from autograd import grad, hessian
+from autograd.scipy.stats.multivariate_normal import logpdf
 from scipy.optimize import minimize
 
 __all__ = ["twice_nll", "fit", "compute_sigma_mu"]
 
 
 def twice_nll(
-    mu: np.ndarray,
-    theta: np.ndarray,
+    pars: np.ndarray,
     signal: np.ndarray,
     background: np.ndarray,
     observed: np.ndarray,
@@ -45,13 +45,13 @@ def twice_nll(
     """
 
     if third_moment_expansion.A is None:
-        lmbda = background + mu * signal + theta
+        lmbda = background + pars[1:] + pars[0] * signal
     else:
         lmbda = (
-            mu * signal
+            pars[0] * signal
             + third_moment_expansion.A
-            + theta
-            + third_moment_expansion.C * np.square(theta) / np.square(third_moment_expansion.B)
+            + pars[1:]
+            + third_moment_expansion.C * np.square(pars[1:]) / np.square(third_moment_expansion.B)
         )
     lmbda = np.clip(lmbda, 1e-5, None)
 
@@ -61,22 +61,19 @@ def twice_nll(
     else:
         poisson = -lmbda + observed * np.log(lmbda) - gammaln(observed + 1)
 
+    # NOTE: autograd.scipy.stats.multivariate_normal.logpdf is too slow!!
+    # logpdf(pars[1:], mean=np.zeros(len(observed)), cov=third_moment_expansion.V)
     logcoeff = (
         -len(observed) / 2.0 * np.log(2.0 * np.pi)
         - 0.5 * third_moment_expansion.logdet_covariance[1]
     )
-    gaussian = -0.5 * np.dot(np.dot(theta, third_moment_expansion.inv_covariance), theta) + logcoeff
+    gaussian = -0.5 * (pars[1:] @ third_moment_expansion.inv_covariance @ pars[1:]) + logcoeff
 
     return -2.0 * (gaussian + np.sum(poisson))
 
 
-def _combined_nuisance(pars, signal, background, observed, third_moment_expansion):
-    return twice_nll(pars[0], pars[1:], signal, background, observed, third_moment_expansion)
-
-
-_dtwice_nll = grad(twice_nll, argnum=[0, 1])
-
-_twice_nll_hessian = hessian(_combined_nuisance, argnum=0)
+_grad = grad(twice_nll, argnum=0)
+_hessian = hessian(twice_nll, argnum=0)
 
 
 def compute_sigma_mu(
@@ -95,9 +92,7 @@ def compute_sigma_mu(
     if third_moment_expansion is None:
         third_moment_expansion = model.compute_expansion()
 
-    hessian = _twice_nll_hessian(
-        pars, model.signal, model.background, model.observed, third_moment_expansion
-    )
+    hessian = _hessian(pars, model.signal, model.background, model.observed, third_moment_expansion)
     return np.clip(np.sqrt(1.0 / hessian[0, 0]), 1e-5, None)
 
 
@@ -128,18 +123,15 @@ def fit(
         third_moment_expansion = model.compute_expansion()
 
     twice_nll_func = lambda pars: twice_nll(
-        pars[0], pars[1:], model.signal, model.background, model.observed, third_moment_expansion
+        pars, model.signal, model.background, model.observed, third_moment_expansion
     )
 
-    grad_func = lambda pars: np.hstack(
-        _dtwice_nll(
-            pars[0],
-            pars[1:],
-            model.signal,
-            model.background,
-            model.observed,
-            third_moment_expansion,
-        )
+    grad_func = lambda pars: _grad(
+        pars, model.signal, model.background, model.observed, third_moment_expansion
+    )
+
+    hess_func = lambda pars: _hessian(
+        pars, model.signal, model.background, model.observed, third_moment_expansion
     )
 
     constraints = None
@@ -155,10 +147,11 @@ def fit(
         np.array(init_pars),
         method="SLSQP",
         jac=grad_func,
+        # hess=hess_func,
         bounds=par_bounds,
         constraints=constraints,
         tol=1e-6,
-        options={"maxiter": 10000},
+        options=dict(maxiter=10000, disp=0),
     )
 
     if not opt.success:

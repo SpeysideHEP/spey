@@ -63,12 +63,9 @@ class SimplifiedLikelihoodInterface(BackendBase):
         # NOTE for test_stat = q0 asimov mu should be 1, default qtilde!!!
         if pars is None:
             # Generate the asimov data by fittin nuissance parameters to the observations
-            bkg = model.background
-            init_pars = [0.0] * (len(self.model) + 1)
-            par_bounds = [(self.model.minimum_poi_test, 1.0)] + [
-                (-min(bkg[idx], 50.0), bkg[idx] * 5.0) for idx in range(len(model))
-            ]
-            nll, pars = fit(self.model, init_pars, par_bounds, 0.0, self.third_moment_expansion)
+            init_pars = [0.0] * (len(model) + 1)
+            par_bounds = [(model.minimum_poi_test, 1.0)] + [(-5.0, 5.0)] * len(model)
+            nll, pars = fit(model, init_pars, par_bounds, 0.0, self.third_moment_expansion)
             self._asimov_nuisance[asimov_nuisance_key] = pars
 
         return model.reset_observations(model.background + pars[1:], f"{model.name}_asimov")
@@ -94,8 +91,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
             current_model = self._get_asimov_data(current_model, expected)
 
         return -0.5 * twice_nll(
-            mu=nuisance_parameters[0],
-            theta=nuisance_parameters[1:],
+            nuisance_parameters,
             signal=current_model.signal,
             background=current_model.background,
             observed=current_model.observed,
@@ -137,7 +133,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
                 )
             else:
                 init_pars = [poi_test] + [0.0] * len(current_model)
-                par_bounds = [(current_model.minimum_poi_test, 40.0)] + [(-50.0, 50.0)] * len(
+                par_bounds = [(current_model.minimum_poi_test, 40.0)] + [(-5.0, 5.0)] * len(
                     current_model
                 )
                 nll, pars = fit(
@@ -183,8 +179,8 @@ class SimplifiedLikelihoodInterface(BackendBase):
             # It is possible to allow user to modify the optimiser properties in the future
             init_pars = [0.0] * (len(current_model) + 1)
             par_bounds = [
-                (current_model.minimum_poi_test if allow_negative_signal else 0.0, 40.0)
-            ] + [(-50.0, 50.0)] * len(current_model)
+                (current_model.minimum_poi_test if allow_negative_signal else 0.0, 10.0)
+            ] + [(-5.0, 5.0)] * len(current_model)
             nll, pars = fit(current_model, init_pars, par_bounds, None, self.third_moment_expansion)
 
             if not isAsimov:
