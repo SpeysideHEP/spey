@@ -1,10 +1,9 @@
-from typing import Optional, Tuple, Union, List
+from typing import Optional, Tuple
 import numpy as np
-import scipy, warnings
 
 from spey.base.backend_base import BackendBase
 from .data import Data, expansion_output
-from .utils_theta import fixed_poi_fit, logpdf, compute_d2negloglikelihood_dtheta2
+from .utils import fit, twice_nll
 from .utils_marginalised import marginalised_negloglikelihood
 from spey.utils import ExpectationType
 from spey.backends import AvailableBackends
@@ -32,8 +31,8 @@ class SimplifiedLikelihoodInterface(BackendBase):
         self._third_moment_expansion: Optional[expansion_output] = None
         self._recorder = Recorder()
         self._asimov_nuisance = {
-            str(ExpectationType.observed): False,
-            str(ExpectationType.apriori): False,
+            str(ExpectationType.observed): None,
+            str(ExpectationType.apriori): None,
         }
 
     @property
@@ -60,21 +59,22 @@ class SimplifiedLikelihoodInterface(BackendBase):
             if expected == ExpectationType.apriori
             else str(ExpectationType.observed)
         )
-        thetahat_mu0 = self._asimov_nuisance.get(asimov_nuisance_key, False)
+        pars = self._asimov_nuisance.get(asimov_nuisance_key, None)
         # NOTE for test_stat = q0 asimov mu should be 1, default qtilde!!!
-        if thetahat_mu0 is False:
+        if pars is None:
             # Generate the asimov data by fittin nuissance parameters to the observations
-            nll0, thetahat_mu0 = fixed_poi_fit(0.0, model, self.third_moment_expansion)
-            self._asimov_nuisance[asimov_nuisance_key] = thetahat_mu0
+            bkg = model.background
+            init_pars = [0.0] * (len(self.model) + 1)
+            par_bounds = [(self.model.minimum_poi_test, 1.0)] + [
+                (-min(bkg[idx], 50.0), bkg[idx] * 5.0) for idx in range(len(model))
+            ]
+            nll, pars = fit(self.model, init_pars, par_bounds, 0.0, self.third_moment_expansion)
+            self._asimov_nuisance[asimov_nuisance_key] = pars
 
-        return model.reset_observations(
-            np.clip(model.background + thetahat_mu0, 0.0, None),
-            f"{model.name}_asimov",
-        )
+        return model.reset_observations(model.background + pars[1:], f"{model.name}_asimov")
 
     def logpdf(
         self,
-        poi_test: float,
         nuisance_parameters: np.ndarray,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         isAsimov: Optional[bool] = False,
@@ -82,7 +82,6 @@ class SimplifiedLikelihoodInterface(BackendBase):
         """
         Compute the log value of the full density.
 
-        :param poi_test: parameter of interest
         :param nuisance_parameters: nuisance parameters
         :param expected: observed, apriori or aposteriori
         :param isAsimov: if true, computes likelihood for Asimov data
@@ -94,10 +93,12 @@ class SimplifiedLikelihoodInterface(BackendBase):
         if isAsimov:
             current_model = self._get_asimov_data(current_model, expected)
 
-        return logpdf(
-            mu=poi_test,
-            model=current_model,
-            theta=nuisance_parameters,
+        return -0.5 * twice_nll(
+            mu=nuisance_parameters[0],
+            theta=nuisance_parameters[1:],
+            signal=current_model.signal,
+            background=current_model.background,
+            observed=current_model.observed,
             third_moment_expansion=self.third_moment_expansion,
         )
 
@@ -135,7 +136,13 @@ class SimplifiedLikelihoodInterface(BackendBase):
                     poi_test, current_model, self.third_moment_expansion, self.ntoys
                 )
             else:
-                nll, theta_hat = fixed_poi_fit(poi_test, current_model, self.third_moment_expansion)
+                init_pars = [poi_test] + [0.0] * len(current_model)
+                par_bounds = [(current_model.minimum_poi_test, 40.0)] + [(-50.0, 50.0)] * len(
+                    current_model
+                )
+                nll, pars = fit(
+                    current_model, init_pars, par_bounds, poi_test, self.third_moment_expansion
+                )
 
             if not isAsimov:
                 self._recorder.record_poi_test(expected, poi_test, nll)
@@ -165,44 +172,25 @@ class SimplifiedLikelihoodInterface(BackendBase):
         :raises RuntimeWarning: if optimiser cant reach required precision
         """
         if self._recorder.get_maximum_likelihood(expected) is not False and not isAsimov:
-            muhat, nll = self._recorder.get_maximum_likelihood(expected)
+            pars, nll = self._recorder.get_maximum_likelihood(expected)
         else:
-            negloglikelihood = lambda mu: self.likelihood(
-                mu[0],
-                expected=expected,
-                return_nll=True,
-                isAsimov=isAsimov,
-                marginalize=marginalise,
+            current_model: Data = (
+                self.model if expected != ExpectationType.apriori else self.model.expected_dataset
             )
-
-            muhat_init = np.random.uniform(
-                self.model.minimum_poi_test if allow_negative_signal else 0.0, 10.0, (1,)
-            )
+            if isAsimov:
+                current_model = self._get_asimov_data(current_model, expected)
 
             # It is possible to allow user to modify the optimiser properties in the future
-            opt = scipy.optimize.minimize(
-                negloglikelihood,
-                muhat_init,
-                method="SLSQP",
-                bounds=[(self.model.minimum_poi_test if allow_negative_signal else 0.0, 40.0)],
-                tol=1e-6,
-                options={"maxiter": iteration_threshold},
-            )
-
-            if not opt.success:
-                warnings.warn(
-                    message="Optimiser was not able to reach required precision.",
-                    category=RuntimeWarning,
-                )
-
-            nll, muhat = opt.fun, opt.x[0]
-            if not allow_negative_signal and muhat < 0.0:
-                muhat, nll = 0.0, negloglikelihood([0.0])
+            init_pars = [0.0] * (len(current_model) + 1)
+            par_bounds = [
+                (current_model.minimum_poi_test if allow_negative_signal else 0.0, 40.0)
+            ] + [(-50.0, 50.0)] * len(current_model)
+            nll, pars = fit(current_model, init_pars, par_bounds, None, self.third_moment_expansion)
 
             if not isAsimov:
-                self._recorder.record_maximum_likelihood(expected, muhat, nll)
+                self._recorder.record_maximum_likelihood(expected, pars, nll)
 
-        return muhat, nll if return_nll else np.exp(-nll)
+        return pars[0], nll if return_nll else np.exp(-nll)
 
     def chi2(
         self,
@@ -241,4 +229,3 @@ class SimplifiedLikelihoodInterface(BackendBase):
                 isAsimov=isAsimov,
             )[1]
         )
-

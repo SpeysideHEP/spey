@@ -200,7 +200,7 @@ class StatisticalModel:
         :return: excluded parameter of interest
         """
         assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
-        if hasattr(self.backend, "poi_upper_limit"):
+        if hasattr(self.backend, "poi_upper_limit") and not kwargs.pop("overwrite", False):
             return self.backend.poi_upper_limit(
                 expected=expected,
                 allow_negative_signal=allow_negative_signal,
