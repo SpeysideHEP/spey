@@ -159,23 +159,19 @@ class Data(DataBase):
         # arXiv:1809.05548 eq. 3.13
         C: np.ndarray = np.zeros(shape=diag_cov.shape)
         for idx, (m2, m3) in enumerate(zip(diag_cov, self.third_moment)):
-            m3 = m3 if m3 != 0 else 1e-30
+            m3 = np.clip(m3, 1e-10, None)
             k = -np.sign(m3) * np.sqrt(2.0 * m2)
             dm = np.sqrt(8.0 * m2**3 / m3**2 - 1.0)
             C[idx] = k * np.cos(4.0 * np.pi / 3.0 + np.arctan(dm) / 3.0)
 
         B: np.ndarray = np.sqrt(diag_cov - 2.0 * np.square(C))  # B, as defined in Eq. 3.11
         A: np.ndarray = self.background - C  # A, Eq. 1.30
-        rho = np.zeros(shape=(len(self), len(self)))
-        for idx in range(len(self)):
-            for idy in range(len(self)):
-                bxby = B[idx] * B[idy]
-                cxcy = C[idx] * C[idy]
-                e = (4.0 * cxcy) ** (-1) * (
-                    np.sqrt(bxby**2.0 + 8.0 * cxcy * self.covariance[idx][idy]) - bxby
-                )
-                rho[idx][idy] = e
-                rho[idy][idx] = e
+        Cmat = C.reshape(-1, 1) @ C.reshape(1, -1)
+        Bmat = B.reshape(-1, 1) @ B.reshape(1, -1)
+        rho = np.power(4.0 * Cmat, -1) * (
+            np.sqrt(np.square(Bmat) + 8.0 * Cmat * self.covariance) - Bmat
+        )
+        rho = np.tril(rho) + np.triu(rho.T, 1)
 
         V = np.zeros(shape=(len(B), len(B)))
         for idx in range(len(B)):
@@ -189,16 +185,8 @@ class Data(DataBase):
     @property
     def correlation_matrix(self) -> np.ndarray:
         """Compute correlation matrix computed from covariance matrix"""
-        corr = np.zeros(shape=self.covariance.shape)
-        for idx in range(self.covariance.shape[0]):
-            corr[idx][idx] = 1.0
-            for idy in range(idx + 1, self.covariance.shape[0]):
-                rho = self.covariance[idx][idy] / np.sqrt(
-                    self.covariance[idx][idx] * self.covariance[idy][idy]
-                )
-                corr[idx][idy] = rho
-                corr[idy][idx] = rho
-        return corr
+        inv_sqrt_diag = np.linalg.inv(np.sqrt(np.diag(self.diag_cov)))
+        return inv_sqrt_diag @ self.covariance @ inv_sqrt_diag
 
     @property
     def minimum_poi_test(self) -> float:
