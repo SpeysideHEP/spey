@@ -13,7 +13,6 @@ __all__ = [
     "pvalues",
     "expected_pvalues",
     "find_poi_upper_limit",
-    "hypothesis_test",
 ]
 
 
@@ -121,10 +120,9 @@ def find_root_limits(
 
 
 def find_poi_upper_limit(
-    maximize_likelihood: Callable[[bool], Tuple[float, float]],
+    maximize_likelihood: Callable[[bool], Tuple[float, float, float]],
     logpdf: Callable[[float, bool], float],
     expected: ExpectationType,
-    sigma_mu: float = 1.0,
     confidence_level: float = 0.95,
     allow_negative_signal: bool = True,
 ) -> float:
@@ -143,16 +141,16 @@ def find_poi_upper_limit(
     """
 
     # compute these values in advance to save time
-    muhat, min_nll = maximize_likelihood(False)
-    muhatA, min_nllA = maximize_likelihood(True)
-    maximizer = lambda isAsimov: (muhatA, min_nllA) if isAsimov else (muhat, min_nll)
+    muhat, sigma_mu, min_nll = maximize_likelihood(False)
+    muhatA, _, min_nllA = maximize_likelihood(True)
+    selector = lambda isAsimov: (muhatA, min_nllA) if isAsimov else (muhat, min_nll)
 
     test_stat = "q" if allow_negative_signal else "qtilde"
 
     def computer(poi_test: float) -> float:
         """Compute 1 - CLs(POI) = `confidence_level`"""
         _, sqrt_qmuA, delta_teststat = compute_teststatistics(
-            poi_test, maximizer, logpdf, test_stat
+            poi_test, selector, logpdf, test_stat
         )
         pvalue = list(
             map(
@@ -172,16 +170,3 @@ def find_poi_upper_limit(
         hig_ini=muhat + 2.5 * sigma_mu if muhat >= 0.0 else 1.0,
     )
     return scipy.optimize.brentq(computer, low, hig, xtol=abs(low / 100.0))
-
-
-def hypothesis_test(
-    poi_test: float,
-    maximize_likelihood: Callable[[bool], Tuple[float, float]],
-    logpdf: Callable[[float, bool], float],
-    allow_negative_signal: bool = True,
-):
-    test_stat = "q" if allow_negative_signal else "qtilde"
-    _, sqrt_qmuA, delta_teststat = compute_teststatistics(
-        poi_test, maximize_likelihood, logpdf, test_stat
-    )
-    return compute_confidence_level(sqrt_qmuA, delta_teststat, test_stat)

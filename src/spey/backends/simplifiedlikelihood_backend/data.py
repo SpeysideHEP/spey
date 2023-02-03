@@ -73,7 +73,7 @@ class Data(DataBase):
                 self.third_moment
             ), "Dimensionality of the third moment does not match with covariance matrix."
             assert np.all(
-                8. * self.power(self.diag_cov, 3) / self.power(self.third_moment, 2) >= 1.0
+                8.0 * np.power(self.diag_cov, 3) / np.power(self.third_moment, 2) >= 1.0
             ), "Inequality for third moment has not been satisfied."
 
     def __repr__(self):
@@ -106,6 +106,10 @@ class Data(DataBase):
             self.third_moment,
             name,
         )
+
+    @property
+    def poi_index(self) -> int:
+        return 0
 
     @property
     def expected_dataset(self):

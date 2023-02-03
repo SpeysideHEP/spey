@@ -180,7 +180,7 @@ def fixed_poi_fit(
             break
         if it >= iteration_threshold:
             warnings.warn(message="pyhf mle.fit failed", category=RuntimeWarning)
-            return np.inf, pars
+            return np.nan, pars
 
     return twice_nllh / 2.0, pars
 
@@ -191,7 +191,7 @@ def compute_min_negloglikelihood(
     allow_negative_signal: bool,
     iteration_threshold: int,
     minimum_poi_test: Optional[float] = None,
-) -> Tuple[float, float]:
+) -> Tuple[np.ndarray, float]:
     """
     Compute minimum negative log-likelihood (i.e. maximum likelihood) for given statistical model
 
@@ -221,7 +221,7 @@ def compute_min_negloglikelihood(
             warnings.warn(err.args[0], RuntimeWarning)
             return None, "update bounds"
 
-        return muhat[model.config.poi_index], twice_nllh
+        return muhat, twice_nllh
 
     def update_bounds(current_bounds: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
         """Update given bounds with respect to min POI criteria"""

@@ -82,10 +82,10 @@ def get_multi_region_statistical_model(
     signal: Union[np.ndarray, List[Dict[Text, List]], List[float]],
     observed: Union[np.ndarray, Dict[Text, List], List[float]],
     covariance: Optional[Union[np.ndarray, List[List[float]]]] = None,
-    nb: Optional[np.ndarray] = None,
-    third_moment: Optional[np.ndarray] = None,
-    delta_sys: float = 0.2,
-    xsection: float = 1.0,
+    nb: Optional[Union[np.ndarray, List[float]]] = None,
+    third_moment: Optional[Union[np.ndarray, List[float]]] = None,
+    delta_sys: float = 0.0,
+    xsection: float = np.nan,
 ) -> StatisticalModel:
     """
     Create a statistical model from multibin data.
@@ -149,8 +149,26 @@ def get_multi_region_statistical_model(
         >>> multi_bin.exclusion_confidence_level(expected=spey.ExpectationType.aposteriori)
         >>> # [0.9973937390501324, 0.9861799464393675, 0.9355467946443513, 0.7647435613928496, 0.4269637940897122]
 
+    Simplified Likelihood interface example
+
+    .. code-block:: python3
+
+        >>> stat_model_sl = spey.get_multi_region_statistical_model(
+        >>>     "simple_sl_test",
+        >>>     signal=[12.0, 11.0],
+        >>>     observed=[51.0, 48.0],
+        >>>     covariance=[[3.,0.5], [0.6,7.]],
+        >>>     nb=[50.0, 52.0],
+        >>>     delta_sys=0.,
+        >>>     third_moment=[0.2, 0.1],
+        >>>     xsection=0.5
+        >>> )
+        >>> stat_model_sl.chi2(poi_test=2.5)
+        >>> # 24.80950457177922
+        >>> stat_model_sl.s95exp, stat_model_sl.s95obs
+        >>> # 0.47739909991661555, 0.4351657698811163
+
     """
-    # assert len(signal) > 1, "Incorrect input shape."
 
     if isinstance(signal, list) and isinstance(signal[0], dict) and isinstance(observed, dict):
         from spey.backends.pyhf_backend.interface import PyhfInterface
@@ -174,6 +192,7 @@ def get_multi_region_statistical_model(
         signal = np.array(signal) if isinstance(signal, list) else signal
         observed = np.array(observed) if isinstance(observed, list) else observed
         nb = np.array(nb) if isinstance(nb, list) else nb
+        third_moment = np.array(third_moment) if isinstance(third_moment, list) else third_moment
 
         model = Data(
             observed=observed,

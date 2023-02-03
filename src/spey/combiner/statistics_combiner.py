@@ -1,6 +1,6 @@
 import warnings, scipy
 import numpy as np
-from typing import Optional, List, Text, Union, Generator, Any
+from typing import Optional, List, Text, Union, Generator, Any, Tuple
 
 from spey.interface.statistical_model import StatisticalModel
 from spey.utils import ExpectationType
@@ -129,35 +129,28 @@ class StatisticsCombiner(HypothesisTestingBase):
 
         :return: likelihood value
         """
-        if self._recorder.get_poi_test(expected, poi_test) is not False and not isAsimov:
-            nll = self._recorder.get_poi_test(expected, poi_test)
-        else:
-            nll = 0.0
-            for statistical_model in self:
+        nll = 0.0
+        for statistical_model in self:
 
-                current_kwargs = {}
-                current_kwargs.update(kwargs.get(str(statistical_model.backend_type), {}))
+            current_kwargs = {}
+            current_kwargs.update(kwargs.get(str(statistical_model.backend_type), {}))
 
-                try:
-                    nll += statistical_model.backend.likelihood(
-                        poi_test=poi_test,
-                        expected=expected,
-                        return_nll=True,
-                        isAsimov=isAsimov,
-                        **current_kwargs,
-                    )
-                except NegativeExpectedYields as err:
-                    warnings.warn(
-                        err.args[0] + f"\nSetting NLL({poi_test:.3f}) = inf",
-                        category=RuntimeWarning,
-                    )
-                    nll = np.nan
+            try:
+                nll += statistical_model.backend.likelihood(
+                    poi_test=poi_test,
+                    expected=expected,
+                    isAsimov=isAsimov,
+                    **current_kwargs,
+                )[0]
+            except NegativeExpectedYields as err:
+                warnings.warn(
+                    err.args[0] + f"\nSetting NLL({poi_test:.3f}) = inf",
+                    category=RuntimeWarning,
+                )
+                nll = np.nan
 
-                if np.isnan(nll):
-                    break
-
-            if not isAsimov:
-                self._recorder.record_poi_test(expected, poi_test, nll)
+            if np.isnan(nll):
+                break
 
         return nll if return_nll or np.isnan(nll) else np.exp(-nll)
 
@@ -170,7 +163,7 @@ class StatisticsCombiner(HypothesisTestingBase):
         isAsimov: Optional[bool] = False,
         maxiter: Optional[int] = 200,
         **kwargs,
-    ):
+    ) -> Tuple[float, float, float]:
         """
         Minimize negative log-likelihood of the statistical model with respect to POI
 
@@ -183,6 +176,9 @@ class StatisticsCombiner(HypothesisTestingBase):
         :param kwargs: model dependent arguments. In order to specify backend specific inputs
                        provide the input in the following format
 
+        **Note:** Sigma mu has not yet been implemented, hence this function
+        returns muhat, nan, negative log-likelihood
+
         .. code-block:: python3
 
             >>> import spey
@@ -191,7 +187,7 @@ class StatisticsCombiner(HypothesisTestingBase):
             >>>     str(spey.AvailableBackends.pyhf): {"iteration_threshold": 20},
             >>>     str(spey.AvailableBackends.simplified_likelihoods): {"marginalize": False},
             >>> }
-            >>> muhat_apri, nll_min_apri = combiner.maximize_likelihood(
+            >>> muhat, _, nll_min = combiner.maximize_likelihood(
             >>>     return_nll=True,
             >>>     expected=spey.ExpectationType.apriori,
             >>>     allow_negative_signal=True,
@@ -201,79 +197,30 @@ class StatisticsCombiner(HypothesisTestingBase):
         This will allow keyword arguments to be chosen with respect to specific backend.
         :return: POI that minimizes the negative log-likelihood, minimum negative log-likelihood
         """
-        if self._recorder.get_maximum_likelihood(expected) is not False and not isAsimov:
-            muhat, nll = self._recorder.get_maximum_likelihood(expected)
-        else:
-            for current_model in self:
-                current_model.backend._recorder.pause()
 
-            twice_nll = lambda mu: np.array(
-                [
-                    2
-                    * self.likelihood(
-                        mu[0], expected=expected, return_nll=True, isAsimov=isAsimov, **kwargs
-                    )
-                ],
-                dtype=np.float64,
-            )
-
-            # It is possible to allow user to modify the optimiser properties in the future
-            opt = scipy.optimize.minimize(
-                twice_nll,
-                [0.0],
-                method="SLSQP",
-                bounds=[(self.minimum_poi_test if allow_negative_signal else 0.0, poi_upper_bound)],
-                tol=1e-6,
-                options={"maxiter": maxiter},
-            )
-
-            if not opt.success:
-                raise RuntimeWarning("Optimiser was not able to reach required precision.")
-
-            nll, muhat = opt.fun / 2.0, opt.x[0]
-
-            if not isAsimov:
-                self._recorder.record_maximum_likelihood(expected, muhat, nll)
-
-            for current_model in self:
-                current_model.backend._recorder.play()
-
-        return muhat, nll if return_nll else np.exp(-nll)
-
-    def chi2(
-        self,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        allow_negative_signal: Optional[bool] = True,
-        **kwargs,
-    ):
-        """
-        Compute $$\chi^2$$
-
-        .. math::
-
-            \chi^2 = -2\log\left(\frac{\mathcal{L}_{\mu = 1}}{\mathcal{L}_{max}}\right)
-
-        :param expected: observed, apriori or aposteriori
-        :param allow_negative_signal: if true, allow negative mu
-        :param kwargs: model dependent arguments. In order to specify backend specific inputs
-                       provide the input in the following format
-
-        .. code-block:: python3
-
-            kwargs = {
-                str(AvailableBackends.pyhf): {"iteration_threshold": 20},
-                str(AvailableBackends.simplified_likelihoods): {"marginalize": False},
-            }
-
-        This will allow keyword arguments to be chosen with respect to specific backend.
-        :return: chi^2
-        """
-        return 2.0 * (
-            self.likelihood(poi_test=1.0, expected=expected, return_nll=True, **kwargs)
-            - self.maximize_likelihood(
-                return_nll=True,
-                expected=expected,
-                allow_negative_signal=allow_negative_signal,
-                **kwargs,
-            )[1]
+        twice_nll = lambda mu: np.array(
+            [
+                2
+                * self.likelihood(
+                    mu[0], expected=expected, return_nll=True, isAsimov=isAsimov, **kwargs
+                )
+            ],
+            dtype=np.float64,
         )
+
+        # It is possible to allow user to modify the optimiser properties in the future
+        opt = scipy.optimize.minimize(
+            twice_nll,
+            [0.0],
+            method="SLSQP",
+            bounds=[(self.minimum_poi_test if allow_negative_signal else 0.0, poi_upper_bound)],
+            tol=1e-6,
+            options={"maxiter": maxiter},
+        )
+
+        if not opt.success:
+            raise RuntimeWarning("Optimiser was not able to reach required precision.")
+
+        nll, muhat = opt.fun / 2.0, opt.x[0]
+
+        return muhat, np.nan, nll if return_nll else np.exp(-nll)

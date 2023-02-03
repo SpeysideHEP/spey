@@ -1,11 +1,11 @@
 import copy, logging, scipy, warnings, pyhf
-from typing import Dict, Union, Optional, Tuple, List
+from typing import Dict, Union, Optional, Tuple, List, Text
 import numpy as np
 
 from pyhf.infer.calculators import generate_asimov_data
 
 from spey.utils import ExpectationType
-from spey.base.backend_base import BackendBase
+from spey.base.backend_base import BackendBase, DataBase
 from .utils import fixed_poi_fit, compute_min_negloglikelihood
 from .data import Data
 from spey.backends import AvailableBackends
@@ -76,7 +76,7 @@ class PyhfInterface(BackendBase):
     __slots__ = ["_model", "_recorder", "_asimov_nuisance"]
 
     def __init__(self, model: Data):
-        assert isinstance(model, Data), "Invalid statistical model."
+        assert isinstance(model, Data) and isinstance(model, DataBase), "Invalid statistical model."
         self._model = model
         self._recorder = Recorder()
         self._asimov_nuisance = {
@@ -98,6 +98,7 @@ class PyhfInterface(BackendBase):
         model: pyhf.pdf.Model,
         data: np.ndarray,
         expected: Optional[ExpectationType] = ExpectationType.observed,
+        test_statistics: Text = "qtilde",
     ) -> np.ndarray:
         """
         Generate asimov data for the statistical model (only valid for teststat = qtilde)
@@ -115,7 +116,7 @@ class PyhfInterface(BackendBase):
         asimov_data = self._asimov_nuisance.get(asimov_nuisance_key, False)
         if asimov_data is False:
             asimov_data = generate_asimov_data(
-                0.0,  # this is for test stat = qtilde!!!
+                0.0 if test_statistics in ["q", "qmu", "qtilde"] else 1.0,
                 data,
                 model,
                 model.config.suggested_init(),
@@ -164,16 +165,21 @@ class PyhfInterface(BackendBase):
 
         return model.logpdf(complete_pars, data).astype(np.float32)[0]
 
+    def sigma_mu(
+        self, pars: np.ndarray, expected: Optional[ExpectationType] = ExpectationType.observed
+    ) -> float:
+        """Currently not implemented"""
+        return 1.0
+
     def likelihood(
         self,
         poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
-        return_nll: Optional[bool] = True,
         isAsimov: Optional[bool] = False,
         return_theta: Optional[bool] = False,
         iteration_threshold: Optional[int] = 3,
         options: Optional[Dict] = None,
-    ) -> Union[float, List[float]]:
+    ) -> Tuple[float, np.ndarray]:
         """
         Compute  likelihood of the given statistical model
 
@@ -209,58 +215,36 @@ class PyhfInterface(BackendBase):
                         - 'trust-krylov' :ref:`(see here) <scipy.optimize.minimize-trustkrylov>`
         :return: (float) likelihood
         """
-        if (
-            self._recorder.get_poi_test(expected, poi_test) is not False
-            and not isAsimov
-            and not return_theta
-        ):
-            returns = [self._recorder.get_poi_test(expected, poi_test)]
-        else:
-            _, model, data = self.model(poi_test=1.0, expected=expected)
+        _, model, data = self.model(poi_test=1.0, expected=expected)
 
-            if isAsimov:
-                data = self._get_asimov_data(model, data, expected)
+        if isAsimov:
+            data = self._get_asimov_data(model, data, expected)
 
-            # CHECK THE MODEL BOUNDS!!
-            # POI Test needs to be adjusted according to the boundaries for sake of convergence
-            # see issue https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579235311
-            # comment https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579299831
-            new_poi_test = copy.deepcopy(poi_test)
-            execute = True
-            bounds = model.config.suggested_bounds()[model.config.poi_index]
-            if not bounds[0] <= new_poi_test <= bounds[1]:
-                try:
-                    _, model, _ = self.model(poi_test=new_poi_test, expected=expected)
-                    new_poi_test = 1.0
-                except NegativeExpectedYields as err:
-                    warnings.warn(
-                        err.args[0] + f"\nSetting NLL({poi_test:.3f}) = inf.",
-                        category=RuntimeWarning,
-                    )
-                    execute = False
-
-            if execute:
-                negloglikelihood, theta = fixed_poi_fit(
-                    new_poi_test, data, model, iteration_threshold, options
+        # CHECK THE MODEL BOUNDS!!
+        # POI Test needs to be adjusted according to the boundaries for sake of convergence
+        # see issue https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579235311
+        # comment https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579299831
+        new_poi_test = copy.deepcopy(poi_test)
+        execute = True
+        bounds = model.config.suggested_bounds()[model.config.poi_index]
+        if not bounds[0] <= new_poi_test <= bounds[1]:
+            try:
+                _, model, _ = self.model(poi_test=new_poi_test, expected=expected)
+                new_poi_test = 1.0
+            except NegativeExpectedYields as err:
+                warnings.warn(
+                    err.args[0] + f"\nSetting NLL({poi_test:.3f}) = inf.",
+                    category=RuntimeWarning,
                 )
-            else:
-                negloglikelihood, theta = np.nan, np.nan
+                execute = False
 
-            if not isAsimov:
-                self._recorder.record_poi_test(expected, poi_test, negloglikelihood)
+        negloglikelihood, fit_param = np.nan, np.nan
+        if execute:
+            negloglikelihood, fit_param = fixed_poi_fit(
+                new_poi_test, data, model, iteration_threshold, options
+            )
 
-            returns = [
-                negloglikelihood
-                if return_nll or np.isnan(negloglikelihood)
-                else np.exp(-negloglikelihood)
-            ]
-            if return_theta:
-                returns.append(theta)
-
-        if len(returns) == 1:
-            return returns[0]
-
-        return returns
+        return negloglikelihood, fit_param
 
     def maximize_likelihood(
         self,
@@ -269,7 +253,7 @@ class PyhfInterface(BackendBase):
         allow_negative_signal: Optional[bool] = True,
         isAsimov: Optional[bool] = False,
         iteration_threshold: Optional[int] = 3,
-    ) -> Tuple[float, float]:
+    ) -> Tuple[float, np.ndarray, float]:
         """
         Find the POI that maximizes the likelihood and the value of the maximum likelihood
 
@@ -278,57 +262,17 @@ class PyhfInterface(BackendBase):
         :param allow_negative_signal: allow negative POI
         :param isAsimov: if true, computes likelihood for Asimov data
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
-        :return: muhat, maximum of the likelihood
+        :return: muhat, maximum of the likelihood, sigma mu
         """
-        if self._recorder.get_maximum_likelihood(expected) is not False and not isAsimov:
-            muhat, negloglikelihood = self._recorder.get_maximum_likelihood(expected)
-        else:
-            _, model, data = self.model(poi_test=1.0, expected=expected)
-            if isAsimov:
-                data = self._get_asimov_data(model, data, expected)
+        _, model, data = self.model(poi_test=1.0, expected=expected)
+        if isAsimov:
+            data = self._get_asimov_data(model, data, expected)
 
-            muhat, negloglikelihood = compute_min_negloglikelihood(
-                data, model, allow_negative_signal, iteration_threshold, self.model.minimum_poi_test
-            )
-
-            if not isAsimov:
-                self._recorder.record_maximum_likelihood(expected, muhat, negloglikelihood)
-
-        return muhat, negloglikelihood if return_nll else np.exp(-negloglikelihood)
-
-    def chi2(
-        self,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        allow_negative_signal: Optional[bool] = True,
-        isAsimov: Optional[bool] = False,
-        **kwargs,
-    ) -> float:
-        """
-        Compute $$\chi^2$$
-
-        .. math::
-
-            \chi^2 = -2\log\left(\frac{\mathcal{L}_{\mu = 1}}{\mathcal{L}_{max}}\right)
-
-        :param expected: observed, apriori or aposteriori
-        :param allow_negative_signal: if true, allow negative mu
-        :param isAsimov: if true, computes likelihood for Asimov data
-        :return: chi^2
-        """
-        return 2.0 * (
-            self.likelihood(
-                poi_test=1.0,
-                expected=expected,
-                return_nll=True,
-                isAsimov=isAsimov,
-            )
-            - self.maximize_likelihood(
-                return_nll=True,
-                expected=expected,
-                allow_negative_signal=allow_negative_signal,
-                isAsimov=isAsimov,
-            )[1]
+        fit_param, negloglikelihood = compute_min_negloglikelihood(
+            data, model, allow_negative_signal, iteration_threshold, self.model.minimum_poi_test
         )
+
+        return negloglikelihood, fit_param, self.sigma_mu(fit_param, expected)
 
     def exclusion_confidence_level(
         self,

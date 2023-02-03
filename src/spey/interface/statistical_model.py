@@ -75,6 +75,7 @@ class StatisticalModel(HypothesisTestingBase):
         poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         return_nll: Optional[bool] = True,
+        isAsimov: Optional[bool] = False,
         **kwargs,
     ) -> float:
         """
@@ -86,17 +87,19 @@ class StatisticalModel(HypothesisTestingBase):
         :param kwargs: backend specific inputs.
         :return: (float) likelihood
         """
-        return self.backend.likelihood(
-            poi_test=poi_test, expected=expected, return_nll=return_nll, **kwargs
+        negloglikelihood, fit_param = self.backend.likelihood(
+            poi_test=poi_test, expected=expected, isAsimov=isAsimov, **kwargs
         )
+        return negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
     def maximize_likelihood(
         self,
         return_nll: Optional[bool] = True,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
+        isAsimov: Optional[bool] = False,
         **kwargs,
-    ) -> Tuple[float, float]:
+    ) -> Tuple[float, float, float]:
         """
         Find the POI that maximizes the likelihood and the value of the maximum likelihood
 
@@ -106,12 +109,14 @@ class StatisticalModel(HypothesisTestingBase):
         :param kwargs: backend specific inputs.
         :return: muhat, maximum of the likelihood
         """
-        return self.backend.maximize_likelihood(
-            return_nll=return_nll,
+        negloglikelihood, fit_param, sigma_mu = self.backend.maximize_likelihood(
             expected=expected,
             allow_negative_signal=allow_negative_signal,
+            isAsimov=isAsimov,
             **kwargs,
         )
+        muhat = fit_param[self.backend.model.poi_index]
+        return muhat, sigma_mu, negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
 
 def statistical_model_wrapper(
@@ -135,9 +140,4 @@ def statistical_model_wrapper(
         """
         return StatisticalModel(backend=func(*args, **kwargs), analysis=analysis, xsection=xsection)
 
-    wrapper.__doc__ += (
-        "\nFollowing additional keyword arguments can be passed to the object\n"
-        "\n:param analysis: analysis name (default unknown)"
-        "\n:param xsection: cross section (default nan)"
-    )
     return wrapper
