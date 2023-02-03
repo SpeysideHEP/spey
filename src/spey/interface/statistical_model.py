@@ -1,5 +1,5 @@
-from typing import Optional, Text, Tuple, List, Callable
-import scipy
+from typing import Optional, Text, Tuple, List, Callable, Any
+from functools import wraps
 
 import numpy as np
 
@@ -9,7 +9,7 @@ from spey.backends import AvailableBackends
 from spey.system.exceptions import UnknownCrossSection
 from spey.hypothesis_testing.utils import hypothesis_test, find_poi_upper_limit
 
-__all__ = ["StatisticalModel"]
+__all__ = ["StatisticalModel", "statistical_model_wrapper"]
 
 
 class StatisticalModel:
@@ -220,3 +220,32 @@ class StatisticalModel:
                 confidence_level=confidence_level,
                 allow_negative_signal=allow_negative_signal,
             )
+
+
+def statistical_model_wrapper(
+    func,
+) -> Callable[[tuple[Any, ...], str, float, dict[str, Any]], StatisticalModel]:
+    """
+    Wrapper for statistical model bacends
+
+    :param func: Takes a specific statistical model backend and turns it into StatisticalModel class
+    """
+
+    @wraps(func)
+    def wrapper(*args, analysis: Text = "__unknown_analysis__", xsection: float = np.nan, **kwargs):
+        """
+        :param args: Input arguments for statistical model backend
+        :param analysis: analysis name
+        :param xsection: cross section value
+        :param kwargs: keyword arguments for statistical model backend.
+        :return: Statistical model interface
+        :raises AssertionError: if the input function is not BacendBase
+        """
+        return StatisticalModel(backend=func(*args, **kwargs), analysis=analysis, xsection=xsection)
+
+    wrapper.__doc__ += (
+        "\nFollowing additional keyword arguments can be passed to the object\n"
+        "\n:param analysis: analysis name (default unknown)"
+        "\n:param xsection: cross section (default nan)"
+    )
+    return wrapper

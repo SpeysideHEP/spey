@@ -12,6 +12,7 @@ from spey.backends import AvailableBackends
 from spey.system.exceptions import NegativeExpectedYields
 from spey.hypothesis_testing.utils import find_root_limits
 from spey.base.recorder import Recorder
+from spey.interface.statistical_model import statistical_model_wrapper
 
 __all__ = ["PyhfInterface"]
 
@@ -20,6 +21,7 @@ pyhf.workspace.log.setLevel(logging.CRITICAL)
 pyhf.set_backend("numpy", precision="64b")
 
 
+@statistical_model_wrapper
 class PyhfInterface(BackendBase):
     """
     Pyhf Interface

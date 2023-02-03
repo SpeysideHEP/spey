@@ -52,9 +52,7 @@ def get_single_region_statistical_model(
         model = Data(
             signal=signal_eff * xsection * 1000.0 * lumi, background=nobs, nb=nb, delta_nb=deltanb
         )
-        return StatisticalModel(
-            backend=PyhfInterface(model=model), xsection=xsection, analysis=analysis
-        )
+        return PyhfInterface(model=model, xsection=xsection, analysis=analysis)
 
     elif backend == AvailableBackends.simplified_likelihoods:
         from spey.backends.simplifiedlikelihood_backend.interface import (
@@ -70,9 +68,7 @@ def get_single_region_statistical_model(
             delta_sys=0.0,
             name="model",
         )
-        return StatisticalModel(
-            backend=SimplifiedLikelihoodInterface(model=model), xsection=xsection, analysis=analysis
-        )
+        return SimplifiedLikelihoodInterface(model=model, xsection=xsection, analysis=analysis)
 
     else:
         raise NotImplementedError(
@@ -161,9 +157,7 @@ def get_multi_region_statistical_model(
         from spey.backends.pyhf_backend.data import Data
 
         model = Data(signal=signal, background=observed)
-        return StatisticalModel(
-            backend=PyhfInterface(model=model), xsection=xsection, analysis=analysis
-        )
+        return PyhfInterface(model=model, xsection=xsection, analysis=analysis)
 
     elif (
         covariance is not None
@@ -191,9 +185,7 @@ def get_multi_region_statistical_model(
             name="model",
         )
 
-        return StatisticalModel(
-            backend=SimplifiedLikelihoodInterface(model=model), xsection=xsection, analysis=analysis
-        )
+        return SimplifiedLikelihoodInterface(model=model, xsection=xsection, analysis=analysis)
 
     else:
         raise NotImplementedError("Requested backend has not been recognised.")

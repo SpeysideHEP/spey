@@ -8,10 +8,12 @@ from .utils_marginalised import marginalised_negloglikelihood
 from spey.utils import ExpectationType
 from spey.backends import AvailableBackends
 from spey.base.recorder import Recorder
+from spey.interface.statistical_model import statistical_model_wrapper
 
 __all__ = ["SimplifiedLikelihoodInterface"]
 
 
+@statistical_model_wrapper
 class SimplifiedLikelihoodInterface(BackendBase):
     """
     Simplified Likelihood Interface

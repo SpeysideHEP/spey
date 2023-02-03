@@ -1,7 +1,7 @@
 import numpy as np
 import warnings, scipy
 
-from typing import Callable, Tuple, Text, List, Optional
+from typing import Callable, Tuple, Text, List
 
 from spey.hypothesis_testing.asymptotic_calculator import AsymptoticTestStatisticsDistribution
 from spey.hypothesis_testing.test_statistics import compute_teststatistics
@@ -13,6 +13,7 @@ __all__ = [
     "pvalues",
     "expected_pvalues",
     "find_poi_upper_limit",
+    "hypothesis_test",
 ]
 
 
