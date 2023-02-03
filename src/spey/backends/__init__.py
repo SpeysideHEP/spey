@@ -1,12 +1,13 @@
-from enum import Enum
+from enum import Enum, auto
 
+__all__ = ["AvailableBackends", "simplifiedlikelihood_backend", "pyhf_backend"]
 
 class AvailableBackends(Enum):
-    pyhf = "pyhf"
-    simplified_likelihoods = "simplified_likelihoods"
+    pyhf = auto()
+    simplified_likelihoods = auto()
 
     def __repr__(self):
-        return self.value
+        return self.name
 
     def __str__(self):
-        return str(repr(self))
+        return self.name

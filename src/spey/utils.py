@@ -1,23 +1,20 @@
-from enum import Enum
+from enum import Enum, auto
 from dataclasses import dataclass, field
 import numpy as np
 from typing import Text, List, Union
 
+__all__ = ["ExpectationType"]
 
 class ExpectationType(Enum):
-    apriori = "apriori"
-    aposteriori = "aposteriori"
-    observed = "observed"
+    apriori = auto()
+    aposteriori = auto()
+    observed = auto()
 
     def __repr__(self):
-        if self == self.apriori:
-            return str(self.value) + ": Retrieve pre-fit expectations."
-        elif self == self.aposteriori:
-            return str(self.value) + ": Retrieve post-fit expectations."
-        return self.value
+        return self.name
 
     def __str__(self):
-        return str(self.value)
+        return self.name
 
     def __eq__(self, other):
         current = str(self)
