@@ -72,6 +72,9 @@ class Data(DataBase):
             assert len(self.diag_cov) == len(
                 self.third_moment
             ), "Dimensionality of the third moment does not match with covariance matrix."
+            assert np.all(
+                8. * self.power(self.diag_cov, 3) / self.power(self.third_moment, 2) >= 1.0
+            ), "Inequality for third moment has not been satisfied."
 
     def __repr__(self):
         return (
@@ -154,7 +157,7 @@ class Data(DataBase):
                 np.linalg.inv(self.covariance),
             )
 
-        diag_cov = self.diag_cov
+        diag_cov: np.ndarray = self.diag_cov
 
         # arXiv:1809.05548 eq. 3.13
         C: np.ndarray = np.zeros(shape=diag_cov.shape)
@@ -166,14 +169,14 @@ class Data(DataBase):
 
         B: np.ndarray = np.sqrt(diag_cov - 2.0 * np.square(C))  # B, as defined in Eq. 3.11
         A: np.ndarray = self.background - C  # A, Eq. 1.30
-        Cmat = C.reshape(-1, 1) @ C.reshape(1, -1)
-        Bmat = B.reshape(-1, 1) @ B.reshape(1, -1)
-        rho = np.power(4.0 * Cmat, -1) * (
+        Cmat: np.ndarray = C.reshape(-1, 1) @ C.reshape(1, -1)
+        Bmat: np.ndarray = B.reshape(-1, 1) @ B.reshape(1, -1)
+        rho: np.ndarray = np.power(4.0 * Cmat, -1) * (
             np.sqrt(np.square(Bmat) + 8.0 * Cmat * self.covariance) - Bmat
         )
         rho = np.tril(rho) + np.triu(rho.T, 1)
 
-        V = np.zeros(shape=(len(B), len(B)))
+        V: np.ndarray = np.zeros(shape=(len(B), len(B)))
         for idx in range(len(B)):
             for idy in range(idx, len(B)):
                 T = B[idx] * B[idy] * rho[idx][idy]
