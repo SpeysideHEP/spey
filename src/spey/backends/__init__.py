@@ -1,6 +1,18 @@
 from enum import Enum, auto
 
-__all__ = ["AvailableBackends", "simplifiedlikelihood_backend", "pyhf_backend"]
+from .pyhf_backend.interface import PyhfInterface
+from .pyhf_backend.data import Data as PyhfData
+from .simplifiedlikelihood_backend.interface import SimplifiedLikelihoodInterface
+from .simplifiedlikelihood_backend.data import Data as SLData
+
+__all__ = [
+    "AvailableBackends",
+    "PyhfInterface",
+    "PyhfData",
+    "SimplifiedLikelihoodInterface",
+    "SLData",
+]
+
 
 class AvailableBackends(Enum):
     pyhf = auto()

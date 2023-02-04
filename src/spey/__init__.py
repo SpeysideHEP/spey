@@ -16,30 +16,28 @@ __all__ = [
     "ExpectationType",
     "AvailableBackends",
     "get_multi_region_statistical_model",
-    "get_single_region_statistical_model",
+    "get_uncorrelated_region_statistical_model",
     "Recorder",
 ]
 
 
-def get_single_region_statistical_model(
-    nobs: int,
-    nb: float,
-    deltanb: float,
-    signal_eff: float,
-    xsection: float,
-    lumi: float,
+def get_uncorrelated_region_statistical_model(
+    nobs: Union[int, np.ndarray],
+    nb: Union[float, np.ndarray],
+    deltanb: Union[float, np.ndarray],
+    signal_yields: Union[float, np.ndarray],
+    xsection: Union[float, np.ndarray],
     analysis: Text,
     backend: AvailableBackends,
 ) -> StatisticalModel:
     """
-    Create statistical model from a single bin
+    Create statistical model from a single bin or multiple uncorrelated regions
 
     :param nobs: number of observed events
     :param nb: number of expected background events
     :param deltanb: uncertainty on background
-    :param signal_eff: signal efficiency
-    :param xsection: cross-section in pb
-    :param lumi: luminosity in 1/fb
+    :param signal_yields: signal yields
+    :param xsection: cross-section
     :param analysis: name of the analysis
     :param backend: pyhf or simplified_likelihoods
     :return: Statistical model
@@ -47,24 +45,27 @@ def get_single_region_statistical_model(
     :raises NotImplementedError: If requested backend has not been recognised.
     """
     if backend == AvailableBackends.pyhf:
-        from spey.backends.pyhf_backend.interface import PyhfInterface, Data
+        from spey.backends import PyhfData, PyhfInterface
 
-        model = Data(
-            signal=signal_eff * xsection * 1000.0 * lumi, background=nobs, nb=nb, delta_nb=deltanb
-        )
+        model = PyhfData(signal=signal_yields, background=nobs, nb=nb, delta_nb=deltanb)
         return PyhfInterface(model=model, xsection=xsection, analysis=analysis)
 
     elif backend == AvailableBackends.simplified_likelihoods:
-        from spey.backends.simplifiedlikelihood_backend.interface import (
-            SimplifiedLikelihoodInterface,
-            Data,
-        )
+        from spey.backends import SLData, SimplifiedLikelihoodInterface
 
-        model = Data(
-            signal=np.array([signal_eff * xsection * 1000.0 * lumi]),
-            observed=np.array([nobs]),
-            covariance=np.array([deltanb]),
-            background=np.array([nb]),
+        # Convert everything to numpy array
+        covariance = np.array(list(deltanb)) if isinstance(deltanb, (list, float)) else deltanb
+        signal_yields = (
+            np.array(signal_yields) if isinstance(signal_yields, (list, float)) else signal_yields
+        )
+        nobs = np.array(nobs) if isinstance(nobs, (list, float)) else nobs
+        nb = np.array(nb) if isinstance(nb, (list, float)) else nb
+
+        model = SLData(
+            signal=signal_yields,
+            observed=nobs,
+            covariance=covariance,
+            background=nb,
             delta_sys=0.0,
             name="model",
         )
@@ -171,10 +172,9 @@ def get_multi_region_statistical_model(
     """
 
     if isinstance(signal, list) and isinstance(signal[0], dict) and isinstance(observed, dict):
-        from spey.backends.pyhf_backend.interface import PyhfInterface
-        from spey.backends.pyhf_backend.data import Data
+        from spey.backends import PyhfData, PyhfInterface
 
-        model = Data(signal=signal, background=observed)
+        model = PyhfData(signal=signal, background=observed)
         return PyhfInterface(model=model, xsection=xsection, analysis=analysis)
 
     elif (
@@ -182,10 +182,7 @@ def get_multi_region_statistical_model(
         and isinstance(signal, (list, np.ndarray))
         and isinstance(observed, (list, np.ndarray))
     ):
-        from spey.backends.simplifiedlikelihood_backend.interface import (
-            SimplifiedLikelihoodInterface,
-            Data,
-        )
+        from spey.backends import SLData, SimplifiedLikelihoodInterface
 
         # Convert everything to numpy array
         covariance = np.array(covariance) if isinstance(covariance, list) else covariance
@@ -194,7 +191,7 @@ def get_multi_region_statistical_model(
         nb = np.array(nb) if isinstance(nb, list) else nb
         third_moment = np.array(third_moment) if isinstance(third_moment, list) else third_moment
 
-        model = Data(
+        model = SLData(
             observed=observed,
             signal=signal,
             background=nb,
