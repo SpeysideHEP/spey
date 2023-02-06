@@ -14,7 +14,7 @@ for details see https://arxiv.org/abs/1809.05548
 import warnings
 from typing import Optional, Tuple, List
 
-from .data import Data, expansion_output
+from .sldata import SLData, expansion_output
 
 from autograd.scipy.stats.poisson import logpmf
 from autograd.scipy.special import gammaln
@@ -75,7 +75,7 @@ _hessian = hessian(twice_nll, argnum=0)
 
 
 def compute_sigma_mu(
-    model: Data, pars: np.ndarray, third_moment_expansion: Optional[expansion_output] = None
+    model: SLData, pars: np.ndarray, third_moment_expansion: Optional[expansion_output] = None
 ) -> float:
     """
     Compute uncertainty on parameter of interest
@@ -95,7 +95,7 @@ def compute_sigma_mu(
 
 
 def fit(
-    model: Data,
+    model: SLData,
     init_pars: List[float],
     par_bounds: List[Tuple[float, float]],
     fixed_poi: Optional[float] = None,

@@ -7,7 +7,7 @@ from pyhf.infer.calculators import generate_asimov_data
 from spey.utils import ExpectationType
 from spey.base.backend_base import BackendBase, DataBase
 from .utils import fixed_poi_fit, compute_min_negloglikelihood
-from .data import Data
+from .pyhfdata import PyhfData
 from spey.backends import AvailableBackends
 from spey.system.exceptions import NegativeExpectedYields
 from spey.hypothesis_testing.utils import find_root_limits
@@ -35,7 +35,7 @@ class PyhfInterface(BackendBase):
 
     .. code-block:: python3
 
-        >>> from spey.backends.pyhf_backend.data import Data
+        >>> from spey.backends.pyhf_backend.data import SLData
         >>> from spey.backends.pyhf_backend.interface import PyhfInterface
         >>> from spey import ExpectationType
         >>> background = {
@@ -57,7 +57,7 @@ class PyhfInterface(BackendBase):
         >>>     "path": "/channels/0/samples/1",
         >>>     "value": {"name": "signal", "data": [12.0, 11.0],
         >>>       "modifiers": [{"name": "mu", "type": "normfactor", "data": None}]}}]
-        >>> model = Data(signal=signal, background=background)
+        >>> model = SLData(signal=signal, background=background)
         >>> statistical_model = PyhfInterface(model=model, xsection=1.0, analysis="my_analysis")
         >>> print(statistical_model)
         >>> # StatisticalModel(analysis='my_analysis', xsection=1.000e+00 [pb], backend=pyhf)
@@ -75,8 +75,8 @@ class PyhfInterface(BackendBase):
 
     __slots__ = ["_model", "_recorder", "_asimov_nuisance"]
 
-    def __init__(self, model: Data):
-        assert isinstance(model, Data) and isinstance(model, DataBase), "Invalid statistical model."
+    def __init__(self, model: PyhfData):
+        assert isinstance(model, PyhfData) and isinstance(model, DataBase), "Invalid statistical model."
         self._model = model
         self._recorder = Recorder()
         self._asimov_nuisance = {
@@ -85,7 +85,7 @@ class PyhfInterface(BackendBase):
         }
 
     @property
-    def model(self) -> Data:
+    def model(self) -> PyhfData:
         """Retrieve statistical model"""
         return self._model
 

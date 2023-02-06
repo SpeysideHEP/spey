@@ -9,11 +9,11 @@ from .utils import initialise_workspace
 from spey.system.exceptions import NegativeExpectedYields
 from spey.base.backend_base import DataBase
 
-__all__ = ["Data"]
+__all__ = ["PyhfData"]
 
 
 @dataclass(frozen=True)
-class Data(DataBase):
+class PyhfData(DataBase):
     """
     Dataclass for pyhf interface
 

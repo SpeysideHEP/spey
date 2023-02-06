@@ -2,7 +2,7 @@ from typing import Optional, Tuple
 import numpy as np
 
 from spey.base.backend_base import BackendBase, DataBase
-from .data import Data, expansion_output
+from .sldata import SLData, expansion_output
 from .utils import fit, twice_nll, compute_sigma_mu
 from .utils_marginalised import marginalised_negloglikelihood
 from spey.utils import ExpectationType
@@ -29,8 +29,8 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
     __slots__ = ["_model", "ntoys", "_third_moment_expansion", "_asimov_nuisance"]
 
-    def __init__(self, model: Data, ntoys: Optional[int] = 10000):
-        assert isinstance(model, Data) and isinstance(model, DataBase) and isinstance(ntoys, int), \
+    def __init__(self, model: SLData, ntoys: Optional[int] = 10000):
+        assert isinstance(model, SLData) and isinstance(model, DataBase) and isinstance(ntoys, int), \
             "Invalid statistical model."
         self._model = model
         self.ntoys = ntoys
@@ -41,7 +41,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         }
 
     @property
-    def model(self) -> Data:
+    def model(self) -> SLData:
         """Get statistical model"""
         return self._model
 
@@ -57,8 +57,8 @@ class SimplifiedLikelihoodInterface(BackendBase):
         return self._third_moment_expansion
 
     def _get_asimov_data(
-        self, model: Data, expected: Optional[ExpectationType] = ExpectationType.observed
-    ) -> Data:
+        self, model: SLData, expected: Optional[ExpectationType] = ExpectationType.observed
+    ) -> SLData:
         asimov_nuisance_key = (
             str(ExpectationType.apriori)
             if expected == ExpectationType.apriori
@@ -89,7 +89,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         :param isAsimov: if true, computes likelihood for Asimov data
         :return: negative log-likelihood
         """
-        current_model: Data = (
+        current_model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
         )
         if isAsimov:
@@ -113,7 +113,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         :param expected: observed, apriori or aposteriori
         :return: sigma mu
         """
-        current_model: Data = (
+        current_model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
         )
         return compute_sigma_mu(current_model, pars, self.third_moment_expansion)
@@ -135,7 +135,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
                             if false compute profiled likelihood
         :return: (float) likelihood
         """
-        current_model: Data = (
+        current_model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
         )
         if isAsimov:
@@ -178,7 +178,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         :return: POI that minimizes the negative log-likelihood, minimum negative log-likelihood
         :raises RuntimeWarning: if optimiser cant reach required precision
         """
-        current_model: Data = (
+        current_model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
         )
         if isAsimov:

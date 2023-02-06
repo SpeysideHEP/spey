@@ -1,1 +1,4 @@
-__all__ = ["interface", "data"]
+from .sldata import SLData
+from .interface import SimplifiedLikelihoodInterface
+
+__all__ = ["SimplifiedLikelihoodInterface", "SLData"]

@@ -6,7 +6,7 @@ from collections import namedtuple
 from spey.system.exceptions import NegativeExpectedYields
 from spey.base.backend_base import DataBase
 
-__all__ = ["Data", "expansion_output"]
+__all__ = ["SLData", "expansion_output"]
 
 expansion_output = output = namedtuple(
     "expansion", ["A", "B", "C", "rho", "V", "logdet_covariance", "inv_covariance"]
@@ -14,9 +14,9 @@ expansion_output = output = namedtuple(
 
 
 @dataclass(frozen=True)
-class Data(DataBase):
+class SLData(DataBase):
     """
-    Data structure for simplified likelihoods
+    SLData structure for simplified likelihoods
 
     :param observed: number of observed events.
     :param signal: number of signal events.
@@ -78,7 +78,7 @@ class Data(DataBase):
 
     def __repr__(self):
         return (
-            f"Data(\n    name='{self.name}',"
+            f"SLData(\n    name='{self.name}',"
             f"\n    data structure that represents {len(self)} regions,"
             f"\n    delta_sys={self.delta_sys:.1f},"
             f"\n    isLinear={self.isLinear}\n)"
@@ -97,7 +97,7 @@ class Data(DataBase):
         assert len(observations) == len(
             self
         ), "Dimensionality of the input does not match the statistical model."
-        return Data(
+        return SLData(
             observations,
             self.signal,
             self.background,

@@ -1,9 +1,8 @@
-from .utils import ExpectationType, Units
-from .base.backend_base import BackendBase
+from .utils import ExpectationType
 from typing import Text, Union, List, Dict, Optional
 import numpy as np
 
-from spey.backends import AvailableBackends
+from .backends import AvailableBackends
 from spey.interface.statistical_model import StatisticalModel
 from spey.combiner.statistics_combiner import StatisticsCombiner
 from spey.base.recorder import Recorder
@@ -45,13 +44,13 @@ def get_uncorrelated_region_statistical_model(
     :raises NotImplementedError: If requested backend has not been recognised.
     """
     if backend == AvailableBackends.pyhf:
-        from spey.backends import PyhfData, PyhfInterface
+        from spey.backends.pyhf_backend import PyhfData, PyhfInterface
 
         model = PyhfData(signal=signal_yields, background=nobs, nb=nb, delta_nb=deltanb)
         return PyhfInterface(model=model, xsection=xsection, analysis=analysis)
 
     elif backend == AvailableBackends.simplified_likelihoods:
-        from spey.backends import SLData, SimplifiedLikelihoodInterface
+        from spey.backends.simplifiedlikelihood_backend import SLData, SimplifiedLikelihoodInterface
 
         # Convert everything to numpy array
         covariance = np.array(list(deltanb)) if isinstance(deltanb, (list, float)) else deltanb
@@ -172,7 +171,7 @@ def get_multi_region_statistical_model(
     """
 
     if isinstance(signal, list) and isinstance(signal[0], dict) and isinstance(observed, dict):
-        from spey.backends import PyhfData, PyhfInterface
+        from spey.backends.pyhf_backend import PyhfData, PyhfInterface
 
         model = PyhfData(signal=signal, background=observed)
         return PyhfInterface(model=model, xsection=xsection, analysis=analysis)
@@ -182,7 +181,7 @@ def get_multi_region_statistical_model(
         and isinstance(signal, (list, np.ndarray))
         and isinstance(observed, (list, np.ndarray))
     ):
-        from spey.backends import SLData, SimplifiedLikelihoodInterface
+        from spey.backends.simplifiedlikelihood_backend import SLData, SimplifiedLikelihoodInterface
 
         # Convert everything to numpy array
         covariance = np.array(covariance) if isinstance(covariance, list) else covariance

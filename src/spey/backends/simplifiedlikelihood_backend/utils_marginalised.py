@@ -3,14 +3,14 @@ from typing import Optional
 import numpy as np
 import scipy, math
 
-from .data import Data, expansion_output
+from .sldata import SLData, expansion_output
 
 __all__ = ["marginalised_negloglikelihood", "marginalised_negloglikelihood_singleregion"]
 
 
 def marginalised_negloglikelihood(
     mu: float,
-    model: Data,
+    model: SLData,
     third_moment_expansion: Optional[expansion_output] = None,
     ntoys: Optional[int] = 30000,
 ) -> float:
@@ -57,7 +57,7 @@ def marginalised_negloglikelihood(
     return -np.log(mean if mean != 0.0 else 1e-99)
 
 
-def marginalised_negloglikelihood_singleregion(mu: float, model: Data) -> float:
+def marginalised_negloglikelihood_singleregion(mu: float, model: SLData) -> float:
     """
     Return the likelihood (of 1 signal region) to observe nobs events given the
     predicted background nb, error on this background (deltab),
