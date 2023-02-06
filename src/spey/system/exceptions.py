@@ -4,6 +4,7 @@ __all__ = [
     "NegativeExpectedYields",
     "UnknownCrossSection",
     "UnknownTestStatistics",
+    "InvalidInput",
 ]
 
 
@@ -40,3 +41,10 @@ class UnknownTestStatistics(Exception):
 
     def __init__(self, message="Unknown test statistics."):
         super(UnknownTestStatistics, self).__init__(message)
+
+
+class InvalidInput(Exception):
+    """Invalid input exception"""
+
+    def __init__(self, message="Unknown input type."):
+        super(InvalidInput, self).__init__(message)

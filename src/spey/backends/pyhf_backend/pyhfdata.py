@@ -3,13 +3,59 @@ from dataclasses import dataclass, field
 from typing import Dict, Union, Optional, List, Text, Tuple
 import numpy as np
 from pyhf import Workspace, Model
+from functools import wraps
 
 from spey.utils import ExpectationType
 from .utils import initialise_workspace
 from spey.system.exceptions import NegativeExpectedYields
 from spey.base.backend_base import DataBase
 
-__all__ = ["PyhfData"]
+__all__ = ["PyhfData", "PyhfDataWrapper"]
+
+
+def PyhfDataWrapper(
+    signal: Union[List[Dict], float],
+    background: Union[Dict, float],
+    nb: Optional[float] = None,
+    delta_nb: Optional[float] = None,
+    default_expectation: Optional[ExpectationType] = ExpectationType.observed,
+    name: Text = "__unknown_model__",
+):
+    """
+    Dataclass for pyhf interface
+
+    :param signal: either histfactory type signal patch or float value of number of events
+    :param background: either background only JSON histfactory or float value of observed data
+    :param nb: expected number of background events. In case of statistical model it is not needed
+    :param delta_nb: uncertainty on backgorund. In case of statistical model it is not needed
+    :param default_expectation: observed, aprioti, aposteriori
+    :param name: name of the statistical model.
+    :raises AssertionError: if the statistical model is not valid
+    """
+    (
+        new_signal,
+        new_background,
+        new_nb,
+        new_delta_nb,
+        workspace,
+        model,
+        data,
+        minimum_poi,
+    ) = initialise_workspace(
+        signal, background, nb, delta_nb, expected=default_expectation, return_full_data=True
+    )
+    return PyhfData(
+        signal=new_signal,
+        background=new_background,
+        nb=new_nb,
+        delta_nb=new_delta_nb,
+        default_expectation=default_expectation,
+        name=name,
+        _workspace=workspace,
+        _model=model,
+        _data=data,
+        _minimum_poi_test=minimum_poi,
+    )
 
 
 @dataclass(frozen=True)
@@ -21,71 +67,27 @@ class PyhfData(DataBase):
     :param background: either background only JSON histfactory or float value of observed data
     :param nb: expected number of background events. In case of statistical model it is not needed
     :param delta_nb: uncertainty on backgorund. In case of statistical model it is not needed
+    :param default_expectation: observed, aprioti, aposteriori
     :param name: name of the statistical model.
+    :param _workspace: pyhf.Workpace
+    :param _model: pyhf.pdf.Model
+    :param _data: data combined with auxiliary data
+    :param _minimum_poi_test: minimum value that POI can take.
     :raises AssertionError: if the statistical model is not valid
     """
 
-    signal: Union[List[Dict], float]
-    background: Union[Dict, float]
-    nb: Optional[float] = None
-    delta_nb: Optional[float] = None
+    signal: Union[List[Dict], np.ndarray]
+    background: Union[Dict, np.ndarray]
+    nb: Optional[np.ndarray] = None
+    delta_nb: Optional[np.ndarray] = None
     default_expectation: Optional[ExpectationType] = field(
         default=ExpectationType.observed, repr=False
     )
     name: Text = "__unknown_model__"
-    _workspace: Optional[pyhf.Workspace] = field(default=None, init=False, repr=False)
-    _model: Optional[pyhf.pdf.Model] = field(default=None, init=False, repr=False)
-    _data: Optional[List[float]] = field(default=None, init=False, repr=False)
-    _minimum_poi_test: float = field(default=0.0, init=False, repr=False)
-
-    def __post_init__(self):
-        workspace, model, data = initialise_workspace(
-            self.signal, self.background, self.nb, self.delta_nb, expected=self.default_expectation
-        )
-        assert model is not None and data is not None, "Invalid statistical model."
-        object.__setattr__(self, "_workspace", workspace)
-        object.__setattr__(self, "_model", model)
-        object.__setattr__(self, "_data", data)
-
-        # Find minimum POI test that can be applied to this statistical model
-        if isinstance(self.signal, float):
-            if self.signal > 0.0:
-                object.__setattr__(
-                    self, "_minimum_poi_test", -np.true_divide(self.background, self.signal)
-                )
-            else:
-                object.__setattr__(self, "_minimum_poi_test", -np.inf)
-        else:
-            min_ratio = []
-            for idc, channel in enumerate(self.background.get("channels", [])):
-                current_signal = []
-                for sigch in self.signal:
-                    if idc == int(sigch["path"].split("/")[2]):
-                        current_signal = np.array(
-                            sigch.get("value", {}).get("data", []), dtype=np.float32
-                        )
-                        break
-                if len(current_signal) == 0:
-                    continue
-                current_bkg = []
-                for ch in channel["samples"]:
-                    if len(current_bkg) == 0:
-                        current_bkg = np.zeros(shape=(len(ch["data"]),), dtype=np.float32)
-                    current_bkg += np.array(ch["data"], dtype=np.float32)
-                min_ratio.append(
-                    np.min(
-                        np.true_divide(
-                            current_bkg[current_signal != 0.0],
-                            current_signal[current_signal != 0.0],
-                        )
-                    )
-                    if np.any(current_signal != 0.0)
-                    else np.inf
-                )
-            if len(min_ratio) > 0:
-                object.__setattr__(self, "_minimum_poi_test", -np.min(min_ratio).astype(np.float32))
-            else:
-                object.__setattr__(self, "_minimum_poi_test", -np.inf)
+    _workspace: Optional[pyhf.Workspace] = field(default=None, init=True, repr=False)
+    _model: Optional[pyhf.pdf.Model] = field(default=None, init=True, repr=False)
+    _data: Optional[List[float]] = field(default=None, init=True, repr=False)
+    _minimum_poi_test: float = field(default=-np.inf, init=True, repr=False)
 
     @property
     def npar(self) -> int:
@@ -198,8 +200,8 @@ class PyhfData(DataBase):
     @property
     def isAlive(self) -> bool:
         """Does the statitical model has any non-zero signal events?"""
-        if isinstance(self.signal, float):
-            return self.signal > 0.0
+        if isinstance(self.signal, np.ndarray):
+            return np.any(self.signal > 0.0)
         else:
             for channel in self.signal:
                 if channel.get("value", False):

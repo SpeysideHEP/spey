@@ -44,21 +44,22 @@ def get_uncorrelated_region_statistical_model(
     :raises NotImplementedError: If requested backend has not been recognised.
     """
     if backend == AvailableBackends.pyhf:
-        from spey.backends.pyhf_backend import PyhfData, PyhfInterface
+        from spey.backends.pyhf_backend import PyhfInterface, PyhfDataWrapper
 
-        model = PyhfData(signal=signal_yields, background=nobs, nb=nb, delta_nb=deltanb)
+        model = PyhfDataWrapper(signal=signal_yields, background=nobs, nb=nb, delta_nb=deltanb)
         return PyhfInterface(model=model, xsection=xsection, analysis=analysis)
 
     elif backend == AvailableBackends.simplified_likelihoods:
         from spey.backends.simplifiedlikelihood_backend import SLData, SimplifiedLikelihoodInterface
 
         # Convert everything to numpy array
-        covariance = np.array(list(deltanb)) if isinstance(deltanb, (list, float)) else deltanb
+        covariance = np.array(deltanb).reshape(-1) if isinstance(deltanb, (list, float)) else deltanb
         signal_yields = (
-            np.array(signal_yields) if isinstance(signal_yields, (list, float)) else signal_yields
+            np.array(signal_yields).reshape(-1) if isinstance(signal_yields, (list, float)) else signal_yields
         )
-        nobs = np.array(nobs) if isinstance(nobs, (list, float)) else nobs
-        nb = np.array(nb) if isinstance(nb, (list, float)) else nb
+        nobs = np.array(nobs).reshape(-1) if isinstance(nobs, (list, float)) else nobs
+        nb = np.array(nb).reshape(-1) if isinstance(nb, (list, float)) else nb
+        covariance = covariance * np.eye(len(covariance))
 
         model = SLData(
             signal=signal_yields,
@@ -171,9 +172,9 @@ def get_multi_region_statistical_model(
     """
 
     if isinstance(signal, list) and isinstance(signal[0], dict) and isinstance(observed, dict):
-        from spey.backends.pyhf_backend import PyhfData, PyhfInterface
+        from spey.backends.pyhf_backend import PyhfDataWrapper, PyhfInterface
 
-        model = PyhfData(signal=signal, background=observed)
+        model = PyhfDataWrapper(signal=signal, background=observed)
         return PyhfInterface(model=model, xsection=xsection, analysis=analysis)
 
     elif (

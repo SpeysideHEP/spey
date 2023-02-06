@@ -1,9 +1,12 @@
 import pyhf, logging, warnings, copy
 import numpy as np
+from functools import wraps
+
+from pyhf import Workspace
 
 from spey.utils import ExpectationType
-
-from typing import Sequence, Dict, Union, Optional, Tuple, List, Text
+from spey.system.exceptions import InvalidInput
+from typing import Dict, Union, Optional, Tuple, List, Text, Callable, Any
 
 pyhf.pdf.log.setLevel(logging.CRITICAL)
 pyhf.workspace.log.setLevel(logging.CRITICAL)
@@ -13,12 +16,16 @@ __all__ = ["initialise_workspace", "fixed_poi_fit", "compute_min_negloglikelihoo
 
 
 def initialise_workspace(
-    signal: Union[Sequence, float],
-    background: Union[Dict, float],
-    nb: Optional[float] = None,
-    delta_nb: Optional[float] = None,
+    signal: Union[List[float], List[Dict]],
+    background: Union[Dict, List[float]],
+    nb: Optional[List[float]] = None,
+    delta_nb: Optional[List[float]] = None,
     expected: Optional[ExpectationType] = ExpectationType.observed,
-) -> Tuple[pyhf.Workspace, pyhf.pdf.Model, np.ndarray]:
+    return_full_data: Optional[bool] = False,
+) -> Union[tuple[
+    Union[list, Any], Union[Optional[dict], Any], Optional[Any], Optional[Any], Optional[
+        Workspace], Any, Any, Union[Union[int, float, complex], Any]], tuple[
+    Optional[Workspace], Any, Any]]:
     """
     Construct the statistical model with respect to the given inputs.
 
@@ -27,6 +34,7 @@ def initialise_workspace(
     :param nb: number of expected background events (MC)
     :param delta_nb: uncertainty on expected background events
     :param expected: if true prepare apriori expected workspace, default False
+    :param return_full_data: if true, returns input values as well
     :return: Workspace(can be none in simple case), model, data
 
     .. code-block:: python3
@@ -35,48 +43,122 @@ def initialise_workspace(
 
     above example returns a simple model with a single region.
     """
+    # Check the origin of signal
+    signal_from_patch = False
+    if isinstance(signal, (float, np.ndarray)):
+        signal = np.array(signal, dtype=np.float32).reshape(-1)
+    elif isinstance(signal, list):
+        if isinstance(signal[0], dict):
+            signal_from_patch = True
+        else:
+            signal = np.array(signal, dtype=np.float32).reshape(-1)
+    else:
+        raise InvalidInput(f"An unexpected type of signal has been presented: {signal}")
 
-    workspace, model, data = None, None, None
-    try:
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            if isinstance(signal, float) and isinstance(background, (float, int)):
-                if expected == ExpectationType.apriori:
-                    # set data as expected background events
-                    background = nb
-                # Create model from uncorrelated region
-                model = pyhf.simplemodels.uncorrelated_background(
-                    [max(signal, 0.0)], [nb], [delta_nb]
+    # check the origin of background
+    bkg_from_json = False
+    if isinstance(background, dict):
+        bkg_from_json = True
+    elif isinstance(background, (float, list)):
+        background = np.array(background, dtype=np.float32).reshape(-1)
+    else:
+        raise InvalidInput(f"An unexpected type of background has been presented: {background}")
+
+    if (bkg_from_json and not signal_from_patch) or (signal_from_patch and not bkg_from_json):
+        raise InvalidInput("Signal and background types does not match.")
+
+    if not bkg_from_json:
+        # check if bkg uncertainties are valid
+        if isinstance(delta_nb, (float, list)):
+            delta_nb = np.array(delta_nb, dtype=np.float32).reshape(-1)
+        else:
+            raise InvalidInput(
+                f"An unexpected type of background uncertainty has been presented: {delta_nb}"
+            )
+        # check if MC bkg data is valid
+        if isinstance(nb, (float, list)):
+            nb = np.array(nb, dtype=np.float32).reshape(-1)
+        else:
+            raise InvalidInput(f"An unexpected type of background has been presented: {nb}")
+        assert (
+            len(signal) == len(background) == len(nb) == len(delta_nb)
+        ), "Dimensionality of the data does not match."
+    else:
+        delta_nb, nb = None, None
+
+    workspace, model, data, minimum_poi = None, None, None, -np.inf
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore")
+        if not bkg_from_json:
+            if expected == ExpectationType.apriori:
+                # set data as expected background events
+                background = nb
+            # Create model from uncorrelated region
+            model = pyhf.simplemodels.uncorrelated_background(
+                signal.tolist(), nb.tolist(), delta_nb.tolist()
+            )
+            data = background.tolist() + model.config.auxdata
+
+            minimum_poi = -np.min(np.true_divide(nb[signal > 0.0], signal[signal > 0.0]))
+
+        else:
+            if expected == ExpectationType.apriori:
+                # set data as expected background events
+                obs = []
+                for channel in background.get("channels", []):
+                    current = []
+                    for ch in channel["samples"]:
+                        if len(current) == 0:
+                            current = [0.0] * len(ch["data"])
+                        current = [cur + dt for cur, dt in zip(current, ch["data"])]
+                    obs.append({"name": channel["name"], "data": current})
+                background["observations"] = obs
+
+            workspace = pyhf.Workspace(background)
+            model = workspace.model(
+                patches=[signal],
+                modifier_settings={
+                    "normsys": {"interpcode": "code4"},
+                    "histosys": {"interpcode": "code4p"},
+                },
+            )
+
+            data = workspace.data(model)
+
+            if return_full_data and None not in [model, workspace, data]:
+                min_ratio = []
+                for idc, channel in enumerate(background.get("channels", [])):
+                    current_signal = []
+                    for sigch in signal:
+                        if idc == int(sigch["path"].split("/")[2]):
+                            current_signal = np.array(
+                                sigch.get("value", {}).get("data", []), dtype=np.float32
+                            )
+                            break
+                    if len(current_signal) == 0:
+                        continue
+                    current_bkg = []
+                    for ch in channel["samples"]:
+                        if len(current_bkg) == 0:
+                            current_bkg = np.zeros(shape=(len(ch["data"]),), dtype=np.float32)
+                        current_bkg += np.array(ch["data"], dtype=np.float32)
+                    min_ratio.append(
+                        np.min(
+                            np.true_divide(
+                                current_bkg[current_signal != 0.0],
+                                current_signal[current_signal != 0.0],
+                            )
+                        )
+                        if np.any(current_signal != 0.0)
+                        else np.inf
+                    )
+                minimum_poi = (
+                    -np.min(min_ratio).astype(np.float32) if len(min_ratio) > 0 else -np.inf
                 )
-                data = [background] + model.config.auxdata
 
-            elif isinstance(signal, list) and isinstance(background, dict):
-                if expected == ExpectationType.apriori:
-                    # set data as expected background events
-                    obs = []
-                    for channel in background.get("channels", []):
-                        current = []
-                        for ch in channel["samples"]:
-                            if len(current) == 0:
-                                current = [0.0] * len(ch["data"])
-                            current = [cur + dt for cur, dt in zip(current, ch["data"])]
-                        obs.append({"name": channel["name"], "data": current})
-                    background["observations"] = obs
-
-                workspace = pyhf.Workspace(background)
-                model = workspace.model(
-                    patches=[signal],
-                    modifier_settings={
-                        "normsys": {"interpcode": "code4"},
-                        "histosys": {"interpcode": "code4p"},
-                    },
-                )
-
-                data = workspace.data(model)
-    except (pyhf.exceptions.InvalidSpecification, KeyError) as err:
-        logging.getLogger("MA5").error("Invalid JSON file!! " + str(err))
-    except Exception as err:
-        logging.getLogger("MA5").debug("Unknown error, check PyhfInterface " + str(err))
+    if return_full_data:
+        return signal, background, nb, delta_nb, workspace, model, data, minimum_poi
 
     return workspace, model, data
 
