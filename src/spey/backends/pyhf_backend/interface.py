@@ -271,7 +271,7 @@ class PyhfInterface(BackendBase):
             data = self._get_asimov_data(model, data, expected)
 
         fit_param, negloglikelihood = compute_min_negloglikelihood(
-            data, model, allow_negative_signal, iteration_threshold, self.model.minimum_poi_test
+            data, model, allow_negative_signal, iteration_threshold, self.model.minimum_poi
         )
 
         return negloglikelihood, fit_param, self.sigma_mu(fit_param, expected)
@@ -330,7 +330,7 @@ class PyhfInterface(BackendBase):
                     max_bound = bound[1] * 2.0
                     current_bounds.append((min_bound, max_bound))
                 else:
-                    min_bound = self.model.minimum_poi_test if allow_negative_signal else 0.0
+                    min_bound = self.model.minimum_poi if allow_negative_signal else 0.0
                     current_bounds.append((min_bound, 2.0 * bound[1]))
             return current_bounds
 

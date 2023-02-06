@@ -18,7 +18,7 @@ class DataBase(ABC):
 
     @property
     @abstractmethod
-    def minimum_poi_test(self) -> float:
+    def minimum_poi(self) -> float:
         """Find minimum POI test that can be applied to this statistical model"""
         # This method must be casted as property
         raise NotImplementedError("This method has not been implemented")

@@ -62,9 +62,9 @@ class StatisticsCombiner(HypothesisTestingBase):
         return [model.analysis for model in self]
 
     @property
-    def minimum_poi_test(self) -> float:
+    def minimum_poi(self) -> float:
         """Find minimum POI test that can be applied to this statistical model"""
-        return max([model.backend.model.minimum_poi_test for model in self])
+        return max([model.backend.model.minimum_poi for model in self])
 
     def __getitem__(self, item: Union[Text, int]) -> StatisticalModel:
         """Retrieve a statistical model"""
@@ -213,7 +213,7 @@ class StatisticsCombiner(HypothesisTestingBase):
             twice_nll,
             [0.0],
             method="SLSQP",
-            bounds=[(self.minimum_poi_test if allow_negative_signal else 0.0, poi_upper_bound)],
+            bounds=[(self.minimum_poi if allow_negative_signal else 0.0, poi_upper_bound)],
             tol=1e-6,
             options={"maxiter": maxiter},
         )

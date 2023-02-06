@@ -196,7 +196,7 @@ class SLData(DataBase):
         return inv_sqrt_diag @ self.covariance @ inv_sqrt_diag
 
     @property
-    def minimum_poi_test(self) -> float:
+    def minimum_poi(self) -> float:
         """Find minimum POI test that can be applied to this statistical model"""
         if np.all(self.signal == 0.0):
             return -np.inf

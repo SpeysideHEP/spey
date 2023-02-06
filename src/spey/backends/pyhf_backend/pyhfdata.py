@@ -54,7 +54,7 @@ def PyhfDataWrapper(
         _workspace=workspace,
         _model=model,
         _data=data,
-        _minimum_poi_test=minimum_poi,
+        _minimum_poi=minimum_poi,
     )
 
 
@@ -72,7 +72,7 @@ class PyhfData(DataBase):
     :param _workspace: pyhf.Workpace
     :param _model: pyhf.pdf.Model
     :param _data: data combined with auxiliary data
-    :param _minimum_poi_test: minimum value that POI can take.
+    :param _minimum_poi: minimum value that POI can take.
     :raises AssertionError: if the statistical model is not valid
     """
 
@@ -87,7 +87,7 @@ class PyhfData(DataBase):
     _workspace: Optional[pyhf.Workspace] = field(default=None, init=True, repr=False)
     _model: Optional[pyhf.pdf.Model] = field(default=None, init=True, repr=False)
     _data: Optional[List[float]] = field(default=None, init=True, repr=False)
-    _minimum_poi_test: float = field(default=-np.inf, init=True, repr=False)
+    _minimum_poi: float = field(default=-np.inf, init=True, repr=False)
 
     @property
     def npar(self) -> int:
@@ -210,6 +210,6 @@ class PyhfData(DataBase):
             return False
 
     @property
-    def minimum_poi_test(self):
+    def minimum_poi(self):
         """Find minimum POI test that can be applied to this statistical model"""
-        return self._minimum_poi_test
+        return self._minimum_poi

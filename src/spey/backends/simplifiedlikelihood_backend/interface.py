@@ -69,7 +69,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         if pars is None:
             # Generate the asimov data by fittin nuissance parameters to the observations
             init_pars = [0.0] * (len(model) + 1)
-            par_bounds = [(model.minimum_poi_test, 1.0)] + [(-5.0, 5.0)] * len(model)
+            par_bounds = [(model.minimum_poi, 1.0)] + [(-5.0, 5.0)] * len(model)
             nll, pars = fit(model, init_pars, par_bounds, 0.0, self.third_moment_expansion)
             self._asimov_nuisance[asimov_nuisance_key] = pars
 
@@ -148,7 +148,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
             return nll, np.nan
         else:
             init_pars = [poi_test] + [0.0] * len(current_model)
-            par_bounds = [(current_model.minimum_poi_test, 40.0)] + [(-5.0, 5.0)] * len(
+            par_bounds = [(current_model.minimum_poi, 40.0)] + [(-5.0, 5.0)] * len(
                 current_model
             )
             nll, pars = fit(
@@ -186,7 +186,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
         # It is possible to allow user to modify the optimiser properties in the future
         init_pars = [0.0] * (len(current_model) + 1)
-        par_bounds = [(current_model.minimum_poi_test if allow_negative_signal else 0.0, 10.0)] + [
+        par_bounds = [(current_model.minimum_poi if allow_negative_signal else 0.0, 10.0)] + [
             (-5.0, 5.0)
         ] * len(current_model)
         nll, pars = fit(current_model, init_pars, par_bounds, None, self.third_moment_expansion)
