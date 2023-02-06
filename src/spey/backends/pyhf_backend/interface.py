@@ -76,7 +76,9 @@ class PyhfInterface(BackendBase):
     __slots__ = ["_model", "_recorder", "_asimov_nuisance"]
 
     def __init__(self, model: PyhfData):
-        assert isinstance(model, PyhfData) and isinstance(model, DataBase), "Invalid statistical model."
+        assert isinstance(model, PyhfData) and isinstance(
+            model, DataBase
+        ), "Invalid statistical model."
         self._model = model
         self._recorder = Recorder()
         self._asimov_nuisance = {

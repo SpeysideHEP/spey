@@ -9,7 +9,7 @@ from spey.base.recorder import Recorder
 from ._version import __version__
 
 __all__ = [
-    "__version__",
+    "version",
     "StatisticalModel",
     "StatisticsCombiner",
     "ExpectationType",
@@ -20,10 +20,14 @@ __all__ = [
 ]
 
 
+def version() -> Text:
+    return __version__
+
+
 def get_uncorrelated_region_statistical_model(
-    nobs: Union[int, np.ndarray],
-    nb: Union[float, np.ndarray],
-    deltanb: Union[float, np.ndarray],
+    observations: Union[int, np.ndarray],
+    backgrounds: Union[float, np.ndarray],
+    background_uncertainty: Union[float, np.ndarray],
     signal_yields: Union[float, np.ndarray],
     xsection: Union[float, np.ndarray],
     analysis: Text,
@@ -32,9 +36,9 @@ def get_uncorrelated_region_statistical_model(
     """
     Create statistical model from a single bin or multiple uncorrelated regions
 
-    :param nobs: number of observed events
-    :param nb: number of expected background events
-    :param deltanb: uncertainty on background
+    :param observations: number of observed events
+    :param backgrounds: number of expected background events
+    :param background_uncertainty: uncertainty on background
     :param signal_yields: signal yields
     :param xsection: cross-section
     :param analysis: name of the analysis
@@ -46,19 +50,39 @@ def get_uncorrelated_region_statistical_model(
     if backend == AvailableBackends.pyhf:
         from spey.backends.pyhf_backend import PyhfInterface, PyhfDataWrapper
 
-        model = PyhfDataWrapper(signal=signal_yields, background=nobs, nb=nb, delta_nb=deltanb)
+        model = PyhfDataWrapper(
+            signal=signal_yields,
+            background=observations,
+            nb=backgrounds,
+            delta_nb=background_uncertainty,
+            name="pyhfModel",
+        )
         return PyhfInterface(model=model, xsection=xsection, analysis=analysis)
 
     elif backend == AvailableBackends.simplified_likelihoods:
         from spey.backends.simplifiedlikelihood_backend import SLData, SimplifiedLikelihoodInterface
 
         # Convert everything to numpy array
-        covariance = np.array(deltanb).reshape(-1) if isinstance(deltanb, (list, float)) else deltanb
-        signal_yields = (
-            np.array(signal_yields).reshape(-1) if isinstance(signal_yields, (list, float)) else signal_yields
+        covariance = (
+            np.array(background_uncertainty).reshape(-1)
+            if isinstance(background_uncertainty, (list, float))
+            else background_uncertainty
         )
-        nobs = np.array(nobs).reshape(-1) if isinstance(nobs, (list, float)) else nobs
-        nb = np.array(nb).reshape(-1) if isinstance(nb, (list, float)) else nb
+        signal_yields = (
+            np.array(signal_yields).reshape(-1)
+            if isinstance(signal_yields, (list, float))
+            else signal_yields
+        )
+        nobs = (
+            np.array(observations).reshape(-1)
+            if isinstance(observations, (list, float))
+            else observations
+        )
+        nb = (
+            np.array(backgrounds).reshape(-1)
+            if isinstance(backgrounds, (list, float))
+            else backgrounds
+        )
         covariance = covariance * np.eye(len(covariance))
 
         model = SLData(
@@ -67,7 +91,7 @@ def get_uncorrelated_region_statistical_model(
             covariance=covariance,
             background=nb,
             delta_sys=0.0,
-            name="model",
+            name="SLModel",
         )
         return SimplifiedLikelihoodInterface(model=model, xsection=xsection, analysis=analysis)
 
@@ -174,7 +198,7 @@ def get_multi_region_statistical_model(
     if isinstance(signal, list) and isinstance(signal[0], dict) and isinstance(observed, dict):
         from spey.backends.pyhf_backend import PyhfDataWrapper, PyhfInterface
 
-        model = PyhfDataWrapper(signal=signal, background=observed)
+        model = PyhfDataWrapper(signal=signal, background=observed, name="pyhfModel")
         return PyhfInterface(model=model, xsection=xsection, analysis=analysis)
 
     elif (
@@ -198,7 +222,7 @@ def get_multi_region_statistical_model(
             covariance=covariance,
             delta_sys=delta_sys,
             third_moment=third_moment,
-            name="model",
+            name="SLModel",
         )
 
         return SimplifiedLikelihoodInterface(model=model, xsection=xsection, analysis=analysis)
