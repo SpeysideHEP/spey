@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple, Callable, List
+from typing import Optional, Tuple, Callable, List, Text
 from functools import partial
 
 from spey.hypothesis_testing.utils import (
@@ -28,7 +28,28 @@ class HypothesisTestingBase(ABC):
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
         **kwargs,
-    ) -> Tuple[float, float, float]:
+    ) -> Tuple[float, float]:
+        raise NotImplementedError("This method has not been implemented")
+
+    @abstractmethod
+    def asimov_likelihood(
+        self,
+        poi_test: Optional[float] = 1.0,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        return_nll: Optional[bool] = True,
+        test_statistics: Text = "qtilde",
+        **kwargs,
+    ) -> float:
+        raise NotImplementedError("This method has not been implemented")
+
+    @abstractmethod
+    def maximize_asimov_likelihood(
+        self,
+        return_nll: bool = True,
+        expected: ExpectationType = ExpectationType.observed,
+        test_statistics: Text = "qtilde",
+        **kwargs,
+    ) -> Tuple[float, float]:
         raise NotImplementedError("This method has not been implemented")
 
     def chi2(
@@ -52,46 +73,56 @@ class HypothesisTestingBase(ABC):
         :return: chi^2
         """
         return 2.0 * (
-            self.likelihood(
-                poi_test=poi_test,
-                expected=expected,
-                isAsimov=False,
-                return_nll=True,
-                **kwargs,
-            )
+            self.likelihood(poi_test=poi_test, expected=expected, **kwargs)
             - self.maximize_likelihood(
-                expected=expected,
-                allow_negative_signal=allow_negative_signal,
-                isAsimov=False,
-                return_nll=True,
-                **kwargs,
+                expected=expected, allow_negative_signal=allow_negative_signal, **kwargs
             )[-1]
         )
 
     def _prepare_for_hypotest(
         self,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        allow_negative_signal: Optional[bool] = False,
+        expected: ExpectationType = ExpectationType.observed,
+        allow_negative_signal: bool = False,
+        test_statistics: Text = "qtilde",
         **kwargs,
-    ) -> Tuple[Callable[[bool], Tuple[float, float, float]], Callable[[float, bool], float]]:
-        def maxllhd_selector(isAsimov, output_slice=slice(0, 3, 1)):
-            return self.maximize_likelihood(
-                return_nll=True,
-                expected=expected,
-                allow_negative_signal=allow_negative_signal,
-                isAsimov=isAsimov,
-                **kwargs,
-            )[output_slice]
+    ) -> Tuple[
+        Callable[[], Tuple[float, float]],
+        Callable[[float], float],
+        Callable[[Text], Tuple[float, float]],
+        Callable[[float, Text], float],
+    ]:
+        """
+        Prepare necessary functions for hypothesis testing
 
-        logpdf = lambda mu, isAsimov: -self.likelihood(
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): _description_.
+        :param allow_negative_signal (`bool`, default `False`): _description_.
+        :return `Tuple[ Callable[[], Tuple[float, float]],
+        Callable[[float], float],
+        Callable[[Text], Tuple[float, float]],
+        Callable[[float, Text], float], ]`: _description_
+        """
+
+        muhat, nll = self.maximize_likelihood(
+            expected=expected, allow_negative_signal=allow_negative_signal, **kwargs
+        )
+        muhatA, nllA = self.maximize_asimov_likelihood(
+            expected=expected, test_statistics=test_statistics, **kwargs
+        )
+
+        logpdf = lambda mu: -self.likelihood(
             poi_test=mu if isinstance(mu, float) else mu[0],
             expected=expected,
-            return_nll=True,
-            isAsimov=isAsimov,
             **kwargs,
         )
 
-        return maxllhd_selector, logpdf
+        logpdf_asimov = lambda mu: -self.asimov_likelihood(
+            poi_test=mu if isinstance(mu, float) else mu[0],
+            expected=expected,
+            test_statistics=test_statistics,
+            **kwargs,
+        )
+
+        return (muhat, nll), logpdf, (muhatA, nllA), logpdf_asimov
 
     def exclusion_confidence_level(
         self,
@@ -119,14 +150,27 @@ class HypothesisTestingBase(ABC):
                     allow_negative_signal=allow_negative_signal,
                     **kwargs,
                 )
+        test_stat = "q" if allow_negative_signal else "qmutilde"
 
-        selector, logpdf = self._prepare_for_hypotest(
-            expected=expected, allow_negative_signal=allow_negative_signal, **kwargs
+        (
+            maximum_likelihood,
+            logpdf,
+            maximum_asimov_likelihood,
+            logpdf_asimov,
+        ) = self._prepare_for_hypotest(
+            expected=expected,
+            allow_negative_signal=allow_negative_signal,
+            test_statistics=test_stat,
+            **kwargs,
         )
 
-        test_stat = "q" if allow_negative_signal else "qmutilde"
         _, sqrt_qmuA, delta_teststat = compute_teststatistics(
-            poi_test, partial(selector, output_slice=slice(0, 3, 2)), logpdf, test_stat
+            poi_test,
+            maximum_likelihood,
+            logpdf,
+            maximum_asimov_likelihood,
+            logpdf_asimov,
+            test_stat,
         )
 
         pvalues, expected_pvalues = compute_confidence_level(sqrt_qmuA, delta_teststat, test_stat)
@@ -148,12 +192,17 @@ class HypothesisTestingBase(ABC):
         :param kwargs: backend dependent arguments
         :return: sqrt(q0_A), sqrt(q0), pvalues, expected pvalues
         """
-        selector, logpdf = self._prepare_for_hypotest(
-            expected=expected, allow_negative_signal=False, **kwargs
+        (
+            maximum_likelihood,
+            logpdf,
+            maximum_asimov_likelihood,
+            logpdf_asimov,
+        ) = self._prepare_for_hypotest(
+            expected=expected, allow_negative_signal=False, test_statistics="q0", **kwargs
         )
 
         sqrt_q0, sqrt_q0A, delta_teststat = compute_teststatistics(
-            0.0, partial(selector, output_slice=slice(0, 3, 2)), logpdf, "q0"
+            0.0, maximum_likelihood, logpdf, maximum_asimov_likelihood, logpdf_asimov, "q0"
         )
         pvalues, expected_pvalues = compute_confidence_level(sqrt_q0A, delta_teststat, "q0")
 
@@ -187,13 +236,25 @@ class HypothesisTestingBase(ABC):
                     **kwargs,
                 )
 
-        maximize_likelihood, logpdf = self._prepare_for_hypotest(
-            expected=expected, allow_negative_signal=allow_negative_signal, **kwargs
+        test_stat = "q" if allow_negative_signal else "qmutilde"
+
+        (
+            maximum_likelihood,
+            logpdf,
+            maximum_asimov_likelihood,
+            logpdf_asimov,
+        ) = self._prepare_for_hypotest(
+            expected=expected,
+            allow_negative_signal=allow_negative_signal,
+            test_statistics=test_stat,
+            **kwargs,
         )
 
         return find_poi_upper_limit(
-            maximize_likelihood=maximize_likelihood,
+            maximum_likelihood=maximum_likelihood,
             logpdf=logpdf,
+            maximum_asimov_likelihood=maximum_asimov_likelihood,
+            asimov_logpdf=logpdf_asimov,
             expected=expected,
             confidence_level=confidence_level,
             allow_negative_signal=allow_negative_signal,

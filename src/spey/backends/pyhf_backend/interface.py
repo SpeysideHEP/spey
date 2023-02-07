@@ -1,5 +1,5 @@
 import copy, logging, scipy, warnings, pyhf
-from typing import Dict, Union, Optional, Tuple, List, Text
+from typing import Dict, Optional, Tuple, List, Text
 import numpy as np
 
 from pyhf.infer.calculators import generate_asimov_data
@@ -177,8 +177,6 @@ class PyhfInterface(BackendBase):
         self,
         poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
-        isAsimov: Optional[bool] = False,
-        return_theta: Optional[bool] = False,
         iteration_threshold: Optional[int] = 3,
         options: Optional[Dict] = None,
     ) -> Tuple[float, np.ndarray]:
@@ -217,28 +215,22 @@ class PyhfInterface(BackendBase):
                         - 'trust-krylov' :ref:`(see here) <scipy.optimize.minimize-trustkrylov>`
         :return: (float) likelihood
         """
-        _, model, data = self.model(poi_test=1.0, expected=expected)
-
-        if isAsimov:
-            data = self._get_asimov_data(model, data, expected)
-
         # CHECK THE MODEL BOUNDS!!
         # POI Test needs to be adjusted according to the boundaries for sake of convergence
         # see issue https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579235311
         # comment https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579299831
-        new_poi_test = copy.deepcopy(poi_test)
         execute = True
-        bounds = model.config.suggested_bounds()[model.config.poi_index]
-        if not bounds[0] <= new_poi_test <= bounds[1]:
-            try:
-                _, model, _ = self.model(poi_test=new_poi_test, expected=expected)
-                new_poi_test = 1.0
-            except NegativeExpectedYields as err:
-                warnings.warn(
-                    err.args[0] + f"\nSetting NLL({poi_test:.3f}) = inf.",
-                    category=RuntimeWarning,
-                )
-                execute = False
+        try:
+            _, model, data = self.model(
+                poi_test=1.0 if 0.0 <= poi_test <= 10.0 else poi_test, expected=expected
+            )
+            new_poi_test = poi_test if 0.0 <= poi_test <= 10.0 else 1.0
+        except NegativeExpectedYields as err:
+            warnings.warn(
+                err.args[0] + f"\nSetting NLL({poi_test:.3f}) = inf.",
+                category=RuntimeWarning,
+            )
+            execute = False
 
         negloglikelihood, fit_param = np.nan, np.nan
         if execute:
@@ -246,35 +238,88 @@ class PyhfInterface(BackendBase):
                 new_poi_test, data, model, iteration_threshold, options
             )
 
-        return negloglikelihood, fit_param
+        return negloglikelihood, np.array(fit_param)
+
+    def asimov_likelihood(
+        self,
+        poi_test: Optional[float] = 1.0,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        test_statistics: Text = "qtilde",
+        iteration_threshold: Optional[int] = 3,
+        options: Optional[Dict] = None,
+    ) -> Tuple[float, np.ndarray]:
+        """
+        Compute likelihood for the asimov data
+
+        :param poi_test (Optional[float]): parameter of interest. (default `1.0`)
+        :param expected (Optional[ExpectationType]): observed, apriori or aposteriori.
+                                                    (default `ExpectationType.observed`)
+        :param test_statistics (Text): test statistics. `"qmu"` or `"qtilde"` for exclusion
+                                     tests `"q0"` for discovery test. (default `"qtilde"`)
+        :param iteration_threshold (Optional[int]): iteration threshold for the optimizer. (default `3`)
+        :param options (Optional[Dict]): optimizer options. (default `None`)
+        :return Tuple[float, np.ndarray]: negative log-likelihood, fit parameters
+        """
+        # Asimov llhd is only computed for poi = 1 or 0, control is not necessary
+        _, model, data = self.model(poi_test=1.0, expected=expected)
+        data = self._get_asimov_data(
+            model=model, data=data, expected=expected, test_statistics=test_statistics
+        )
+        negloglikelihood, fit_param = fixed_poi_fit(
+            poi_test, data, model, iteration_threshold, options
+        )
+
+        return negloglikelihood, np.array(fit_param)
 
     def maximize_likelihood(
         self,
-        return_nll: Optional[bool] = False,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
-        isAsimov: Optional[bool] = False,
         iteration_threshold: Optional[int] = 3,
-    ) -> Tuple[float, np.ndarray, float]:
+    ) -> Tuple[float, np.ndarray]:
         """
         Find the POI that maximizes the likelihood and the value of the maximum likelihood
 
-        :param return_nll: if true, likelihood will be returned
         :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: allow negative POI
-        :param isAsimov: if true, computes likelihood for Asimov data
         :param iteration_threshold: number of iterations to be held for convergence of the fit.
-        :return: muhat, maximum of the likelihood, sigma mu
+        :return: maximum of the likelihood, fit parameters
         """
         _, model, data = self.model(poi_test=1.0, expected=expected)
-        if isAsimov:
-            data = self._get_asimov_data(model, data, expected)
-
         fit_param, negloglikelihood = compute_min_negloglikelihood(
             data, model, allow_negative_signal, iteration_threshold, self.model.minimum_poi
         )
+        return negloglikelihood, np.array(fit_param)
 
-        return negloglikelihood, fit_param, self.sigma_mu(fit_param, expected)
+    def maximize_asimov_likelihood(
+        self,
+        expected: ExpectationType = ExpectationType.observed,
+        test_statistics: Text = "qtilde",
+        iteration_threshold: int = 3,
+    ) -> Tuple[float, np.ndarray]:
+        """
+        Compute maximum of the likelihood for the asimov data
+
+        :param expected (`ExpectationType`): observed, apriori or aposteriori.
+            (default `ExpectationType.observed`)
+        :param test_statistics (`Text`): test statistics. `"qmu"` or `"qtilde"` for exclusion
+                                     tests `"q0"` for discovery test. (default `"qtilde"`)
+        :param iteration_threshold (`int`): number of iterations to be held for convergence of the fit.
+                                            (default `3`)
+        :return `Tuple[float, np.ndarray]`: maximum negative log-likelihood, fit parameters
+        """
+        _, model, data = self.model(poi_test=1.0, expected=expected)
+        data = self._get_asimov_data(
+            model, data=data, expected=expected, test_statistics=test_statistics
+        )
+        fit_param, negloglikelihood = compute_min_negloglikelihood(
+            data,
+            model,
+            True if test_statistics in ["q", "qmu"] else False,
+            iteration_threshold,
+            self.model.minimum_poi,
+        )
+        return negloglikelihood, np.array(fit_param)
 
     def exclusion_confidence_level(
         self,

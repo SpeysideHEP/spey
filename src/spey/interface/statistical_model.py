@@ -75,7 +75,6 @@ class StatisticalModel(HypothesisTestingBase):
         poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         return_nll: Optional[bool] = True,
-        isAsimov: Optional[bool] = False,
         **kwargs,
     ) -> float:
         """
@@ -88,7 +87,31 @@ class StatisticalModel(HypothesisTestingBase):
         :return: (float) likelihood
         """
         negloglikelihood, fit_param = self.backend.likelihood(
-            poi_test=poi_test, expected=expected, isAsimov=isAsimov, **kwargs
+            poi_test=poi_test, expected=expected, **kwargs
+        )
+        return negloglikelihood if return_nll else np.exp(-negloglikelihood)
+
+    def asimov_likelihood(
+        self,
+        poi_test: float = 1.0,
+        expected: ExpectationType = ExpectationType.observed,
+        return_nll: bool = True,
+        test_statistics: Text = "qtilde",
+        **kwargs,
+    ) -> float:
+        """
+        Compute likelihood for the asimov data
+
+        :param poi_test (`float`): parameter of interest. (default `1.0`)
+        :param expected (`ExpectationType`): observed, apriori or aposteriori.
+                                             (default `ExpectationType.observed`)
+        :param return_nll (`bool`): if false returns likelihood value. (default `True`)
+        :param test_statistics (`Text`): test statistics. `"qmu"` or `"qtilde"` for exclusion
+                                     tests `"q0"` for discovery test. (default `"qtilde"`)
+        :return float: likelihood computed for asimov data
+        """
+        negloglikelihood, _ = self.backend.asimov_likelihood(
+            poi_test=poi_test, expected=expected, test_statistics=test_statistics, **kwargs
         )
         return negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
@@ -97,7 +120,6 @@ class StatisticalModel(HypothesisTestingBase):
         return_nll: Optional[bool] = True,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
-        isAsimov: Optional[bool] = False,
         **kwargs,
     ) -> Tuple[float, float, float]:
         """
@@ -109,23 +131,46 @@ class StatisticalModel(HypothesisTestingBase):
         :param kwargs: backend specific inputs.
         :return: muhat, maximum of the likelihood
         """
-        negloglikelihood, fit_param, sigma_mu = self.backend.maximize_likelihood(
+        negloglikelihood, fit_param = self.backend.maximize_likelihood(
             expected=expected,
             allow_negative_signal=allow_negative_signal,
-            isAsimov=isAsimov,
             **kwargs,
         )
         muhat = fit_param[self.backend.model.poi_index]
-        return muhat, sigma_mu, negloglikelihood if return_nll else np.exp(-negloglikelihood)
+        return muhat, negloglikelihood if return_nll else np.exp(-negloglikelihood)
+
+    def maximize_asimov_likelihood(
+        self,
+        expected: ExpectationType = ExpectationType.observed,
+        return_nll: bool = True,
+        test_statistics: Text = "qtilde",
+        **kwargs,
+    ) -> Tuple[float, float]:
+        """
+        Find maximum of the likelihood for the asimov data
+
+        :param expected (`ExpectationType`): observed, apriori or aposteriori,.
+            (default `ExpectationType.observed`)
+        :param return_nll (`bool`): if false, likelihood value is returned.
+            (default `True`)
+        :param test_statistics (`Text`): test statistics. `"qmu"` or `"qtilde"` for exclusion
+                                     tests `"q0"` for discovery test. (default `"qtilde"`)
+        :return `Tuple[float, float]`: muhat, negative log-likelihood
+        """
+        negloglikelihood, fit_param = self.backend.maximize_asimov_likelihood(
+            expected=expected, test_statistics=test_statistics, **kwargs
+        )
+        muhat: float = fit_param[self.backend.model.poi_index]
+        return muhat, negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
 
-def statistical_model_wrapper(
-    func,
-) -> Callable[[tuple[Any, ...], str, float, dict[str, Any]], StatisticalModel]:
+def statistical_model_wrapper(func: BackendBase) -> StatisticalModel:
     """
-    Wrapper for statistical model backends
+    Wrapper for statistical model backends. Converts a backend base type statistical 
+    model into `StatisticalModel` instance.
 
-    :param func: Takes a specific statistical model backend and turns it into StatisticalModel class
+    :param func (`BackendBase`): Statistical model described in one of the backends
+    :return `StatisticalModel`: initialised statistical model
     """
 
     @wraps(func)

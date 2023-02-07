@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Text
 import numpy as np
 
 from spey.base.backend_base import BackendBase, DataBase
@@ -30,8 +30,9 @@ class SimplifiedLikelihoodInterface(BackendBase):
     __slots__ = ["_model", "ntoys", "_third_moment_expansion", "_asimov_nuisance"]
 
     def __init__(self, model: SLData, ntoys: Optional[int] = 10000):
-        assert isinstance(model, SLData) and isinstance(model, DataBase) and isinstance(ntoys, int), \
-            "Invalid statistical model."
+        assert (
+            isinstance(model, SLData) and isinstance(model, DataBase) and isinstance(ntoys, int)
+        ), "Invalid statistical model."
         self._model = model
         self.ntoys = ntoys
         self._third_moment_expansion: Optional[expansion_output] = None
@@ -57,8 +58,21 @@ class SimplifiedLikelihoodInterface(BackendBase):
         return self._third_moment_expansion
 
     def _get_asimov_data(
-        self, model: SLData, expected: Optional[ExpectationType] = ExpectationType.observed
+        self,
+        model: SLData,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        test_statistics: Text = "qtilde",
     ) -> SLData:
+        """
+        Generate statistical model for asimov fit
+
+        :param SLData model: simplified likelihood model
+        :param Optional[ExpectationType] expected: observed, apriori or aposteriori.
+                                                   defaults to ExpectationType.observed
+        :param Text test_statistics: test statistics. `"qmu"` or `"qtilde"` for exclusion
+                                     tests `"q0"` for discovery test, defaults to `"qtilde"`.
+        :return SLData: asimov model
+        """
         asimov_nuisance_key = (
             str(ExpectationType.apriori)
             if expected == ExpectationType.apriori
@@ -70,7 +84,13 @@ class SimplifiedLikelihoodInterface(BackendBase):
             # Generate the asimov data by fittin nuissance parameters to the observations
             init_pars = [0.0] * (len(model) + 1)
             par_bounds = [(model.minimum_poi, 1.0)] + [(-5.0, 5.0)] * len(model)
-            nll, pars = fit(model, init_pars, par_bounds, 0.0, self.third_moment_expansion)
+            _, pars = fit(
+                model,
+                init_pars,
+                par_bounds,
+                0.0 if test_statistics in ["q", "qmu", "qtilde"] else 1.0,
+                self.third_moment_expansion,
+            )
             self._asimov_nuisance[asimov_nuisance_key] = pars
 
         return model.reset_observations(model.background + pars[1:], f"{model.name}_asimov")
@@ -122,7 +142,6 @@ class SimplifiedLikelihoodInterface(BackendBase):
         self,
         poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
-        isAsimov: Optional[bool] = False,
         marginalize: Optional[bool] = False,
     ) -> Tuple[float, np.ndarray]:
         """
@@ -138,8 +157,6 @@ class SimplifiedLikelihoodInterface(BackendBase):
         current_model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
         )
-        if isAsimov:
-            current_model = self._get_asimov_data(current_model, expected)
 
         if marginalize:
             nll = marginalised_negloglikelihood(
@@ -148,23 +165,42 @@ class SimplifiedLikelihoodInterface(BackendBase):
             return nll, np.nan
         else:
             init_pars = [poi_test] + [0.0] * len(current_model)
-            par_bounds = [(current_model.minimum_poi, 40.0)] + [(-5.0, 5.0)] * len(
-                current_model
-            )
+            par_bounds = [(current_model.minimum_poi, 40.0)] + [(-5.0, 5.0)] * len(current_model)
             nll, pars = fit(
                 current_model, init_pars, par_bounds, poi_test, self.third_moment_expansion
             )
 
-        return nll, pars
+        return nll, np.array(pars)
+
+    def asimov_likelihood(
+        self,
+        poi_test: Optional[float] = 1,
+        expected: Optional[ExpectationType] = ExpectationType.observed,
+        test_statistics: Text = "qtilde",
+    ) -> Tuple[float, np.ndarray]:
+        """_summary_
+
+        :param Optional[float] poi_test: _description_, defaults to 1
+        :param Optional[ExpectationType] expected: _description_, defaults to ExpectationType.observed
+        :param Text test_statistics: _description_, defaults to "qtilde"
+        :return Tuple[float, np.ndarray]: _description_
+        """
+        current_model: SLData = (
+            self.model if expected != ExpectationType.apriori else self.model.expected_dataset
+        )
+        current_model = self._get_asimov_data(
+            current_model, expected=expected, test_statistics=test_statistics
+        )
+        init_pars = [poi_test] + [0.0] * len(current_model)
+        par_bounds = [(current_model.minimum_poi, 40.0)] + [(-5.0, 5.0)] * len(current_model)
+        nll, pars = fit(current_model, init_pars, par_bounds, poi_test, self.third_moment_expansion)
+        return nll, np.array(pars)
 
     def maximize_likelihood(
         self,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
-        isAsimov: Optional[bool] = False,
-        marginalise: Optional[bool] = False,
-        iteration_threshold: Optional[int] = 10000,
-    ) -> Tuple[float, np.ndarray, float]:
+    ) -> Tuple[float, np.ndarray]:
         """
         Minimize negative log-likelihood of the statistical model with respect to POI
 
@@ -181,14 +217,42 @@ class SimplifiedLikelihoodInterface(BackendBase):
         current_model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
         )
-        if isAsimov:
-            current_model = self._get_asimov_data(current_model, expected)
-
         # It is possible to allow user to modify the optimiser properties in the future
         init_pars = [0.0] * (len(current_model) + 1)
-        par_bounds = [(current_model.minimum_poi if allow_negative_signal else 0.0, 10.0)] + [
+        par_bounds = [(current_model.minimum_poi if allow_negative_signal else 0.0, 40.0)] + [
             (-5.0, 5.0)
         ] * len(current_model)
         nll, pars = fit(current_model, init_pars, par_bounds, None, self.third_moment_expansion)
 
-        return nll, pars, self.sigma_mu(pars, expected)
+        return nll, np.array(pars)
+
+    def maximize_asimov_likelihood(
+        self,
+        expected: ExpectationType = ExpectationType.observed,
+        test_statistics: Text = "qtilde",
+        maximum_poi: float = 40.0,
+    ) -> Tuple[float, np.ndarray]:
+        """
+        Compute maximum likelihood for asimov data
+
+        :param expected (`ExpectationType`): observed, apriori or aposteriori,
+                                            (default `ExpectationType.observed`)
+        :param test_statistics (`Text`): test statistics. `"qmu"` or `"qtilde"` for exclusion
+                                     tests `"q0"` for discovery test. (default `"qtilde"`)
+        :param maximum_poi (`float`): maximum value that poi can take during the fit.
+                                     (default `40.0`)
+        :return Tuple[float, np.ndarray]: maximum negative log-likelihood, fit parameters
+        """
+        allow_negative_signal: bool = True if test_statistics in ["q", "qmu"] else False
+        current_model: SLData = (
+            self.model if expected != ExpectationType.apriori else self.model.expected_dataset
+        )
+        current_model = self._get_asimov_data(
+            current_model, expected=expected, test_statistics=test_statistics
+        )
+        init_pars = [0.0] * (len(current_model) + 1)
+        par_bounds = [
+            (current_model.minimum_poi if allow_negative_signal else 0.0, maximum_poi)
+        ] + [(-5.0, 5.0)] * len(current_model)
+        nll, pars = fit(current_model, init_pars, par_bounds, None, self.third_moment_expansion)
+        return nll, np.array(pars)
