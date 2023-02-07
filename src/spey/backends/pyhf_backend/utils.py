@@ -108,7 +108,8 @@ def initialise_workspace(
             )
             data = background.tolist() + model.config.auxdata
 
-            minimum_poi = -np.min(np.true_divide(nb[signal > 0.0], signal[signal > 0.0]))
+            if return_full_data:
+                minimum_poi = -np.min(np.true_divide(nb[signal != 0.0], signal[signal != 0.0]))
 
         else:
             if expected == ExpectationType.apriori:

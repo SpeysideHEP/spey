@@ -171,11 +171,12 @@ class PyhfData(DataBase):
 
         # Check if there is any negative number of events
         if poi_test < 0.0:
-            if isinstance(signal, float):
-                if signal + self.background < 0.0:
+            if isinstance(signal, np.ndarray):
+                if np.any(signal + self.background < 0.0):
                     raise NegativeExpectedYields(
                         f"PyhfInterface::Statistical model involves negative expected bin yields. "
-                        f"Bin value: {signal + self.background:.3f}"
+                        f"Bin value: "
+                        + ", ".join([f"{x:.3f}" for x in (signal + self.background).tolist()])
                     )
             else:
                 for channel in model.spec.get("channels", []):
