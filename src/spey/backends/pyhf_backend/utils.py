@@ -1,12 +1,11 @@
 import pyhf, logging, warnings, copy
 import numpy as np
-from functools import wraps
 
 from pyhf import Workspace
 
 from spey.utils import ExpectationType
 from spey.system.exceptions import InvalidInput
-from typing import Dict, Union, Optional, Tuple, List, Text, Callable, Any
+from typing import Dict, Union, Optional, Tuple, List, Text, Any
 
 pyhf.pdf.log.setLevel(logging.CRITICAL)
 pyhf.workspace.log.setLevel(logging.CRITICAL)
@@ -22,10 +21,19 @@ def initialise_workspace(
     delta_nb: Optional[List[float]] = None,
     expected: Optional[ExpectationType] = ExpectationType.observed,
     return_full_data: Optional[bool] = False,
-) -> Union[tuple[
-    Union[list, Any], Union[Optional[dict], Any], Optional[Any], Optional[Any], Optional[
-        Workspace], Any, Any, Union[Union[int, float, complex], Any]], tuple[
-    Optional[Workspace], Any, Any]]:
+) -> Union[
+    tuple[
+        Union[list, Any],
+        Union[Optional[dict], Any],
+        Optional[Any],
+        Optional[Any],
+        Optional[Workspace],
+        Any,
+        Any,
+        Union[Union[int, float, complex], Any],
+    ],
+    tuple[Optional[Workspace], Any, Any],
+]:
     """
     Construct the statistical model with respect to the given inputs.
 
@@ -59,7 +67,7 @@ def initialise_workspace(
     bkg_from_json = False
     if isinstance(background, dict):
         bkg_from_json = True
-    elif isinstance(background, (float, list)):
+    elif isinstance(background, (float, list, np.ndarray)):
         background = np.array(background, dtype=np.float32).reshape(-1)
     else:
         raise InvalidInput(f"An unexpected type of background has been presented: {background}")
@@ -69,14 +77,14 @@ def initialise_workspace(
 
     if not bkg_from_json:
         # check if bkg uncertainties are valid
-        if isinstance(delta_nb, (float, list)):
+        if isinstance(delta_nb, (float, list, np.ndarray)):
             delta_nb = np.array(delta_nb, dtype=np.float32).reshape(-1)
         else:
             raise InvalidInput(
                 f"An unexpected type of background uncertainty has been presented: {delta_nb}"
             )
         # check if MC bkg data is valid
-        if isinstance(nb, (float, list)):
+        if isinstance(nb, (float, list, np.ndarray)):
             nb = np.array(nb, dtype=np.float32).reshape(-1)
         else:
             raise InvalidInput(f"An unexpected type of background has been presented: {nb}")

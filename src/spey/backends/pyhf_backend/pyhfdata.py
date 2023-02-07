@@ -3,7 +3,6 @@ from dataclasses import dataclass, field
 from typing import Dict, Union, Optional, List, Text, Tuple
 import numpy as np
 from pyhf import Workspace, Model
-from functools import wraps
 
 from spey.utils import ExpectationType
 from .utils import initialise_workspace
@@ -131,7 +130,7 @@ class PyhfData(DataBase):
         poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
     ) -> Union[
-        tuple[Optional[Workspace], Optional[Model], Optional[list[float]]],
+        tuple[Optional[Workspace], Optional[Model], Optional[List[float]]],
         tuple[Workspace, Model, Union[np.ndarray, np.ndarray]],
     ]:
         """
@@ -152,7 +151,7 @@ class PyhfData(DataBase):
 
         signal = copy.deepcopy(self.signal)
         if poi_test != 1.0:
-            if isinstance(self.signal, float):
+            if isinstance(self.signal, np.ndarray):
                 signal *= poi_test
             else:
                 for ids, channel in enumerate(signal):
