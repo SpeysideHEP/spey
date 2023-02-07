@@ -120,8 +120,10 @@ def find_root_limits(
 
 
 def find_poi_upper_limit(
-    maximize_likelihood: Callable[[bool], Tuple[float, float, float]],
-    logpdf: Callable[[float, bool], float],
+    maximum_likelihood: Tuple[float, float],
+    logpdf: Callable[[float], float],
+    maximum_asimov_likelihood: Tuple[float, float],
+    asimov_logpdf: Callable[[float], float],
     expected: ExpectationType,
     confidence_level: float = 0.95,
     allow_negative_signal: bool = True,
@@ -129,28 +131,28 @@ def find_poi_upper_limit(
     """
     Compute the upper limit on parameter of interest, described by the confidence level
 
-    :param maximize_likelihood: function to retrieve muhat and minimum negative log-likelihood.
-                               The function should take a boolean as an input which indicates
-                               that the function is an Asimov construction or not.
-    :param logpdf: log of the full density
-    :param expected: observed, apriori or aposteriori
-    :param sigma_mu: uncertainty on parameter of interest
-    :param confidence_level: exclusion confidence level (default 1 - CLs = 95%)
-    :param allow_negative_signal: allow negative signals while minimising negative log-likelihood
-    :return: excluded parameter of interest
+    :param maximum_likelihood (`Tuple[float, float]`): muhat and minimum negative log-likelihood
+    :param logpdf (`Callable[[float], float]`): log of the full density
+    :param maximum_asimov_likelihood (`Tuple[float, float]`): muhat and minimum negative
+                                                              log-likelihood for asimov data
+    :param asimov_logpdf (`Callable[[float], float]`): log of the full density for asimov data
+    :param expected (`ExpectationType`): observed, apriori or aposteriori
+    :param confidence_level (`float`, default `0.95`): exclusion confidence level (default 1 - CLs = 95%).
+    :param allow_negative_signal (`bool`, default `True`): allow negative signals while
+                                                           minimising negative log-likelihood.
+    :return `float`: excluded parameter of interest
     """
-
-    # compute these values in advance to save time
-    muhat, sigma_mu, min_nll = maximize_likelihood(False)
-    muhatA, _, min_nllA = maximize_likelihood(True)
-    selector = lambda isAsimov: (muhatA, min_nllA) if isAsimov else (muhat, min_nll)
-
     test_stat = "q" if allow_negative_signal else "qtilde"
 
     def computer(poi_test: float) -> float:
         """Compute 1 - CLs(POI) = `confidence_level`"""
         _, sqrt_qmuA, delta_teststat = compute_teststatistics(
-            poi_test, selector, logpdf, test_stat
+            poi_test,
+            maximum_likelihood,
+            logpdf,
+            maximum_asimov_likelihood,
+            asimov_logpdf,
+            test_stat,
         )
         pvalue = list(
             map(
@@ -163,10 +165,11 @@ def find_poi_upper_limit(
         # always get the median
         return pvalue[0 if expected == ExpectationType.observed else 2] - confidence_level
 
+    sigma_mu = 1.0  # temporary
     low, hig = find_root_limits(
         computer,
         loc=0.0,
-        low_ini=muhat + 1.5 * sigma_mu if muhat >= 0.0 else 1.0,
-        hig_ini=muhat + 2.5 * sigma_mu if muhat >= 0.0 else 1.0,
+        low_ini=maximum_likelihood[0] + 1.5 * sigma_mu if maximum_likelihood[0] >= 0.0 else 1.0,
+        hig_ini=maximum_likelihood[0] + 2.5 * sigma_mu if maximum_likelihood[0] >= 0.0 else 1.0,
     )
     return scipy.optimize.brentq(computer, low, hig, xtol=abs(low / 100.0))

@@ -94,8 +94,11 @@ def get_test_statistic(test_stat: Text) -> Callable:
 
     :raises UnknownTestStatistics: if input doesn't match any available function.
     """
-    if test_stat == "qmu":
+    # syntax with mu is not necessary so accomodate both
+    if test_stat in ["qmu", "q"]:
         test_stat = "q"
+    elif test_stat in ["qtilde", "qmutilde"]:
+        test_stat = "qmutilde"
     options = {"qmutilde": qmu_tilde, "q": qmu, "q0": q0}
 
     if options.get(test_stat, False) is False:
@@ -106,39 +109,43 @@ def get_test_statistic(test_stat: Text) -> Callable:
 
 def compute_teststatistics(
     mu: float,
-    maximum_likelihood: Callable[[bool], Tuple[float, float]],
-    logpdf: Callable[[float, bool], float],
+    maximum_likelihood: Tuple[float, float],
+    logpdf: Callable[[float], float],
+    maximum_asimov_likelihood: Tuple[float, float],
+    asimov_logpdf: Callable[[float], float],
     teststat: Text,
 ) -> Tuple[float, float, float]:
     """
     Compute the test statistic for the observed data under the studied model.
 
-    :param mu: Signal strength
-    :param maximum_likelihood: function to retrieve muhat and minimum negative log-likelihood.
-                               The function should take a boolean as an input which indicates
-                               that the function is an Asimov construction or not.
-    :param logpdf: log of the full density
-    :param teststat: `"qmutilde"`, `"q"` or `"q0"`
-    :return: sqrt(qmu), sqrt(qmuA) and distance between them
-    :raises UnknownTestStatistics: if input doesn't match any available function.
+    :param mu (`float`): Signal strength
+    :param maximum_likelihood (`Tuple[float, float]`): muhat and minimum negative log-likelihood
+    :param logpdf (`Callable[[float], float]`): log of the full density
+    :param maximum_asimov_likelihood (`Tuple[float, float]`): muhat and minimum negative 
+                                                              log-likelihood for asimov data
+    :param asimov_logpdf (`Callable[[float], float]`): log of the full density for asimov data
+    :param teststat (`Text`): `"qmutilde"`, `"q"` or `"q0"`
+    :return `Tuple[float, float, float]`: sqrt(qmu), sqrt(qmuA) and distance between them
+    :raises `UnknownTestStatistics`: if input doesn't match any available function.
     """
     teststat_func = get_test_statistic(teststat)
 
-    muhat, min_nll = maximum_likelihood(False)
-    muhatA, min_nllA = maximum_likelihood(True)
+    muhat, min_nll = maximum_likelihood
+    muhatA, min_nllA = maximum_asimov_likelihood
 
     # min_logpdf = -min_nll
-    qmu = teststat_func(mu, muhat, -min_nll, partial(logpdf, isAsimov=False))
-    qmuA = teststat_func(mu, muhatA, -min_nllA, partial(logpdf, isAsimov=True))
+    qmu = teststat_func(mu, muhat, -min_nll, logpdf)
+    qmuA = teststat_func(mu, muhatA, -min_nllA, asimov_logpdf)
     sqrt_qmu = np.sqrt(qmu)
     sqrt_qmuA = np.sqrt(qmuA)
 
-    if teststat in ["q", "q0"]:
+    if teststat in ["q", "q0", "qmu"]:
         delta_teststat = sqrt_qmu - sqrt_qmuA
     else:
-        if sqrt_qmu <= sqrt_qmuA:
-            delta_teststat = sqrt_qmu - sqrt_qmuA
-        else:
-            delta_teststat = (qmu - qmuA) / (2. * sqrt_qmuA)
+        delta_teststat = (
+            sqrt_qmu - sqrt_qmuA
+            if sqrt_qmu <= sqrt_qmuA
+            else np.true_divide(qmu - qmuA, 2.0 * sqrt_qmuA)
+        )
 
     return sqrt_qmu, sqrt_qmuA, delta_teststat
