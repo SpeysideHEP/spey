@@ -121,7 +121,7 @@ class StatisticalModel(HypothesisTestingBase):
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
         **kwargs,
-    ) -> Tuple[float, float, float]:
+    ) -> Tuple[float, float]:
         """
         Find the POI that maximizes the likelihood and the value of the maximum likelihood
 
