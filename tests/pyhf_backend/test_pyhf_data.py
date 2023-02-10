@@ -66,7 +66,7 @@ def test_data_single_bin():
 
     pars, twice_nllh = pyhf.infer.mle.fixed_poi_fit(
         1.0,
-        data,
+        pyhfdat,
         pyhf_model,
         return_fitted_val=True,
         par_bounds=pyhf_model.config.suggested_bounds(),
@@ -78,7 +78,7 @@ def test_data_single_bin():
     # Compute Maximum likelihood: default
 
     pars, twice_nllh = pyhf.infer.mle.fit(
-        data,
+        pyhfdat,
         pyhf_model,
         return_fitted_val=True,
         maxiter=200,
@@ -101,3 +101,122 @@ def test_data_single_bin():
     _, model, data = pyhf_data(expected=ExpectationType.apriori)
 
     assert data == pyhfdat, "Invalid data"
+
+
+def test_data_json_input():
+    """Testing single bin data"""
+
+    background = {
+        "channels": [
+            {
+                "name": "singlechannel",
+                "samples": [
+                    {
+                        "name": "background",
+                        "data": [50.0, 52.0],
+                        "modifiers": [
+                            {"name": "uncorr_bkguncrt", "type": "shapesys", "data": [3.0, 7.0]}
+                        ],
+                    }
+                ],
+            }
+        ],
+        "observations": [{"name": "singlechannel", "data": [51.0, 48.0]}],
+        "measurements": [{"name": "Measurement", "config": {"poi": "mu", "parameters": []}}],
+        "version": "1.0.0",
+    }
+    signal = [
+        {
+            "op": "add",
+            "path": "/channels/0/samples/1",
+            "value": {
+                "name": "signal",
+                "data": [12.0, 11.0],
+                "modifiers": [{"name": "mu", "type": "normfactor", "data": None}],
+            },
+        }
+    ]
+
+    pyhf_data = PyhfDataWrapper(signal=signal, background=background, name="model")
+
+    pyhf_workspace = pyhf.Workspace(background)
+    pyhf_model = pyhf_workspace.model(
+        patches=[signal],
+        modifier_settings={
+            "normsys": {"interpcode": "code4"},
+            "histosys": {"interpcode": "code4p"},
+        },
+    )
+    pyhfdat = pyhf_workspace.data(pyhf_model)
+    ws, model, data = pyhf_data()
+
+    assert isinstance(pyhf_data, PyhfData), "wrapper does not return phyfdata instance"
+    assert (
+        pyhf_data.npar == pyhf_model.config.npars - 1
+    ), "number of parameters should be nuissanse - 1 "
+    assert pyhf_data.poi_index == pyhf_model.config.poi_index, "poi index is wrong"
+
+    pars_init = pyhf_model.config.suggested_init()
+    assert (
+        pyhf_data.suggested_init
+        == pars_init[: pyhf_model.config.poi_index] + pars_init[pyhf_model.config.poi_index + 1 :]
+    ), "suggested initialisation is wrong."
+
+    pars_bounds = pyhf_model.config.suggested_bounds()
+    assert (
+        pyhf_data.suggested_bounds
+        == pars_bounds[: pyhf_model.config.poi_index]
+        + pars_bounds[pyhf_model.config.poi_index + 1 :]
+    )
+
+    pars_fixed = pyhf_model.config.suggested_fixed()
+    assert (
+        pyhf_data.suggested_fixed
+        == pars_fixed[: pyhf_model.config.poi_index] + pars_fixed[pyhf_model.config.poi_index + 1 :]
+    )
+
+    assert np.isclose(data, pyhfdat).all(), "Data is wrong"
+
+    with pytest.raises(
+        NegativeExpectedYields,
+        match="PyhfInterface::Statistical model involves negative expected bin "
+        "yields in region 'singlechannel'. Bin values: -10.000, -3.000",
+    ):
+        res = pyhf_data(-5)
+
+    assert pyhf_data.isAlive, "This region should be alive"
+    assert np.isclose(pyhf_data.minimum_poi, -4.1666665), "Minimum POI is not correct"
+
+    interface: StatisticalModel = PyhfInterface(pyhf_data, xsection=0.4, analysis="test")
+
+    # Compute likelihood: default
+
+    pars, twice_nllh = pyhf.infer.mle.fixed_poi_fit(
+        1.0,
+        pyhfdat,
+        pyhf_model,
+        return_fitted_val=True,
+        par_bounds=pyhf_model.config.suggested_bounds(),
+    )
+
+    nll = interface.likelihood()
+    assert np.isclose(nll, twice_nllh / 2.0), "pyhf result does not match with interface"
+
+    # Compute Maximum likelihood: default
+
+    pars, twice_nllh = pyhf.infer.mle.fit(
+        pyhfdat,
+        pyhf_model,
+        return_fitted_val=True,
+        maxiter=200,
+        par_bounds=pyhf_model.config.suggested_bounds(),
+    )
+    muhat, nllmin = interface.maximize_likelihood(allow_negative_signal=False)
+
+    assert np.isclose(
+        muhat, pars[pyhf_model.config.poi_index]
+    ), "pyhf result does not match with interface"
+    assert np.isclose(nllmin, twice_nllh / 2.0), "pyhf result does not match with interface"
+    assert np.isclose(
+        interface.backend.logpdf(pars[0], pars[1:]), pyhf_model.logpdf(pars, pyhfdat)[0]
+    ), "pyhf result does not match with interface"
