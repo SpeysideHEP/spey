@@ -16,7 +16,7 @@ uninstall:
 
 .PHONY: test
 test:
-	pytest tests/.
+	pytest --cov=spey tests/*/*py --cov-fail-under 99
 
 
 .PHONY: build
