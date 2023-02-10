@@ -104,7 +104,7 @@ def test_data_single_bin():
 
 
 def test_data_json_input():
-    """Testing single bin data"""
+    """Testing json sterilized input"""
 
     background = {
         "channels": [
