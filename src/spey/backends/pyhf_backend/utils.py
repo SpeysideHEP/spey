@@ -138,6 +138,11 @@ def initialise_workspace(
 
             data = workspace.data(model)
 
+            if expected == ExpectationType.apriori:
+                init_param = model.config.suggested_init()
+                init_param[model.config.poi_index] = 0.0
+                data = model.main_model.expected_data(init_param, False).tolist()
+
             if return_full_data and None not in [model, workspace, data]:
                 min_ratio = []
                 for idc, channel in enumerate(background.get("channels", [])):
