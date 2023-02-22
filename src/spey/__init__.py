@@ -83,7 +83,7 @@ def get_uncorrelated_region_statistical_model(
             if isinstance(backgrounds, (list, float))
             else backgrounds
         )
-        covariance = covariance * np.eye(len(covariance))
+        covariance = np.square(covariance) * np.eye(len(covariance))
 
         model = SLData(
             signal=signal_yields,
