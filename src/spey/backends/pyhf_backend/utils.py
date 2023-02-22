@@ -123,6 +123,18 @@ def initialise_workspace(
                 )
 
         else:
+            if expected == ExpectationType.apriori:
+                # set data as expected background events
+                obs = []
+                for channel in background.get("channels", []):
+                    current = []
+                    for ch in channel["samples"]:
+                        if len(current) == 0:
+                            current = [0.0] * len(ch["data"])
+                        current = [cur + dt for cur, dt in zip(current, ch["data"])]
+                    obs.append({"name": channel["name"], "data": current})
+                background["observations"] = obs
+                
             workspace = pyhf.Workspace(background)
             model = workspace.model(
                 patches=[signal],
@@ -133,11 +145,6 @@ def initialise_workspace(
             )
 
             data = workspace.data(model)
-
-            if expected == ExpectationType.apriori:
-                init_param = model.config.suggested_init()
-                init_param[model.config.poi_index] = 0.0
-                data = model.main_model.expected_data(init_param, False).tolist()
 
             if return_full_data and None not in [model, workspace, data]:
                 min_ratio = []
