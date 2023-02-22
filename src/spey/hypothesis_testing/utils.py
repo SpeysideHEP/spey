@@ -131,6 +131,7 @@ def find_poi_upper_limit(
     low_init: float = 1.0,
     hig_init: float = 1.0,
     expected_pvalue: Text = "nominal",
+    maxiter: int = 200,
 ) -> Union[float, List[float]]:
     """
     Compute the upper limit on parameter of interest, described by the confidence level
@@ -148,7 +149,9 @@ def find_poi_upper_limit(
     :param hig_init (`float`, default `1.0`): initialised upper bound for bracketing.
     :param expected_pvalue (`Text`, default `"nominal"`): find the upper limit for pvalue range,
                                                     only for expected. `nominal`, `1sigma`, `2sigma`
-    :return `float`: excluded parameter of interest
+    :param maxiter (`int`, default `200`): If convergence is not achieved in maxiter iterations,
+                                           an error is raised. Must be >= 0.
+    :return `Union[float, List[float]]`: excluded parameter of interest
     """
     assert expected_pvalue in [
         "nominal",
@@ -191,9 +194,9 @@ def find_poi_upper_limit(
         low, hig = find_root_limits(comp, loc=0.0, low_ini=low_init, hig_ini=hig_init)
         with warnings.catch_warnings(record=True):
             x0, r = scipy.optimize.toms748(
-                comp, low, hig, k=2, xtol=2e-12, rtol=1e-4, full_output=True
+                comp, low, hig, k=2, xtol=2e-12, rtol=1e-4, full_output=True, maxiter=maxiter
             )
         if not r.converged:
-            warnings.warn("Optimiser did not converge.", category=RuntimeWarning)
+            warnings.warn(f"Optimiser did not converge.\n{r}", category=RuntimeWarning)
         result.append(x0)
     return result if len(result) > 1 else result[0]

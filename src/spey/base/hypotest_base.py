@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple, Callable, List, Text
-from functools import partial
+from typing import Optional, Tuple, Callable, List, Text, Union
 
 from spey.hypothesis_testing.utils import (
     compute_teststatistics,
@@ -216,8 +215,9 @@ class HypothesisTestingBase(ABC):
         low_init: float = 1.0,
         hig_init: float = 1.0,
         expected_pvalue: Text = "nominal",
+        maxiter: int = 200,
         **kwargs,
-    ) -> float:
+    ) -> Union[float, List[float]]:
         """
         Compute the upper limit on parameter of interest, described by the confidence level
 
@@ -228,6 +228,8 @@ class HypothesisTestingBase(ABC):
         :param hig_init (`float`, default `1.0`): initialised upper bound for bracketing.
         :param expected_pvalue (`Text`, default `"nominal"`): find the upper limit for pvalue range,
                                                         only for expected. `nominal`, `1sigma`, `2sigma`
+        :param maxiter (`int`, default `200`): If convergence is not achieved in maxiter iterations,
+                                           an error is raised. Must be >= 0.
         :param kwargs: backend specific inputs.
         :return: excluded parameter of interest
         """
@@ -259,4 +261,5 @@ class HypothesisTestingBase(ABC):
             low_init=low_init,
             hig_init=hig_init,
             expected_pvalue=expected_pvalue,
+            maxiter=maxiter,
         )
