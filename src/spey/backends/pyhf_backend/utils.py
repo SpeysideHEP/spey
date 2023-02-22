@@ -112,7 +112,7 @@ def initialise_workspace(
                 if len(signal[signal != 0.0]) == 0:
                     minimum_poi = -np.inf
                 else:
-                minimum_poi = -np.min(np.true_divide(nb[signal != 0.0], signal[signal != 0.0]))
+                    minimum_poi = -np.min(np.true_divide(nb[signal != 0.0], signal[signal != 0.0]))
 
         else:
             if expected == ExpectationType.apriori:
