@@ -8,7 +8,7 @@ __all__ = ["qmu", "qmu_tilde", "q0", "get_test_statistic", "compute_teststatisti
 
 
 def _tmu_tilde(
-    mu: float, muhat: float, min_logpdf: float, logpdf: Callable[[float], float]
+    mu: float, muhat: float, max_logpdf: float, logpdf: Callable[[float], float]
 ) -> float:
     r"""
     The test statistic,`\tilde{t}_{\mu}`, for establishing a two-sided
@@ -17,29 +17,29 @@ def _tmu_tilde(
 
     :param mu: Signal strength
     :param muhat: signal strength that minimizes logpdf
-    :param min_logpdf: minimum value of logpdf
+    :param max_logpdf: maximum value of logpdf
     :param logpdf: logpdf function which takes mu as an input
     :return: The calculated test statistic
     """
-    return -2 * (logpdf(mu) - (min_logpdf if muhat >= 0.0 else logpdf(0.0)))
+    return -2 * (logpdf(mu) - (max_logpdf if muhat >= 0.0 else logpdf(0.0)))
 
 
-def _tmu(mu: float, min_logpdf: float, logpdf: Callable[[float], float]) -> float:
+def _tmu(mu: float, max_logpdf: float, logpdf: Callable[[float], float]) -> float:
     r"""
     The test statistic,`t_{\mu}`, for establishing a two-sided
     interval on the strength parameter,`\mu`, as defined in Equation (8) in `arXiv:1007.1727`
 
     :param mu: Signal strength
     :param muhat: signal strength that minimizes logpdf
-    :param min_logpdf: minimum value of logpdf
+    :param max_logpdf: maximum value of logpdf
     :param logpdf: logpdf function which takes mu as an input
     :return: The calculated test statistic
     """
-    return -2 * (logpdf(mu) - min_logpdf)
+    return -2 * (logpdf(mu) - max_logpdf)
 
 
 def qmu_tilde(
-    mu: float, muhat: float, min_logpdf: float, logpdf: Callable[[float], float]
+    mu: float, muhat: float, max_logpdf: float, logpdf: Callable[[float], float]
 ) -> float:
     r"""
     The "alternative" test statistic, `\tilde{q}_{\mu}`, for establishing
@@ -50,14 +50,14 @@ def qmu_tilde(
 
     :param mu: Signal strength
     :param muhat: signal strength that minimizes logpdf
-    :param min_logpdf: minimum value of logpdf
+    :param max_logpdf: maximum value of logpdf
     :param logpdf: logpdf function which takes mu as an input
     :return: The calculated test statistic
     """
-    return 0.0 if muhat > mu else _tmu_tilde(mu, muhat, min_logpdf, logpdf)
+    return 0.0 if muhat > mu else _tmu_tilde(mu, muhat, max_logpdf, logpdf)
 
 
-def qmu(mu: float, muhat: float, min_logpdf: float, logpdf: Callable[[float], float]) -> float:
+def qmu(mu: float, muhat: float, max_logpdf: float, logpdf: Callable[[float], float]) -> float:
     r"""
     The test statistic, `q_{\mu}`, for establishing an upper
     limit on the strength parameter, `\mu`, as defined in
@@ -67,25 +67,25 @@ def qmu(mu: float, muhat: float, min_logpdf: float, logpdf: Callable[[float], fl
 
     :param mu: Signal strength
     :param muhat: signal strength that minimizes logpdf
-    :param min_logpdf: minimum value of logpdf
+    :param max_logpdf: maximum value of logpdf
     :param logpdf: logpdf function which takes mu as an input
     :return: The calculated test statistic
     """
-    return 0.0 if muhat > mu else _tmu(mu, min_logpdf, logpdf)
+    return 0.0 if muhat > mu else _tmu(mu, max_logpdf, logpdf)
 
 
-def q0(mu: float, muhat: float, min_logpdf: float, logpdf: Callable[[float], float]) -> float:
+def q0(mu: float, muhat: float, max_logpdf: float, logpdf: Callable[[float], float]) -> float:
     r"""
     The test statistic,`q_{0}`, for discovery of a positive signal
     as defined in Equation (12) in `arXiv:1007.1727`, for `\mu=0`.
 
     :param mu: Signal strength (only for function consistency, its overwritten by zero)
     :param muhat: signal strength that minimizes logpdf
-    :param min_logpdf: minimum value of logpdf
+    :param max_logpdf: maximum value of logpdf
     :param logpdf: logpdf function which takes mu as an input
     :return: The calculated test statistic
     """
-    return 0.0 if muhat < 0.0 else _tmu(0.0, min_logpdf, logpdf)
+    return 0.0 if muhat < 0.0 else _tmu(0.0, max_logpdf, logpdf)
 
 
 def get_test_statistic(test_stat: Text) -> Callable:
@@ -133,7 +133,7 @@ def compute_teststatistics(
     muhat, min_nll = maximum_likelihood
     muhatA, min_nllA = maximum_asimov_likelihood
 
-    # min_logpdf = -min_nll
+    # max_logpdf = -min_nll
     qmu = teststat_func(mu, muhat, -min_nll, logpdf)
     qmuA = teststat_func(mu, muhatA, -min_nllA, asimov_logpdf)
     with warnings.catch_warnings(record=True):
