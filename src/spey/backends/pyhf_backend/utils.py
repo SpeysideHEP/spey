@@ -115,18 +115,6 @@ def initialise_workspace(
                     minimum_poi = -np.min(np.true_divide(nb[signal != 0.0], signal[signal != 0.0]))
 
         else:
-            if expected == ExpectationType.apriori:
-                # set data as expected background events
-                obs = []
-                for channel in background.get("channels", []):
-                    current = []
-                    for ch in channel["samples"]:
-                        if len(current) == 0:
-                            current = [0.0] * len(ch["data"])
-                        current = [cur + dt for cur, dt in zip(current, ch["data"])]
-                    obs.append({"name": channel["name"], "data": current})
-                background["observations"] = obs
-
             workspace = pyhf.Workspace(background)
             model = workspace.model(
                 patches=[signal],
