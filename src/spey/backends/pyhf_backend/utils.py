@@ -134,7 +134,7 @@ def initialise_workspace(
                         current = [cur + dt for cur, dt in zip(current, ch["data"])]
                     obs.append({"name": channel["name"], "data": current})
                 background["observations"] = obs
-                
+
             workspace = pyhf.Workspace(background)
             model = workspace.model(
                 patches=[signal],

@@ -143,16 +143,17 @@ class SimplifiedLikelihoodInterface(BackendBase):
         poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         marginalize: Optional[bool] = False,
+        poi_upper_bound: float = 40.0,
     ) -> Tuple[float, np.ndarray]:
         """
         Compute the likelihood for the statistical model with a given POI
 
         :param poi_test: POI (signal strength)
         :param expected: observed, apriori or aposteriori
-        :param isAsimov: if true, computes likelihood for Asimov data
         :param marginalize: if true, marginalize the likelihood.
                             if false compute profiled likelihood
-        :return: (float) likelihood
+        :param poi_upper_bound (`float`, default `40.0`): upper bound for parameter of interest
+        :return: negative log-likelihood and fit paramerters
         """
         current_model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
@@ -165,7 +166,9 @@ class SimplifiedLikelihoodInterface(BackendBase):
             return nll, np.nan
         else:
             init_pars = [poi_test] + [0.0] * len(current_model)
-            par_bounds = [(current_model.minimum_poi, 40.0)] + [(-5.0, 5.0)] * len(current_model)
+            par_bounds = [(current_model.minimum_poi, poi_upper_bound)] + [(-5.0, 5.0)] * len(
+                current_model
+            )
             nll, pars = fit(
                 current_model, init_pars, par_bounds, poi_test, self.third_moment_expansion
             )
@@ -174,16 +177,18 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
     def asimov_likelihood(
         self,
-        poi_test: Optional[float] = 1,
+        poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         test_statistics: Text = "qtilde",
+        poi_upper_bound: float = 40.0,
     ) -> Tuple[float, np.ndarray]:
-        """_summary_
+        """
+        compute likelihood for the asimov data
 
         :param Optional[float] poi_test: _description_, defaults to 1
         :param Optional[ExpectationType] expected: _description_, defaults to ExpectationType.observed
         :param Text test_statistics: _description_, defaults to "qtilde"
-        :return Tuple[float, np.ndarray]: _description_
+        :return Tuple[float, np.ndarray]: negative log-likelihood and fit parameters
         """
         current_model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
@@ -192,7 +197,9 @@ class SimplifiedLikelihoodInterface(BackendBase):
             current_model, expected=expected, test_statistics=test_statistics
         )
         init_pars = [poi_test] + [0.0] * len(current_model)
-        par_bounds = [(current_model.minimum_poi, 40.0)] + [(-5.0, 5.0)] * len(current_model)
+        par_bounds = [(current_model.minimum_poi, poi_upper_bound)] + [(-5.0, 5.0)] * len(
+            current_model
+        )
         nll, pars = fit(current_model, init_pars, par_bounds, poi_test, self.third_moment_expansion)
         return nll, np.array(pars)
 
@@ -200,6 +207,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         self,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
+        poi_upper_bound: float = 40.0,
     ) -> Tuple[float, np.ndarray]:
         """
         Minimize negative log-likelihood of the statistical model with respect to POI
@@ -218,10 +226,10 @@ class SimplifiedLikelihoodInterface(BackendBase):
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
         )
         # It is possible to allow user to modify the optimiser properties in the future
-        init_pars = [0.0] * (len(current_model) + 1)
-        par_bounds = [(current_model.minimum_poi if allow_negative_signal else 0.0, 40.0)] + [
-            (-5.0, 5.0)
-        ] * len(current_model)
+        init_pars = [1.0] * (len(current_model) + 1)
+        par_bounds = [
+            (current_model.minimum_poi if allow_negative_signal else 0.0, poi_upper_bound)
+        ] + [(-5.0, 5.0)] * len(current_model)
         nll, pars = fit(current_model, init_pars, par_bounds, None, self.third_moment_expansion)
 
         return nll, np.array(pars)
@@ -230,7 +238,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         self,
         expected: ExpectationType = ExpectationType.observed,
         test_statistics: Text = "qtilde",
-        maximum_poi: float = 40.0,
+        poi_upper_bound: float = 40.0,
     ) -> Tuple[float, np.ndarray]:
         """
         Compute maximum likelihood for asimov data
@@ -239,7 +247,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
                                             (default `ExpectationType.observed`)
         :param test_statistics (`Text`): test statistics. `"qmu"` or `"qtilde"` for exclusion
                                      tests `"q0"` for discovery test. (default `"qtilde"`)
-        :param maximum_poi (`float`): maximum value that poi can take during the fit.
+        :param poi_upper_bound (`float`): maximum value that poi can take during the fit.
                                      (default `40.0`)
         :return Tuple[float, np.ndarray]: maximum negative log-likelihood, fit parameters
         """
@@ -252,7 +260,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         )
         init_pars = [0.0] * (len(current_model) + 1)
         par_bounds = [
-            (current_model.minimum_poi if allow_negative_signal else 0.0, maximum_poi)
+            (current_model.minimum_poi if allow_negative_signal else 0.0, poi_upper_bound)
         ] + [(-5.0, 5.0)] * len(current_model)
         nll, pars = fit(current_model, init_pars, par_bounds, None, self.third_moment_expansion)
         return nll, np.array(pars)
