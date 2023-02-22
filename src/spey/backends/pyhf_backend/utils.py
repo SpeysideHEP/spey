@@ -109,6 +109,9 @@ def initialise_workspace(
             data = background.tolist() + model.config.auxdata
 
             if return_full_data:
+                if len(signal[signal != 0.0]) == 0:
+                    minimum_poi = -np.inf
+                else:
                 minimum_poi = -np.min(np.true_divide(nb[signal != 0.0], signal[signal != 0.0]))
 
         else:
