@@ -58,7 +58,7 @@ class HypothesisTestingBase(ABC):
         allow_negative_signal: Optional[bool] = True,
         **kwargs,
     ) -> float:
-        """
+        r"""
         Compute $$\chi^2$$
 
         .. math::
@@ -139,16 +139,6 @@ class HypothesisTestingBase(ABC):
         :param kwargs: backend specific inputs.
         :return: 1-CLs value (float)
         """
-        if hasattr(self, "backend"):
-            if hasattr(getattr(self, "backend"), "exclusion_confidence_level") and not kwargs.pop(
-                "overwrite", False
-            ):
-                return getattr(getattr(self, "backend"), "exclusion_confidence_level")(
-                    poi_test=poi_test,
-                    expected=expected,
-                    allow_negative_signal=allow_negative_signal,
-                    **kwargs,
-                )
         test_stat = "q" if allow_negative_signal else "qmutilde"
 
         (
