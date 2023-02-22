@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Callable, Text, Tuple
-from functools import partial
+import warnings
 
 from spey.system.exceptions import UnknownTestStatistics
 
@@ -121,7 +121,7 @@ def compute_teststatistics(
     :param mu (`float`): Signal strength
     :param maximum_likelihood (`Tuple[float, float]`): muhat and minimum negative log-likelihood
     :param logpdf (`Callable[[float], float]`): log of the full density
-    :param maximum_asimov_likelihood (`Tuple[float, float]`): muhat and minimum negative 
+    :param maximum_asimov_likelihood (`Tuple[float, float]`): muhat and minimum negative
                                                               log-likelihood for asimov data
     :param asimov_logpdf (`Callable[[float], float]`): log of the full density for asimov data
     :param teststat (`Text`): `"qmutilde"`, `"q"` or `"q0"`
@@ -136,16 +136,17 @@ def compute_teststatistics(
     # min_logpdf = -min_nll
     qmu = teststat_func(mu, muhat, -min_nll, logpdf)
     qmuA = teststat_func(mu, muhatA, -min_nllA, asimov_logpdf)
-    sqrt_qmu = np.sqrt(qmu)
-    sqrt_qmuA = np.sqrt(qmuA)
+    with warnings.catch_warnings(record=True):
+        sqrt_qmu = np.sqrt(qmu)
+        sqrt_qmuA = np.sqrt(qmuA)
 
-    if teststat in ["q", "q0", "qmu"]:
-        delta_teststat = sqrt_qmu - sqrt_qmuA
-    else:
-        delta_teststat = (
-            sqrt_qmu - sqrt_qmuA
-            if sqrt_qmu <= sqrt_qmuA
-            else np.true_divide(qmu - qmuA, 2.0 * sqrt_qmuA)
-        )
+        if teststat in ["q", "q0", "qmu"]:
+            delta_teststat = sqrt_qmu - sqrt_qmuA
+        else:
+            delta_teststat = (
+                sqrt_qmu - sqrt_qmuA
+                if sqrt_qmu <= sqrt_qmuA
+                else np.true_divide(qmu - qmuA, 2.0 * sqrt_qmuA)
+            )
 
     return sqrt_qmu, sqrt_qmuA, delta_teststat

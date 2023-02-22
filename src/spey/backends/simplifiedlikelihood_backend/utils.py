@@ -136,9 +136,6 @@ def fit(
     if fixed_poi is not None:
         init_pars[0] = fixed_poi
         constraints = [{"type": "eq", "fun": lambda v: v[0] - fixed_poi}]
-        assert (
-            par_bounds[0][0] <= fixed_poi <= par_bounds[0][1]
-        ), "POI is beyond the requested limits."
 
     opt = minimize(
         twice_nll_func,

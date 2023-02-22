@@ -1,7 +1,8 @@
 import numpy as np
 import warnings, scipy
+from functools import partial
 
-from typing import Callable, Tuple, Text, List
+from typing import Callable, Tuple, Text, List, Union
 
 from spey.hypothesis_testing.asymptotic_calculator import AsymptoticTestStatisticsDistribution
 from spey.hypothesis_testing.test_statistics import compute_teststatistics
@@ -109,11 +110,11 @@ def find_root_limits(
 
     low, hig = low_ini, hig_ini
     while computer(low) > loc:
-        low *= 0.1
+        low *= 0.5
         if low < 1e-10:
             break
     while computer(hig) < loc:
-        hig *= 10.0
+        hig *= 2.0
         if hig > 1e10:
             break
     return low, hig
@@ -127,7 +128,10 @@ def find_poi_upper_limit(
     expected: ExpectationType,
     confidence_level: float = 0.95,
     allow_negative_signal: bool = True,
-) -> float:
+    low_init: float = 1.0,
+    hig_init: float = 1.0,
+    expected_pvalue: Text = "nominal",
+) -> Union[float, List[float]]:
     """
     Compute the upper limit on parameter of interest, described by the confidence level
 
@@ -140,11 +144,22 @@ def find_poi_upper_limit(
     :param confidence_level (`float`, default `0.95`): exclusion confidence level (default 1 - CLs = 95%).
     :param allow_negative_signal (`bool`, default `True`): allow negative signals while
                                                            minimising negative log-likelihood.
+    :param low_init (`float`, default `1.0`): initialized lower bound for bracketing.
+    :param hig_init (`float`, default `1.0`): initialised upper bound for bracketing.
+    :param expected_pvalue (`Text`, default `"nominal"`): find the upper limit for pvalue range,
+                                                    only for expected. `nominal`, `1sigma`, `2sigma`
     :return `float`: excluded parameter of interest
     """
+    assert expected_pvalue in [
+        "nominal",
+        "1sigma",
+        "2sigma",
+    ], f"Unknown pvalue range {expected_pvalue}"
+    if expected is ExpectationType.observed:
+        expected_pvalue = "nominal"
     test_stat = "q" if allow_negative_signal else "qtilde"
 
-    def computer(poi_test: float) -> float:
+    def computer(poi_test: float, pvalue_idx: int) -> float:
         """Compute 1 - CLs(POI) = `confidence_level`"""
         _, sqrt_qmuA, delta_teststat = compute_teststatistics(
             poi_test,
@@ -163,13 +178,22 @@ def find_poi_upper_limit(
             )
         )
         # always get the median
-        return pvalue[0 if expected == ExpectationType.observed else 2] - confidence_level
+        return pvalue[pvalue_idx] - confidence_level
 
-    sigma_mu = 1.0  # temporary
-    low, hig = find_root_limits(
-        computer,
-        loc=0.0,
-        low_ini=maximum_likelihood[0] + 1.5 * sigma_mu if maximum_likelihood[0] >= 0.0 else 1.0,
-        hig_ini=maximum_likelihood[0] + 2.5 * sigma_mu if maximum_likelihood[0] >= 0.0 else 1.0,
-    )
-    return scipy.optimize.brentq(computer, low, hig, xtol=abs(low / 100.0))
+    result = []
+    index_range = {
+        "nominal": [0 if expected is ExpectationType.observed else 2],
+        "1sigma": range(1, 4),
+        "2sigma": range(0, 5),
+    }
+    for pvalue_idx in index_range[expected_pvalue]:
+        comp = partial(computer, pvalue_idx=pvalue_idx)
+        low, hig = find_root_limits(comp, loc=0.0, low_ini=low_init, hig_ini=hig_init)
+        with warnings.catch_warnings(record=True):
+            x0, r = scipy.optimize.toms748(
+                comp, low, hig, k=2, xtol=2e-12, rtol=1e-4, full_output=True
+            )
+        if not r.converged:
+            warnings.warn("Optimiser did not converge.", category=RuntimeWarning)
+        result.append(x0)
+    return result if len(result) > 1 else result[0]

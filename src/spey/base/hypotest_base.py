@@ -213,6 +213,9 @@ class HypothesisTestingBase(ABC):
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: bool = True,
         confidence_level: float = 0.95,
+        low_init: float = 1.0,
+        hig_init: float = 1.0,
+        expected_pvalue: Text = "nominal",
         **kwargs,
     ) -> float:
         """
@@ -221,21 +224,16 @@ class HypothesisTestingBase(ABC):
         :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: if true muhat is allowed to be negative
         :param confidence_level: exclusion confidence level (default 1 - CLs = 95%)
+        :param low_init (`float`, default `1.0`): initialized lower bound for bracketing.
+        :param hig_init (`float`, default `1.0`): initialised upper bound for bracketing.
+        :param expected_pvalue (`Text`, default `"nominal"`): find the upper limit for pvalue range,
+                                                        only for expected. `nominal`, `1sigma`, `2sigma`
         :param kwargs: backend specific inputs.
         :return: excluded parameter of interest
         """
-        assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
-        if hasattr(self, "backend"):
-            if hasattr(getattr(self, "backend"), "poi_upper_limit") and not kwargs.pop(
-                "overwrite", False
-            ):
-                return getattr(getattr(self, "backend"), "poi_upper_limit")(
-                    expected=expected,
-                    allow_negative_signal=allow_negative_signal,
-                    confidence_level=confidence_level,
-                    **kwargs,
-                )
+        # TODO in the future change low = muhat + 1.5 sigma_mu hig = muhat + 2.5 sigma_mu
 
+        assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
         test_stat = "q" if allow_negative_signal else "qmutilde"
 
         (
@@ -258,4 +256,7 @@ class HypothesisTestingBase(ABC):
             expected=expected,
             confidence_level=confidence_level,
             allow_negative_signal=allow_negative_signal,
+            low_init=low_init,
+            hig_init=hig_init,
+            expected_pvalue=expected_pvalue,
         )
