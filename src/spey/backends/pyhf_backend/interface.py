@@ -213,31 +213,17 @@ class PyhfInterface(BackendBase):
                         - 'trust-ncg'   :ref:`(see here) <scipy.optimize.minimize-trustncg>`
                         - 'trust-exact' :ref:`(see here) <scipy.optimize.minimize-trustexact>`
                         - 'trust-krylov' :ref:`(see here) <scipy.optimize.minimize-trustkrylov>`
-        :return: (float) likelihood
+        :return: negloglikelihood and fit parameters
         """
         # CHECK THE MODEL BOUNDS!!
         # POI Test needs to be adjusted according to the boundaries for sake of convergence
         # see issue https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579235311
         # comment https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579299831
-        execute = True
-        try:
-            _, model, data = self.model(
-                poi_test=1.0 if 0.0 <= poi_test <= 10.0 else poi_test, expected=expected
-            )
-            new_poi_test = poi_test if 0.0 <= poi_test <= 10.0 else 1.0
-        except NegativeExpectedYields as err:
-            warnings.warn(
-                err.args[0] + f"\nSetting NLL({poi_test:.3f}) = inf.",
-                category=RuntimeWarning,
-            )
-            execute = False
-
-        negloglikelihood, fit_param = np.nan, np.nan
-        if execute:
-            negloglikelihood, fit_param = fixed_poi_fit(
-                new_poi_test, data, model, iteration_threshold, options
-            )
-
+        # NOTE During tests we observed that shifting poi with respect to bounds is not needed.
+        _, model, data = self.model(expected=expected)
+        negloglikelihood, fit_param = fixed_poi_fit(
+            poi_test, data, model, iteration_threshold, options
+        )
         return negloglikelihood, np.array(fit_param)
 
     def asimov_likelihood(
