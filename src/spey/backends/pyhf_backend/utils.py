@@ -19,8 +19,8 @@ def initialise_workspace(
     background: Union[Dict, List[float]],
     nb: Optional[List[float]] = None,
     delta_nb: Optional[List[float]] = None,
-    expected: Optional[ExpectationType] = ExpectationType.observed,
-    return_full_data: Optional[bool] = False,
+    expected: ExpectationType = ExpectationType.observed,
+    return_full_data: bool = False,
 ) -> Union[
     tuple[
         Union[list, Any],
@@ -37,17 +37,22 @@ def initialise_workspace(
     """
     Construct the statistical model with respect to the given inputs.
 
-    :param signal: number of signal events or json patch
-    :param background: number of observed events or json dictionary
-    :param nb: number of expected background events (MC)
-    :param delta_nb: uncertainty on expected background events
-    :param expected: if true prepare apriori expected workspace, default False
-    :param return_full_data: if true, returns input values as well
-    :return: Workspace(can be none in simple case), model, data
+    :param signal (`Union[List[float], List[Dict]]`): number of signal events or json patch
+    :param background (`Union[Dict, List[float]]`): number of observed events or json dictionary
+    :param nb (`Optional[List[float]]`, default `None`): number of expected background events (MC).
+    :param delta_nb (`Optional[List[float]]`, default `None`): uncertainty on expected background events.
+    :param expected (`ExpectationType`, default `ExpectationType.observed`):
+                                                                    observed, apriori or aposteriori.
+    :param return_full_data (`bool`, default `False`): if true, returns input values as well.
+    :raises `InvalidInput`: if input types are not correctly initialised
+    :return `Union[ tuple[ Union[list, Any], Union[Optional[dict], Any],
+    Optional[Any], Optional[Any], Optional[Workspace], Any, Any,
+    Union[Union[int, float, complex], Any], ],
+    tuple[Optional[Workspace], Any, Any], ]`: Workspace(can be none in simple case), model, data
 
     .. code-block:: python3
 
-        workspace, model, data = initialise_workspace(3., 5., 4., 0.5)
+        >>> workspace, model, data = initialise_workspace(3., 5., 4., 0.5)
 
     above example returns a simple model with a single region.
     """
@@ -257,6 +262,10 @@ def fixed_poi_fit(
         return current_bounds
 
     bounds = model.config.suggested_bounds()
+    if bounds[model.config.poi_index][0] > mu:
+        bounds[model.config.poi_index] = (mu, bounds[model.config.poi_index][1])
+    if bounds[model.config.poi_index][1] < mu:
+        bounds[model.config.poi_index] = (bounds[model.config.poi_index][0], mu)
     it = 0
     while True:
         twice_nllh, pars = compute_nll(model, data, bounds)
