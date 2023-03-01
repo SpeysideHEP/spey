@@ -1,11 +1,13 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple, Callable, List, Text, Union
+import numpy as np
 
 from spey.hypothesis_testing.utils import (
     compute_teststatistics,
     find_poi_upper_limit,
     compute_confidence_level,
 )
+from spey.hypothesis_testing.test_statistics import get_test_statistic
 from spey.utils import ExpectationType
 
 
@@ -81,7 +83,6 @@ class HypothesisTestingBase(ABC):
     def _prepare_for_hypotest(
         self,
         expected: ExpectationType = ExpectationType.observed,
-        allow_negative_signal: bool = False,
         test_statistics: Text = "qtilde",
         **kwargs,
     ) -> Tuple[
@@ -94,12 +95,12 @@ class HypothesisTestingBase(ABC):
         Prepare necessary functions for hypothesis testing
 
         :param expected (`ExpectationType`, default `ExpectationType.observed`): _description_.
-        :param allow_negative_signal (`bool`, default `False`): _description_.
         :return `Tuple[ Callable[[], Tuple[float, float]],
         Callable[[float], float],
         Callable[[Text], Tuple[float, float]],
         Callable[[float, Text], float], ]`: _description_
         """
+        allow_negative_signal = True if test_stat in ["q" or "qmu"] else False
 
         muhat, nll = self.maximize_likelihood(
             expected=expected, allow_negative_signal=allow_negative_signal, **kwargs
@@ -122,6 +123,48 @@ class HypothesisTestingBase(ABC):
         )
 
         return (muhat, nll), logpdf, (muhatA, nllA), logpdf_asimov
+
+    def sigma_mu(
+        self,
+        poi_test: float,
+        expected: ExpectationType = ExpectationType.observed,
+        test_statistics: Text = "qmu",
+        **kwargs,
+    ) -> float:
+        r"""
+        Estimation of `\sigma_{\mu}` denoted as `\sigma_A` where
+
+        .. math::
+
+            \sigma^2_A = \frac{\mu^2}{q_{\mu,A}}
+
+        see eq. (31) in https://arxiv.org/abs/1007.1727
+
+        :param poi_test (`float`): Parameter of interest
+        :param expected (`ExpectationType`, default `ExpectationType.observed`):
+                                                                observed, apriori or aposteriori.
+        :param test_statistics (`Text`, default `"qmu"`): sets which test statistics to be used
+                                                          i.e. `"qmu"`, `"qtilde"` or `"q0"`.
+        :return `float`: deviation in POI
+        """
+        allow_negative_signal = True if test_statistics in ["q" or "qmu"] else False
+
+        teststat_func = get_test_statistic(test_statistics)
+
+        muhatA, min_nllA = self.maximize_asimov_likelihood(
+            expected=expected, test_statistics=test_statistics, **kwargs
+        )
+
+        logpdf_asimov = lambda mu: -self.asimov_likelihood(
+            poi_test=mu if isinstance(mu, float) else mu[0],
+            expected=expected,
+            test_statistics=test_statistics,
+            **kwargs,
+        )
+
+        qmuA = teststat_func(poi_test, muhatA, -min_nllA, logpdf_asimov)
+
+        return np.nan if qmuA == 0.0 else np.true_divide(poi_test, np.sqrt(qmuA))
 
     def exclusion_confidence_level(
         self,
@@ -148,7 +191,6 @@ class HypothesisTestingBase(ABC):
             logpdf_asimov,
         ) = self._prepare_for_hypotest(
             expected=expected,
-            allow_negative_signal=allow_negative_signal,
             test_statistics=test_stat,
             **kwargs,
         )
@@ -186,9 +228,7 @@ class HypothesisTestingBase(ABC):
             logpdf,
             maximum_asimov_likelihood,
             logpdf_asimov,
-        ) = self._prepare_for_hypotest(
-            expected=expected, allow_negative_signal=False, test_statistics="q0", **kwargs
-        )
+        ) = self._prepare_for_hypotest(expected=expected, test_statistics="q0", **kwargs)
 
         sqrt_q0, sqrt_q0A, delta_teststat = compute_teststatistics(
             0.0, maximum_likelihood, logpdf, maximum_asimov_likelihood, logpdf_asimov, "q0"
@@ -235,7 +275,6 @@ class HypothesisTestingBase(ABC):
             logpdf_asimov,
         ) = self._prepare_for_hypotest(
             expected=expected,
-            allow_negative_signal=allow_negative_signal,
             test_statistics=test_stat,
             **kwargs,
         )
