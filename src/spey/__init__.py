@@ -21,6 +21,7 @@ __all__ = [
 
 
 def version() -> Text:
+    """Version of the package"""
     return __version__
 
 
@@ -59,7 +60,7 @@ def get_uncorrelated_region_statistical_model(
         )
         return PyhfInterface(model=model, xsection=xsection, analysis=analysis)
 
-    elif backend == AvailableBackends.simplified_likelihoods:
+    if backend == AvailableBackends.simplified_likelihoods:
         from spey.backends.simplifiedlikelihood_backend import SLData, SimplifiedLikelihoodInterface
 
         # Convert everything to numpy array
@@ -95,11 +96,10 @@ def get_uncorrelated_region_statistical_model(
         )
         return SimplifiedLikelihoodInterface(model=model, xsection=xsection, analysis=analysis)
 
-    else:
-        raise NotImplementedError(
-            f"Requested backend ({backend}) has not been implemented. "
-            f"Currently available backends are " + ", ".join(AvailableBackends) + "."
-        )
+    raise NotImplementedError(
+        f"Requested backend ({backend}) has not been implemented. "
+        f"Currently available backends are " + ", ".join(AvailableBackends) + "."
+    )
 
 
 def get_multi_region_statistical_model(
@@ -201,7 +201,7 @@ def get_multi_region_statistical_model(
         model = PyhfDataWrapper(signal=signal, background=observed, name="pyhfModel")
         return PyhfInterface(model=model, xsection=xsection, analysis=analysis)
 
-    elif (
+    if (
         covariance is not None
         and isinstance(signal, (list, np.ndarray))
         and isinstance(observed, (list, np.ndarray))
@@ -227,5 +227,4 @@ def get_multi_region_statistical_model(
 
         return SimplifiedLikelihoodInterface(model=model, xsection=xsection, analysis=analysis)
 
-    else:
-        raise NotImplementedError("Requested backend has not been recognised.")
+    raise NotImplementedError("Requested backend has not been recognised.")
