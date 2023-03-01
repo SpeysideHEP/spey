@@ -12,6 +12,8 @@ from spey.utils import ExpectationType
 
 
 class HypothesisTestingBase(ABC):
+    """Abstract class for accomodating hypothesis testing interface"""
+
     @abstractmethod
     def likelihood(
         self,
@@ -20,7 +22,7 @@ class HypothesisTestingBase(ABC):
         return_nll: bool = True,
         **kwargs,
     ) -> float:
-        raise NotImplementedError("This method has not been implemented")
+        """Compute likelihood"""
 
     @abstractmethod
     def maximize_likelihood(
@@ -30,7 +32,7 @@ class HypothesisTestingBase(ABC):
         allow_negative_signal: bool = True,
         **kwargs,
     ) -> Tuple[float, float]:
-        raise NotImplementedError("This method has not been implemented")
+        """Compute maximum  likelihood"""
 
     @abstractmethod
     def asimov_likelihood(
@@ -41,7 +43,7 @@ class HypothesisTestingBase(ABC):
         test_statistics: Text = "qtilde",
         **kwargs,
     ) -> float:
-        raise NotImplementedError("This method has not been implemented")
+        """Compute likelihood for the asimov data"""
 
     @abstractmethod
     def maximize_asimov_likelihood(
@@ -51,7 +53,7 @@ class HypothesisTestingBase(ABC):
         test_statistics: Text = "qtilde",
         **kwargs,
     ) -> Tuple[float, float]:
-        raise NotImplementedError("This method has not been implemented")
+        """Compute maximum likelihood for asimov data"""
 
     def chi2(
         self,
@@ -100,7 +102,7 @@ class HypothesisTestingBase(ABC):
         Callable[[Text], Tuple[float, float]],
         Callable[[float, Text], float], ]`: _description_
         """
-        allow_negative_signal = True if test_stat in ["q" or "qmu"] else False
+        allow_negative_signal = True if test_statistics in ["q" or "qmu"] else False
 
         muhat, nll = self.maximize_likelihood(
             expected=expected, allow_negative_signal=allow_negative_signal, **kwargs
@@ -109,18 +111,20 @@ class HypothesisTestingBase(ABC):
             expected=expected, test_statistics=test_statistics, **kwargs
         )
 
-        logpdf = lambda mu: -self.likelihood(
-            poi_test=mu if isinstance(mu, float) else mu[0],
-            expected=expected,
-            **kwargs,
-        )
+        def logpdf(mu: Union[float, np.ndarray]) -> float:
+            return -self.likelihood(
+                poi_test=mu if isinstance(mu, float) else mu[0],
+                expected=expected,
+                **kwargs,
+            )
 
-        logpdf_asimov = lambda mu: -self.asimov_likelihood(
-            poi_test=mu if isinstance(mu, float) else mu[0],
-            expected=expected,
-            test_statistics=test_statistics,
-            **kwargs,
-        )
+        def logpdf_asimov(mu: Union[float, np.ndarray]) -> float:
+            return -self.asimov_likelihood(
+                poi_test=mu if isinstance(mu, float) else mu[0],
+                expected=expected,
+                test_statistics=test_statistics,
+                **kwargs,
+            )
 
         return (muhat, nll), logpdf, (muhatA, nllA), logpdf_asimov
 
@@ -147,20 +151,19 @@ class HypothesisTestingBase(ABC):
                                                           i.e. `"qmu"`, `"qtilde"` or `"q0"`.
         :return `float`: deviation in POI
         """
-        allow_negative_signal = True if test_statistics in ["q" or "qmu"] else False
-
         teststat_func = get_test_statistic(test_statistics)
 
         muhatA, min_nllA = self.maximize_asimov_likelihood(
             expected=expected, test_statistics=test_statistics, **kwargs
         )
 
-        logpdf_asimov = lambda mu: -self.asimov_likelihood(
-            poi_test=mu if isinstance(mu, float) else mu[0],
-            expected=expected,
-            test_statistics=test_statistics,
-            **kwargs,
-        )
+        def logpdf_asimov(mu: Union[float, np.ndarray]) -> float:
+            return -self.asimov_likelihood(
+                poi_test=mu if isinstance(mu, float) else mu[0],
+                expected=expected,
+                test_statistics=test_statistics,
+                **kwargs,
+            )
 
         qmuA = teststat_func(poi_test, muhatA, -min_nllA, logpdf_asimov)
 
@@ -242,20 +245,22 @@ class HypothesisTestingBase(ABC):
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: bool = True,
         confidence_level: float = 0.95,
-        low_init: float = 1.0,
-        hig_init: float = 1.0,
+        low_init: Optional[float] = None,
+        hig_init: Optional[float] = None,
         expected_pvalue: Text = "nominal",
         maxiter: int = 200,
         **kwargs,
     ) -> Union[float, List[float]]:
-        """
+        r"""
         Compute the upper limit on parameter of interest, described by the confidence level
 
         :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: if true muhat is allowed to be negative
         :param confidence_level: exclusion confidence level (default 1 - CLs = 95%)
-        :param low_init (`float`, default `1.0`): initialized lower bound for bracketing.
-        :param hig_init (`float`, default `1.0`): initialised upper bound for bracketing.
+        :param low_init (`Optional[float]`, default `None`): initialized lower bound for bracketing.
+                                    if None its set to `$\hat{\mu} + 1.5\sigma_\mu$`
+        :param hig_init (`Optional[float]`, default `None`): initialised upper bound for bracketing.
+                                    if None its set to `$\hat{\mu} + 2.5\sigma_\mu$`
         :param expected_pvalue (`Text`, default `"nominal"`): find the upper limit for pvalue range,
                                                         only for expected. `nominal`, `1sigma`, `2sigma`
         :param maxiter (`int`, default `200`): If convergence is not achieved in maxiter iterations,
@@ -278,6 +283,14 @@ class HypothesisTestingBase(ABC):
             test_statistics=test_stat,
             **kwargs,
         )
+
+        if None in [low_init, hig_init]:
+            muhat = maximum_likelihood[0] if maximum_likelihood[0] > 0.0 else 0.0
+            sigma_mu = self.sigma_mu(muhat, expected=expected) if muhat != 0.0 else 1.0
+            if low_init is None:
+                low_init = muhat + 1.5 * sigma_mu
+            if hig_init is None:
+                hig_init = muhat + 2.5 * sigma_mu
 
         return find_poi_upper_limit(
             maximum_likelihood=maximum_likelihood,
