@@ -15,9 +15,9 @@ class HypothesisTestingBase(ABC):
     @abstractmethod
     def likelihood(
         self,
-        poi_test: Optional[float] = 1.0,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        return_nll: Optional[bool] = True,
+        poi_test: float = 1.0,
+        expected: ExpectationType = ExpectationType.observed,
+        return_nll: bool = True,
         **kwargs,
     ) -> float:
         raise NotImplementedError("This method has not been implemented")
@@ -25,9 +25,9 @@ class HypothesisTestingBase(ABC):
     @abstractmethod
     def maximize_likelihood(
         self,
-        return_nll: Optional[bool] = True,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        allow_negative_signal: Optional[bool] = True,
+        return_nll: bool = True,
+        expected: ExpectationType = ExpectationType.observed,
+        allow_negative_signal: bool = True,
         **kwargs,
     ) -> Tuple[float, float]:
         raise NotImplementedError("This method has not been implemented")
@@ -35,9 +35,9 @@ class HypothesisTestingBase(ABC):
     @abstractmethod
     def asimov_likelihood(
         self,
-        poi_test: Optional[float] = 1.0,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        return_nll: Optional[bool] = True,
+        poi_test: float = 1.0,
+        expected: ExpectationType = ExpectationType.observed,
+        return_nll: bool = True,
         test_statistics: Text = "qtilde",
         **kwargs,
     ) -> float:
@@ -55,9 +55,9 @@ class HypothesisTestingBase(ABC):
 
     def chi2(
         self,
-        poi_test: Optional[float] = 1.0,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        allow_negative_signal: Optional[bool] = True,
+        poi_test: float = 1.0,
+        expected: ExpectationType = ExpectationType.observed,
+        allow_negative_signal: bool = True,
         **kwargs,
     ) -> float:
         r"""
@@ -164,7 +164,7 @@ class HypothesisTestingBase(ABC):
 
         qmuA = teststat_func(poi_test, muhatA, -min_nllA, logpdf_asimov)
 
-        return np.nan if qmuA == 0.0 else np.true_divide(poi_test, np.sqrt(qmuA))
+        return 1.0 if qmuA == 0.0 else np.true_divide(poi_test, np.sqrt(qmuA))
 
     def exclusion_confidence_level(
         self,
