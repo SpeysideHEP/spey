@@ -49,6 +49,7 @@ def get_uncorrelated_region_statistical_model(
     :raises NotImplementedError: If requested backend has not been recognised.
     """
     if backend == AvailableBackends.pyhf:
+        # pylint: disable=C0415
         from spey.backends.pyhf_backend import PyhfInterface, PyhfDataWrapper
 
         model = PyhfDataWrapper(
@@ -58,9 +59,12 @@ def get_uncorrelated_region_statistical_model(
             delta_nb=background_uncertainty,
             name="pyhfModel",
         )
+
+        # pylint: disable=E1123
         return PyhfInterface(model=model, xsection=xsection, analysis=analysis)
 
     if backend == AvailableBackends.simplified_likelihoods:
+        # pylint: disable=C0415
         from spey.backends.simplifiedlikelihood_backend import SLData, SimplifiedLikelihoodInterface
 
         # Convert everything to numpy array
@@ -94,6 +98,8 @@ def get_uncorrelated_region_statistical_model(
             delta_sys=0.0,
             name="SLModel",
         )
+
+        # pylint: disable=E1123
         return SimplifiedLikelihoodInterface(model=model, xsection=xsection, analysis=analysis)
 
     raise NotImplementedError(
@@ -196,9 +202,12 @@ def get_multi_region_statistical_model(
     """
 
     if isinstance(signal, list) and isinstance(signal[0], dict) and isinstance(observed, dict):
+        # pylint: disable=C0415
         from spey.backends.pyhf_backend import PyhfDataWrapper, PyhfInterface
 
         model = PyhfDataWrapper(signal=signal, background=observed, name="pyhfModel")
+
+        # pylint: disable=E1123
         return PyhfInterface(model=model, xsection=xsection, analysis=analysis)
 
     if (
@@ -206,6 +215,7 @@ def get_multi_region_statistical_model(
         and isinstance(signal, (list, np.ndarray))
         and isinstance(observed, (list, np.ndarray))
     ):
+        # pylint: disable=C0415
         from spey.backends.simplifiedlikelihood_backend import SLData, SimplifiedLikelihoodInterface
 
         # Convert everything to numpy array
@@ -225,6 +235,7 @@ def get_multi_region_statistical_model(
             name="SLModel",
         )
 
+        # pylint: disable=E1123
         return SimplifiedLikelihoodInterface(model=model, xsection=xsection, analysis=analysis)
 
     raise NotImplementedError("Requested backend has not been recognised.")
