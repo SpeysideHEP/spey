@@ -1,6 +1,6 @@
 import warnings, scipy
 import numpy as np
-from typing import Optional, List, Text, Union, Generator, Any, Tuple
+from typing import Optional, List, Text, Union, Generator, Any, Tuple, Union
 
 from spey.interface.statistical_model import StatisticalModel
 from spey.utils import ExpectationType
@@ -101,10 +101,9 @@ class StatisticsCombiner(HypothesisTestingBase):
 
     def likelihood(
         self,
-        poi_test: Optional[float] = 1.0,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        return_nll: Optional[bool] = True,
-        isAsimov: Optional[bool] = False,
+        poi_test: float = 1.0,
+        expected: ExpectationType = ExpectationType.observed,
+        return_nll: bool = True,
         **kwargs,
     ) -> float:
         """
@@ -136,15 +135,14 @@ class StatisticsCombiner(HypothesisTestingBase):
             current_kwargs.update(kwargs.get(str(statistical_model.backend_type), {}))
 
             try:
-                nll += statistical_model.backend.likelihood(
+                nll += statistical_model.likelihood(
                     poi_test=poi_test,
                     expected=expected,
-                    isAsimov=isAsimov,
                     **current_kwargs,
-                )[0]
+                )
             except NegativeExpectedYields as err:
                 warnings.warn(
-                    err.args[0] + f"\nSetting NLL({poi_test:.3f}) = inf",
+                    err.args[0] + f"\nSetting NLL({poi_test:.3f}) = nan",
                     category=RuntimeWarning,
                 )
                 nll = np.nan
@@ -154,16 +152,52 @@ class StatisticsCombiner(HypothesisTestingBase):
 
         return nll if return_nll or np.isnan(nll) else np.exp(-nll)
 
+    def asimov_likelihood(
+        self,
+        poi_test: float = 1.0,
+        expected: ExpectationType = ExpectationType.observed,
+        return_nll: bool = True,
+        test_statistics: Text = "qtilde",
+        **kwargs,
+    ) -> float:
+        """
+        Compute likelihood for the asimov data
+
+        :param poi_test (`float`, default `1.0`): parameter of interest.
+        :param expected (`ExpectationType`, default `ExpectationType.observed`):
+                                                    observed, apriori or aposteriori.
+        :param return_nll (`bool`, default `True`): if false returns likelihood value.
+        :param test_statistics (`Text`, default `"qtilde"`): test statistics.
+                    `"qmu"` or `"qtilde"` for exclusion tests `"q0"` for discovery test.
+        :return `float`: likelihood computed for asimov data
+        """
+        nll = 0.0
+        for statistical_model in self:
+
+            current_kwargs = {}
+            current_kwargs.update(kwargs.get(str(statistical_model.backend_type), {}))
+
+            nll += statistical_model.asimov_likelihood(
+                poi_test=poi_test,
+                expected=expected,
+                test_statistics=test_statistics,
+                **current_kwargs,
+            )
+
+            if np.isnan(nll):
+                break
+
+        return nll if return_nll or np.isnan(nll) else np.exp(-nll)
+
     def maximize_likelihood(
         self,
-        return_nll: Optional[bool] = True,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        allow_negative_signal: Optional[bool] = True,
-        poi_upper_bound: Optional[float] = 10.0,
-        isAsimov: Optional[bool] = False,
-        maxiter: Optional[int] = 200,
+        return_nll: bool = True,
+        expected: ExpectationType = ExpectationType.observed,
+        allow_negative_signal: bool = True,
+        poi_upper_bound: float = 10.0,
+        maxiter: int = 200,
         **kwargs,
-    ) -> Tuple[float, float, float]:
+    ) -> Tuple[float, float]:
         """
         Minimize negative log-likelihood of the statistical model with respect to POI
 
@@ -171,7 +205,6 @@ class StatisticsCombiner(HypothesisTestingBase):
         :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: if true, allow negative mu
         :param poi_upper_bound: Set upper bound for POI
-        :param isAsimov: if true, computes likelihood for Asimov data
         :param maxiter: number of iterations to be held for convergence of the fit.
         :param kwargs: model dependent arguments. In order to specify backend specific inputs
                        provide the input in the following format
@@ -197,21 +230,25 @@ class StatisticsCombiner(HypothesisTestingBase):
         This will allow keyword arguments to be chosen with respect to specific backend.
         :return: POI that minimizes the negative log-likelihood, minimum negative log-likelihood
         """
-
-        twice_nll = lambda mu: np.array(
-            [
-                2
-                * self.likelihood(
-                    mu[0], expected=expected, return_nll=True, isAsimov=isAsimov, **kwargs
-                )
-            ],
-            dtype=np.float64,
+        # muhat initial value estimation
+        _mu, _sigma_mu = np.zeros(len(self)), np.ones(len(self))
+        for idx, stat_model in enumerate(self):
+            _mu[idx] = stat_model.maximize_likelihood(expected=expected)[0]
+            _sigma_mu[idx] = stat_model.sigma_mu(_mu[idx], expected=expected)
+        mu_init = np.sum(np.power(_sigma_mu, -2)) * np.sum(
+            np.true_divide(_mu, np.square(_sigma_mu))
         )
+
+        def twice_nll(mu: Union[np.ndarray, float]) -> float:
+            """Compute twice negative log likelihood"""
+            return 2.0 * self.likelihood(
+                mu if isinstance(mu, float) else mu[0], expected=expected, **kwargs
+            )
 
         # It is possible to allow user to modify the optimiser properties in the future
         opt = scipy.optimize.minimize(
             twice_nll,
-            [0.0],
+            mu_init,
             method="SLSQP",
             bounds=[(self.minimum_poi if allow_negative_signal else 0.0, poi_upper_bound)],
             tol=1e-6,
@@ -221,6 +258,50 @@ class StatisticsCombiner(HypothesisTestingBase):
         if not opt.success:
             raise RuntimeWarning("Optimiser was not able to reach required precision.")
 
-        nll, muhat = opt.fun / 2.0, opt.x[0]
+        nll, muhat = opt.fun / 2.0, opt.x
 
-        return muhat, np.nan, nll if return_nll else np.exp(-nll)
+        return muhat, nll if return_nll else np.exp(-nll)
+
+    def maximize_asimov_likelihood(
+        self,
+        return_nll: bool = True,
+        expected: ExpectationType = ExpectationType.observed,
+        test_statistics: Text = "qtilde",
+        poi_upper_bound: float = 40.0,
+        **kwargs,
+    ) -> Tuple[float, float]:
+        """
+        Find maximum of the likelihood for the asimov data
+
+        :param expected (`ExpectationType`): observed, apriori or aposteriori,.
+            (default `ExpectationType.observed`)
+        :param return_nll (`bool`): if false, likelihood value is returned.
+            (default `True`)
+        :param test_statistics (`Text`): test statistics. `"qmu"` or `"qtilde"` for exclusion
+                                     tests `"q0"` for discovery test. (default `"qtilde"`)
+        :return `Tuple[float, float]`: muhat, negative log-likelihood
+        """
+        allow_negative_signal: bool = True if test_statistics in ["q", "qmu"] else False
+
+        def twice_nll(mu: Union[np.ndarray, float]) -> float:
+            """Compute twice negative log likelihood"""
+            return 2.0 * self.asimov_likelihood(
+                mu if isinstance(mu, float) else mu[0], expected=expected, **kwargs
+            )
+
+        # It is possible to allow user to modify the optimiser properties in the future
+        opt = scipy.optimize.minimize(
+            twice_nll,
+            [0.0],
+            method="SLSQP",
+            bounds=[(self.minimum_poi if allow_negative_signal else 0.0, poi_upper_bound)],
+            tol=1e-6,
+            options={"maxiter": 10000},
+        )
+
+        if not opt.success:
+            raise RuntimeWarning("Optimiser was not able to reach required precision.")
+
+        nll, muhat = opt.fun / 2.0, opt.x
+
+        return muhat, nll if return_nll else np.exp(-nll)
