@@ -1,4 +1,6 @@
-from typing import Optional, Text, Tuple, List, Callable, Any
+"""Statistical Model wrapper class"""
+
+from typing import Optional, Text, Tuple
 from functools import wraps
 
 import numpy as np
@@ -43,6 +45,7 @@ class StatisticalModel(HypothesisTestingBase):
 
     @property
     def backend_type(self) -> AvailableBackends:
+        """Return type of the backend"""
         return self.backend.type
 
     def excluded_cross_section(
@@ -86,7 +89,7 @@ class StatisticalModel(HypothesisTestingBase):
         :param kwargs: backend specific inputs.
         :return: (float) likelihood
         """
-        negloglikelihood, fit_param = self.backend.likelihood(
+        negloglikelihood, _ = self.backend.likelihood(
             poi_test=poi_test, expected=expected, **kwargs
         )
         return negloglikelihood if return_nll else np.exp(-negloglikelihood)
@@ -141,8 +144,8 @@ class StatisticalModel(HypothesisTestingBase):
 
     def maximize_asimov_likelihood(
         self,
-        expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
+        expected: ExpectationType = ExpectationType.observed,
         test_statistics: Text = "qtilde",
         **kwargs,
     ) -> Tuple[float, float]:
@@ -166,7 +169,7 @@ class StatisticalModel(HypothesisTestingBase):
 
 def statistical_model_wrapper(func: BackendBase) -> StatisticalModel:
     """
-    Wrapper for statistical model backends. Converts a backend base type statistical 
+    Wrapper for statistical model backends. Converts a backend base type statistical
     model into `StatisticalModel` instance.
 
     :param func (`BackendBase`): Statistical model described in one of the backends
