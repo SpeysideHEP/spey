@@ -268,8 +268,6 @@ class HypothesisTestingBase(ABC):
         :param kwargs: backend specific inputs.
         :return: excluded parameter of interest
         """
-        # TODO in the future change low = muhat + 1.5 sigma_mu hig = muhat + 2.5 sigma_mu
-
         assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
         test_stat = "q" if allow_negative_signal else "qmutilde"
 
