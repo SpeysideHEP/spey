@@ -1,3 +1,5 @@
+from typing import Dict, Union, Optional, Tuple, List, Text, Any
+
 import pyhf, logging, warnings, copy
 import numpy as np
 
@@ -5,7 +7,6 @@ from pyhf import Workspace
 
 from spey.utils import ExpectationType
 from spey.system.exceptions import InvalidInput
-from typing import Dict, Union, Optional, Tuple, List, Text, Any
 
 pyhf.pdf.log.setLevel(logging.CRITICAL)
 pyhf.workspace.log.setLevel(logging.CRITICAL)

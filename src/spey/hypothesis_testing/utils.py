@@ -45,7 +45,7 @@ def pvalues(
     sig_plus_bkg_distribution: AsymptoticTestStatisticsDistribution,
     bkg_only_distribution: AsymptoticTestStatisticsDistribution,
 ) -> Tuple[float, float, float]:
-    """
+    r"""
     Calculate the :math:`p`-values for the observed test statistic under the
     signal + background and background-only model hypotheses.
 
@@ -66,7 +66,7 @@ def expected_pvalues(
     sig_plus_bkg_distribution: AsymptoticTestStatisticsDistribution,
     bkg_only_distribution: AsymptoticTestStatisticsDistribution,
 ) -> List[List]:
-    """
+    r"""
     Calculate the `\mathrm{CL}_{s}` values corresponding to the
     median significance of variations of the signal strength from the
     background only hypothesis `\left(\mu=0\right)` at
