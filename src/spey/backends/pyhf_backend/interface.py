@@ -1,16 +1,16 @@
-import copy, logging, pyhf
 from typing import Dict, Optional, Tuple, List, Text
+import copy, logging, pyhf
 import numpy as np
 
 from pyhf.infer.calculators import generate_asimov_data
 
 from spey.utils import ExpectationType
 from spey.base.backend_base import BackendBase, DataBase
-from .utils import fixed_poi_fit, compute_min_negloglikelihood
-from .pyhfdata import PyhfData
 from spey.backends import AvailableBackends
 from spey.base.recorder import Recorder
 from spey.interface.statistical_model import statistical_model_wrapper
+from .utils import fixed_poi_fit, compute_min_negloglikelihood
+from .pyhfdata import PyhfData
 
 __all__ = ["PyhfInterface"]
 
@@ -165,18 +165,13 @@ class PyhfInterface(BackendBase):
 
         return model.logpdf(complete_pars, data).astype(np.float32)[0]
 
-    def sigma_mu(
-        self, pars: np.ndarray, expected: Optional[ExpectationType] = ExpectationType.observed
-    ) -> float:
-        """Currently not implemented"""
-        return 1.0
-
     def likelihood(
         self,
-        poi_test: Optional[float] = 1.0,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        iteration_threshold: Optional[int] = 3,
+        poi_test: float = 1.0,
+        expected: ExpectationType = ExpectationType.observed,
+        iteration_threshold: int = 3,
         options: Optional[Dict] = None,
+        **kwargs,
     ) -> Tuple[float, np.ndarray]:
         """
         Compute  likelihood of the given statistical model
@@ -226,11 +221,12 @@ class PyhfInterface(BackendBase):
 
     def asimov_likelihood(
         self,
-        poi_test: Optional[float] = 1.0,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
+        poi_test: float = 1.0,
+        expected: ExpectationType = ExpectationType.observed,
         test_statistics: Text = "qtilde",
-        iteration_threshold: Optional[int] = 3,
+        iteration_threshold: int = 3,
         options: Optional[Dict] = None,
+        **kwargs,
     ) -> Tuple[float, np.ndarray]:
         """
         Compute likelihood for the asimov data
@@ -257,9 +253,10 @@ class PyhfInterface(BackendBase):
 
     def maximize_likelihood(
         self,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        allow_negative_signal: Optional[bool] = True,
-        iteration_threshold: Optional[int] = 3,
+        expected: ExpectationType = ExpectationType.observed,
+        allow_negative_signal: bool = True,
+        iteration_threshold: int = 3,
+        **kwargs,
     ) -> Tuple[float, np.ndarray]:
         """
         Find the POI that maximizes the likelihood and the value of the maximum likelihood
@@ -280,6 +277,7 @@ class PyhfInterface(BackendBase):
         expected: ExpectationType = ExpectationType.observed,
         test_statistics: Text = "qtilde",
         iteration_threshold: int = 3,
+        **kwargs,
     ) -> Tuple[float, np.ndarray]:
         """
         Compute maximum of the likelihood for the asimov data
@@ -308,8 +306,8 @@ class PyhfInterface(BackendBase):
     def exclusion_confidence_level(
         self,
         poi_test: float = 1.0,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        allow_negative_signal: Optional[bool] = True,
+        expected: ExpectationType = ExpectationType.observed,
+        allow_negative_signal: bool = True,
         iteration_threshold: int = 3,
     ) -> List[float]:
         """
@@ -381,39 +379,3 @@ class PyhfInterface(BackendBase):
                 return [1.0] if expected == ExpectationType.observed else [1.0] * 5
 
         return CLs["CLs_obs" if expected == ExpectationType.observed else "CLs_exp"]
-
-    # def poi_upper_limit(
-    #     self,
-    #     expected: Optional[ExpectationType] = ExpectationType.observed,
-    #     confidence_level: float = 0.95,
-    #     allow_negative_signal: Optional[bool] = True,
-    #     **kwargs,
-    # ) -> float:
-    #     """
-    #     Compute the POI where the signal is excluded with 95% CL
-
-    #     :param expected: observed, apriori or aposteriori
-    #     :param confidence_level: confidence level (default 95%)
-    #     :param allow_negative_signal: if true, allow negative mu
-    #     :return: mu
-    #     """
-    #     assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
-
-    #     def computer(poi_test: float) -> float:
-    #         CLs = self.exclusion_confidence_level(
-    #             expected=expected, poi_test=poi_test, allow_negative_signal=allow_negative_signal
-    #         )
-    #         return CLs[0 if expected == ExpectationType.observed else 2] - confidence_level
-
-    #     muhat, nllmin = self.maximize_likelihood(
-    #         expected=expected, allow_negative_signal=allow_negative_signal
-    #     )
-
-    #     low, hig = find_root_limits(
-    #         computer,
-    #         loc=0.0,
-    #         low_ini=muhat + 1.5 if muhat >= 0.0 else 1.0,
-    #         hig_ini=muhat + 2.5 if muhat >= 0.0 else 1.0,
-    #     )
-
-    #     return scipy.optimize.brentq(computer, low, hig, xtol=low / 100.0)

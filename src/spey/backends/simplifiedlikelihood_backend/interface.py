@@ -123,21 +123,6 @@ class SimplifiedLikelihoodInterface(BackendBase):
             third_moment_expansion=self.third_moment_expansion,
         )
 
-    def sigma_mu(
-        self, pars: np.ndarray, expected: Optional[ExpectationType] = ExpectationType.observed
-    ) -> float:
-        """
-        Compute uncertainty on parameter of interest
-
-        :param pars: nuisance parameters
-        :param expected: observed, apriori or aposteriori
-        :return: sigma mu
-        """
-        current_model: SLData = (
-            self.model if expected != ExpectationType.apriori else self.model.expected_dataset
-        )
-        return compute_sigma_mu(current_model, pars, self.third_moment_expansion)
-
     def likelihood(
         self,
         poi_test: Optional[float] = 1.0,

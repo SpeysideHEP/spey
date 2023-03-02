@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Text, Tuple
+from typing import Text, Tuple
 
 import numpy as np
 
@@ -21,13 +21,11 @@ class DataBase(ABC):
     def minimum_poi(self) -> float:
         """Find minimum POI test that can be applied to this statistical model"""
         # This method must be casted as property
-        raise NotImplementedError("This method has not been implemented")
 
     @property
     @abstractmethod
     def poi_index(self) -> int:
         """Return the index of the parameter of interest withing nuisance parameters"""
-        raise NotImplementedError("This method has not been implemented")
 
 
 class BackendBase(ABC):
@@ -42,20 +40,18 @@ class BackendBase(ABC):
     def model(self) -> DataBase:
         """Get statistical model"""
         # This method must be casted as property
-        raise NotImplementedError("This method has not been implemented")
 
     @property
     @abstractmethod
     def type(self) -> AvailableBackends:
         """Type of the backend"""
         # This method must be casted as property
-        raise NotImplementedError("This method has not been implemented")
 
     @abstractmethod
     def likelihood(
         self,
-        poi_test: Optional[float] = 1.0,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
+        poi_test: float = 1.0,
+        expected: ExpectationType = ExpectationType.observed,
         **kwargs,
     ) -> Tuple[float, np.ndarray]:
         """
@@ -68,33 +64,31 @@ class BackendBase(ABC):
         :param kwargs: backend specific inputs
         :return: (float) likelihood
         """
-        raise NotImplementedError("This method has not been implemented")
 
     @abstractmethod
     def asimov_likelihood(
         self,
-        poi_test: Optional[float] = 1.0,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
+        poi_test: float = 1.0,
+        expected: ExpectationType = ExpectationType.observed,
         test_statistics: Text = "qtilde",
         **kwargs,
-        ) -> Tuple[float, np.ndarray]:
+    ) -> Tuple[float, np.ndarray]:
         """
         Compute likelihood for the asimov data
 
-        :param Optional[float] poi_test: parameter of interest, defaults to 1.0
-        :param Optional[ExpectationType] expected: observed, apriori or aposteriori.
+        :param float poi_test: parameter of interest, defaults to 1.0
+        :param ExpectationType expected: observed, apriori or aposteriori.
                                                    defaults to ExpectationType.observed
         :param Text test_statistics: test statistics. `"qmu"` or `"qtilde"` for exclusion
                                      tests `"q0"` for discovery test, defaults to `"qtilde"`.
         :return Tuple[float, np.ndarray]: negative log-likelihood, fit parameters
         """
-        raise NotImplementedError("This method has not been implemented")
 
     @abstractmethod
     def maximize_likelihood(
         self,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        allow_negative_signal: Optional[bool] = True,
+        expected: ExpectationType = ExpectationType.observed,
+        allow_negative_signal: bool = True,
         **kwargs,
     ) -> Tuple[float, np.ndarray]:
         """
@@ -105,30 +99,19 @@ class BackendBase(ABC):
         :param kwargs: backend specific inputs
         :return: muhat, maximum of the likelihood
         """
-        raise NotImplementedError("This method has not been implemented")
 
     @abstractmethod
     def maximize_asimov_likelihood(
         self,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
+        expected: ExpectationType = ExpectationType.observed,
         test_statistics: Text = "qtilde",
         **kwargs,
     ) -> Tuple[float, np.ndarray]:
         """
         Compute maximum likelihood for asimov data
 
-        :param Optional[ExpectationType] expected: observed, apriori or aposteriori, 
-                                                   defaults to ExpectationType.observed
-        :param Optional[bool] allow_negative_signal: alow negative POI values during fit, defaults to True
-        :param Text test_statistics: test statistics. `"qmu"` or `"qtilde"` for exclusion
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori or aposteriori.
+        :param test_statistics (`Text`, default `"qtilde"`): test statistics. `"qmu"` or `"qtilde"` for exclusion
                                      tests `"q0"` for discovery test, defaults to `"qtilde"`.
-        :return Tuple[float, np.ndarray, float]: maximum negative log-likelihood, fit parameters
+        :return `Tuple[float, np.ndarray]`: maximum negative log-likelihood, fit parameters
         """
-        raise NotImplementedError("This method has not been implemented")
-
-    @abstractmethod
-    def sigma_mu(
-        self, pars: np.ndarray, expected: Optional[ExpectationType] = ExpectationType.observed
-    ) -> float:
-        """Compute uncertainty on parameter of interest"""
-        raise NotImplementedError("This method has not been implemented")
