@@ -6,7 +6,7 @@ from spey.utils import ExpectationType
 from spey.backends import AvailableBackends
 from spey.interface.statistical_model import statistical_model_wrapper
 from .sldata import SLData, expansion_output
-from .utils import fit, twice_nll, compute_sigma_mu
+from .utils import fit, twice_nll
 from .utils_marginalised import marginalised_negloglikelihood
 
 __all__ = ["SimplifiedLikelihoodInterface"]
