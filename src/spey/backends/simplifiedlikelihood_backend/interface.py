@@ -2,12 +2,12 @@ from typing import Optional, Tuple, Text
 import numpy as np
 
 from spey.base.backend_base import BackendBase, DataBase
-from .sldata import SLData, expansion_output
-from .utils import fit, twice_nll, compute_sigma_mu
-from .utils_marginalised import marginalised_negloglikelihood
 from spey.utils import ExpectationType
 from spey.backends import AvailableBackends
 from spey.interface.statistical_model import statistical_model_wrapper
+from .sldata import SLData, expansion_output
+from .utils import fit, twice_nll, compute_sigma_mu
+from .utils_marginalised import marginalised_negloglikelihood
 
 __all__ = ["SimplifiedLikelihoodInterface"]
 
@@ -144,6 +144,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         expected: Optional[ExpectationType] = ExpectationType.observed,
         marginalize: Optional[bool] = False,
         poi_upper_bound: float = 40.0,
+        **kwargs,
     ) -> Tuple[float, np.ndarray]:
         """
         Compute the likelihood for the statistical model with a given POI
@@ -164,14 +165,12 @@ class SimplifiedLikelihoodInterface(BackendBase):
                 poi_test, current_model, self.third_moment_expansion, self.ntoys
             )
             return nll, np.nan
-        else:
-            init_pars = [poi_test] + [0.0] * len(current_model)
-            par_bounds = [(current_model.minimum_poi, poi_upper_bound)] + [(-5.0, 5.0)] * len(
-                current_model
-            )
-            nll, pars = fit(
-                current_model, init_pars, par_bounds, poi_test, self.third_moment_expansion
-            )
+
+        init_pars = [poi_test] + [0.0] * len(current_model)
+        par_bounds = [(current_model.minimum_poi, poi_upper_bound)] + [(-5.0, 5.0)] * len(
+            current_model
+        )
+        nll, pars = fit(current_model, init_pars, par_bounds, poi_test, self.third_moment_expansion)
 
         return nll, np.array(pars)
 
@@ -181,6 +180,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         expected: Optional[ExpectationType] = ExpectationType.observed,
         test_statistics: Text = "qtilde",
         poi_upper_bound: float = 40.0,
+        **kwargs,
     ) -> Tuple[float, np.ndarray]:
         """
         compute likelihood for the asimov data
@@ -208,6 +208,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
         poi_upper_bound: float = 40.0,
+        **kwargs,
     ) -> Tuple[float, np.ndarray]:
         """
         Minimize negative log-likelihood of the statistical model with respect to POI
@@ -239,6 +240,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         expected: ExpectationType = ExpectationType.observed,
         test_statistics: Text = "qtilde",
         poi_upper_bound: float = 40.0,
+        **kwargs,
     ) -> Tuple[float, np.ndarray]:
         """
         Compute maximum likelihood for asimov data

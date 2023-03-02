@@ -285,10 +285,8 @@ class HypothesisTestingBase(ABC):
         if None in [low_init, hig_init]:
             muhat = maximum_likelihood[0] if maximum_likelihood[0] > 0.0 else 0.0
             sigma_mu = self.sigma_mu(muhat, expected=expected) if muhat != 0.0 else 1.0
-            if low_init is None:
-                low_init = muhat + 1.5 * sigma_mu
-            if hig_init is None:
-                hig_init = muhat + 2.5 * sigma_mu
+            low_init = muhat + 1.5 * sigma_mu if not low_init else low_init
+            hig_init = muhat + 2.5 * sigma_mu if not hig_init else hig_init
 
         return find_poi_upper_limit(
             maximum_likelihood=maximum_likelihood,
