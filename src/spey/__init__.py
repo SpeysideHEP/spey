@@ -1,11 +1,11 @@
-from .utils import ExpectationType
 from typing import Text, Union, List, Dict, Optional
 import numpy as np
 
-from .backends import AvailableBackends
 from spey.interface.statistical_model import StatisticalModel
-from spey.combiner.statistics_combiner import StatisticsCombiner
+from spey.combiner import StatisticsCombiner
 from spey.base.recorder import Recorder
+from .utils import ExpectationType
+from .backends import AvailableBackends
 from ._version import __version__
 
 __all__ = [

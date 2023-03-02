@@ -1,6 +1,6 @@
+from typing import List, Text, Generator, Any, Tuple, Union
 import warnings, scipy
 import numpy as np
-from typing import Optional, List, Text, Union, Generator, Any, Tuple, Union
 
 from spey.interface.statistical_model import StatisticalModel
 from spey.utils import ExpectationType
@@ -21,7 +21,7 @@ class StatisticsCombiner(HypothesisTestingBase):
     __slots__ = ["_statistical_models", "_recorder"]
 
     def __init__(self, *args):
-        self._statistical_models = list()
+        self._statistical_models = []
         self._recorder = Recorder()
         for arg in args:
             self.append(arg)
@@ -48,8 +48,7 @@ class StatisticsCombiner(HypothesisTestingBase):
                 to_remove = model
         if to_remove is None:
             raise AnalysisQueryError(f"'{analysis}' is not among the analyses.")
-        else:
-            self._statistical_models.remove(to_remove)
+        self._statistical_models.remove(to_remove)
 
     @property
     def statistical_models(self) -> List[StatisticalModel]:
@@ -71,8 +70,7 @@ class StatisticsCombiner(HypothesisTestingBase):
         if isinstance(item, int):
             if item < len(self):
                 return self.statistical_models[item]
-            else:
-                raise AnalysisQueryError(f"Request exceeds number of statistical models available.")
+            raise AnalysisQueryError("Request exceeds number of statistical models available.")
 
         for model in self:
             if model.analysis == item:
