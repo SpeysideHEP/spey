@@ -167,7 +167,7 @@ class HypothesisTestingBase(ABC):
 
         qmuA = teststat_func(poi_test, muhatA, -min_nllA, logpdf_asimov)
 
-        return 1.0 if qmuA == 0.0 else np.true_divide(poi_test, np.sqrt(qmuA))
+        return 1.0 if qmuA <= 0.0 else np.true_divide(poi_test, np.sqrt(qmuA))
 
     def exclusion_confidence_level(
         self,

@@ -131,7 +131,7 @@ def find_poi_upper_limit(
     low_init: float = 1.0,
     hig_init: float = 1.0,
     expected_pvalue: Text = "nominal",
-    maxiter: int = 200,
+    maxiter: int = 10000,
 ) -> Union[float, List[float]]:
     """
     Compute the upper limit on parameter of interest, described by the confidence level
@@ -161,6 +161,10 @@ def find_poi_upper_limit(
     if expected is ExpectationType.observed:
         expected_pvalue = "nominal"
     test_stat = "q" if allow_negative_signal else "qtilde"
+
+    # make sure that initial values are not nan or None
+    low_init = 1.0 if not low_init or not np.isnan(low_init) else low_init
+    hig_init = 1.0 if not hig_init or not np.isnan(hig_init) else hig_init
 
     def computer(poi_test: float, pvalue_idx: int) -> float:
         """Compute 1 - CLs(POI) = `confidence_level`"""
