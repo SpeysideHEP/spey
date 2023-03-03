@@ -116,7 +116,7 @@ class PyhfInterface(BackendBase):
         asimov_data = self._asimov_nuisance.get(asimov_nuisance_key, False)
         if asimov_data is False:
             asimov_data = generate_asimov_data(
-                0.0 if test_statistics in ["q", "qmu", "qtilde"] else 1.0,
+                1.0 if test_statistics == "q0" else 0.0,
                 data,
                 model,
                 model.config.suggested_init(),

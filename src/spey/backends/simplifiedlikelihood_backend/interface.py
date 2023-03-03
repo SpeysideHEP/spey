@@ -88,7 +88,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
                 model,
                 init_pars,
                 par_bounds,
-                0.0 if test_statistics in ["q", "qmu", "qtilde"] else 1.0,
+                1.0 if test_statistics == "q0" else 0.0,
                 self.third_moment_expansion,
             )
             self._asimov_nuisance[asimov_nuisance_key] = pars
