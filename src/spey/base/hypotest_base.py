@@ -269,7 +269,17 @@ class HypothesisTestingBase(ABC):
         :return: excluded parameter of interest
         """
         assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
+        assert expected_pvalue in [
+            "nominal",
+            "1sigma",
+            "2sigma",
+        ], f"Unknown `expected_pvalue`: {expected_pvalue}"
         test_stat = "q" if allow_negative_signal else "qmutilde"
+
+        if not self.backend.model.isAlive:
+            return {"nominal": np.inf, "1sigma": [np.inf] * 3, "2sigma": [np.inf] * 5}[
+                expected_pvalue
+            ]
 
         (
             maximum_likelihood,
