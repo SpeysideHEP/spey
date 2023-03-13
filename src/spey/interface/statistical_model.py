@@ -92,6 +92,8 @@ class StatisticalModel(HypothesisTestingBase):
         :param expected: observed, apriori or aposteriori
         :param return_nll: if true returns negative log-likelihood value
         :param kwargs: backend specific inputs.
+            :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
+            :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
         :return: (float) likelihood
         """
         negloglikelihood, _ = self.backend.likelihood(
@@ -116,6 +118,9 @@ class StatisticalModel(HypothesisTestingBase):
         :param return_nll (`bool`): if false returns likelihood value. (default `True`)
         :param test_statistics (`Text`): test statistics. `"qmu"` or `"qtilde"` for exclusion
                                      tests `"q0"` for discovery test. (default `"qtilde"`)
+        :param kwargs: backend specific inputs.
+            :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
+            :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
         :return float: likelihood computed for asimov data
         """
         negloglikelihood, _ = self.backend.asimov_likelihood(
@@ -137,6 +142,8 @@ class StatisticalModel(HypothesisTestingBase):
         :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: allow negative POI
         :param kwargs: backend specific inputs.
+            :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
+            :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
         :return: muhat, maximum of the likelihood
         """
         negloglikelihood, fit_param = self.backend.maximize_likelihood(
@@ -144,7 +151,7 @@ class StatisticalModel(HypothesisTestingBase):
             allow_negative_signal=allow_negative_signal,
             **kwargs,
         )
-        muhat = fit_param[self.backend.model.poi_index]
+        muhat = fit_param[self.backend.model.config().poi_index]
         return muhat, negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
     def maximize_asimov_likelihood(
@@ -163,12 +170,15 @@ class StatisticalModel(HypothesisTestingBase):
             (default `True`)
         :param test_statistics (`Text`): test statistics. `"qmu"` or `"qtilde"` for exclusion
                                      tests `"q0"` for discovery test. (default `"qtilde"`)
+        :param kwargs: backend specific inputs.
+            :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
+            :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
         :return `Tuple[float, float]`: muhat, negative log-likelihood
         """
         negloglikelihood, fit_param = self.backend.maximize_asimov_likelihood(
             expected=expected, test_statistics=test_statistics, **kwargs
         )
-        muhat: float = fit_param[self.backend.model.poi_index]
+        muhat: float = fit_param[self.backend.model.config().poi_index]
         return muhat, negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
 

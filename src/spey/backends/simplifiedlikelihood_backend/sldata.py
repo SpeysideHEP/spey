@@ -7,7 +7,7 @@ from collections import namedtuple
 import numpy as np
 
 from spey.system.exceptions import NegativeExpectedYields
-from spey.base.backend_base import DataBase
+from spey.base import DataBase, ModelConfig
 
 __all__ = ["SLData", "expansion_output"]
 
@@ -110,9 +110,24 @@ class SLData(DataBase):
             name,
         )
 
-    @property
-    def poi_index(self) -> int:
-        return 0
+    def config(
+        self, allow_negative_signal: bool = True, poi_upper_bound: float = 40.0
+    ) -> ModelConfig:
+        """
+        Configuration of the statistical model
+
+        :param allow_negative_signal (`bool`, default `True`): if the negative POI is allowed during fits.
+        :param poi_upper_bound (`float`, default `40.0`): sets the upper bound for POI
+        :return `ModelConfig`: Configuration information of the model.
+        """
+        minimum_poi = self.minimum_poi
+        return ModelConfig(
+            poi_index=0,
+            minimum_poi=minimum_poi,
+            suggested_init=[1] * (len(self) + 1),
+            suggested_bounds=[(minimum_poi if allow_negative_signal else 0.0, poi_upper_bound)]
+            + [(-5.0, 5.0)] * len(self),
+        )
 
     @property
     def expected_dataset(self):

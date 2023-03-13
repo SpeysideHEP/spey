@@ -101,7 +101,7 @@ class PyhfData(DataBase):
         :param poi_upper_bound (` Optional[float]`, default `None`): sets the upper bound for POI
         :return `ModelConfig`: Configuration information of the model.
         """
-        bounds = self._model.config.suggested_bounds
+        bounds = self._model.config.suggested_bounds()
         bounds[self._model.config.poi_index] = (
             self._minimum_poi if allow_negative_signal else 0.0,
             bounds[self._model.config.poi_index][1] if not poi_upper_bound else poi_upper_bound,
@@ -109,7 +109,7 @@ class PyhfData(DataBase):
         return ModelConfig(
             poi_index=self._model.config.poi_index,
             minimum_poi=self._minimum_poi,
-            suggested_init=self._model.config.suggested_init,
+            suggested_init=self._model.config.suggested_init(),
             suggested_bounds=bounds,
         )
 

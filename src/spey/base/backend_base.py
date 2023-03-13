@@ -7,6 +7,7 @@ import numpy as np
 
 from spey.utils import ExpectationType
 from spey.backends import AvailableBackends
+from .model_config import ModelConfig
 
 
 __all__ = ["BackendBase", "DataBase"]
@@ -26,14 +27,21 @@ class DataBase(ABC):
 
     @property
     @abstractmethod
-    def poi_index(self) -> int:
-        """Return the index of the parameter of interest withing nuisance parameters"""
-
-    @property
-    @abstractmethod
     def isAlive(self) -> bool:
         """Does the statitical model has any non-zero signal events?"""
         # This method has to be a property
+
+    @abstractmethod
+    def config(
+        self, allow_negative_signal: bool = True, poi_upper_bound: float = 40.0
+    ) -> ModelConfig:
+        """
+        Configuration of the statistical model
+
+        :param allow_negative_signal (`bool`, default `True`): if the negative POI is allowed during fits.
+        :param poi_upper_bound (`float`, default `40.0`): sets the upper bound for POI
+        :return `ModelConfig`: Configuration information of the model.
+        """
 
 
 class BackendBase(ABC):
