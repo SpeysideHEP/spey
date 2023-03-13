@@ -1,7 +1,10 @@
-import numpy as np
+"""Data structure for Simplified Likelihood interface"""
+
 from dataclasses import dataclass
 from typing import Text, Optional
 from collections import namedtuple
+
+import numpy as np
 
 from spey.system.exceptions import NegativeExpectedYields
 from spey.base.backend_base import DataBase
@@ -181,6 +184,7 @@ class SLData(DataBase):
         rho = np.tril(rho) + np.triu(rho.T, 1)
 
         V: np.ndarray = np.zeros(shape=(len(B), len(B)))
+        # pylint: disable=C0200
         for idx in range(len(B)):
             for idy in range(idx, len(B)):
                 T = B[idx] * B[idy] * rho[idx][idy]

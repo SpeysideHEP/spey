@@ -1,3 +1,5 @@
+"""Abstract Methods for backend objects"""
+
 from abc import ABC, abstractmethod
 from typing import Text, Tuple
 
@@ -26,6 +28,12 @@ class DataBase(ABC):
     @abstractmethod
     def poi_index(self) -> int:
         """Return the index of the parameter of interest withing nuisance parameters"""
+
+    @property
+    @abstractmethod
+    def isAlive(self):
+        """Does the statitical model has any non-zero signal events?"""
+        # This method has to be a property
 
 
 class BackendBase(ABC):
