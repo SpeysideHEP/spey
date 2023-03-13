@@ -31,7 +31,7 @@ class DataBase(ABC):
 
     @property
     @abstractmethod
-    def isAlive(self):
+    def isAlive(self) -> bool:
         """Does the statitical model has any non-zero signal events?"""
         # This method has to be a property
 
