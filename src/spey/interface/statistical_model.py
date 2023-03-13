@@ -48,6 +48,11 @@ class StatisticalModel(HypothesisTestingBase):
         """Return type of the backend"""
         return self.backend.type
 
+    @property
+    def isAlive(self) -> bool:
+        """Is the statistical model has non-zero signal yields in any region"""
+        return self.backend.model.isAlive
+
     def excluded_cross_section(
         self, expected: Optional[ExpectationType] = ExpectationType.observed
     ) -> float:

@@ -174,14 +174,14 @@ class PyhfData(DataBase):
             if isinstance(signal, np.ndarray):
                 if np.any(signal + self.background < 0.0):
                     raise NegativeExpectedYields(
-                        f"PyhfInterface::Statistical model involves negative expected bin yields. "
-                        f"Bin value: "
+                        "PyhfInterface::Statistical model involves negative expected bin yields. "
+                        "Bin value: "
                         + ", ".join([f"{x:.3f}" for x in (signal + self.background).tolist()])
                     )
             else:
                 for channel in model.spec.get("channels", []):
                     current: Union[np.ndarray, None] = None
-                    for idx, ch in enumerate(channel.get("samples", [])):
+                    for ch in channel.get("samples", []):
                         is_valid: bool = "data" in ch.keys()
                         if current is None and is_valid:
                             current = np.array(ch["data"], dtype=np.float32)
@@ -202,12 +202,12 @@ class PyhfData(DataBase):
         """Does the statitical model has any non-zero signal events?"""
         if isinstance(self.signal, np.ndarray):
             return np.any(self.signal > 0.0)
-        else:
-            for channel in self.signal:
-                if channel.get("value", False):
-                    if np.any([nsig > 0.0 for nsig in channel["value"].get("data", list())]):
-                        return True
-            return False
+
+        for channel in self.signal:
+            if channel.get("value", False):
+                if np.any([nsig > 0.0 for nsig in channel["value"].get("data", list())]):
+                    return True
+        return False
 
     @property
     def minimum_poi(self):

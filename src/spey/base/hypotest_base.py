@@ -14,6 +14,12 @@ from spey.utils import ExpectationType
 class HypothesisTestingBase(ABC):
     """Abstract class for accomodating hypothesis testing interface"""
 
+    @property
+    @abstractmethod
+    def isAlive(self) -> bool:
+        """Is the statistical model has non-zero signal yields in any region"""
+        # This method has to be a property
+
     @abstractmethod
     def likelihood(
         self,
@@ -252,7 +258,10 @@ class HypothesisTestingBase(ABC):
         **kwargs,
     ) -> Union[float, List[float]]:
         r"""
-        Compute the upper limit on parameter of interest, described by the confidence level
+        Compute the upper limit on parameter of interest, described by the confidence level.
+        The algorithm will return infinity if the signal yields in all the regions are zero.
+        This means that the algorithm is not able to set a bound with the given information.
+
 
         :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: if true muhat is allowed to be negative
@@ -269,14 +278,12 @@ class HypothesisTestingBase(ABC):
         :return: excluded parameter of interest
         """
         assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
-        assert expected_pvalue in [
-            "nominal",
-            "1sigma",
-            "2sigma",
-        ], f"Unknown `expected_pvalue`: {expected_pvalue}"
+        expected_pvalue = "nominal" if expected == ExpectationType.observed else expected_pvalue
         test_stat = "q" if allow_negative_signal else "qmutilde"
 
-        if not self.backend.model.isAlive:
+        # If the signal yields in all regions are zero then return inf.
+        # This means we are not able to set a bound with the given information.
+        if not self.isAlive:
             return {"nominal": np.inf, "1sigma": [np.inf] * 3, "2sigma": [np.inf] * 5}[
                 expected_pvalue
             ]

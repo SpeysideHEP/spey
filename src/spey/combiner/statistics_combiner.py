@@ -63,7 +63,12 @@ class StatisticsCombiner(HypothesisTestingBase):
     @property
     def minimum_poi(self) -> float:
         """Find minimum POI test that can be applied to this statistical model"""
-        return max([model.backend.model.minimum_poi for model in self])
+        return max(model.backend.model.minimum_poi for model in self)
+
+    @property
+    def isAlive(self) -> bool:
+        """Is there any statistical model with non-zero signal yields in any region"""
+        return any(model.isAlive for model in self)
 
     def __getitem__(self, item: Union[Text, int]) -> StatisticalModel:
         """Retrieve a statistical model"""
@@ -71,6 +76,8 @@ class StatisticsCombiner(HypothesisTestingBase):
             if item < len(self):
                 return self.statistical_models[item]
             raise AnalysisQueryError("Request exceeds number of statistical models available.")
+        if isinstance(item, slice):
+            return self.statistical_models[item]
 
         for model in self:
             if model.analysis == item:
