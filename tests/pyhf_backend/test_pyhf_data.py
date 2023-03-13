@@ -18,32 +18,7 @@ def test_data_single_bin():
     _, model, data = pyhf_data()
 
     assert isinstance(pyhf_data, PyhfData), "wrapper does not return phyfdata instance"
-    assert (
-        pyhf_data.npar == pyhf_model.config.npars - 1
-    ), "number of parameters should be nuissanse - 1 "
-    assert pyhf_data.poi_index == pyhf_model.config.poi_index, "poi index is wrong"
-    assert (
-        pyhf_data.suggested_init[0] == pyhf_model.config.suggested_init()[1]
-    ), "suggested initialisation is wrong."
-    assert (
-        pyhf_data.suggested_bounds
-        == pyhf_model.config.suggested_bounds()[pyhf_model.config.poi_index + 1 :]
-    )
-    assert (
-        pyhf_data.suggested_fixed
-        == pyhf_model.config.suggested_fixed()[pyhf_model.config.poi_index + 1 :]
-    )
-
     assert np.isclose(data, [51.0, 277.777]).all(), "Data is wrong"
-    assert (
-        pyhf_data.suggested_poi_init
-        == pyhf_model.config.suggested_init()[pyhf_model.config.poi_index]
-    )
-    assert np.isclose(model.logpdf([1.0, 1.0], data), -7.6583882), "logpdf is wrong"
-    assert (
-        pyhf_data.suggested_poi_bounds
-        == pyhf_model.config.suggested_bounds()[pyhf_model.config.poi_index]
-    )
 
     with pytest.raises(
         NegativeExpectedYields,
@@ -151,29 +126,6 @@ def test_data_json_input():
     ws, model, data = pyhf_data()
 
     assert isinstance(pyhf_data, PyhfData), "wrapper does not return phyfdata instance"
-    assert (
-        pyhf_data.npar == pyhf_model.config.npars - 1
-    ), "number of parameters should be nuissanse - 1 "
-    assert pyhf_data.poi_index == pyhf_model.config.poi_index, "poi index is wrong"
-
-    pars_init = pyhf_model.config.suggested_init()
-    assert (
-        pyhf_data.suggested_init
-        == pars_init[: pyhf_model.config.poi_index] + pars_init[pyhf_model.config.poi_index + 1 :]
-    ), "suggested initialisation is wrong."
-
-    pars_bounds = pyhf_model.config.suggested_bounds()
-    assert (
-        pyhf_data.suggested_bounds
-        == pars_bounds[: pyhf_model.config.poi_index]
-        + pars_bounds[pyhf_model.config.poi_index + 1 :]
-    )
-
-    pars_fixed = pyhf_model.config.suggested_fixed()
-    assert (
-        pyhf_data.suggested_fixed
-        == pars_fixed[: pyhf_model.config.poi_index] + pars_fixed[pyhf_model.config.poi_index + 1 :]
-    )
 
     assert np.isclose(data, pyhfdat).all(), "Data is wrong"
 

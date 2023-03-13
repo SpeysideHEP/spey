@@ -1,13 +1,15 @@
-import pyhf, copy
 from dataclasses import dataclass, field
 from typing import Dict, Union, Optional, List, Text, Tuple
+
+import pyhf, copy
 import numpy as np
 from pyhf import Workspace, Model
 
 from spey.utils import ExpectationType
-from .utils import initialise_workspace
 from spey.system.exceptions import NegativeExpectedYields
-from spey.base.backend_base import DataBase
+from spey.base import DataBase
+from spey.base import ModelConfig
+from .utils import initialise_workspace
 
 __all__ = ["PyhfData", "PyhfDataWrapper"]
 
@@ -88,42 +90,28 @@ class PyhfData(DataBase):
     _data: Optional[List[float]] = field(default=None, init=True, repr=False)
     _minimum_poi: float = field(default=-np.inf, init=True, repr=False)
 
-    @property
-    def npar(self) -> int:
-        """Number of nuisance parameters except poi"""
-        return self._model.config.npars - 1
+    def config(
+        self, allow_negative_signal: bool = True, poi_upper_bound: Optional[float] = None
+    ) -> ModelConfig:
+        """
+        Configuration of the statistical model. This class contains information
+        regarding how the fit should evolve.
 
-    @property
-    def poi_index(self) -> int:
-        return self._model.config.poi_index
-
-    @property
-    def suggested_init(self) -> np.ndarray:
-        """Suggested initial nuisance parameters (except poi)"""
-        pars = self._model.config.suggested_init()
-        return pars[: self.poi_index] + pars[self.poi_index + 1 :]
-
-    @property
-    def suggested_bounds(self) -> List[Tuple[float, float]]:
-        """Suggested bounds for nuisance parameters (except poi)"""
-        pars = self._model.config.suggested_bounds()
-        return pars[: self.poi_index] + pars[self.poi_index + 1 :]
-
-    @property
-    def suggested_fixed(self) -> List[bool]:
-        """Suggested fixed nuisance parameters (except poi)"""
-        pars = self._model.config.suggested_fixed()
-        return pars[: self.poi_index] + pars[self.poi_index + 1 :]
-
-    @property
-    def suggested_poi_init(self) -> np.ndarray:
-        """Suggested initial nuisance parameters (except poi)"""
-        return self._model.config.suggested_init()[self.poi_index]
-
-    @property
-    def suggested_poi_bounds(self) -> Tuple[float, float]:
-        """Suggested bounds for nuisance parameters (except poi)"""
-        return self._model.config.suggested_bounds()[self.poi_index]
+        :param allow_negative_signal (`bool`, default `True`): if the negative POI is allowed during fits.
+        :param poi_upper_bound (` Optional[float]`, default `None`): sets the upper bound for POI
+        :return `ModelConfig`: Configuration information of the model.
+        """
+        bounds = self._model.config.suggested_bounds
+        bounds[self._model.config.poi_index] = (
+            self._minimum_poi if allow_negative_signal else 0.0,
+            bounds[self._model.config.poi_index][1] if not poi_upper_bound else poi_upper_bound,
+        )
+        return ModelConfig(
+            poi_index=self._model.config.poi_index,
+            minimum_poi=self._minimum_poi,
+            suggested_init=self._model.config.suggested_init,
+            suggested_bounds=bounds,
+        )
 
     def __call__(
         self,
