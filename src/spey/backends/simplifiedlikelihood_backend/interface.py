@@ -155,7 +155,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
         config: ModelConfig = current_model.config()
 
-        init_pars = init_pars if init_pars else config.init_pars
+        init_pars = init_pars if init_pars else config.suggested_init
         par_bounds = par_bounds if par_bounds else config.fixed_poi_bounds(poi_test)
         nll, pars = fit(current_model, init_pars, par_bounds, poi_test, self.third_moment_expansion)
 
