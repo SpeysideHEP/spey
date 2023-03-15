@@ -96,7 +96,7 @@ class StatisticalModel(HypothesisTestingBase):
             :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
         :return: (float) likelihood
         """
-        negloglikelihood, _ = self.backend.likelihood(
+        negloglikelihood, _ = self.backend.negative_loglikelihood(
             poi_test=poi_test, expected=expected, **kwargs
         )
         return negloglikelihood if return_nll else np.exp(-negloglikelihood)
@@ -123,7 +123,7 @@ class StatisticalModel(HypothesisTestingBase):
             :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
         :return float: likelihood computed for asimov data
         """
-        negloglikelihood, _ = self.backend.asimov_likelihood(
+        negloglikelihood, _ = self.backend.asimov_negative_loglikelihood(
             poi_test=poi_test, expected=expected, test_statistics=test_statistics, **kwargs
         )
         return negloglikelihood if return_nll else np.exp(-negloglikelihood)
@@ -146,7 +146,7 @@ class StatisticalModel(HypothesisTestingBase):
             :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
         :return: muhat, maximum of the likelihood
         """
-        negloglikelihood, fit_param = self.backend.maximize_likelihood(
+        negloglikelihood, fit_param = self.backend.minimize_negative_loglikelihood(
             expected=expected,
             allow_negative_signal=allow_negative_signal,
             **kwargs,
@@ -175,7 +175,7 @@ class StatisticalModel(HypothesisTestingBase):
             :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
         :return `Tuple[float, float]`: muhat, negative log-likelihood
         """
-        negloglikelihood, fit_param = self.backend.maximize_asimov_likelihood(
+        negloglikelihood, fit_param = self.backend.minimize_asimov_negative_loglikelihood(
             expected=expected, test_statistics=test_statistics, **kwargs
         )
         muhat: float = fit_param[self.backend.model.config().poi_index]

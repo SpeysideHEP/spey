@@ -64,7 +64,7 @@ class BackendBase(ABC):
         # This method must be casted as property
 
     @abstractmethod
-    def likelihood(
+    def negative_loglikelihood(
         self,
         poi_test: float = 1.0,
         expected: ExpectationType = ExpectationType.observed,
@@ -82,7 +82,7 @@ class BackendBase(ABC):
         """
 
     @abstractmethod
-    def asimov_likelihood(
+    def asimov_negative_loglikelihood(
         self,
         poi_test: float = 1.0,
         expected: ExpectationType = ExpectationType.observed,
@@ -101,7 +101,7 @@ class BackendBase(ABC):
         """
 
     @abstractmethod
-    def maximize_likelihood(
+    def minimize_negative_loglikelihood(
         self,
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = True,
@@ -117,7 +117,7 @@ class BackendBase(ABC):
         """
 
     @abstractmethod
-    def maximize_asimov_likelihood(
+    def minimize_asimov_negative_loglikelihood(
         self,
         expected: ExpectationType = ExpectationType.observed,
         test_statistics: Text = "qtilde",

@@ -22,16 +22,18 @@ class ModelConfig:
     suggested_init: List[float]
     suggested_bounds: List[Tuple[float, float]]
 
-    def fixed_poi_bounds(self, poi_value: float) -> List[Tuple[float, float]]:
+    def fixed_poi_bounds(self, poi_value: Optional[float] = None) -> List[Tuple[float, float]]:
         """
         Adjust bounds with respect to fixed POI value
 
-        :param poi_value (`float`): desired POI value
+        :param poi_value (`Optional[float]`, default `None`): desired POI value
         :return `List[Tuple[float, float]]`: updated bounds
         """
+        if poi_value is None:
+            return self.suggested_bounds
         bounds = copy.deepcopy(self.suggested_bounds)
         if not bounds[self.poi_index][0] < poi_value < bounds[self.poi_index][1]:
-            bounds[self.poi_index] = (poi_value - 1, poi_value + 1)
+            bounds[self.poi_index] = (self.minimum_poi if poi_value < 0.0 else 0.0, poi_value + 1)
         return bounds
 
     def rescale_poi_bounds(
