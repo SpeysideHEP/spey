@@ -1,12 +1,13 @@
 from typing import Optional, Tuple, Text, List
 import numpy as np
 
-from spey.base import BackendBase, DataBase, ModelConfig
+from spey.optimizer import fit
+from spey.base import BackendBase, DataBase
 from spey.utils import ExpectationType
 from spey.backends import AvailableBackends
 from spey.interface.statistical_model import statistical_model_wrapper
 from .sldata import SLData, expansion_output
-from .utils import fit, twice_nll
+from .utils import twice_nll_func, gradient_twice_nll_func
 from .utils_marginalised import marginalised_negloglikelihood
 
 __all__ = ["SimplifiedLikelihoodInterface"]
@@ -57,21 +58,21 @@ class SimplifiedLikelihoodInterface(BackendBase):
             self._third_moment_expansion = self.model.compute_expansion()
         return self._third_moment_expansion
 
-    def _get_asimov_data(
+    def generate_asimov_data(
         self,
         model: SLData,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         test_statistics: Text = "qtilde",
-    ) -> SLData:
+    ) -> np.ndarray:
         """
-        Generate statistical model for asimov fit
+        Generate asimov data
 
-        :param SLData model: simplified likelihood model
-        :param Optional[ExpectationType] expected: observed, apriori or aposteriori.
-                                                   defaults to ExpectationType.observed
-        :param Text test_statistics: test statistics. `"qmu"` or `"qtilde"` for exclusion
-                                     tests `"q0"` for discovery test, defaults to `"qtilde"`.
-        :return SLData: asimov model
+        :param model (`SLData`): simplified likelihood model
+        :param expected (`Optional[ExpectationType]`, default `ExpectationType.observed`): observed, apriori or aposteriori.
+                                                   defaults to ExpectationType.observed.
+        :param test_statistics (`Text`, default `"qtilde"`): `"qmu"` or `"qtilde"` for exclusion
+                                     tests `"q0"` for discovery test, defaults to `"qtilde"`..
+        :return `np.ndarray`: asimov data
         """
         asimov_nuisance_key = (
             str(ExpectationType.apriori)
@@ -93,37 +94,37 @@ class SimplifiedLikelihoodInterface(BackendBase):
             )
             self._asimov_nuisance[asimov_nuisance_key] = pars
 
-        return model.reset_observations(model.background + pars[1:], f"{model.name}_asimov")
+        return model.background + pars[1:]
 
-    def logpdf(
-        self,
-        nuisance_parameters: np.ndarray,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        isAsimov: Optional[bool] = False,
-    ) -> float:
-        """
-        Compute the log value of the full density.
+    # def logpdf(
+    #     self,
+    #     nuisance_parameters: np.ndarray,
+    #     expected: Optional[ExpectationType] = ExpectationType.observed,
+    #     isAsimov: Optional[bool] = False,
+    # ) -> float:
+    #     """
+    #     Compute the log value of the full density.
 
-        :param nuisance_parameters: nuisance parameters
-        :param expected: observed, apriori or aposteriori
-        :param isAsimov: if true, computes likelihood for Asimov data
-        :return: negative log-likelihood
-        """
-        current_model: SLData = (
-            self.model if expected != ExpectationType.apriori else self.model.expected_dataset
-        )
-        if isAsimov:
-            current_model = self._get_asimov_data(current_model, expected)
+    #     :param nuisance_parameters: nuisance parameters
+    #     :param expected: observed, apriori or aposteriori
+    #     :param isAsimov: if true, computes likelihood for Asimov data
+    #     :return: negative log-likelihood
+    #     """
+    #     current_model: SLData = (
+    #         self.model if expected != ExpectationType.apriori else self.model.expected_dataset
+    #     )
+    #     if isAsimov:
+    #         current_model = self._get_asimov_data(current_model, expected)
 
-        return -0.5 * twice_nll(
-            nuisance_parameters,
-            signal=current_model.signal,
-            background=current_model.background,
-            observed=current_model.observed,
-            third_moment_expansion=self.third_moment_expansion,
-        )
+    #     return -0.5 * twice_nll(
+    #         nuisance_parameters,
+    #         signal=current_model.signal,
+    #         background=current_model.background,
+    #         observed=current_model.observed,
+    #         third_moment_expansion=self.third_moment_expansion,
+    #     )
 
-    def likelihood(
+    def negative_loglikelihood(
         self,
         poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
@@ -153,15 +154,29 @@ class SimplifiedLikelihoodInterface(BackendBase):
             )
             return nll, np.nan
 
-        config: ModelConfig = current_model.config()
+        twice_nll, fit_param = fit(
+            func=twice_nll_func(
+                current_model.signal,
+                current_model.background,
+                current_model.observed,
+                self.third_moment_expansion,
+            ),
+            model_configuration=current_model.config(),
+            gradient=gradient_twice_nll_func(
+                current_model.signal,
+                current_model.background,
+                current_model.observed,
+                self.third_moment_expansion,
+            ),
+            initial_parameters=init_pars,
+            bounds=par_bounds,
+            fixed_poi_value=poi_test,
+            **kwargs,
+        )
 
-        init_pars = init_pars if init_pars else config.suggested_init
-        par_bounds = par_bounds if par_bounds else config.fixed_poi_bounds(poi_test)
-        nll, pars = fit(current_model, init_pars, par_bounds, poi_test, self.third_moment_expansion)
+        return twice_nll / 2.0, fit_param
 
-        return nll, np.array(pars) if isinstance(pars, (list, tuple, float)) else pars
-
-    def asimov_likelihood(
+    def asimov_negative_loglikelihood(
         self,
         poi_test: Optional[float] = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
@@ -183,18 +198,33 @@ class SimplifiedLikelihoodInterface(BackendBase):
         current_model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
         )
-        current_model = self._get_asimov_data(
+        data = self.generate_asimov_data(
             current_model, expected=expected, test_statistics=test_statistics
         )
 
-        config: ModelConfig = current_model.config()
+        twice_nll, fit_param = fit(
+            func=twice_nll_func(
+                current_model.signal,
+                current_model.background,
+                data,
+                self.third_moment_expansion,
+            ),
+            model_configuration=current_model.config(),
+            gradient=gradient_twice_nll_func(
+                current_model.signal,
+                current_model.background,
+                data,
+                self.third_moment_expansion,
+            ),
+            initial_parameters=init_pars,
+            bounds=par_bounds,
+            fixed_poi_value=poi_test,
+            **kwargs,
+        )
 
-        init_pars = init_pars if init_pars else config.suggested_init
-        par_bounds = par_bounds if par_bounds else config.fixed_poi_bounds(poi_test)
-        nll, pars = fit(current_model, init_pars, par_bounds, poi_test, self.third_moment_expansion)
-        return nll, np.array(pars)
+        return twice_nll / 2.0, fit_param
 
-    def maximize_likelihood(
+    def minimize_negative_loglikelihood(
         self,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
@@ -215,17 +245,28 @@ class SimplifiedLikelihoodInterface(BackendBase):
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
         )
 
-        config: ModelConfig = current_model.config(
-            allow_negative_signal=allow_negative_signal, poi_upper_bound=10.0
+        twice_nll, fit_param = fit(
+            func=twice_nll_func(
+                current_model.signal,
+                current_model.background,
+                current_model.observed,
+                self.third_moment_expansion,
+            ),
+            model_configuration=current_model.config(allow_negative_signal=allow_negative_signal),
+            gradient=gradient_twice_nll_func(
+                current_model.signal,
+                current_model.background,
+                current_model.observed,
+                self.third_moment_expansion,
+            ),
+            initial_parameters=init_pars,
+            bounds=par_bounds,
+            **kwargs,
         )
 
-        init_pars = init_pars if init_pars else config.suggested_init
-        par_bounds = par_bounds if par_bounds else config.suggested_bounds
-        nll, pars = fit(current_model, init_pars, par_bounds, None, self.third_moment_expansion)
+        return twice_nll / 2.0, fit_param
 
-        return nll, np.array(pars)
-
-    def maximize_asimov_likelihood(
+    def minimize_asimov_negative_loglikelihood(
         self,
         expected: ExpectationType = ExpectationType.observed,
         test_statistics: Text = "qtilde",
@@ -247,16 +288,27 @@ class SimplifiedLikelihoodInterface(BackendBase):
         current_model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
         )
-        current_model = self._get_asimov_data(
+        data = self.generate_asimov_data(
             current_model, expected=expected, test_statistics=test_statistics
         )
 
-        config: ModelConfig = current_model.config(
-            allow_negative_signal=allow_negative_signal, poi_upper_bound=10.0
+        twice_nll, fit_param = fit(
+            func=twice_nll_func(
+                current_model.signal,
+                current_model.background,
+                data,
+                self.third_moment_expansion,
+            ),
+            model_configuration=current_model.config(allow_negative_signal=allow_negative_signal),
+            gradient=gradient_twice_nll_func(
+                current_model.signal,
+                current_model.background,
+                data,
+                self.third_moment_expansion,
+            ),
+            initial_parameters=init_pars,
+            bounds=par_bounds,
+            **kwargs,
         )
 
-        init_pars = init_pars if init_pars else config.suggested_init
-        par_bounds = par_bounds if par_bounds else config.suggested_bounds
-
-        nll, pars = fit(current_model, init_pars, par_bounds, None, self.third_moment_expansion)
-        return nll, np.array(pars)
+        return twice_nll / 2.0, fit_param

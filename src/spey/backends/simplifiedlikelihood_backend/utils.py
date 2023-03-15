@@ -11,18 +11,18 @@ compute_d2negloglikelihood_dtheta2: compute second order derivative of negative 
 
 for details see https://arxiv.org/abs/1809.05548
 """
-import warnings
-from typing import Optional, Tuple, List
-
-from .sldata import SLData, expansion_output
+from typing import Optional, Callable
 
 from autograd.scipy.stats.poisson import logpmf
 from autograd.scipy.special import gammaln
 from autograd import numpy as np
 from autograd import grad, hessian
-from scipy.optimize import minimize
 
-__all__ = ["twice_nll", "fit", "compute_sigma_mu"]
+from .sldata import expansion_output
+
+__all__ = ["twice_nll", "twice_nll_func", "gradient_twice_nll_func", "hessian_twice_nll_func"]
+
+# pylint: disable=E1101
 
 
 def twice_nll(
@@ -70,86 +70,124 @@ def twice_nll(
     return -2.0 * (gaussian + np.sum(poisson))
 
 
-_grad = grad(twice_nll, argnum=0)
-_hessian = hessian(twice_nll, argnum=0)
-
-
-def compute_sigma_mu(
-    model: SLData, pars: np.ndarray, third_moment_expansion: Optional[expansion_output] = None
-) -> float:
+def twice_nll_func(
+    signal: np.ndarray,
+    background: np.ndarray,
+    observed: np.ndarray,
+    third_moment_expansion: Optional[expansion_output],
+) -> Callable[[np.ndarray], np.ndarray]:
     """
-    Compute uncertainty on parameter of interest
+    Function to generate a callable for twice negative log-likelihood
 
-    :param model: description of the statistical model
-    :param pars: nuisance parameters
-    :param third_moment_expansion: computed results for the third moment
-                                    expansion of the statistical model
-    :return: sigma mu
+    :param signal (`np.ndarray`): signal yields
+    :param background (`np.ndarray`): background yields
+    :param observed (`np.ndarray`): observed yields
+    :param third_moment_expansion (`Optional[expansion_output]`): computed third momenta expansion
+    :return `Callable[[np.ndarray], np.ndarray]`: function to compute twice negative log-likelihood
     """
-
-    if third_moment_expansion is None:
-        third_moment_expansion = model.compute_expansion()
-
-    hessian = _hessian(pars, model.signal, model.background, model.observed, third_moment_expansion)
-    return np.clip(np.sqrt(1.0 / hessian[0, 0]), 1e-5, None)
+    return lambda pars: twice_nll(pars, signal, background, observed, third_moment_expansion)
 
 
-def fit(
-    model: SLData,
-    init_pars: List[float],
-    par_bounds: List[Tuple[float, float]],
-    fixed_poi: Optional[float] = None,
-    third_moment_expansion: Optional[expansion_output] = None,
-) -> Tuple[float, np.ndarray]:
+def gradient_twice_nll_func(
+    signal: np.ndarray,
+    background: np.ndarray,
+    observed: np.ndarray,
+    third_moment_expansion: Optional[expansion_output],
+) -> Callable[[np.ndarray], np.ndarray]:
     """
-    Compute minimum of -logpdf
+    Function to generate a callable for the gradient of twice negative log-likelihood
 
-    :param model: description of the statistical model
-    :param init_pars: initial parameters
-    :param par_bounds: parameter bounds
-    :param fixed_poi: if a value is given, fixed poi optimisation will be performed
-    :param third_moment_expansion: computed results for the third moment
-                                    expansion of the statistical model
-    :return: -logpdf and fit parameters
+    :param signal (`np.ndarray`): signal yields
+    :param background (`np.ndarray`): background yields
+    :param observed (`np.ndarray`): observed yields
+    :param third_moment_expansion (`Optional[expansion_output]`): computed third momenta expansion
+    :return `Callable[[np.ndarray], np.ndarray]`: function to compute gradient of twice negative log-likelihood
     """
-    assert len(init_pars) == len(model) + 1, (
-        "Dimensionality of initialization parameters does "
-        "not match the dimensionality of the model."
-    )
+    # pylint: disable=E1120
+    _grad = grad(twice_nll, argnum=0)
+    return lambda pars: _grad(pars, signal, background, observed, third_moment_expansion)
 
-    if third_moment_expansion is None:
-        third_moment_expansion = model.compute_expansion()
 
-    twice_nll_func = lambda pars: twice_nll(
-        pars, model.signal, model.background, model.observed, third_moment_expansion
-    )
+def hessian_twice_nll_func(
+    signal: np.ndarray,
+    background: np.ndarray,
+    observed: np.ndarray,
+    third_moment_expansion: Optional[expansion_output],
+) -> Callable[[np.ndarray], np.ndarray]:
+    """
+    Function to generate a callable for the hessian of twice negative log-likelihood
 
-    grad_func = lambda pars: _grad(
-        pars, model.signal, model.background, model.observed, third_moment_expansion
-    )
+    :param signal (`np.ndarray`): signal yields
+    :param background (`np.ndarray`): background yields
+    :param observed (`np.ndarray`): observed yields
+    :param third_moment_expansion (`Optional[expansion_output]`): computed third momenta expansion
+    :return `Callable[[np.ndarray], np.ndarray]`: function to compute hessian of twice negative log-likelihood
+    """
+    # pylint: disable=E1120
+    _hessian = hessian(twice_nll, argnum=0)
+    return lambda pars: _hessian(pars, signal, background, observed, third_moment_expansion)
 
-    hess_func = lambda pars: _hessian(
-        pars, model.signal, model.background, model.observed, third_moment_expansion
-    )
 
-    constraints = None
-    if fixed_poi is not None:
-        init_pars[0] = fixed_poi
-        constraints = [{"type": "eq", "fun": lambda v: v[0] - fixed_poi}]
+# def fit(
+#     model: SLData,
+#     init_pars: List[float],
+#     par_bounds: List[Tuple[float, float]],
+#     fixed_poi: Optional[float] = None,
+#     third_moment_expansion: Optional[expansion_output] = None,
+# ) -> Tuple[float, np.ndarray]:
+#     """
+#     Compute minimum of -logpdf
 
-    opt = minimize(
-        twice_nll_func,
-        np.array(init_pars),
-        method="SLSQP",
-        jac=grad_func,
-        # hess=hess_func,
-        bounds=par_bounds,
-        constraints=constraints,
-        tol=1e-6,
-        options=dict(maxiter=10000, disp=0),
-    )
+#     :param model: description of the statistical model
+#     :param init_pars: initial parameters
+#     :param par_bounds: parameter bounds
+#     :param fixed_poi: if a value is given, fixed poi optimisation will be performed
+#     :param third_moment_expansion: computed results for the third moment
+#                                     expansion of the statistical model
+#     :return: -logpdf and fit parameters
+#     """
+#     assert len(init_pars) == len(model) + 1, (
+#         "Dimensionality of initialization parameters does "
+#         "not match the dimensionality of the model."
+#     )
 
-    if not opt.success:
-        warnings.warn(message=opt.message, category=RuntimeWarning)
+#     if third_moment_expansion is None:
+#         third_moment_expansion = model.compute_expansion()
 
-    return opt.fun / 2.0, opt.x
+#     twice_nll_func = lambda pars: twice_nll(
+#         pars, model.signal, model.background, model.observed, third_moment_expansion
+#     )
+
+#     _grad = grad(twice_nll, argnum=0)
+
+#     grad_func = lambda pars: _grad(
+#         pars, model.signal, model.background, model.observed, third_moment_expansion
+#     )
+
+#     _hessian = hessian(twice_nll, argnum=0)
+
+#     hess_func = lambda pars: _hessian(
+#         pars, model.signal, model.background, model.observed, third_moment_expansion
+#     )
+
+#     constraints = None
+#     if fixed_poi is not None:
+#         init_pars[0] = fixed_poi
+#         constraints = [{"type": "eq", "fun": lambda v: v[0] - fixed_poi}]
+
+#     opt = minimize(
+#         twice_nll_func,
+#         np.array(init_pars),
+#         method="SLSQP",
+#         jac=grad_func,
+#         # hess=hess_func,
+#         bounds=par_bounds,
+#         constraints=constraints,
+#         tol=1e-6,
+#         options=dict(maxiter=10000, disp=0),
+#     )
+
+#     if not opt.success:
+#         warnings.warn(message=opt.message, category=RuntimeWarning)
+
+#     return opt.fun / 2.0, opt.x

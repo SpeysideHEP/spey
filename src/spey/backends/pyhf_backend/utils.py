@@ -1,4 +1,4 @@
-from typing import Dict, Union, Optional, Tuple, List, Text, Any
+from typing import Dict, Union, Optional, Tuple, List, Text, Any, Callable
 
 import pyhf, logging, warnings, copy
 import numpy as np
@@ -182,6 +182,18 @@ def initialise_workspace(
         return signal, background, nb, delta_nb, workspace, model, data, minimum_poi
 
     return workspace, model, data
+
+
+def twice_nll_func(model: pyhf.pdf, data: List[float]) -> Callable[[np.ndarray], np.ndarray]:
+    """
+    Generate function to compute twice negative log-likelihood
+
+    :param model (`pyhf.pdf`): statistical model
+    :param data (`List[float]`): observations
+    :return `Callable[[np.ndarray], np.ndarray]`: function to compute
+        twice negative log-likelihood which takes fit parameters as input
+    """
+    return lambda pars: -2.0 * model.logpdf(pars, data)
 
 
 def fixed_poi_fit(

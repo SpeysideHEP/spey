@@ -1,15 +1,18 @@
-from typing import Dict, Optional, Tuple, List, Text
+"""Pyhf interface"""
+
+from typing import Optional, Tuple, List, Text
 import copy, logging, pyhf
 import numpy as np
 
 from pyhf.infer.calculators import generate_asimov_data
 
 from spey.utils import ExpectationType
-from spey.base.backend_base import BackendBase, DataBase
+from spey.base.backend_base import BackendBase, DataBase, ModelConfig
 from spey.backends import AvailableBackends
 from spey.base.recorder import Recorder
 from spey.interface.statistical_model import statistical_model_wrapper
-from .utils import fixed_poi_fit, compute_min_negloglikelihood
+from spey.optimizer import fit
+from .utils import twice_nll_func
 from .pyhfdata import PyhfData
 
 __all__ = ["PyhfInterface"]
@@ -93,7 +96,7 @@ class PyhfInterface(BackendBase):
     def type(self) -> AvailableBackends:
         return AvailableBackends.pyhf
 
-    def _get_asimov_data(
+    def generate_asimov_data(
         self,
         model: pyhf.pdf.Model,
         data: np.ndarray,
@@ -127,86 +130,24 @@ class PyhfInterface(BackendBase):
             self._asimov_nuisance[asimov_nuisance_key] = copy.deepcopy(asimov_data)
         return asimov_data
 
-    def logpdf(
-        self,
-        poi_test: float,
-        nuisance_parameters: np.ndarray,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        isAsimov: Optional[bool] = False,
-    ) -> float:
-        """
-        Compute the log value of the full density.
-
-        :param poi_test: parameter of interest
-        :param nuisance_parameters: nuisance parameters
-        :param expected: observed, apriori or aposteriori
-        :param isAsimov:
-        :return: negative log-likelihood
-        """
-        assert len(nuisance_parameters) == self.model.npar, (
-            f"Parameters must be {self.model.npar} dimensional vector, "
-            f"{len(nuisance_parameters)} dimensions has been given."
-        )
-        _, model, data = self.model(poi_test=1.0, expected=expected)
-        poi_bounds = self.model.suggested_bounds[self.model.poi_index]
-
-        if isAsimov:
-            data = self._get_asimov_data(model, data, expected)
-
-        if not poi_bounds[0] <= poi_test <= poi_bounds[1]:
-            _, model, _ = self.model(poi_test=poi_test, expected=expected)
-            poi_test = 1.0
-
-        complete_pars = np.array(
-            nuisance_parameters.tolist()[: model.config.poi_index]
-            + [poi_test]
-            + nuisance_parameters.tolist()[model.config.poi_index :]
-        )
-
-        return model.logpdf(complete_pars, data).astype(np.float32)[0]
-
-    def likelihood(
+    def negative_loglikelihood(
         self,
         poi_test: float = 1.0,
         expected: ExpectationType = ExpectationType.observed,
-        iteration_threshold: int = 3,
-        options: Optional[Dict] = None,
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> Tuple[float, np.ndarray]:
         """
-        Compute  likelihood of the given statistical model
+        Compute negative log-likelihood of the statistical model
 
-        :param poi_test: POI (signal strength)
-        :param expected: observed, apriori or aposteriori
-        :param return_nll: if true returns negative log-likelihood value
-        :param return_theta: return fitted parameters
-        :param isAsimov: if true, computes likelihood for Asimov data
-        :param iteration_threshold: number of iterations to be held for convergence of the fit.
-        :param options: optimizer options where the default values are
-                :param maxiter: maximum iterations (default 200)
-                :param verbose: verbosity (default False)
-                :param tolerance: Tolerance for termination. See specific optimizer
-                                  for detailed meaning. (default None)
-                :param solver_options: (dict) additional solver options. See
-                                :func:`scipy.optimize.show_options` for additional options of
-                                optimization solvers. (default {})
-                :param method: optimisation method (default SLSQP)
-                        Available methods are:
-                        - 'Nelder-Mead' :ref:`(see here) <scipy.optimize.minimize-neldermead>`
-                        - 'Powell'      :ref:`(see here) <scipy.optimize.minimize-powell>`
-                        - 'CG'          :ref:`(see here) <scipy.optimize.minimize-cg>`
-                        - 'BFGS'        :ref:`(see here) <scipy.optimize.minimize-bfgs>`
-                        - 'Newton-CG'   :ref:`(see here) <scipy.optimize.minimize-newtoncg>`
-                        - 'L-BFGS-B'    :ref:`(see here) <scipy.optimize.minimize-lbfgsb>`
-                        - 'TNC'         :ref:`(see here) <scipy.optimize.minimize-tnc>`
-                        - 'COBYLA'      :ref:`(see here) <scipy.optimize.minimize-cobyla>`
-                        - 'SLSQP'       :ref:`(see here) <scipy.optimize.minimize-slsqp>`
-                        - 'trust-constr':ref:`(see here) <scipy.optimize.minimize-trustconstr>`
-                        - 'dogleg'      :ref:`(see here) <scipy.optimize.minimize-dogleg>`
-                        - 'trust-ncg'   :ref:`(see here) <scipy.optimize.minimize-trustncg>`
-                        - 'trust-exact' :ref:`(see here) <scipy.optimize.minimize-trustexact>`
-                        - 'trust-krylov' :ref:`(see here) <scipy.optimize.minimize-trustkrylov>`
-        :return: negloglikelihood and fit parameters
+        :param poi_test (`float`, default `1.0`): parameter of interest.
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): expectation type.
+            observed, apriori or aposteriori
+        :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
+        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
+        :param kwargs: optimizer parameters see `spey.optimizer.scipy_tools.minimize`
+        :return `Tuple[float, np.ndarray]`: negative log-likelihood and fit parameters
         """
         # CHECK THE MODEL BOUNDS!!
         # POI Test needs to be adjusted according to the boundaries for sake of convergence
@@ -214,168 +155,195 @@ class PyhfInterface(BackendBase):
         # comment https://github.com/scikit-hep/pyhf/issues/620#issuecomment-579299831
         # NOTE During tests we observed that shifting poi with respect to bounds is not needed.
         _, model, data = self.model(expected=expected)
-        negloglikelihood, fit_param = fixed_poi_fit(
-            poi_test, data, model, iteration_threshold, options
-        )
-        return negloglikelihood, np.array(fit_param)
 
-    def asimov_likelihood(
+        twice_nll, fit_pars = fit(
+            func=twice_nll_func(model, data),
+            model_configuration=self.model.config(),
+            initial_parameters=init_pars,
+            bounds=par_bounds,
+            fixed_poi_value=poi_test,
+            **kwargs,
+        )
+
+        return twice_nll / 2.0, fit_pars
+
+    def asimov_negative_loglikelihood(
         self,
         poi_test: float = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         test_statistics: Text = "qtilde",
-        iteration_threshold: int = 3,
-        options: Optional[Dict] = None,
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> Tuple[float, np.ndarray]:
         """
-        Compute likelihood for the asimov data
+        Compute negative log-likelihood of the statistical model for Asimov data
 
-        :param poi_test (Optional[float]): parameter of interest. (default `1.0`)
-        :param expected (Optional[ExpectationType]): observed, apriori or aposteriori.
-                                                    (default `ExpectationType.observed`)
-        :param test_statistics (Text): test statistics. `"qmu"` or `"qtilde"` for exclusion
-                                     tests `"q0"` for discovery test. (default `"qtilde"`)
-        :param iteration_threshold (Optional[int]): iteration threshold for the optimizer. (default `3`)
-        :param options (Optional[Dict]): optimizer options. (default `None`)
-        :return Tuple[float, np.ndarray]: negative log-likelihood, fit parameters
+        :param poi_test (`float`, default `1.0`): parameter of interest.
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): expectation type.
+            observed, apriori or aposteriori
+        :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
+        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
+        :param kwargs: optimizer parameters see `spey.optimizer.scipy_tools.minimize`
+        :return `Tuple[float, np.ndarray]`: negative log-likelihood and fit parameters
         """
         # Asimov llhd is only computed for poi = 1 or 0, control is not necessary
-        _, model, data = self.model(poi_test=1.0, expected=expected)
-        data = self._get_asimov_data(
+        _, model, data = self.model(expected=expected)
+        data = self.generate_asimov_data(
             model=model, data=data, expected=expected, test_statistics=test_statistics
         )
-        negloglikelihood, fit_param = fixed_poi_fit(
-            poi_test, data, model, iteration_threshold, options
+
+        twice_nll, fit_pars = fit(
+            func=twice_nll_func(model, data),
+            model_configuration=self.model.config(),
+            initial_parameters=init_pars,
+            bounds=par_bounds,
+            fixed_poi_value=poi_test,
+            **kwargs,
         )
 
-        return negloglikelihood, np.array(fit_param)
+        return twice_nll / 2.0, fit_pars
 
-    def maximize_likelihood(
+    def minimize_negative_loglikelihood(
         self,
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = True,
-        iteration_threshold: int = 3,
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> Tuple[float, np.ndarray]:
-        """
-        Find the POI that maximizes the likelihood and the value of the maximum likelihood
+        r"""
+        Compute minimum of negative log-likelihood for a given statistical model
 
-        :param expected: observed, apriori or aposteriori
-        :param allow_negative_signal: allow negative POI
-        :param iteration_threshold: number of iterations to be held for convergence of the fit.
-        :return: maximum of the likelihood, fit parameters
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): expectation type.
+            observed, apriori or aposteriori.
+        :param allow_negative_signal (`bool`, default `True`): if True $\hat\mu$ values will allowed to be negative.
+        :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
+        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
+        :param kwargs: optimizer parameters see `spey.optimizer.scipy_tools.minimize`
+        :return `Tuple[float, np.ndarray]`: minimum of negative log-likelihood and fit parameters
         """
-        _, model, data = self.model(poi_test=1.0, expected=expected)
-        fit_param, negloglikelihood = compute_min_negloglikelihood(
-            data, model, allow_negative_signal, iteration_threshold, self.model.minimum_poi
+        _, model, data = self.model(expected=expected)
+
+        twice_nll, fit_pars = fit(
+            func=twice_nll_func(model, data),
+            model_configuration=self.model.config(allow_negative_signal=allow_negative_signal),
+            initial_parameters=init_pars,
+            bounds=par_bounds,
+            **kwargs,
         )
-        return negloglikelihood, np.array(fit_param)
 
-    def maximize_asimov_likelihood(
+        return twice_nll / 2.0, fit_pars
+
+    def minimize_asimov_negative_loglikelihood(
         self,
         expected: ExpectationType = ExpectationType.observed,
         test_statistics: Text = "qtilde",
-        iteration_threshold: int = 3,
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> Tuple[float, np.ndarray]:
-        """
-        Compute maximum of the likelihood for the asimov data
+        r"""
+        Compute minimum of negative log-likelihood for a given statistical model for the Asimov data
 
-        :param expected (`ExpectationType`): observed, apriori or aposteriori.
-            (default `ExpectationType.observed`)
-        :param test_statistics (`Text`): test statistics. `"qmu"` or `"qtilde"` for exclusion
-                                     tests `"q0"` for discovery test. (default `"qtilde"`)
-        :param iteration_threshold (`int`): number of iterations to be held for convergence of the fit.
-                                            (default `3`)
-        :return `Tuple[float, np.ndarray]`: maximum negative log-likelihood, fit parameters
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): expectation type.
+            observed, apriori or aposteriori.
+        :param allow_negative_signal (`bool`, default `True`): if True $\hat\mu$ values will allowed to be negative.
+        :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
+        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
+        :param kwargs: optimizer parameters see `spey.optimizer.scipy_tools.minimize`
+        :return `Tuple[float, np.ndarray]`: minimum of negative log-likelihood and fit parameters
         """
         _, model, data = self.model(poi_test=1.0, expected=expected)
-        data = self._get_asimov_data(
+        data = self.generate_asimov_data(
             model, data=data, expected=expected, test_statistics=test_statistics
         )
-        fit_param, negloglikelihood = compute_min_negloglikelihood(
-            data,
-            model,
-            True if test_statistics in ["q", "qmu"] else False,
-            iteration_threshold,
-            self.model.minimum_poi,
+
+        twice_nll, fit_pars = fit(
+            func=twice_nll_func(model, data),
+            model_configuration=self.model.config(
+                allow_negative_signal=test_statistics in ["q", "qmu", "q0"]
+            ),
+            initial_parameters=init_pars,
+            bounds=par_bounds,
+            **kwargs,
         )
-        return negloglikelihood, np.array(fit_param)
 
-    def exclusion_confidence_level(
-        self,
-        poi_test: float = 1.0,
-        expected: ExpectationType = ExpectationType.observed,
-        allow_negative_signal: bool = True,
-        iteration_threshold: int = 3,
-    ) -> List[float]:
-        """
-        Compute exclusion confidence level.
+        return twice_nll / 2.0, fit_pars
 
-        :param poi_test: POI (signal strength)
-        :param expected: observed, apriori or aposteriori
-        :param allow_negative_signal: if true, allow negative mu
-        :param iteration_threshold: sets threshold on when to stop
-        :return: 1 - CLs values
-        """
-        if not self.model.isAlive:
-            return [-1] if expected == ExpectationType.observed else [-1] * 5
+    # def exclusion_confidence_level(
+    #     self,
+    #     poi_test: float = 1.0,
+    #     expected: ExpectationType = ExpectationType.observed,
+    #     allow_negative_signal: bool = True,
+    #     iteration_threshold: int = 3,
+    # ) -> List[float]:
+    #     """
+    #     Compute exclusion confidence level.
 
-        def get_CLs(poi: float, model: pyhf.pdf.Model, data: np.ndarray, **keywordargs):
-            try:
-                CLs_obs, CLs_exp = pyhf.infer.hypotest(
-                    poi,
-                    data,
-                    model,
-                    test_stat="q" if allow_negative_signal else "qtilde",
-                    par_bounds=keywordargs.get("bounds", model.config.suggested_bounds()),
-                    return_expected_set=True,
-                )
+    #     :param poi_test: POI (signal strength)
+    #     :param expected: observed, apriori or aposteriori
+    #     :param allow_negative_signal: if true, allow negative mu
+    #     :param iteration_threshold: sets threshold on when to stop
+    #     :return: 1 - CLs values
+    #     """
+    #     if not self.model.isAlive:
+    #         return [-1] if expected == ExpectationType.observed else [-1] * 5
 
-            except (AssertionError, pyhf.exceptions.FailedMinimization, ValueError) as err:
-                logging.getLogger("MA5").debug(str(err))
-                # dont use false here 1.-CLs = 0 can be interpreted as false
-                return "update bounds"
+    #     def get_CLs(poi: float, model: pyhf.pdf.Model, data: np.ndarray, **keywordargs):
+    #         try:
+    #             CLs_obs, CLs_exp = pyhf.infer.hypotest(
+    #                 poi,
+    #                 data,
+    #                 model,
+    #                 test_stat="q" if allow_negative_signal else "qtilde",
+    #                 par_bounds=keywordargs.get("bounds", model.config.suggested_bounds()),
+    #                 return_expected_set=True,
+    #             )
 
-            # if isnan(float(CLs_obs)) or any([isnan(float(x)) for x in CLs_exp]):
-            #     return "update mu"
-            CLs_obs = float(CLs_obs[0]) if isinstance(CLs_obs, (list, tuple)) else float(CLs_obs)
+    #         except (AssertionError, pyhf.exceptions.FailedMinimization, ValueError) as err:
+    #             logging.getLogger("MA5").debug(str(err))
+    #             # dont use false here 1.-CLs = 0 can be interpreted as false
+    #             return "update bounds"
 
-            return {
-                "CLs_obs": [1.0 - CLs_obs],
-                "CLs_exp": list(map(lambda x: float(1.0 - x), CLs_exp)),
-            }
+    #         # if isnan(float(CLs_obs)) or any([isnan(float(x)) for x in CLs_exp]):
+    #         #     return "update mu"
+    #         CLs_obs = float(CLs_obs[0]) if isinstance(CLs_obs, (list, tuple)) else float(CLs_obs)
 
-        _, model, data = self.model(poi_test=1.0, expected=expected)
+    #         return {
+    #             "CLs_obs": [1.0 - CLs_obs],
+    #             "CLs_exp": list(map(lambda x: float(1.0 - x), CLs_exp)),
+    #         }
 
-        def update_bounds(bounds: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
-            current_bounds = []
-            for idx, bound in enumerate(bounds):
-                if idx != model.config.poi_index:
-                    min_bound = bound[0] * 2.0 if bound[0] < 0.0 else 0.0
-                    max_bound = bound[1] * 2.0
-                    current_bounds.append((min_bound, max_bound))
-                else:
-                    min_bound = self.model.minimum_poi if allow_negative_signal else 0.0
-                    current_bounds.append((min_bound, 2.0 * bound[1]))
-            return current_bounds
+    #     _, model, data = self.model(poi_test=1.0, expected=expected)
 
-        # pyhf can raise an error if the poi_test bounds are too stringent
-        # they need to be updated dynamically.
-        arguments = dict(bounds=update_bounds(model.config.suggested_bounds()))
-        poi_test_bounds = model.config.suggested_bounds()[model.config.poi_index]
-        it = 0
-        while True:
-            CLs = get_CLs(poi_test, model, data, **arguments)
-            if CLs == "update bounds" or np.isnan(CLs["CLs_obs"][0]):
-                arguments["bounds"] = update_bounds(arguments["bounds"])
-                it += 1
-            else:
-                break
-            # hard limit on iteration required if it exceeds this value it means
-            # Nsig >>>>> Nobs
-            if it >= iteration_threshold:
-                return [1.0] if expected == ExpectationType.observed else [1.0] * 5
+    #     def update_bounds(bounds: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+    #         current_bounds = []
+    #         for idx, bound in enumerate(bounds):
+    #             if idx != model.config.poi_index:
+    #                 min_bound = bound[0] * 2.0 if bound[0] < 0.0 else 0.0
+    #                 max_bound = bound[1] * 2.0
+    #                 current_bounds.append((min_bound, max_bound))
+    #             else:
+    #                 min_bound = self.model.minimum_poi if allow_negative_signal else 0.0
+    #                 current_bounds.append((min_bound, 2.0 * bound[1]))
+    #         return current_bounds
 
-        return CLs["CLs_obs" if expected == ExpectationType.observed else "CLs_exp"]
+    #     # pyhf can raise an error if the poi_test bounds are too stringent
+    #     # they need to be updated dynamically.
+    #     arguments = dict(bounds=update_bounds(model.config.suggested_bounds()))
+    #     poi_test_bounds = model.config.suggested_bounds()[model.config.poi_index]
+    #     it = 0
+    #     while True:
+    #         CLs = get_CLs(poi_test, model, data, **arguments)
+    #         if CLs == "update bounds" or np.isnan(CLs["CLs_obs"][0]):
+    #             arguments["bounds"] = update_bounds(arguments["bounds"])
+    #             it += 1
+    #         else:
+    #             break
+    #         # hard limit on iteration required if it exceeds this value it means
+    #         # Nsig >>>>> Nobs
+    #         if it >= iteration_threshold:
+    #             return [1.0] if expected == ExpectationType.observed else [1.0] * 5
+
+    #     return CLs["CLs_obs" if expected == ExpectationType.observed else "CLs_exp"]
