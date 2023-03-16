@@ -7,7 +7,7 @@ import numpy as np
 from pyhf.infer.calculators import generate_asimov_data
 
 from spey.utils import ExpectationType
-from spey.base.backend_base import BackendBase, DataBase, ModelConfig
+from spey.base.backend_base import BackendBase, DataBase
 from spey.backends import AvailableBackends
 from spey.base.recorder import Recorder
 from spey.interface.statistical_model import statistical_model_wrapper
