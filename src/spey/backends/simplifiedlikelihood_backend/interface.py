@@ -61,68 +61,36 @@ class SimplifiedLikelihoodInterface(BackendBase):
     def generate_asimov_data(
         self,
         model: SLData,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
         test_statistics: Text = "qtilde",
     ) -> np.ndarray:
         """
-        Generate asimov data
+        Generate Asimov data with respect to the given test statistics
 
-        :param model (`SLData`): simplified likelihood model
-        :param expected (`Optional[ExpectationType]`, default `ExpectationType.observed`): observed, apriori or aposteriori.
-                                                   defaults to ExpectationType.observed.
-        :param test_statistics (`Text`, default `"qtilde"`): `"qmu"` or `"qtilde"` for exclusion
-                                     tests `"q0"` for discovery test, defaults to `"qtilde"`..
-        :return `np.ndarray`: asimov data
+        :param model (`SLData`): Container for the statistical model properties
+        :param test_statistics (`Text`, default `"qtilde"`): test statistics, `q0`, `qtilde`, `q`.
+        :return `np.ndarray`: Asimov data
         """
-        asimov_nuisance_key = (
-            str(ExpectationType.apriori)
-            if expected == ExpectationType.apriori
-            else str(ExpectationType.observed)
+        # asimov_nuisance_key = (
+        #     str(ExpectationType.apriori)
+        #     if expected == ExpectationType.apriori
+        #     else str(ExpectationType.observed)
+        # )
+        # fit_pars = self._asimov_nuisance.get(asimov_nuisance_key, None)
+        # if fit_pars is None:
+        # Generate the asimov data by fittin nuissance parameters to the observations
+        _, fit_pars = fit(
+            func=twice_nll_func(
+                model.signal, model.background, model.observed, self.third_moment_expansion
+            ),
+            model_configuration=model.config(allow_negative_signal=test_statistics in ["q", "qmu"]),
+            gradient=gradient_twice_nll_func(
+                model.signal, model.background, model.observed, self.third_moment_expansion
+            ),
+            fixed_poi_value=1.0 if test_statistics == "q0" else 0.0,
         )
-        pars = self._asimov_nuisance.get(asimov_nuisance_key, None)
-        # NOTE for test_stat = q0 asimov mu should be 1, default qtilde!!!
-        if pars is None:
-            # Generate the asimov data by fittin nuissance parameters to the observations
-            init_pars = [0.0] * (len(model) + 1)
-            par_bounds = [(model.minimum_poi, 1.0)] + [(-5.0, 5.0)] * len(model)
-            _, pars = fit(
-                model,
-                init_pars,
-                par_bounds,
-                1.0 if test_statistics == "q0" else 0.0,
-                self.third_moment_expansion,
-            )
-            self._asimov_nuisance[asimov_nuisance_key] = pars
+        # self._asimov_nuisance[asimov_nuisance_key] = fit_pars
 
-        return model.background + pars[1:]
-
-    # def logpdf(
-    #     self,
-    #     nuisance_parameters: np.ndarray,
-    #     expected: Optional[ExpectationType] = ExpectationType.observed,
-    #     isAsimov: Optional[bool] = False,
-    # ) -> float:
-    #     """
-    #     Compute the log value of the full density.
-
-    #     :param nuisance_parameters: nuisance parameters
-    #     :param expected: observed, apriori or aposteriori
-    #     :param isAsimov: if true, computes likelihood for Asimov data
-    #     :return: negative log-likelihood
-    #     """
-    #     current_model: SLData = (
-    #         self.model if expected != ExpectationType.apriori else self.model.expected_dataset
-    #     )
-    #     if isAsimov:
-    #         current_model = self._get_asimov_data(current_model, expected)
-
-    #     return -0.5 * twice_nll(
-    #         nuisance_parameters,
-    #         signal=current_model.signal,
-    #         background=current_model.background,
-    #         observed=current_model.observed,
-    #         third_moment_expansion=self.third_moment_expansion,
-    #     )
+        return model.background + fit_pars[1:]
 
     def negative_loglikelihood(
         self,
@@ -198,9 +166,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         current_model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
         )
-        data = self.generate_asimov_data(
-            current_model, expected=expected, test_statistics=test_statistics
-        )
+        data = self.generate_asimov_data(current_model, test_statistics=test_statistics)
 
         twice_nll, fit_param = fit(
             func=twice_nll_func(
@@ -288,9 +254,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         current_model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
         )
-        data = self.generate_asimov_data(
-            current_model, expected=expected, test_statistics=test_statistics
-        )
+        data = self.generate_asimov_data(current_model, test_statistics=test_statistics)
 
         twice_nll, fit_param = fit(
             func=twice_nll_func(
