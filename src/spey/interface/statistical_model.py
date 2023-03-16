@@ -1,12 +1,11 @@
 """Statistical Model wrapper class"""
 
 from typing import Optional, Text, Tuple, List
-from functools import wraps
 
 import numpy as np
 
 from spey.utils import ExpectationType
-from spey.base.backend_base import BackendBase
+from spey.base.backend_base import BackendBase, DataBase
 from spey.backends import AvailableBackends
 from spey.system.exceptions import UnknownCrossSection
 from spey.base.hypotest_base import HypothesisTestingBase
@@ -214,16 +213,20 @@ def statistical_model_wrapper(func: BackendBase) -> StatisticalModel:
     :return `StatisticalModel`: initialised statistical model
     """
 
-    @wraps(func)
-    def wrapper(*args, analysis: Text = "__unknown_analysis__", xsection: float = np.nan, **kwargs):
+    def wrapper(
+        model: DataBase, analysis: Text = "__unknown_analysis__", xsection: float = np.nan, **kwargs
+    ) -> StatisticalModel:
         """
-        :param args: Input arguments for statistical model backend
-        :param analysis: analysis name
-        :param xsection: cross section value
-        :param kwargs: keyword arguments for statistical model backend.
-        :return: Statistical model interface
-        :raises AssertionError: if the input function is not BacendBase
+        Statistical Model wrapper
+
+        :param model (`DataBase`): Container that holds yield counts for statistical model and model properties
+        :param analysis (`Text`, default `"__unknown_analysis__"`): analysis name.
+        :param xsection (`float`, default `np.nan`): cross section value.
+        :param kwargs: Backend specific inputs
+        :return `StatisticalModel`: Statistical model interface
+        :raises AssertionError: if the input function or model does not satisfy basic properties
         """
-        return StatisticalModel(backend=func(*args, **kwargs), analysis=analysis, xsection=xsection)
+        assert isinstance(model, DataBase), "Input model does not satisfy base data properties."
+        return StatisticalModel(backend=func(model, **kwargs), analysis=analysis, xsection=xsection)
 
     return wrapper
