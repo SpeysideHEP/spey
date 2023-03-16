@@ -1,6 +1,6 @@
 """Statistical Model wrapper class"""
 
-from typing import Optional, Text, Tuple
+from typing import Optional, Text, Tuple, List
 from functools import wraps
 
 import numpy as np
@@ -80,24 +80,30 @@ class StatisticalModel(HypothesisTestingBase):
 
     def likelihood(
         self,
-        poi_test: Optional[float] = 1.0,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        return_nll: Optional[bool] = True,
+        poi_test: float = 1.0,
+        expected: ExpectationType = ExpectationType.observed,
+        return_nll: bool = True,
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> float:
         """
         Compute the likelihood of the given statistical model
 
-        :param poi_test: POI (signal strength)
-        :param expected: observed, apriori or aposteriori
-        :param return_nll: if true returns negative log-likelihood value
-        :param kwargs: backend specific inputs.
-            :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
-            :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
-        :return: (float) likelihood
+        :param poi_test (`float`, default `1.0`): POI (signal strength).
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori or aposteriori.
+        :param return_nll (`bool`, default `True`): if true returns negative log-likelihood value.
+        :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
+        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
+        :param kwargs: keyword arguments for optimiser
+        :return `float`: (float) likelihood or negative log-likelihood value for a given POI test
         """
         negloglikelihood, _ = self.backend.negative_loglikelihood(
-            poi_test=poi_test, expected=expected, **kwargs
+            poi_test=poi_test,
+            expected=expected,
+            init_pars=init_pars,
+            par_bounds=par_bounds,
+            **kwargs,
         )
         return negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
@@ -107,6 +113,8 @@ class StatisticalModel(HypothesisTestingBase):
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
         test_statistics: Text = "qtilde",
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> float:
         """
@@ -118,13 +126,18 @@ class StatisticalModel(HypothesisTestingBase):
         :param return_nll (`bool`): if false returns likelihood value. (default `True`)
         :param test_statistics (`Text`): test statistics. `"qmu"` or `"qtilde"` for exclusion
                                      tests `"q0"` for discovery test. (default `"qtilde"`)
-        :param kwargs: backend specific inputs.
-            :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
-            :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
+        :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
+        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
+        :param kwargs: keyword arguments for optimiser
         :return float: likelihood computed for asimov data
         """
         negloglikelihood, _ = self.backend.asimov_negative_loglikelihood(
-            poi_test=poi_test, expected=expected, test_statistics=test_statistics, **kwargs
+            poi_test=poi_test,
+            expected=expected,
+            test_statistics=test_statistics,
+            init_pars=init_pars,
+            par_bounds=par_bounds,
+            **kwargs,
         )
         return negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
@@ -133,6 +146,8 @@ class StatisticalModel(HypothesisTestingBase):
         return_nll: Optional[bool] = True,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> Tuple[float, float]:
         """
@@ -141,14 +156,16 @@ class StatisticalModel(HypothesisTestingBase):
         :param return_nll: if true, likelihood will be returned
         :param expected: observed, apriori or aposteriori
         :param allow_negative_signal: allow negative POI
-        :param kwargs: backend specific inputs.
-            :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
-            :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
+        :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
+        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
+        :param kwargs: keyword arguments for optimiser
         :return: muhat, maximum of the likelihood
         """
         negloglikelihood, fit_param = self.backend.minimize_negative_loglikelihood(
             expected=expected,
             allow_negative_signal=allow_negative_signal,
+            init_pars=init_pars,
+            par_bounds=par_bounds,
             **kwargs,
         )
         muhat = fit_param[self.backend.model.config().poi_index]
@@ -159,6 +176,8 @@ class StatisticalModel(HypothesisTestingBase):
         return_nll: bool = True,
         expected: ExpectationType = ExpectationType.observed,
         test_statistics: Text = "qtilde",
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> Tuple[float, float]:
         """
@@ -170,13 +189,17 @@ class StatisticalModel(HypothesisTestingBase):
             (default `True`)
         :param test_statistics (`Text`): test statistics. `"qmu"` or `"qtilde"` for exclusion
                                      tests `"q0"` for discovery test. (default `"qtilde"`)
-        :param kwargs: backend specific inputs.
-            :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
-            :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
+        :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
+        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
+        :param kwargs: keyword arguments for optimiser
         :return `Tuple[float, float]`: muhat, negative log-likelihood
         """
         negloglikelihood, fit_param = self.backend.minimize_asimov_negative_loglikelihood(
-            expected=expected, test_statistics=test_statistics, **kwargs
+            expected=expected,
+            test_statistics=test_statistics,
+            init_pars=init_pars,
+            par_bounds=par_bounds,
+            **kwargs,
         )
         muhat: float = fit_param[self.backend.model.config().poi_index]
         return muhat, negloglikelihood if return_nll else np.exp(-negloglikelihood)

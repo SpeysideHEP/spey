@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, Union, Optional, List, Text, Tuple
+from typing import Dict, Union, Optional, List, Text
 
 import pyhf, copy
 import numpy as np

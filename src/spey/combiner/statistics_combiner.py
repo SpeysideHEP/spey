@@ -1,5 +1,5 @@
-from typing import List, Text, Generator, Any, Tuple, Union
-import warnings, scipy
+from typing import List, Text, Generator, Any, Tuple, Union, Dict, Optional
+import warnings
 import numpy as np
 
 from spey.interface.statistical_model import StatisticalModel
@@ -7,6 +7,8 @@ from spey.utils import ExpectationType
 from spey.system.exceptions import AnalysisQueryError, NegativeExpectedYields
 from spey.base.recorder import Recorder
 from spey.base.hypotest_base import HypothesisTestingBase
+from spey.optimizer.core import fit
+from spey.base.model_config import ModelConfig
 
 __all__ = ["StatisticsCombiner"]
 
@@ -198,81 +200,92 @@ class StatisticsCombiner(HypothesisTestingBase):
         return_nll: bool = True,
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = True,
-        poi_upper_bound: float = 10.0,
-        maxiter: int = 200,
-        **kwargs,
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
+        statistical_model_options: Optional[Dict] = None,
+        **optimiser_options,
     ) -> Tuple[float, float]:
-        """
-        Minimize negative log-likelihood of the statistical model with respect to POI
+        r"""
+        Minimize negative log-likelihood of the combined statistical model with respect to POI
 
-        :param return_nll: if true returns negative log-likelihood value
-        :param expected: observed, apriori or aposteriori
-        :param allow_negative_signal: if true, allow negative mu
-        :param poi_upper_bound: Set upper bound for POI
-        :param maxiter: number of iterations to be held for convergence of the fit.
-        :param kwargs: model dependent arguments. In order to specify backend specific inputs
-                       provide the input in the following format
+        :param return_nll (`bool`, default `True`): if true returns negative log-likelihood value.
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori or aposteriori.
+        :param allow_negative_signal (`bool`, default `True`): if true, $\hat\mu$ is allowed to be negative.
+            Note that this has been superseeded by the `par_bounds` option defined by the user.
+        :param init_pars (`Optional[np.ndarray]`, default `None`): Initial value for muhat. If None,
+            an initial value will be estimated with respect to $\hat\mu_i$ weighted by $\sigma_{\hat\mu}$.
 
-        **Note:** Sigma mu has not yet been implemented, hence this function
-        returns muhat, nan, negative log-likelihood
+        ..math::
+            \tilde{\mu} = \mathcal{N}\sum \frac{\hat\mu_i}{\sigma^2_{\hat\mu}}\quad , \quad \mathcal{N} = \sum\frac{1}{\sigma^2_{\hat\mu}}
+
+        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): User defined upper and lower limits for muhat.
+            If none the lower limit will be set as the maximum $\mu$ value that the statistical model ensample can take and the max
+            value will be set to 10.
+        :param statistical_model_options (`Optional[Dict]`, default `None`): options for the likelihood computation of the where user
+            can define individual options for each statistical model type.
 
         .. code-block:: python3
 
             >>> import spey
             >>> combiner = spey.StatisticsCombiner(stat_model1, stat_model2)
-            >>> kwargs = {
-            >>>     str(spey.AvailableBackends.pyhf): {"iteration_threshold": 20},
-            >>>     str(spey.AvailableBackends.simplified_likelihoods): {"marginalize": False},
+            >>> statistical_model_options = {
+            >>>     str(spey.AvailableBackends.pyhf): {"init_pars": [1,1,0.5]},
+            >>>     str(spey.AvailableBackends.simplified_likelihoods): {"init_pars": [1,2,0.3,0.5]},
             >>> }
-            >>> muhat, _, nll_min = combiner.maximize_likelihood(
-            >>>     return_nll=True,
-            >>>     expected=spey.ExpectationType.apriori,
-            >>>     allow_negative_signal=True,
-            >>>     **kwargs
+            >>> muhat, nll_min = combiner.maximize_likelihood(
+            >>>     statistical_model_options=statistical_model_options
             >>> )
 
-        This will allow keyword arguments to be chosen with respect to specific backend.
-        :return: POI that minimizes the negative log-likelihood, minimum negative log-likelihood
+        :param kwargs: Additional optimizer specific options.
+        :return `Tuple[float, float]`: $\hat\mu$ value and minimum negative log-likelihood
         """
         # muhat initial value estimation
-        _mu, _sigma_mu = np.zeros(len(self)), np.ones(len(self))
-        for idx, stat_model in enumerate(self):
-            _mu[idx] = stat_model.maximize_likelihood(expected=expected)[0]
-            _sigma_mu[idx] = stat_model.sigma_mu(_mu[idx], expected=expected)
-        mu_init = np.sum(np.power(_sigma_mu, -2)) * np.sum(
-            np.true_divide(_mu, np.square(_sigma_mu))
-        )
-
-        def twice_nll(mu: Union[np.ndarray, float]) -> float:
-            """Compute twice negative log likelihood"""
-            return 2.0 * self.likelihood(
-                mu if isinstance(mu, float) else mu[0], expected=expected, **kwargs
+        mu_init = 0.0
+        if init_pars is None:
+            _mu, _sigma_mu = np.zeros(len(self)), np.ones(len(self))
+            for idx, stat_model in enumerate(self):
+                _mu[idx] = stat_model.maximize_likelihood(expected=expected)[0]
+                _sigma_mu[idx] = stat_model.sigma_mu(_mu[idx], expected=expected)
+            mu_init = np.sum(np.power(_sigma_mu, -2)) * np.sum(
+                np.true_divide(_mu, np.square(_sigma_mu))
             )
 
-        # It is possible to allow user to modify the optimiser properties in the future
-        opt = scipy.optimize.minimize(
-            twice_nll,
-            mu_init,
-            method="SLSQP",
-            bounds=[(self.minimum_poi if allow_negative_signal else 0.0, poi_upper_bound)],
-            tol=1e-6,
-            options={"maxiter": maxiter},
+        config: ModelConfig = ModelConfig(
+            0,
+            self.minimum_poi,
+            [mu_init],
+            [(self.minimum_poi if allow_negative_signal else 0.0, 10.0)],
         )
 
-        if not opt.success:
-            raise RuntimeWarning("Optimiser was not able to reach required precision.")
+        statistical_model_options = statistical_model_options or {}
 
-        nll, muhat = opt.fun / 2.0, opt.x
+        def twice_nll(poi_test: Union[float, np.ndarray]) -> float:
+            """Function to compute twice negative log-likelihood for a given poi test"""
+            return 2.0 * self.likelihood(
+                poi_test if isinstance(poi_test, float) else poi_test[0],
+                expected=expected,
+                **statistical_model_options,
+            )
 
-        return muhat, nll if return_nll else np.exp(-nll)
+        twice_nll, fit_params = fit(
+            func=twice_nll,
+            model_configuration=config,
+            initial_parameters=init_pars,
+            bounds=par_bounds,
+            **optimiser_options,
+        )
+
+        return fit_params[0], twice_nll / 2.0 if return_nll else np.exp(-twice_nll / 2.0)
 
     def maximize_asimov_likelihood(
         self,
         return_nll: bool = True,
         expected: ExpectationType = ExpectationType.observed,
         test_statistics: Text = "qtilde",
-        poi_upper_bound: float = 40.0,
-        **kwargs,
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
+        statistical_model_options: Optional[Dict] = None,
+        **optimiser_options,
     ) -> Tuple[float, float]:
         """
         Find maximum of the likelihood for the asimov data
@@ -287,25 +300,29 @@ class StatisticsCombiner(HypothesisTestingBase):
         """
         allow_negative_signal: bool = True if test_statistics in ["q", "qmu"] else False
 
-        def twice_nll(mu: Union[np.ndarray, float]) -> float:
-            """Compute twice negative log likelihood"""
-            return 2.0 * self.asimov_likelihood(
-                mu if isinstance(mu, float) else mu[0], expected=expected, **kwargs
-            )
-
-        # It is possible to allow user to modify the optimiser properties in the future
-        opt = scipy.optimize.minimize(
-            twice_nll,
+        config: ModelConfig = ModelConfig(
+            0,
+            self.minimum_poi,
             [0.0],
-            method="SLSQP",
-            bounds=[(self.minimum_poi if allow_negative_signal else 0.0, poi_upper_bound)],
-            tol=1e-6,
-            options={"maxiter": 10000},
+            [(self.minimum_poi if allow_negative_signal else 0.0, 10.0)],
         )
 
-        if not opt.success:
-            raise RuntimeWarning("Optimiser was not able to reach required precision.")
+        statistical_model_options = statistical_model_options or {}
 
-        nll, muhat = opt.fun / 2.0, opt.x
+        def twice_nll(poi_test: Union[float, np.ndarray]) -> float:
+            """Function to compute twice negative log-likelihood for a given poi test"""
+            return 2.0 * self.asimov_likelihood(
+                poi_test if isinstance(poi_test, float) else poi_test[0],
+                expected=expected,
+                **statistical_model_options,
+            )
 
-        return muhat, nll if return_nll else np.exp(-nll)
+        twice_nll, fit_params = fit(
+            func=twice_nll,
+            model_configuration=config,
+            initial_parameters=init_pars,
+            bounds=par_bounds,
+            **optimiser_options,
+        )
+
+        return fit_params[0], twice_nll / 2.0 if return_nll else np.exp(-twice_nll / 2.0)
