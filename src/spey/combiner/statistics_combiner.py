@@ -101,8 +101,7 @@ class StatisticsCombiner(HypothesisTestingBase):
         Find the most sensitive statistical model which will return
         the model with minimum expected excluded cross-section
         """
-        results = [model.s95exp for model in self]
-        return self[results.index(min(results))]
+        return self[np.argmin([model.s95exp for model in self])]
 
     def likelihood(
         self,
