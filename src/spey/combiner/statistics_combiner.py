@@ -243,7 +243,8 @@ class StatisticsCombiner(HypothesisTestingBase):
             an initial value will be estimated with respect to $\hat\mu_i$ weighted by $\sigma_{\hat\mu}$.
 
         ..math::
-            \tilde{\mu} = \mathcal{N}\sum \frac{\hat\mu_i}{\sigma^2_{\hat\mu}}\quad , \quad \mathcal{N} = \sum\frac{1}{\sigma^2_{\hat\mu}}
+            \tilde{\mu} = \frac{1}{\mathcal{N}}\sum \frac{\hat\mu_i}{\sigma^2_{\hat\mu}}
+            \mathcal{N} = \sum\frac{1}{\sigma^2_{\hat\mu}}
 
         :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): User defined upper and lower limits for muhat.
             If none the lower limit will be set as the maximum $\mu$ value that the statistical model ensample can take and the max
@@ -268,7 +269,7 @@ class StatisticsCombiner(HypothesisTestingBase):
         """
         statistical_model_options = statistical_model_options or {}
 
-        # muhat initial value estimation
+        # muhat initial value estimation in gaussian limit
         mu_init = initial_muhat_value or 0.0
         if initial_muhat_value is None:
             _mu, _sigma_mu = np.zeros(len(self)), np.ones(len(self))
@@ -285,7 +286,7 @@ class StatisticsCombiner(HypothesisTestingBase):
                 _sigma_mu[idx] = stat_model.sigma_mu(
                     poi_test=_mu[idx], expected=expected, **current_kwargs, **optimiser_options
                 )
-            mu_init = np.sum(np.power(_sigma_mu, -2)) * np.sum(
+            mu_init = np.true_divide(1.0, np.sum(np.square(_sigma_mu))) * np.sum(
                 np.true_divide(_mu, np.square(_sigma_mu))
             )
 
