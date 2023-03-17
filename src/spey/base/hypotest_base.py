@@ -1,3 +1,8 @@
+"""
+Abstract class for Hypothesis base structure. This class contains necessary tools to compute exclusion limits
+and POI upper limits
+"""
+
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple, Callable, List, Text, Union
 import numpy as np
@@ -96,7 +101,7 @@ class HypothesisTestingBase(ABC):
     ) -> Tuple[
         Tuple[float, float], Callable[[float], float], Tuple[float, float], Callable[[float], float]
     ]:
-        """
+        r"""
         Retreive necessary inputs for hypotesis testing
 
         :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.

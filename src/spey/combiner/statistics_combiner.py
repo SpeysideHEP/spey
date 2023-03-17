@@ -1,3 +1,8 @@
+"""
+Statistical Model combiner class: this class combines likelihoods 
+of different statistical models for hypothesis testing
+"""
+
 from typing import List, Text, Generator, Any, Tuple, Union, Dict, Optional
 import warnings
 import numpy as np
