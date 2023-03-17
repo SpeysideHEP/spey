@@ -286,9 +286,8 @@ class StatisticsCombiner(HypothesisTestingBase):
                 _sigma_mu[idx] = stat_model.sigma_mu(
                     poi_test=_mu[idx], expected=expected, **current_kwargs, **optimiser_options
                 )
-            mu_init = np.true_divide(1.0, np.sum(np.square(_sigma_mu))) * np.sum(
-                np.true_divide(_mu, np.square(_sigma_mu))
-            )
+            norm = np.sum(np.power(_sigma_mu, -2))
+            mu_init = np.true_divide(1.0, norm) * np.sum(np.true_divide(_mu, np.square(_sigma_mu)))
 
         config: ModelConfig = ModelConfig(
             poi_index=0,
