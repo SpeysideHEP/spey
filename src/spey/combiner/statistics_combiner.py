@@ -294,7 +294,8 @@ class StatisticsCombiner(HypothesisTestingBase):
             minimum_poi=self.minimum_poi,
             suggested_init=[float(mu_init)],
             suggested_bounds=(
-                par_bounds or [(self.minimum_poi if allow_negative_signal else 0.0, 10.0)]
+                par_bounds
+                or [(self.minimum_poi if allow_negative_signal else 0.0, max(10.0, mu_init))]
             ),
         )
 
