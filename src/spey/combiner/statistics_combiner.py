@@ -110,41 +110,46 @@ class StatisticsCombiner(HypothesisTestingBase):
         poi_test: float = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
+        statistical_model_options: Optional[Dict[Text, Dict]] = None,
         **kwargs,
     ) -> float:
         """
-        Compute the likelihood for the statistical model with a given POI
+        Compute the combined likelihood of the statistical model collection
 
-        :param poi_test: POI (signal strength)
-        :param expected: observed, apriori or aposteriori
-        :param return_nll: if true returns negative log-likelihood value
-        :param isAsimov: if true, computes likelihood for Asimov data
-        :param kwargs: model dependent arguments. In order to specify backend specific inputs
-                       provide the input in the following format
+        :param poi_test (`float`, default `1.0`): parameter of interest (signal strength).
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
+        :param return_nll (`bool`, default `True`): if false returns likelihood value, if true will return negative
+            log-likelihood value.
+        :param statistical_model_options (`Optional[Dict[Text, Dict]]`, default `None`): statistical model specific options.
+            should be in the following form:
 
-        .. code-block:: python3
-
-            >>> from spey import AvailableBackends
-            >>> kwargs = {
-            >>>     str(AvailableBackends.pyhf): {"iteration_threshold": 3},
-            >>>     str(AvailableBackends.simplified_likelihoods): {"marginalize": False},
+        ..code-block:: python3
+            >>> statistical_model_options = {
+            >>>     str(spey.AvailableBackends.pyhf): {"opt1": value},
+            >>>     str(spey.AvailableBackends.simplified_likelihoods): {"opt1": value},
             >>> }
 
-        This will allow keyword arguments to be chosen with respect to specific backend.
+        note that each type of dictionary will be fed with respect to the backend type.
 
-        :return: likelihood value
+        :param kwargs: keyword arguments for optimiser.
+        :return `float`: likelihood value
         """
+        statistical_model_options = statistical_model_options or {}
+
         nll = 0.0
         for statistical_model in self:
 
             current_kwargs = {}
-            current_kwargs.update(kwargs.get(str(statistical_model.backend_type), {}))
+            current_kwargs.update(
+                statistical_model_options.get(str(statistical_model.backend_type), {})
+            )
 
             try:
                 nll += statistical_model.likelihood(
                     poi_test=poi_test,
                     expected=expected,
                     **current_kwargs,
+                    **kwargs,
                 )
             except NegativeExpectedYields as err:
                 warnings.warn(
@@ -164,30 +169,47 @@ class StatisticsCombiner(HypothesisTestingBase):
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
         test_statistics: Text = "qtilde",
+        statistical_model_options: Optional[Dict[Text, Dict]] = None,
         **kwargs,
     ) -> float:
         """
-        Compute likelihood for the asimov data
+        Compute the combined likelihood of the statistical model collection for Asimov data.
+        Asimov data for each statistical model is computed independently.
 
-        :param poi_test (`float`, default `1.0`): parameter of interest.
-        :param expected (`ExpectationType`, default `ExpectationType.observed`):
-                                                    observed, apriori or aposteriori.
-        :param return_nll (`bool`, default `True`): if false returns likelihood value.
-        :param test_statistics (`Text`, default `"qtilde"`): test statistics.
-                    `"qmu"` or `"qtilde"` for exclusion tests `"q0"` for discovery test.
-        :return `float`: likelihood computed for asimov data
+        :param poi_test (`float`, default `1.0`): parameter of interest (signal strength).
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
+        :param return_nll (`bool`, default `True`): if false returns likelihood value, if true will return negative
+            log-likelihood value.
+        :param test_statistics (`Text`, default `"qtilde"`): test statistics, `q`, `qtilde` or `q0`
+        :param statistical_model_options (`Optional[Dict[Text, Dict]]`, default `None`): statistical model specific options.
+            should be in the following form:
+
+        ..code-block:: python3
+            >>> statistical_model_options = {
+            >>>     str(spey.AvailableBackends.pyhf): {"opt1": value},
+            >>>     str(spey.AvailableBackends.simplified_likelihoods): {"opt1": value},
+            >>> }
+
+        note that each type of dictionary will be fed with respect to the backend type.
+        :param kwargs: keyword arguments for optimiser.
+        :return `float`: likelihood value for Asimov data
         """
+        statistical_model_options = statistical_model_options or {}
+
         nll = 0.0
         for statistical_model in self:
 
             current_kwargs = {}
-            current_kwargs.update(kwargs.get(str(statistical_model.backend_type), {}))
+            current_kwargs.update(
+                statistical_model_options.get(str(statistical_model.backend_type), {})
+            )
 
             nll += statistical_model.asimov_likelihood(
                 poi_test=poi_test,
                 expected=expected,
                 test_statistics=test_statistics,
                 **current_kwargs,
+                **kwargs,
             )
 
             if np.isnan(nll):
@@ -200,9 +222,9 @@ class StatisticsCombiner(HypothesisTestingBase):
         return_nll: bool = True,
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = True,
-        init_pars: Optional[List[float]] = None,
+        initial_muhat_value: Optional[float] = None,
         par_bounds: Optional[List[Tuple[float, float]]] = None,
-        statistical_model_options: Optional[Dict] = None,
+        statistical_model_options: Optional[Dict[Text, Dict]] = None,
         **optimiser_options,
     ) -> Tuple[float, float]:
         r"""
@@ -212,7 +234,7 @@ class StatisticsCombiner(HypothesisTestingBase):
         :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori or aposteriori.
         :param allow_negative_signal (`bool`, default `True`): if true, $\hat\mu$ is allowed to be negative.
             Note that this has been superseeded by the `par_bounds` option defined by the user.
-        :param init_pars (`Optional[np.ndarray]`, default `None`): Initial value for muhat. If None,
+        :param initial_muhat_value (`float`, default `None`): Initial value for muhat. If None,
             an initial value will be estimated with respect to $\hat\mu_i$ weighted by $\sigma_{\hat\mu}$.
 
         ..math::
@@ -221,7 +243,7 @@ class StatisticsCombiner(HypothesisTestingBase):
         :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): User defined upper and lower limits for muhat.
             If none the lower limit will be set as the maximum $\mu$ value that the statistical model ensample can take and the max
             value will be set to 10.
-        :param statistical_model_options (`Optional[Dict]`, default `None`): options for the likelihood computation of the where user
+        :param statistical_model_options (`Optional[Dict[Text, Dict]]`, default `None`): options for the likelihood computation of the where user
             can define individual options for each statistical model type.
 
         .. code-block:: python3
@@ -239,39 +261,51 @@ class StatisticsCombiner(HypothesisTestingBase):
         :param kwargs: Additional optimizer specific options.
         :return `Tuple[float, float]`: $\hat\mu$ value and minimum negative log-likelihood
         """
+        statistical_model_options = statistical_model_options or {}
+
         # muhat initial value estimation
-        mu_init = 0.0
-        if init_pars is None:
+        mu_init = initial_muhat_value or 0.0
+        if initial_muhat_value is None:
             _mu, _sigma_mu = np.zeros(len(self)), np.ones(len(self))
             for idx, stat_model in enumerate(self):
-                _mu[idx] = stat_model.maximize_likelihood(expected=expected)[0]
-                _sigma_mu[idx] = stat_model.sigma_mu(_mu[idx], expected=expected)
+
+                current_kwargs = {}
+                current_kwargs.update(
+                    statistical_model_options.get(str(stat_model.backend_type), {})
+                )
+
+                _mu[idx] = stat_model.maximize_likelihood(
+                    expected=expected, **current_kwargs, **optimiser_options
+                )[0]
+                _sigma_mu[idx] = stat_model.sigma_mu(
+                    poi_test=_mu[idx], expected=expected, **current_kwargs, **optimiser_options
+                )
             mu_init = np.sum(np.power(_sigma_mu, -2)) * np.sum(
                 np.true_divide(_mu, np.square(_sigma_mu))
             )
 
         config: ModelConfig = ModelConfig(
-            0,
-            self.minimum_poi,
-            [mu_init],
-            [(self.minimum_poi if allow_negative_signal else 0.0, 10.0)],
+            poi_index=0,
+            minimum_poi=self.minimum_poi,
+            suggested_init=[float(mu_init)],
+            suggested_bounds=(
+                par_bounds or [(self.minimum_poi if allow_negative_signal else 0.0, 10.0)]
+            ),
         )
-
-        statistical_model_options = statistical_model_options or {}
 
         def twice_nll(poi_test: Union[float, np.ndarray]) -> float:
             """Function to compute twice negative log-likelihood for a given poi test"""
             return 2.0 * self.likelihood(
                 poi_test if isinstance(poi_test, float) else poi_test[0],
                 expected=expected,
+                return_nll=True,
                 **statistical_model_options,
+                **optimiser_options,
             )
 
         twice_nll, fit_params = fit(
             func=twice_nll,
             model_configuration=config,
-            initial_parameters=init_pars,
-            bounds=par_bounds,
             **optimiser_options,
         )
 
@@ -282,9 +316,9 @@ class StatisticsCombiner(HypothesisTestingBase):
         return_nll: bool = True,
         expected: ExpectationType = ExpectationType.observed,
         test_statistics: Text = "qtilde",
-        init_pars: Optional[List[float]] = None,
+        initial_muhat_value: Optional[float] = None,
         par_bounds: Optional[List[Tuple[float, float]]] = None,
-        statistical_model_options: Optional[Dict] = None,
+        statistical_model_options: Optional[Dict[Text, Dict]] = None,
         **optimiser_options,
     ) -> Tuple[float, float]:
         """
@@ -301,10 +335,12 @@ class StatisticsCombiner(HypothesisTestingBase):
         allow_negative_signal: bool = True if test_statistics in ["q", "qmu"] else False
 
         config: ModelConfig = ModelConfig(
-            0,
-            self.minimum_poi,
-            [0.0],
-            [(self.minimum_poi if allow_negative_signal else 0.0, 10.0)],
+            poi_index=0,
+            minimum_poi=self.minimum_poi,
+            suggested_init=[initial_muhat_value or 0.0],
+            suggested_bounds=(
+                par_bounds or [(self.minimum_poi if allow_negative_signal else 0.0, 10.0)]
+            ),
         )
 
         statistical_model_options = statistical_model_options or {}
@@ -315,13 +351,12 @@ class StatisticsCombiner(HypothesisTestingBase):
                 poi_test if isinstance(poi_test, float) else poi_test[0],
                 expected=expected,
                 **statistical_model_options,
+                **optimiser_options,
             )
 
         twice_nll, fit_params = fit(
             func=twice_nll,
             model_configuration=config,
-            initial_parameters=init_pars,
-            bounds=par_bounds,
             **optimiser_options,
         )
 

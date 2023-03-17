@@ -94,19 +94,16 @@ class HypothesisTestingBase(ABC):
         test_statistics: Text = "qtilde",
         **kwargs,
     ) -> Tuple[
-        Callable[[], Tuple[float, float]],
-        Callable[[float], float],
-        Callable[[Text], Tuple[float, float]],
-        Callable[[float, Text], float],
+        Tuple[float, float], Callable[[float], float], Tuple[float, float], Callable[[float], float]
     ]:
         """
-        Prepare necessary functions for hypothesis testing
+        Retreive necessary inputs for hypotesis testing
 
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): _description_.
-        :return `Tuple[ Callable[[], Tuple[float, float]],
-        Callable[[float], float],
-        Callable[[Text], Tuple[float, float]],
-        Callable[[float, Text], float], ]`: _description_
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
+        :param test_statistics (`Text`, default `"qtilde"`): test statistics, "q", "qtilde", "q0".
+        :return `Tuple[ Tuple[float, float], Callable[[float], float], Tuple[float, float], Callable[[float], float] ]`:
+            $\hat\mu$, negative log-likelihood, logpdf, $\hat\mu_A$, negative log-likelihood for asimov data,
+            logpdf for asimov data
         """
         allow_negative_signal = True if test_statistics in ["q" or "qmu"] else False
 
