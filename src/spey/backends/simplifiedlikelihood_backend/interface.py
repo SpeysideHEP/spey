@@ -80,7 +80,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         # Generate the asimov data by fittin nuissance parameters to the observations
 
         # Do not allow asimov data to be negative!
-        par_bounds = [
+        par_bounds = [(0.0, 1.0)] + [
             (-1 * (bkg + sig * (test_statistics == "q0")), 100.0)
             for sig, bkg in zip(model.signal, model.background)
         ]
