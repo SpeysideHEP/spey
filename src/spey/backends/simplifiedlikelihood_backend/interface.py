@@ -78,6 +78,12 @@ class SimplifiedLikelihoodInterface(BackendBase):
         # fit_pars = self._asimov_nuisance.get(asimov_nuisance_key, None)
         # if fit_pars is None:
         # Generate the asimov data by fittin nuissance parameters to the observations
+
+        par_bounds = [
+            (-1 * (bkg + sig * (test_statistics == "q0")), 100.0)
+            for sig, bkg in zip(model.signal, model.background)
+        ]
+
         _, fit_pars = fit(
             func=twice_nll_func(
                 model.signal, model.background, model.observed, self.third_moment_expansion
@@ -87,6 +93,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
                 model.signal, model.background, model.observed, self.third_moment_expansion
             ),
             fixed_poi_value=1.0 if test_statistics == "q0" else 0.0,
+            bounds=par_bounds,
         )
         # self._asimov_nuisance[asimov_nuisance_key] = fit_pars
 
