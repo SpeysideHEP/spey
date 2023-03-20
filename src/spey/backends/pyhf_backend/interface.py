@@ -111,12 +111,12 @@ class PyhfInterface(BackendBase):
         :param expected: observed, apriori or aposteriori
         :return: asimov data
         """
-        asimov_nuisance_key = (
-            str(ExpectationType.apriori)
-            if expected == ExpectationType.apriori
-            else str(ExpectationType.observed)
-        )
-        asimov_data = self._asimov_nuisance.get(asimov_nuisance_key, False)
+        # asimov_nuisance_key = (
+        #     str(ExpectationType.apriori)
+        #     if expected == ExpectationType.apriori
+        #     else str(ExpectationType.observed)
+        # )
+        asimov_data = False #self._asimov_nuisance.get(asimov_nuisance_key, False)
         if asimov_data is False:
             asimov_data = generate_asimov_data(
                 1.0 if test_statistics == "q0" else 0.0,
@@ -127,7 +127,7 @@ class PyhfInterface(BackendBase):
                 model.config.suggested_fixed(),
                 return_fitted_pars=False,
             )
-            self._asimov_nuisance[asimov_nuisance_key] = copy.deepcopy(asimov_data)
+            # self._asimov_nuisance[asimov_nuisance_key] = copy.deepcopy(asimov_data)
         return asimov_data
 
     def negative_loglikelihood(
