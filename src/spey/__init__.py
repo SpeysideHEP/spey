@@ -1,6 +1,7 @@
 from typing import Text, Union, List, Dict, Optional, Tuple, Callable
 import numpy as np
 import pkg_resources
+from semantic_version import Version, SimpleSpec
 
 from spey.interface.statistical_model import StatisticalModel, statistical_model_wrapper
 from spey.base import BackendBase
@@ -28,7 +29,7 @@ def version() -> Text:
     return __version__
 
 
-def _resolve_backends() -> Dict:
+def _get_backend_entrypoints() -> Dict:
     """Collect plugin entries"""
     return {entry.name: entry for entry in pkg_resources.iter_entry_points("spey.plugins")}
 
@@ -39,7 +40,7 @@ def AvailableBackends() -> List[Text]:
 
     :return `List[Text]`: List of backend names
     """
-    return [*_resolve_backends().keys()]
+    return [*_get_backend_entrypoints().keys()]
 
 
 def get_backend(name: Text) -> Tuple[Callable, StatisticalModel]:
@@ -48,17 +49,26 @@ def get_backend(name: Text) -> Tuple[Callable, StatisticalModel]:
 
     :param name (`Text`): backend identifier
     :raises `PluginError`: if backend is not available in the current system
+                           or if the required version does not match with current
+                           spey version.
     :return `Tuple[Callable, StatisticalModel]`: Function to setup model
                     specific data structure and statistical model backend.
     """
-    backend = _resolve_backends().get(name, False)
+    backend = _get_backend_entrypoints().get(name, False)
 
     if backend:
         statistical_model = backend.load()
+        if Version(version()) not in SimpleSpec(statistical_model.spey_requires):
+            raise PluginError(
+                f"The backend {name}, requires spey version {statistical_model.spey_requires}. "
+                f"However the current spey version is {__version__}."
+            )
         return statistical_model.datastructure(), statistical_model_wrapper(statistical_model)
 
     raise PluginError(
-        f"Unknown backend: {name}. Available backends are " + ", ".join(AvailableBackends())
+        f"The backend {name} is unavailable. Available backends are "
+        + ", ".join(AvailableBackends())
+        + "."
     )
 
 
