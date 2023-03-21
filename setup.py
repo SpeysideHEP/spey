@@ -13,19 +13,22 @@ with open("src/spey/_version.py", mode="r", encoding="UTF-8") as f:
 setup(
     name="spey",
     version=version,
-    description=("A universal statistics package for LHC reinterpretation"),
+    description=("Smooth statistics combination for reinterpretation studies"),
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/MadAnalysis/spey",
+    url="https://github.com/SpeysideHEP/spey",
     project_urls={
-        "Bug Tracker": "https://github.com/MadAnalysis/madstats/issues",
+        "Bug Tracker": "https://github.com/SpeysideHEP/spey/issues",
     },
-    # download_url=f"https://github.com/MadAnalysis/spey/archive/refs/tags/v{version}.tar.gz",
+    # download_url=f"https://github.com/SpeysideHEP/spey/archive/refs/tags/v{version}.tar.gz",
     author="Jack Y. Araz",
     author_email=("jack.araz@durham.ac.uk"),
     license="MIT",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
+    entry_points={
+        "spey.plugins": ["simplified_likelihoods = spey.backends:SimplifiedLikelihoodInterface"]
+    },
     install_requires=requirements,
     python_requires=">=3.8",
     classifiers=[
