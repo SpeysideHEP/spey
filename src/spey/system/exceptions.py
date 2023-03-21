@@ -55,6 +55,3 @@ class InvalidInput(Exception):
 
 class PluginError(Exception):
     """Invalid plugin exception"""
-
-    def __init__(self, message="Unknown plugin."):
-        super().__init__(message)
