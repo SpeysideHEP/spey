@@ -30,7 +30,8 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
     name = "simplified_likelihoods"
     version = __version__
-    author = "spey"
+    author = "SpeysideHEP"
+    spey_requires = __version__
 
     __slots__ = ["_model", "ntoys", "_third_moment_expansion", "_asimov_nuisance"]
 
