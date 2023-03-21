@@ -1,11 +1,12 @@
+"""Simplified Likelihood Interface"""
+
 from typing import Optional, Tuple, Text, List
 import numpy as np
 
 from spey.optimizer import fit
 from spey.base import BackendBase, DataBase
 from spey.utils import ExpectationType
-from spey.backends import AvailableBackends
-from spey.interface.statistical_model import statistical_model_wrapper
+from spey._version import __version__
 from .sldata import SLData, expansion_output
 from .utils import twice_nll_func, gradient_twice_nll_func
 from .utils_marginalised import marginalised_negloglikelihood
@@ -13,7 +14,6 @@ from .utils_marginalised import marginalised_negloglikelihood
 __all__ = ["SimplifiedLikelihoodInterface"]
 
 
-@statistical_model_wrapper
 class SimplifiedLikelihoodInterface(BackendBase):
     """
     Simplified Likelihood Interface. This is object has been wrapped with
@@ -27,6 +27,10 @@ class SimplifiedLikelihoodInterface(BackendBase):
                      value. Default `NaN`
     :raises AssertionError: if the input type is wrong.
     """
+
+    name = "simplified_likelihoods"
+    version = __version__
+    author = "spey"
 
     __slots__ = ["_model", "ntoys", "_third_moment_expansion", "_asimov_nuisance"]
 
@@ -42,14 +46,15 @@ class SimplifiedLikelihoodInterface(BackendBase):
             str(ExpectationType.apriori): None,
         }
 
+    @staticmethod
+    def datastructure() -> SLData:
+        """Retreive the datastructure of the statistical model"""
+        return SLData
+
     @property
     def model(self) -> SLData:
         """Get statistical model"""
         return self._model
-
-    @property
-    def type(self) -> AvailableBackends:
-        return AvailableBackends.simplified_likelihoods
 
     @property
     def third_moment_expansion(self) -> expansion_output:

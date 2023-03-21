@@ -6,7 +6,6 @@ import numpy as np
 
 from spey.utils import ExpectationType
 from spey.base.backend_base import BackendBase, DataBase
-from spey.backends import AvailableBackends
 from spey.system.exceptions import UnknownCrossSection
 from spey.base.hypotest_base import HypothesisTestingBase
 
@@ -43,9 +42,9 @@ class StatisticalModel(HypothesisTestingBase):
         return self._backend
 
     @property
-    def backend_type(self) -> AvailableBackends:
+    def backend_type(self) -> Text:
         """Return type of the backend"""
-        return self.backend.type
+        return self.backend.name
 
     @property
     def isAlive(self) -> bool:

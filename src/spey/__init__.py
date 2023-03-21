@@ -1,11 +1,13 @@
-from typing import Text, Union, List, Dict, Optional
+from typing import Text, Union, List, Dict, Optional, Tuple, Callable
 import numpy as np
+import pkg_resources
 
-from spey.interface.statistical_model import StatisticalModel
+from spey.interface.statistical_model import StatisticalModel, statistical_model_wrapper
+from spey.base import BackendBase
 from spey.combiner import StatisticsCombiner
 from spey.base.recorder import Recorder
+from spey.system.exceptions import PluginError
 from .utils import ExpectationType
-from .backends import AvailableBackends
 from ._version import __version__
 
 __all__ = [
@@ -17,12 +19,47 @@ __all__ = [
     "get_multi_region_statistical_model",
     "get_uncorrelated_region_statistical_model",
     "Recorder",
+    "get_backend",
 ]
 
 
 def version() -> Text:
     """Version of the package"""
     return __version__
+
+
+def _resolve_backends() -> Dict:
+    """Collect plugin entries"""
+    return {entry.name: entry for entry in pkg_resources.iter_entry_points("spey.plugins")}
+
+
+def AvailableBackends() -> List[Text]:
+    """
+    Return list of available backends
+
+    :return `List[Text]`: List of backend names
+    """
+    return [*_resolve_backends().keys()]
+
+
+def get_backend(name: Text) -> Tuple[Callable, StatisticalModel]:
+    """
+    Retreive backend by name.
+
+    :param name (`Text`): backend identifier
+    :raises `PluginError`: if backend is not available in the current system
+    :return `Tuple[Callable, StatisticalModel]`: Function to setup model
+                    specific data structure and statistical model backend.
+    """
+    backend = _resolve_backends().get(name, False)
+
+    if backend:
+        statistical_model = backend.load()
+        return statistical_model.datastructure(), statistical_model_wrapper(statistical_model)
+
+    raise PluginError(
+        f"Unknown backend: {name}. Available backends are " + ", ".join(AvailableBackends())
+    )
 
 
 def get_uncorrelated_region_statistical_model(
@@ -32,7 +69,7 @@ def get_uncorrelated_region_statistical_model(
     signal_yields: Union[float, np.ndarray],
     xsection: Union[float, np.ndarray],
     analysis: Text,
-    backend: AvailableBackends,
+    backend: Text,
 ) -> StatisticalModel:
     """
     Create statistical model from a single bin or multiple uncorrelated regions
@@ -48,11 +85,10 @@ def get_uncorrelated_region_statistical_model(
 
     :raises NotImplementedError: If requested backend has not been recognised.
     """
-    if backend == AvailableBackends.pyhf:
-        # pylint: disable=C0415
-        from spey.backends.pyhf_backend import PyhfInterface, PyhfDataWrapper
+    datastructure, statistical_model = get_backend(backend)
 
-        model = PyhfDataWrapper(
+    if backend == "pyhf":
+        model = datastructure(
             signal=signal_yields,
             background=observations,
             nb=backgrounds,
@@ -60,13 +96,9 @@ def get_uncorrelated_region_statistical_model(
             name="pyhfModel",
         )
 
-        # pylint: disable=E1123
-        return PyhfInterface(model=model, xsection=xsection, analysis=analysis)
+        return statistical_model(model=model, xsection=xsection, analysis=analysis)
 
-    if backend == AvailableBackends.simplified_likelihoods:
-        # pylint: disable=C0415
-        from spey.backends.simplifiedlikelihood_backend import SLData, SimplifiedLikelihoodInterface
-
+    if backend == "simplified_likelihoods":
         # Convert everything to numpy array
         covariance = (
             np.array(background_uncertainty).reshape(-1)
@@ -90,7 +122,7 @@ def get_uncorrelated_region_statistical_model(
         )
         covariance = np.square(covariance) * np.eye(len(covariance))
 
-        model = SLData(
+        model = datastructure(
             signal=signal_yields,
             observed=nobs,
             covariance=covariance,
@@ -99,12 +131,11 @@ def get_uncorrelated_region_statistical_model(
             name="SLModel",
         )
 
-        # pylint: disable=E1123
-        return SimplifiedLikelihoodInterface(model=model, xsection=xsection, analysis=analysis)
+        return statistical_model(model=model, xsection=xsection, analysis=analysis)
 
     raise NotImplementedError(
         f"Requested backend ({backend}) has not been implemented. "
-        f"Currently available backends are " + ", ".join(AvailableBackends) + "."
+        f"Currently available backends are " + ", ".join(AvailableBackends()) + "."
     )
 
 
@@ -202,12 +233,8 @@ def get_multi_region_statistical_model(
     """
 
     if isinstance(signal, list) and isinstance(signal[0], dict) and isinstance(observed, dict):
-        # pylint: disable=C0415
-        from spey.backends.pyhf_backend import PyhfDataWrapper, PyhfInterface
-
+        PyhfDataWrapper, PyhfInterface = get_backend("pyhf")
         model = PyhfDataWrapper(signal=signal, background=observed, name="pyhfModel")
-
-        # pylint: disable=E1123
         return PyhfInterface(model=model, xsection=xsection, analysis=analysis)
 
     if (
@@ -215,8 +242,7 @@ def get_multi_region_statistical_model(
         and isinstance(signal, (list, np.ndarray))
         and isinstance(observed, (list, np.ndarray))
     ):
-        # pylint: disable=C0415
-        from spey.backends.simplifiedlikelihood_backend import SLData, SimplifiedLikelihoodInterface
+        SLData, SimplifiedLikelihoodInterface = get_backend("simplified_likelihoods")
 
         # Convert everything to numpy array
         covariance = np.array(covariance) if isinstance(covariance, list) else covariance

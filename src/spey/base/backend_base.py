@@ -6,7 +6,6 @@ from typing import Text, Tuple
 import numpy as np
 
 from spey.utils import ExpectationType
-from spey.backends import AvailableBackends
 from .model_config import ModelConfig
 
 
@@ -51,6 +50,11 @@ class BackendBase(ABC):
     the future.
     """
 
+    @staticmethod
+    @abstractmethod
+    def datastructure() -> DataBase:
+        """Retreive the data structure of the statistical model"""
+
     @property
     @abstractmethod
     def model(self) -> DataBase:
@@ -59,7 +63,7 @@ class BackendBase(ABC):
 
     @property
     @abstractmethod
-    def type(self) -> AvailableBackends:
+    def type(self) -> Text:
         """Type of the backend"""
         # This method must be casted as property
 
