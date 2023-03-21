@@ -1,7 +1,7 @@
 """Abstract Methods for backend objects"""
 
 from abc import ABC, abstractmethod
-from typing import Text, Tuple
+from typing import Text, Tuple, Callable, Union
 
 import numpy as np
 
@@ -52,19 +52,13 @@ class BackendBase(ABC):
 
     @staticmethod
     @abstractmethod
-    def datastructure() -> DataBase:
+    def datastructure() -> Union[DataBase, Callable]:
         """Retreive the data structure of the statistical model"""
 
     @property
     @abstractmethod
     def model(self) -> DataBase:
         """Get statistical model"""
-        # This method must be casted as property
-
-    @property
-    @abstractmethod
-    def type(self) -> Text:
-        """Type of the backend"""
         # This method must be casted as property
 
     @abstractmethod
