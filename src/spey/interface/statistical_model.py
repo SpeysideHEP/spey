@@ -8,6 +8,7 @@ from spey.utils import ExpectationType
 from spey.base.backend_base import BackendBase, DataBase
 from spey.system.exceptions import UnknownCrossSection
 from spey.base.hypotest_base import HypothesisTestingBase
+from spey.optimizer.core import fit
 
 __all__ = ["StatisticalModel", "statistical_model_wrapper"]
 
@@ -96,13 +97,25 @@ class StatisticalModel(HypothesisTestingBase):
         :param kwargs: keyword arguments for optimiser
         :return `float`: (float) likelihood or negative log-likelihood value for a given POI test
         """
-        negloglikelihood, _ = self.backend.negative_loglikelihood(
-            poi_test=poi_test,
-            expected=expected,
-            init_pars=init_pars,
-            par_bounds=par_bounds,
-            **kwargs,
-        )
+        try:
+            negloglikelihood, _ = self.backend.negative_loglikelihood(
+                poi_test=poi_test,
+                expected=expected,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
+                **kwargs,
+            )
+        except NotImplementedError:
+            twice_nll, _ = fit(
+                func=self.backend.get_twice_nll_func(expected=expected),
+                model_configuration=self.backend.model.config(),
+                gradient=self.backend.get_gradient_twice_nll_func(expected=expected),
+                initial_parameters=init_pars,
+                bounds=par_bounds,
+                fixed_poi_value=poi_test,
+                **kwargs,
+            )
+            negloglikelihood = twice_nll / 2.0
         return negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
     def asimov_likelihood(
@@ -129,14 +142,30 @@ class StatisticalModel(HypothesisTestingBase):
         :param kwargs: keyword arguments for optimiser
         :return float: likelihood computed for asimov data
         """
-        negloglikelihood, _ = self.backend.asimov_negative_loglikelihood(
-            poi_test=poi_test,
-            expected=expected,
-            test_statistics=test_statistics,
-            init_pars=init_pars,
-            par_bounds=par_bounds,
-            **kwargs,
-        )
+        try:
+            negloglikelihood, _ = self.backend.asimov_negative_loglikelihood(
+                poi_test=poi_test,
+                expected=expected,
+                test_statistics=test_statistics,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
+                **kwargs,
+            )
+        except NotImplementedError:
+            data = self.backend.generate_asimov_data(
+                expected=expected, test_statistics=test_statistics
+            )
+
+            twice_nll, _ = fit(
+                func=self.backend.get_twice_nll_func(expected=expected, data=data),
+                model_configuration=self.backend.model.config(),
+                gradient=self.backend.get_gradient_twice_nll_func(expected=expected, data=data),
+                initial_parameters=init_pars,
+                bounds=par_bounds,
+                fixed_poi_value=poi_test,
+                **kwargs,
+            )
+            negloglikelihood = twice_nll / 2.0
         return negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
     def maximize_likelihood(
@@ -159,13 +188,27 @@ class StatisticalModel(HypothesisTestingBase):
         :param kwargs: keyword arguments for optimiser
         :return: muhat, maximum of the likelihood
         """
-        negloglikelihood, fit_param = self.backend.minimize_negative_loglikelihood(
-            expected=expected,
-            allow_negative_signal=allow_negative_signal,
-            init_pars=init_pars,
-            par_bounds=par_bounds,
-            **kwargs,
-        )
+        try:
+            negloglikelihood, fit_param = self.backend.minimize_negative_loglikelihood(
+                expected=expected,
+                allow_negative_signal=allow_negative_signal,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
+                **kwargs,
+            )
+        except NotImplementedError:
+            twice_nll, fit_param = fit(
+                func=self.backend.get_twice_nll_func(expected=expected),
+                model_configuration=self.backend.model.config(
+                    allow_negative_signal=allow_negative_signal
+                ),
+                gradient=self.backend.get_gradient_twice_nll_func(expected=expected),
+                initial_parameters=init_pars,
+                bounds=par_bounds,
+                **kwargs,
+            )
+            negloglikelihood = twice_nll / 2.0
+
         muhat = fit_param[self.backend.model.config().poi_index]
         return muhat, negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
@@ -192,13 +235,33 @@ class StatisticalModel(HypothesisTestingBase):
         :param kwargs: keyword arguments for optimiser
         :return `Tuple[float, float]`: muhat, negative log-likelihood
         """
-        negloglikelihood, fit_param = self.backend.minimize_asimov_negative_loglikelihood(
-            expected=expected,
-            test_statistics=test_statistics,
-            init_pars=init_pars,
-            par_bounds=par_bounds,
-            **kwargs,
-        )
+        try:
+            negloglikelihood, fit_param = self.backend.minimize_asimov_negative_loglikelihood(
+                expected=expected,
+                test_statistics=test_statistics,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
+                **kwargs,
+            )
+        except NotImplementedError:
+            allow_negative_signal: bool = True if test_statistics in ["q", "qmu"] else False
+
+            data = self.backend.generate_asimov_data(
+                expected=expected, test_statistics=test_statistics
+            )
+
+            twice_nll, fit_param = fit(
+                func=self.backend.get_twice_nll_func(expected=expected, data=data),
+                model_configuration=self.backend.model.config(
+                    allow_negative_signal=allow_negative_signal
+                ),
+                gradient=self.backend.get_gradient_twice_nll_func(expected=expected, data=data),
+                initial_parameters=init_pars,
+                bounds=par_bounds,
+                **kwargs,
+            )
+            negloglikelihood = twice_nll / 2.0
+
         muhat: float = fit_param[self.backend.model.config().poi_index]
         return muhat, negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
