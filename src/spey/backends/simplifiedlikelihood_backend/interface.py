@@ -22,9 +22,6 @@ class SimplifiedLikelihoodInterface(BackendBase):
     :param model: contains all the information regarding the regions,
                   yields and correlation matrices
     :param ntoys: number of toy examples to run for the test statistics
-    :param analysis: a unique name for the analysis (default `"__unknown_analysis__"`)
-    :param xsection: cross section value for the signal, only used to compute excluded cross section
-                     value. Default `NaN`
     :raises AssertionError: if the input type is wrong.
     """
 
