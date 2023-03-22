@@ -16,12 +16,12 @@ __all__ = ["SimplifiedLikelihoodInterface"]
 
 class SimplifiedLikelihoodInterface(BackendBase):
     """
-    Simplified Likelihood Interface. This is object has been wrapped with
-    `StatisticalModel` class to ensure universality across all platforms.
+    Simplified Likelihood Interface.
 
-    :param model: contains all the information regarding the regions,
+    :param model (`SLData`): contains all the information regarding the regions,
                   yields and correlation matrices
-    :param ntoys: number of toy examples to run for the test statistics
+    :param ntoys (`int`, default `10000`): number of toy examples to run for the
+                    test statistics. Only used for marginalised likelihood.
     :raises AssertionError: if the input type is wrong.
     """
 
@@ -32,7 +32,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
     __slots__ = ["_model", "ntoys", "_third_moment_expansion", "_asimov_nuisance"]
 
-    def __init__(self, model: SLData, ntoys: Optional[int] = 10000):
+    def __init__(self, model: SLData, ntoys: int = 10000):
         assert (
             isinstance(model, SLData) and isinstance(model, DataBase) and isinstance(ntoys, int)
         ), "Invalid statistical model."
