@@ -81,6 +81,32 @@ def get_backend(name: Text) -> Tuple[Callable, StatisticalModel]:
     )
 
 
+def get_backend_metadata(name: Text) -> Dict[Text, Text]:
+    """
+    Retreive metadata for the plugin.
+
+    :param name (`Text`): name of the backend. Available backends can be found via `spey.AvailableBackends()` function.
+    :raises `PluginError`: If the plugin does not exist
+    :return `Dict[Text, Text]`: metadata for the plugin.
+    """
+    backend = _get_backend_entrypoints().get(name, False)
+
+    if backend:
+        statistical_model = backend.load()
+        return {
+            "name": statistical_model.name,
+            "author": statistical_model.author,
+            "version": statistical_model.version,
+            "spey_requires": statistical_model.spey_requires,
+        }
+
+    raise PluginError(
+        f"The backend {name} is unavailable. Available backends are "
+        + ", ".join(AvailableBackends())
+        + "."
+    )
+
+
 def get_uncorrelated_region_statistical_model(
     observations: Union[int, np.ndarray],
     backgrounds: Union[float, np.ndarray],
