@@ -159,7 +159,7 @@ class SLData(DataBase):
     @property
     def is_single_region(self) -> bool:
         """Is the statistical model has only one region"""
-        return self.isLinear and len(self) == 1
+        return len(self) == 1
 
     @property
     def diag_cov(self) -> np.ndarray:
