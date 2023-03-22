@@ -31,7 +31,7 @@ def version() -> Text:
 
 def _get_backend_entrypoints() -> Dict:
     """Collect plugin entries"""
-    return {entry.name: entry for entry in pkg_resources.iter_entry_points("spey.plugins")}
+    return {entry.name: entry for entry in pkg_resources.iter_entry_points("spey.backend.plugins")}
 
 
 def AvailableBackends() -> List[Text]:
@@ -51,6 +51,8 @@ def get_backend(name: Text) -> Tuple[Callable, StatisticalModel]:
     :raises `PluginError`: if backend is not available in the current system
                            or if the required version does not match with current
                            spey version.
+    :raises `AssertionError`: if the backend does not include basic metadata to identify
+                             its properties.
     :return `Tuple[Callable, StatisticalModel]`: Function to setup model
                     specific data structure and statistical model backend.
     """
@@ -58,6 +60,11 @@ def get_backend(name: Text) -> Tuple[Callable, StatisticalModel]:
 
     if backend:
         statistical_model = backend.load()
+
+        assert hasattr(statistical_model, "name") and hasattr(
+            statistical_model, "spey_requires"
+        ), "Backend does not include basic metadata."
+
         if Version(version()) not in SimpleSpec(statistical_model.spey_requires):
             raise PluginError(
                 f"The backend {name}, requires spey version {statistical_model.spey_requires}. "

@@ -27,7 +27,9 @@ setup(
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     entry_points={
-        "spey.plugins": ["simplified_likelihoods = spey.backends:SimplifiedLikelihoodInterface"]
+        "spey.backend.plugins": [
+            "simplified_likelihoods = spey.backends:SimplifiedLikelihoodInterface"
+        ]
     },
     install_requires=requirements,
     python_requires=">=3.8",
