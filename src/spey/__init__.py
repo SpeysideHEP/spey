@@ -6,7 +6,6 @@ from semantic_version import Version, SimpleSpec
 from spey.interface.statistical_model import StatisticalModel, statistical_model_wrapper
 from spey.base import BackendBase
 from spey.combiner import StatisticsCombiner
-from spey.base.recorder import Recorder
 from spey.system.exceptions import PluginError
 from .utils import ExpectationType
 from ._version import __version__
@@ -19,8 +18,8 @@ __all__ = [
     "AvailableBackends",
     "get_multi_region_statistical_model",
     "get_uncorrelated_region_statistical_model",
-    "Recorder",
     "get_backend",
+    "get_backend_metadata",
 ]
 
 
@@ -61,11 +60,8 @@ def get_backend(name: Text) -> Tuple[Callable, StatisticalModel]:
     if backend:
         statistical_model = backend.load()
 
-        assert (
-            hasattr(statistical_model, "name")
-            and hasattr(statistical_model, "spey_requires")
-            and hasattr(statistical_model, "datastructure")
-        ), "Backend does not include basic metadata."
+        for meta in ["name", "spey_requires", "datastructure", "author", "version"]:
+            assert hasattr(statistical_model, meta), f"Backend does not have {meta} attribute."
 
         if Version(version()) not in SimpleSpec(statistical_model.spey_requires):
             raise PluginError(
