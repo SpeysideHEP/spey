@@ -88,11 +88,14 @@ class BackendBase(ABC):
         :raises `NotImplementedError`: If the method is not implemented
         :return `Callable[[np.ndarray], float]`: function to compute twice negative log-likelihood for given nuisance parameters.
         """
-        return None
+        raise NotImplementedError("This method has not been implemented")
 
     @abstractmethod
     def generate_asimov_data(
-        self, expected: ExpectationType = ExpectationType.observed, test_statistics: Text = "qtilde", **kwargs
+        self,
+        expected: ExpectationType = ExpectationType.observed,
+        test_statistics: Text = "qtilde",
+        **kwargs,
     ) -> Union[List[float], np.ndarray]:
         """
         Method to generate Asimov data for given statistical model
