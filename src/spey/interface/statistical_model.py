@@ -216,16 +216,24 @@ def statistical_model_wrapper(func: BackendBase) -> StatisticalModel:
         model: DataBase, analysis: Text = "__unknown_analysis__", xsection: float = np.nan, **kwargs
     ) -> StatisticalModel:
         """
-        Statistical Model wrapper
+        Statistical Model Base wrapper
 
-        :param model (`DataBase`): Container that holds yield counts for statistical model and model properties
+        :param model (`DataBase`): Container that holds yield counts for statistical model and model properties.
+                                   See current statistical model properties below for details.
         :param analysis (`Text`, default `"__unknown_analysis__"`): analysis name.
-        :param xsection (`float`, default `np.nan`): cross section value.
-        :param kwargs: Backend specific inputs
+        :param xsection (`float`, default `np.nan`): cross section value. This value is only used for excluded
+                                                     cross section value computation and does not assume any units.
+        :param kwargs: Backend specific inputs. See current statistical model properties below for details.
         :return `StatisticalModel`: Statistical model interface
         :raises AssertionError: if the input function or model does not satisfy basic properties
         """
         assert isinstance(model, DataBase), "Input model does not satisfy base data properties."
         return StatisticalModel(backend=func(model, **kwargs), analysis=analysis, xsection=xsection)
+
+    wrapper.__doc__ += (
+        "\n\n\t Current statistical model properties:\n"
+        + getattr(func, "__doc__", "no docstring available").replace("\n", "\n\t")
+        + "\n"
+    )
 
     return wrapper
