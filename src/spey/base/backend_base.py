@@ -50,11 +50,6 @@ class BackendBase(ABC):
     the future.
     """
 
-    @staticmethod
-    @abstractmethod
-    def datastructure() -> Union[DataBase, Callable]:
-        """Retreive the data structure of the statistical model"""
-
     @property
     @abstractmethod
     def model(self) -> DataBase:

@@ -29,6 +29,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
     version = __version__
     author = "SpeysideHEP"
     spey_requires = __version__
+    datastructure = SLData
 
     __slots__ = ["_model", "ntoys", "_third_moment_expansion", "_asimov_nuisance"]
 
@@ -43,11 +44,6 @@ class SimplifiedLikelihoodInterface(BackendBase):
             str(ExpectationType.observed): None,
             str(ExpectationType.apriori): None,
         }
-
-    @staticmethod
-    def datastructure() -> SLData:
-        """Retreive the datastructure of the statistical model"""
-        return SLData
 
     @property
     def model(self) -> SLData:
@@ -157,8 +153,8 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
     def asimov_negative_loglikelihood(
         self,
-        poi_test: Optional[float] = 1.0,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
+        poi_test: float = 1.0,
+        expected: ExpectationType = ExpectationType.observed,
         test_statistics: Text = "qtilde",
         init_pars: Optional[List[float]] = None,
         par_bounds: Optional[List[Tuple[float, float]]] = None,
@@ -167,8 +163,8 @@ class SimplifiedLikelihoodInterface(BackendBase):
         """
         compute likelihood for the Asimov data
 
-        :param poi_test (`Optional[float]`, default `1.0`): parameter of interest.
-        :param expected (`Optional[ExpectationType]`, default `ExpectationType.observed`): observed, apriori or aposteriori.
+        :param poi_test (`float`, default `1.0`): parameter of interest.
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori or aposteriori.
         :param test_statistics (`Text`, default `"qtilde"`): test statistics: `q`, `qtilde`, `q0`.
         :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
         :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
@@ -203,8 +199,8 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
     def minimize_negative_loglikelihood(
         self,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        allow_negative_signal: Optional[bool] = True,
+        expected: ExpectationType = ExpectationType.observed,
+        allow_negative_signal: bool = True,
         init_pars: Optional[List[float]] = None,
         par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,

@@ -61,8 +61,10 @@ def get_backend(name: Text) -> Tuple[Callable, StatisticalModel]:
     if backend:
         statistical_model = backend.load()
 
-        assert hasattr(statistical_model, "name") and hasattr(
-            statistical_model, "spey_requires"
+        assert (
+            hasattr(statistical_model, "name")
+            and hasattr(statistical_model, "spey_requires")
+            and hasattr(statistical_model, "datastructure")
         ), "Backend does not include basic metadata."
 
         if Version(version()) not in SimpleSpec(statistical_model.spey_requires):
@@ -70,7 +72,7 @@ def get_backend(name: Text) -> Tuple[Callable, StatisticalModel]:
                 f"The backend {name}, requires spey version {statistical_model.spey_requires}. "
                 f"However the current spey version is {__version__}."
             )
-        return statistical_model.datastructure(), statistical_model_wrapper(statistical_model)
+        return statistical_model.datastructure, statistical_model_wrapper(statistical_model)
 
     raise PluginError(
         f"The backend {name} is unavailable. Available backends are "
