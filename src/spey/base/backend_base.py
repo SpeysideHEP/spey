@@ -1,7 +1,7 @@
 """Abstract Methods for backend objects"""
 
 from abc import ABC, abstractmethod
-from typing import Text, Tuple, Callable, Union
+from typing import Text, Tuple, Callable, Union, List, Optional
 
 import numpy as np
 
@@ -56,25 +56,66 @@ class BackendBase(ABC):
         """Get statistical model"""
         # This method must be casted as property
 
-    @abstractmethod
-    def negative_loglikelihood(
+    def get_twice_nll_func(
         self,
-        poi_test: float = 1.0,
         expected: ExpectationType = ExpectationType.observed,
-        **kwargs,
+        data: Optional[Union[List[float], np.ndarray]] = None,
+    ) -> Callable[[np.ndarray], float]:
+        """
+        Generate function to compute twice negative log-likelihood for the statistical model
+        Interface will first look for default likelihood computers that defined for the backend. If its not
+        defined then it will call this function.
+
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
+        :param data (`Union[List[float], np.ndarray]`, default `None`): observed data to be used for nll computation.
+        :raises `NotImplementedError`: If the method is not implemented
+        :return `Callable[[np.ndarray], float]`: function to compute twice negative log-likelihood for given nuisance parameters.
+        """
+        raise NotImplementedError("This method has not been implemented")
+
+    def get_gradient_twice_nll_func(
+        self,
+        expected: ExpectationType = ExpectationType.observed,
+        data: Optional[Union[List[float], np.ndarray]] = None,
+    ) -> Callable[[np.ndarray], float]:
+        """
+        Generate function to compute gradient of twice negative log-likelihood for the statistical model.
+        Interface will first look for default likelihood computers that defined for the backend. If its not
+        defined then it will call this function.
+
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
+        :param data (`Union[List[float], np.ndarray]`, default `None`): observed data to be used for nll computation.
+        :raises `NotImplementedError`: If the method is not implemented
+        :return `Callable[[np.ndarray], float]`: function to compute twice negative log-likelihood for given nuisance parameters.
+        """
+        return None
+
+    @abstractmethod
+    def generate_asimov_data(
+        self, expected: ExpectationType = ExpectationType.observed, test_statistics: Text = "qtilde", **kwargs
+    ) -> Union[List[float], np.ndarray]:
+        """
+        Method to generate Asimov data for given statistical model
+
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
+        :param test_statistics (`Text`, default `"qtilde"`): definition of test statistics. `q`, `qtilde` or `q0`
+        :raises `NotImplementedError`: if the method has not been implemented
+        :return ` Union[List[float], np.ndarray]`: Asimov data
+        """
+
+    def negative_loglikelihood(
+        self, poi_test: float = 1.0, expected: ExpectationType = ExpectationType.observed, **kwargs
     ) -> Tuple[float, np.ndarray]:
         """
-        Compute the likelihood of the given statistical model
+        Negative log-likelihood computer. Interface will initially call this method.
 
-        :param poi_test: POI (signal strength)
-        :param ex∏pected: observed, apriori or aposteriori
-        :param allow_negative_signal: if true, POI can get negative values
-        :param isAsimov: if true, computes likelihood for Asimov data
-        :param kwargs: backend specific inputs
-        :return: (float) likelihood
+        :param poi_test (`float`, default `1.0`): parameter of interest (signal strength).
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): expectation type, observed, apriori, aposteriori.
+        :raises `NotImplementedError`: if the method has not been implemented
+        :return `Tuple[float, np.ndarray]`: negative log-likelihood value and fit parameters
         """
+        raise NotImplementedError("This method has not been implemented")
 
-    @abstractmethod
     def asimov_negative_loglikelihood(
         self,
         poi_test: float = 1.0,
@@ -83,17 +124,16 @@ class BackendBase(ABC):
         **kwargs,
     ) -> Tuple[float, np.ndarray]:
         """
-        Compute likelihood for the asimov data
+        Negative log-likelihood computer for Asimov data. Interface will initially call this method.
 
-        :param float poi_test: parameter of interest, defaults to 1.0
-        :param ExpectationType expected: observed, apriori or aposteriori.
-                                                   defaults to ExpectationType.observed
-        :param Text test_statistics: test statistics. `"qmu"` or `"qtilde"` for exclusion
-                                     tests `"q0"` for discovery test, defaults to `"qtilde"`.
-        :return Tuple[float, np.ndarray]: negative log-likelihood, fit parameters
+        :param poi_test (`float`, default `1.0`): parameter of interest (signal strength).
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): expectation type, observed, apriori, aposteriori.
+        :param test_statistics (`Text`, default `"qtilde"`): definition of test statistics. `q`, `qtilde` or `q0`
+        :raises `NotImplementedError`: if the method has not been implemented
+        :return `Tuple[float, np.ndarray]`: negative log-likelihood value and fit parameters
         """
+        raise NotImplementedError("This method has not been implemented")
 
-    @abstractmethod
     def minimize_negative_loglikelihood(
         self,
         expected: ExpectationType = ExpectationType.observed,
@@ -101,15 +141,15 @@ class BackendBase(ABC):
         **kwargs,
     ) -> Tuple[float, np.ndarray]:
         """
-        Find the POI that maximizes the likelihood and the value of the maximum likelihood
+        Find nuisance parameters that maximizes the likelihood. Interface will initially call this method.
 
-        :param expected: observed, apriori or aposteriori
-        :param allow_negative_signal: allow negative POI
-        :param kwargs: backend specific inputs
-        :return: muhat, maximum of the likelihood
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): expectation type, observed, apriori, aposteriori.
+        :param allow_negative_signal (`bool`, default `True`): If true negative signal values will be allowed.
+        :raises `NotImplementedError`: if the method has not been implemented
+        :return `Tuple[float, np.ndarray]`: negative log-likelihood value and fit parameters
         """
+        raise NotImplementedError("This method has not been implemented")
 
-    @abstractmethod
     def minimize_asimov_negative_loglikelihood(
         self,
         expected: ExpectationType = ExpectationType.observed,
@@ -117,10 +157,12 @@ class BackendBase(ABC):
         **kwargs,
     ) -> Tuple[float, np.ndarray]:
         """
-        Compute maximum likelihood for asimov data
+        Find nuisance parameters that maximizes the likelihood for Asimov data.
+        Interface will initially call this method.
 
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori or aposteriori.
-        :param test_statistics (`Text`, default `"qtilde"`): test statistics. `"qmu"` or `"qtilde"` for exclusion
-                                     tests `"q0"` for discovery test, defaults to `"qtilde"`.
-        :return `Tuple[float, np.ndarray]`: maximum negative log-likelihood, fit parameters
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): expectation type, observed, apriori, aposteriori.
+        :param test_statistics (`Text`, default `"qtilde"`): definition of test statistics. `q`, `qtilde` or `q0`
+        :raises `NotImplementedError`: if the method has not been implemented
+        :return `Tuple[float, np.ndarray]`: negative log-likelihood value and fit parameters
         """
+        raise NotImplementedError("This method has not been implemented")
