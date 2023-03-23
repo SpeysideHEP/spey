@@ -47,17 +47,19 @@ def minimize(
     ntrial = 0
     while ntrial < ntrials:
         ntrial += 1
-        opt = scipy.optimize.minimize(
-            func,
-            init_pars,
-            method=method,
-            jac=gradient,
-            hess=hessian,
-            bounds=bounds,
-            constraints=constraints,
-            tol=tol,
-            options=options,
-        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", category=RuntimeWarning)
+            opt = scipy.optimize.minimize(
+                func,
+                init_pars,
+                method=method,
+                jac=gradient,
+                hess=hessian,
+                bounds=bounds,
+                constraints=constraints,
+                tol=tol,
+                options=options,
+            )
         if not opt.success and ntrial < ntrials:
             warnings.warn(
                 message=opt.message + "\nspey::Expanding the bounds.", category=RuntimeWarning
