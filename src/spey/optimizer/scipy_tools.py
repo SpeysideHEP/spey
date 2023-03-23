@@ -23,6 +23,7 @@ def minimize(
         maxiter = 10000
         disp = False
         tol = 1e-6
+        ntrials = 3
 
     :param func (`Callable[[np.ndarray], float]`): the objective function to be minimized.
     :param init_pars (`List[float]`): initial set of parameters
@@ -33,24 +34,42 @@ def minimize(
     :param constraints (`List[Dict]`, default `None`): Constraints definition. Only for COBYLA, SLSQP and trust-constr.
     :return `Tuple[float, np.ndarray]`: minimum value of the objective function and fit parameters
     """
+    assert "poi_index" in list(options), "Please include `poi_index` in the options."
 
     method = options.pop("method", "SLSQP")
     tol = options.pop("tol", 1e-6)
+    ntrials = options.pop("ntrials", 3)
+    poi_index = options.pop("poi_index")
 
     options.update({"maxiter": options.get("maxiter", 10000)})
     options.update({"disp": options.get("disp", False)})
 
-    opt = scipy.optimize.minimize(
-        func,
-        init_pars,
-        method=method,
-        jac=gradient,
-        hess=hessian,
-        bounds=bounds,
-        constraints=constraints,
-        tol=tol,
-        options=options,
-    )
+    ntrial = 0
+    while ntrial < ntrials:
+        ntrial += 1
+        opt = scipy.optimize.minimize(
+            func,
+            init_pars,
+            method=method,
+            jac=gradient,
+            hess=hessian,
+            bounds=bounds,
+            constraints=constraints,
+            tol=tol,
+            options=options,
+        )
+        if not opt.success and ntrial < ntrials:
+            warnings.warn(
+                message=opt.message + "\nspey::Expanding the bounds.", category=RuntimeWarning
+            )
+            init_pars = opt.x
+            for bdx in enumerate(bounds):
+                if bdx == poi_index and constraints is None:
+                    bounds[bdx] = (bounds[bdx][0], bounds[bdx][1] * 2.0)
+                else:
+                    bounds[bdx] = (bounds[bdx][0] * 10.0, bounds[bdx][1] * 10.0)
+        elif opt.success:
+            break
 
     if not opt.success:
         warnings.warn(message=opt.message, category=RuntimeWarning)

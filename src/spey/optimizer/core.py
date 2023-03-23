@@ -26,6 +26,8 @@ def fit(
             {"type": "eq", "fun": lambda v: v[model_configuration.poi_index] - fixed_poi_value}
         ]
 
+    options.update({"poi_index": model_configuration.poi_index})
+
     return minimize(
         func=func,
         init_pars=init_pars,
