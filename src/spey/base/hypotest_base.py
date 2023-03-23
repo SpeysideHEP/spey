@@ -70,7 +70,7 @@ class HypothesisTestingBase(ABC):
         self,
         poi_test: float = 1.0,
         expected: ExpectationType = ExpectationType.observed,
-        allow_negative_signal: bool = True,
+        allow_negative_signal: bool = False,
         **kwargs,
     ) -> float:
         r"""
@@ -140,7 +140,7 @@ class HypothesisTestingBase(ABC):
         self,
         poi_test: float,
         expected: ExpectationType = ExpectationType.observed,
-        test_statistics: Text = "qmu",
+        test_statistics: Text = "qtilde",
         **kwargs,
     ) -> float:
         r"""
@@ -148,14 +148,14 @@ class HypothesisTestingBase(ABC):
 
         .. math::
 
-            \sigma^2_A = \frac{\mu^2}{q_{\mu,A}}
+            \sigma^2_A = \frac{(\mu - \mu^\prime)^2}{q_{\mu,A}}\quad , \quad q_{\mu,A} = -2\ln\lambda_A(\mu)
 
         see eq. (31) in https://arxiv.org/abs/1007.1727
 
         :param poi_test (`float`): Parameter of interest
         :param expected (`ExpectationType`, default `ExpectationType.observed`):
                                                                 observed, apriori or aposteriori.
-        :param test_statistics (`Text`, default `"qmu"`): sets which test statistics to be used
+        :param test_statistics (`Text`, default `"qtilde"`): sets which test statistics to be used
                                                           i.e. `"qmu"`, `"qtilde"` or `"q0"`.
         :return `float`: deviation in POI
         """
@@ -181,7 +181,7 @@ class HypothesisTestingBase(ABC):
         self,
         poi_test: float = 1.0,
         expected: Optional[ExpectationType] = ExpectationType.observed,
-        allow_negative_signal: bool = True,
+        allow_negative_signal: bool = False,
         **kwargs,
     ) -> List[float]:
         """
@@ -251,12 +251,12 @@ class HypothesisTestingBase(ABC):
     def poi_upper_limit(
         self,
         expected: Optional[ExpectationType] = ExpectationType.observed,
-        allow_negative_signal: bool = True,
+        allow_negative_signal: bool = False,
         confidence_level: float = 0.95,
         low_init: Optional[float] = None,
         hig_init: Optional[float] = None,
         expected_pvalue: Text = "nominal",
-        maxiter: int = 200,
+        maxiter: int = 10000,
         **kwargs,
     ) -> Union[float, List[float]]:
         r"""
@@ -274,8 +274,8 @@ class HypothesisTestingBase(ABC):
                                     if None its set to `$\hat{\mu} + 2.5\sigma_\mu$`
         :param expected_pvalue (`Text`, default `"nominal"`): find the upper limit for pvalue range,
                                                         only for expected. `nominal`, `1sigma`, `2sigma`
-        :param maxiter (`int`, default `200`): If convergence is not achieved in maxiter iterations,
-                                           an error is raised. Must be >= 0.
+        :param maxiter (`int`, default `10000`): If convergence is not achieved in maxiter iterations,
+                                           an error is raised. Must be > 0.
         :param kwargs: backend specific inputs.
         :return: excluded parameter of interest
         """
