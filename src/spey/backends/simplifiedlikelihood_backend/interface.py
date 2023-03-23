@@ -29,6 +29,8 @@ class SimplifiedLikelihoodInterface(BackendBase):
     version = __version__
     author = "SpeysideHEP"
     spey_requires = __version__
+    doi = ["10.1007/JHEP04(2019)064"]
+    arXiv = ["1809.05548"]
     datastructure = SLData
 
     __slots__ = ["_model", "ntoys", "_third_moment_expansion", "_asimov_nuisance"]
