@@ -8,7 +8,7 @@ from spey.base import BackendBase, DataBase
 from spey.utils import ExpectationType
 from spey._version import __version__
 from .sldata import SLData, expansion_output
-from .utils import twice_nll_func, gradient_twice_nll_func
+from .utils import twice_nll_func, gradient_twice_nll_func, hessian_twice_nll_func
 from .utils_marginalised import marginalised_negloglikelihood
 
 __all__ = ["SimplifiedLikelihoodInterface"]
@@ -91,12 +91,34 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
         :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
         :param data (`Union[List[float], np.ndarray]`, default `None`): observed data to be used for nll computation.
-        :return `Callable[[np.ndarray], float]`: function to compute twice negative log-likelihood for given nuisance parameters.
+        :return `Callable[[np.ndarray], float]`: function to compute gradient of twice negative log-likelihood for given nuisance parameters.
         """
         current_model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
         )
         return gradient_twice_nll_func(
+            current_model.signal,
+            current_model.background,
+            data if data is not None else current_model.observed,
+            self.third_moment_expansion,
+        )
+
+    def get_hessian_twice_nll_func(
+        self,
+        expected: ExpectationType = ExpectationType.observed,
+        data: Optional[np.ndarray] = None,
+    ) -> Callable[[np.ndarray], float]:
+        """
+        Generate function to compute hessian of twice negative log-likelihood for the statistical model.
+
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
+        :param data (`Union[List[float], np.ndarray]`, default `None`): observed data to be used for nll computation.
+        :return `Callable[[np.ndarray], float]`: function to compute hessian of twice negative log-likelihood for given nuisance parameters.
+        """
+        current_model: SLData = (
+            self.model if expected != ExpectationType.apriori else self.model.expected_dataset
+        )
+        return hessian_twice_nll_func(
             current_model.signal,
             current_model.background,
             data if data is not None else current_model.observed,
