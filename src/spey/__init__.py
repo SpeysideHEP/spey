@@ -94,8 +94,8 @@ def get_backend_metadata(name: Text) -> Dict[Text, Text]:
             "author": statistical_model.author,
             "version": statistical_model.version,
             "spey_requires": statistical_model.spey_requires,
-            "doi": getattr(statistical_model, "doi", []),
-            "arXiv": getattr(statistical_model, "arXiv", []),
+            "doi": list(getattr(statistical_model, "doi", [])),
+            "arXiv": list(getattr(statistical_model, "arXiv", [])),
         }
 
     raise PluginError(
