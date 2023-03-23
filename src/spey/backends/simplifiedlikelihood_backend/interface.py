@@ -1,6 +1,6 @@
 """Simplified Likelihood Interface"""
 
-from typing import Optional, Tuple, Text, Callable
+from typing import Optional, Tuple, Text, Callable, List
 import numpy as np
 
 from spey.optimizer import fit
@@ -25,12 +25,12 @@ class SimplifiedLikelihoodInterface(BackendBase):
     :raises AssertionError: if the input type is wrong.
     """
 
-    name = "simplified_likelihoods"
-    version = __version__
-    author = "SpeysideHEP"
-    spey_requires = __version__
-    doi = ["10.1007/JHEP04(2019)064"]
-    arXiv = ["1809.05548"]
+    name: Text = "simplified_likelihoods"
+    version: Text = __version__
+    author: Text = "SpeysideHEP"
+    spey_requires: Text = __version__
+    doi: List[Text] = ["10.1007/JHEP04(2019)064"]
+    arXiv: List[Text] = ["1809.05548"]
     datastructure = SLData
 
     __slots__ = ["_model", "ntoys", "_third_moment_expansion", "_asimov_nuisance"]
