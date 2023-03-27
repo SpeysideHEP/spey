@@ -100,18 +100,6 @@ class StatisticalModel(HypothesisTestingBase):
         :param kwargs: keyword arguments for optimiser
         :return `float`: (float) negative log-likelihood value and fit parameters
         """
-        # try:
-        #     func = "negative_loglikelihood" if not data else "asimov_negative_loglikelihood"
-        #     negloglikelihood, fit_param = getattr(self.backend, func)(
-        #         poi_test=poi_test,
-        #         expected=expected,
-        #         init_pars=init_pars,
-        #         par_bounds=par_bounds,
-        #         **kwargs,
-        #     )
-        # except NotImplementedError:
-        # remove marginalize input for simplified likelihood backend
-        _ = kwargs.pop("marginalize", False)
         twice_nll, fit_param = fit(
             func=self.backend.get_twice_nll_func(expected=expected, data=data),
             model_configuration=self.backend.model.config(),
@@ -130,7 +118,7 @@ class StatisticalModel(HypothesisTestingBase):
             fixed_poi_value=poi_test,
             **kwargs,
         )
-        negloglikelihood = twice_nll / 2.
+        negloglikelihood = twice_nll / 2.0
 
         return negloglikelihood, fit_param
 
@@ -154,13 +142,22 @@ class StatisticalModel(HypothesisTestingBase):
         :param kwargs: keyword arguments for optimiser
         :return `float`: (float) likelihood or negative log-likelihood value for a given POI test
         """
-        negloglikelihood, _ = self.fixed_poi_fit(
-            poi_test=poi_test,
-            expected=expected,
-            init_pars=init_pars,
-            par_bounds=par_bounds,
-            **kwargs,
-        )
+        try:
+            negloglikelihood, _ = self.backend.negative_loglikelihood(
+                poi_test=poi_test,
+                expected=expected,
+                **kwargs,
+            )
+        except NotImplementedError:
+            # add a debug message here
+            _ = kwargs.pop("marginalize", False)
+            negloglikelihood, _ = self.fixed_poi_fit(
+                poi_test=poi_test,
+                expected=expected,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
+                **kwargs,
+            )
 
         return negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
@@ -188,15 +185,26 @@ class StatisticalModel(HypothesisTestingBase):
         :param kwargs: keyword arguments for optimiser
         :return float: likelihood computed for asimov data
         """
-        data = self.backend.generate_asimov_data(expected=expected, test_statistics=test_statistics)
-        negloglikelihood, _ = self.fixed_poi_fit(
-            poi_test=poi_test,
-            data=data,
-            expected=expected,
-            init_pars=init_pars,
-            par_bounds=par_bounds,
-            **kwargs,
-        )
+        try:
+            negloglikelihood, _ = self.backend.asimov_negative_loglikelihood(
+                poi_test=poi_test,
+                expected=expected,
+                test_statistics=test_statistics,
+                **kwargs,
+            )
+        except NotImplementedError:
+            # add a debug logger here saying backend has no implementation etc.
+            data = self.backend.generate_asimov_data(
+                expected=expected, test_statistics=test_statistics
+            )
+            negloglikelihood, _ = self.fixed_poi_fit(
+                poi_test=poi_test,
+                data=data,
+                expected=expected,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
+                **kwargs,
+            )
 
         return negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
@@ -354,6 +362,44 @@ class StatisticalModel(HypothesisTestingBase):
             ) from exc
 
         return sampler(size) if isinstance(size, int) else sampler
+
+    def sigma_mu_from_hessian(
+        self,
+        poi_test: float,
+        expected: ExpectationType = ExpectationType.observed,
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
+        **kwargs,
+    ) -> float:
+        """
+        Compute sigma mu from inverse Hessian. see eq. (28) in https://arxiv.org/abs/1007.1727
+
+        :param poi_test (`float`): parameter of interest
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori or aposteriori.
+        :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
+        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
+        :raises `MethodNotAvailable`: If the hessian is not defined for the backend.
+        :return `float`: sigma mu
+        """
+        try:
+            hessian_func = self.backend.get_hessian_twice_nll_func(expected=expected)
+        except NotImplementedError as exc:
+            raise MethodNotAvailable(
+                f"{self.backend_type} backend does not have Hessian definition."
+            ) from exc
+
+        _, fit_param = self.fixed_poi_fit(
+            poi_test=poi_test,
+            expected=expected,
+            init_pars=init_pars,
+            par_bounds=par_bounds,
+            **kwargs,
+        )
+
+        hessian = hessian_func(fit_param)
+
+        poi_index = self.backend.model.config().poi_index
+        return 1.0 / hessian[poi_index, poi_index]
 
 
 def statistical_model_wrapper(func: BackendBase) -> StatisticalModel:
