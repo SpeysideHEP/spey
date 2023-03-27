@@ -38,7 +38,7 @@ def minimize(
 
     method = options.pop("method", "SLSQP")
     tol = options.pop("tol", 1e-6)
-    ntrials = min(options.pop("ntrials", 3), 1)
+    ntrials = max(options.pop("ntrials", 3), 1)
     poi_index = options.pop("poi_index")
 
     options.update({"maxiter": options.get("maxiter", 10000)})
