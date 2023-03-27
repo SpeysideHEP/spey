@@ -396,7 +396,7 @@ class StatisticalModel(HypothesisTestingBase):
             **kwargs,
         )
 
-        hessian = hessian_func(fit_param)
+        hessian = hessian_func(fit_param) / 2.0
 
         poi_index = self.backend.model.config().poi_index
         return 1.0 / hessian[poi_index, poi_index]
