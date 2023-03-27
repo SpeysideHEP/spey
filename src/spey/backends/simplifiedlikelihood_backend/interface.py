@@ -1,7 +1,6 @@
 """Simplified Likelihood Interface"""
 
-from typing import Optional, Tuple, Text, Callable, List
-from functools import partial
+from typing import Optional, Text, Callable, List
 import numpy as np
 
 from spey.optimizer import fit
@@ -10,7 +9,6 @@ from spey.utils import ExpectationType
 from spey._version import __version__
 from .sldata import SLData, expansion_output
 from .negative_loglikelihood import twice_nll_func, gradient_twice_nll_func, hessian_twice_nll_func
-from .utils_marginalised import marginalised_negloglikelihood
 from .sampler import sample_generator
 
 __all__ = ["SimplifiedLikelihoodInterface"]
@@ -155,14 +153,6 @@ class SimplifiedLikelihoodInterface(BackendBase):
         :param test_statistics (`Text`, default `"qtilde"`): test statistics, `q0`, `qtilde`, `q`.
         :return `np.ndarray`: Asimov data
         """
-        # asimov_nuisance_key = (
-        #     str(ExpectationType.apriori)
-        #     if expected == ExpectationType.apriori
-        #     else str(ExpectationType.observed)
-        # )
-        # fit_pars = self._asimov_nuisance.get(asimov_nuisance_key, None)
-        # if fit_pars is None:
-        # Generate the asimov data by fittin nuissance parameters to the observations
         model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
         )
@@ -185,38 +175,5 @@ class SimplifiedLikelihoodInterface(BackendBase):
             bounds=par_bounds,
             **kwargs,
         )
-        # self._asimov_nuisance[asimov_nuisance_key] = fit_pars
 
         return model.background + fit_pars[1:]
-
-    def negative_loglikelihood(
-        self,
-        poi_test: Optional[float] = 1.0,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
-        marginalize: Optional[bool] = False,
-        **kwargs,
-    ) -> Tuple[float, np.ndarray]:
-        """
-        Compute the likelihood for the statistical model with a given POI
-
-        :param poi_test (`Optional[float]`, default `1.0`): POI (signal strength).
-        :param expected (`Optional[ExpectationType]`, default `ExpectationType.observed`): observed, apriori or aposteriori.
-        :param marginalize (`Optional[bool]`, default `False`): if true, marginalize the likelihood.
-                            if false compute profiled likelihood.
-        :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
-        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
-        :return `Tuple[float, np.ndarray]`: negative log-likelihood, fit parameters
-        """
-
-        if marginalize:
-            current_model: SLData = (
-                self.model if expected != ExpectationType.apriori else self.model.expected_dataset
-            )
-
-            nll = marginalised_negloglikelihood(
-                poi_test, current_model, self.third_moment_expansion, self.ntoys
-            )
-            return nll, np.nan
-
-        # If not marginalised then use default computation method
-        raise NotImplementedError("This method has not been implemented")
