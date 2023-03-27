@@ -86,7 +86,34 @@ class BackendBase(ABC):
         :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
         :param data (`Union[List[float], np.ndarray]`, default `None`): observed data to be used for nll computation.
         :raises `NotImplementedError`: If the method is not implemented
-        :return `Callable[[np.ndarray], float]`: function to compute twice negative log-likelihood for given nuisance parameters.
+        :return `Callable[[np.ndarray], float]`: function to compute gradient of twice negative log-likelihood for given nuisance parameters.
+        """
+        raise NotImplementedError("This method has not been implemented")
+
+    def get_hessian_twice_nll_func(
+        self,
+        expected: ExpectationType = ExpectationType.observed,
+        data: Optional[Union[List[float], np.ndarray]] = None,
+    ) -> Callable[[np.ndarray], float]:
+        """
+        Generate function to compute hessian of twice negative log-likelihood for the statistical model.
+        Interface will first look for default likelihood computers that defined for the backend. If its not
+        defined then it will call this function.
+
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
+        :param data (`Union[List[float], np.ndarray]`, default `None`): observed data to be used for nll computation.
+        :raises `NotImplementedError`: If the method is not implemented
+        :return `Callable[[np.ndarray], float]`: function to compute hessian of twice negative log-likelihood for given nuisance parameters.
+        """
+        raise NotImplementedError("This method has not been implemented")
+
+    def get_sampler(self, pars: np.ndarray) -> Callable[[int], np.ndarray]:
+        """
+        Returns function that generates samples for a given statistical model with respect to
+        a set of nuisance parameters.
+
+        :return `Callable[[int], np.ndarray]`: returns sampling function which takes an integer parameter
+            as number of samples and returns generated samples
         """
         raise NotImplementedError("This method has not been implemented")
 

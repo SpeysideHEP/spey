@@ -55,3 +55,7 @@ class InvalidInput(Exception):
 
 class PluginError(Exception):
     """Invalid plugin exception"""
+
+
+class MethodNotAvailable(Exception):
+    """If the method is not available for a given backend"""

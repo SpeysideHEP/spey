@@ -1,6 +1,7 @@
 """Simplified Likelihood Interface"""
 
 from typing import Optional, Tuple, Text, Callable, List
+from functools import partial
 import numpy as np
 
 from spey.optimizer import fit
@@ -10,6 +11,7 @@ from spey._version import __version__
 from .sldata import SLData, expansion_output
 from .negative_loglikelihood import twice_nll_func, gradient_twice_nll_func, hessian_twice_nll_func
 from .utils_marginalised import marginalised_negloglikelihood
+from .sampler import sample_generator
 
 __all__ = ["SimplifiedLikelihoodInterface"]
 
@@ -123,6 +125,21 @@ class SimplifiedLikelihoodInterface(BackendBase):
             current_model.background,
             data if data is not None else current_model.observed,
             self.third_moment_expansion,
+        )
+
+    def get_sampler(self, pars: np.ndarray) -> Callable[[int], np.ndarray]:
+        """
+        Sampler function predefined with respect to the statistical model yields.
+
+        :param pars (`np.ndarray`): nuisance parameters
+        :return `Callable[[int], np.ndarray]`: eturns function to sample from
+            a preconfigured statistical model
+        """
+        return sample_generator(
+            pars=pars,
+            signal=self.model.signal,
+            background=self.model.background,
+            third_moment_expansion=self.third_moment_expansion,
         )
 
     def generate_asimov_data(
