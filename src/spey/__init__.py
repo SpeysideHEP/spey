@@ -155,7 +155,7 @@ def get_uncorrelated_region_statistical_model(
         )
         nobs = (
             np.array(observations).reshape(-1)
-            if isinstance(observations, (list, float))
+            if isinstance(observations, (list, float, int))
             else observations
         )
         nb = (
