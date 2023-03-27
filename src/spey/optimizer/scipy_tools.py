@@ -61,15 +61,19 @@ def minimize(
                 options=options,
             )
         if not opt.success and ntrial < ntrials:
+            # Expand the boundaries of the statistical model dynamically to be able to converge
+            # Note that it is important to respect the lower bounds especially since there might
+            # be bounds that lead to negative yields in the statistical model, e.g. Asimov data,
+            # background + mu * signal etc.
             warnings.warn(
                 message=opt.message + "\nspey::Expanding the bounds.", category=RuntimeWarning
             )
             init_pars = opt.x
-            for bdx in enumerate(bounds):
+            for bdx, bound in enumerate(bounds):
                 if bdx == poi_index and constraints is None:
-                    bounds[bdx] = (bounds[bdx][0], bounds[bdx][1] * 2.0)
+                    bounds[bdx] = (bound[0], bound[1] * 2.0)
                 else:
-                    bounds[bdx] = (bounds[bdx][0] * 10.0, bounds[bdx][1] * 10.0)
+                    bounds[bdx] = (bound[0] * 10.0, bound[1] * 10.0)
         elif opt.success:
             break
 
