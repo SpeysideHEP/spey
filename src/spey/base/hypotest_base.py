@@ -1,17 +1,15 @@
 """
-Abstract class for Hypothesis base structure. This class contains necessary tools to compute exclusion limits
-and POI upper limits
+Abstract class for Hypothesis base structure. This class contains necessary
+tools to compute exclusion limits and POI upper limits
 """
 
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple, Callable, List, Text, Union
 import numpy as np
 
-from spey.hypothesis_testing.utils import (
-    compute_teststatistics,
-    find_poi_upper_limit,
-    compute_confidence_level,
-)
+from spey.hypothesis_testing.upper_limits import find_poi_upper_limit
+from spey.hypothesis_testing.utils import compute_confidence_level
+from spey.hypothesis_testing.test_statistics import compute_teststatistics
 from spey.hypothesis_testing.test_statistics import get_test_statistic
 from spey.utils import ExpectationType
 
