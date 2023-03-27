@@ -17,14 +17,14 @@ class StatisticalModel(HypothesisTestingBase):
     """
     Statistical model base
 
-    :param backend: Statistical model backend
-    :param xsection: Cross-section in pb
-    :param analysis: name of the analysis
+    :param backend (`BackendBase`): Statistical model backend
+    :param analysis (`Text`): Unique identifier of the statistical model
+    :param xsection (`float`, default `np.nan`): cross section, unit is determined by the user
     """
 
     __slots__ = ["_backend", "xsection", "analysis"]
 
-    def __init__(self, backend: BackendBase, analysis: Text, xsection: float = np.NaN):
+    def __init__(self, backend: BackendBase, analysis: Text, xsection: float = np.nan):
         assert isinstance(backend, BackendBase), "Invalid backend"
         self._backend: BackendBase = backend
         self.xsection: float = xsection
@@ -106,10 +106,14 @@ class StatisticalModel(HypothesisTestingBase):
                 **kwargs,
             )
         except NotImplementedError:
+            _ = kwargs.pop("marginalize", False)
             twice_nll, _ = fit(
                 func=self.backend.get_twice_nll_func(expected=expected),
                 model_configuration=self.backend.model.config(),
                 gradient=self.backend.get_gradient_twice_nll_func(expected=expected),
+                # hessian=getattr(self.backend, "get_hessian_twice_nll_func", lambda expected: None)(
+                #     expected=expected
+                # ),
                 initial_parameters=init_pars,
                 bounds=par_bounds,
                 fixed_poi_value=poi_test,
@@ -160,6 +164,9 @@ class StatisticalModel(HypothesisTestingBase):
                 func=self.backend.get_twice_nll_func(expected=expected, data=data),
                 model_configuration=self.backend.model.config(),
                 gradient=self.backend.get_gradient_twice_nll_func(expected=expected, data=data),
+                # hessian=getattr(
+                #     self.backend, "get_hessian_twice_nll_func", lambda expected, data: None
+                # )(expected=expected, data=data),
                 initial_parameters=init_pars,
                 bounds=par_bounds,
                 fixed_poi_value=poi_test,
@@ -203,6 +210,9 @@ class StatisticalModel(HypothesisTestingBase):
                     allow_negative_signal=allow_negative_signal
                 ),
                 gradient=self.backend.get_gradient_twice_nll_func(expected=expected),
+                # hessian=getattr(self.backend, "get_hessian_twice_nll_func", lambda expected: None)(
+                #     expected=expected
+                # ),
                 initial_parameters=init_pars,
                 bounds=par_bounds,
                 **kwargs,
@@ -256,6 +266,9 @@ class StatisticalModel(HypothesisTestingBase):
                     allow_negative_signal=allow_negative_signal
                 ),
                 gradient=self.backend.get_gradient_twice_nll_func(expected=expected, data=data),
+                # hessian=getattr(
+                #     self.backend, "get_hessian_twice_nll_func", lambda expected, data: None
+                # )(expected=expected, data=data),
                 initial_parameters=init_pars,
                 bounds=par_bounds,
                 **kwargs,
