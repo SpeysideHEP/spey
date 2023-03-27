@@ -8,7 +8,7 @@ from spey.base import BackendBase, DataBase
 from spey.utils import ExpectationType
 from spey._version import __version__
 from .sldata import SLData, expansion_output
-from .utils import twice_nll_func, gradient_twice_nll_func, hessian_twice_nll_func
+from .negative_loglikelihood import twice_nll_func, gradient_twice_nll_func, hessian_twice_nll_func
 from .utils_marginalised import marginalised_negloglikelihood
 
 __all__ = ["SimplifiedLikelihoodInterface"]
