@@ -1,6 +1,6 @@
-import numpy as np
 from typing import Callable, Text, Tuple
 import warnings
+import numpy as np
 
 from spey.system.exceptions import UnknownTestStatistics
 
@@ -21,7 +21,7 @@ def _tmu_tilde(
     :param logpdf: logpdf function which takes mu as an input
     :return: The calculated test statistic
     """
-    return -2 * (logpdf(mu) - (max_logpdf if muhat >= 0.0 else logpdf(0.0)))
+    return -2.0 * (logpdf(mu) - (max_logpdf if muhat >= 0.0 else logpdf(0.0)))
 
 
 def _tmu(mu: float, max_logpdf: float, logpdf: Callable[[float], float]) -> float:
@@ -35,7 +35,7 @@ def _tmu(mu: float, max_logpdf: float, logpdf: Callable[[float], float]) -> floa
     :param logpdf: logpdf function which takes mu as an input
     :return: The calculated test statistic
     """
-    return -2 * (logpdf(mu) - max_logpdf)
+    return -2.0 * (logpdf(mu) - max_logpdf)
 
 
 def qmu_tilde(
@@ -85,7 +85,8 @@ def q0(mu: float, muhat: float, max_logpdf: float, logpdf: Callable[[float], flo
     :param logpdf: logpdf function which takes mu as an input
     :return: The calculated test statistic
     """
-    return 0.0 if muhat < 0.0 else _tmu(0.0, max_logpdf, logpdf)
+    mu = 0.0
+    return 0.0 if muhat < 0.0 else _tmu(mu, max_logpdf, logpdf)
 
 
 def get_test_statistic(test_stat: Text) -> Callable:
@@ -134,19 +135,26 @@ def compute_teststatistics(
     muhatA, min_nllA = maximum_asimov_likelihood
 
     # max_logpdf = -min_nll
-    qmu = teststat_func(mu, muhat, -min_nll, logpdf)
+    qmu_ = teststat_func(mu, muhat, -min_nll, logpdf)
     qmuA = teststat_func(mu, muhatA, -min_nllA, asimov_logpdf)
-    with warnings.catch_warnings(record=True):
-        sqrt_qmu = np.sqrt(qmu)
-        sqrt_qmuA = np.sqrt(qmuA)
+    # TODO: this is a temporary fix, more permanent fix is needed!
+    if qmu_ < 0.0 or qmuA < 0.0:
+        warnings.warn(
+            message="Encountered negative values for test statistics."
+            " This might indicate unsuccessfull execution of the optimizer "
+            " please check your settings. Clipping the values, results might be effected!",
+            category=RuntimeWarning,
+        )
+    sqrt_qmu = np.sqrt(np.clip(qmu_, 0.0, None))
+    sqrt_qmuA = np.sqrt(np.clip(qmuA, 0.0, None))
 
-        if teststat in ["q", "q0", "qmu"]:
-            delta_teststat = sqrt_qmu - sqrt_qmuA
-        else:
-            delta_teststat = (
-                sqrt_qmu - sqrt_qmuA
-                if sqrt_qmu <= sqrt_qmuA
-                else np.true_divide(qmu - qmuA, 2.0 * sqrt_qmuA)
-            )
+    if teststat in ["q", "q0", "qmu"]:
+        delta_teststat = sqrt_qmu - sqrt_qmuA
+    else:
+        delta_teststat = (
+            sqrt_qmu - sqrt_qmuA
+            if sqrt_qmu <= sqrt_qmuA
+            else np.true_divide(qmu_ - qmuA, 2.0 * sqrt_qmuA)
+        )
 
     return sqrt_qmu, sqrt_qmuA, delta_teststat
