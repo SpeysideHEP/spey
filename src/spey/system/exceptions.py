@@ -8,6 +8,7 @@ __all__ = [
     "UnknownTestStatistics",
     "InvalidInput",
     "PluginError",
+    "MethodNotAvailable",
 ]
 
 
