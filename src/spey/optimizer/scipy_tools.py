@@ -73,7 +73,7 @@ def minimize(
                 if bdx == poi_index and constraints is None:
                     bounds[bdx] = (bound[0], bound[1] * 2.0)
                 else:
-                    bounds[bdx] = (bound[0] * 10.0, bound[1] * 10.0)
+                    bounds[bdx] = (min(bound[0], bound[0] * 10.0), bound[1] * 10.0)
         elif opt.success:
             break
 
