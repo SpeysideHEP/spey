@@ -1,17 +1,9 @@
 """
-This file contains necessary functions to compute negative log-likelihood for a given theta
-
-compute_negloglikelihood_theta:     compute the negative log-likelihood for a given theta
-_common_gradient_computation:       function to compute commonalities between first and
-                                    second gradient
-compute_dnegloglikelihood_dtheta:   compute first order derivative of negative log-likelihood
-                                    for a given theta
-compute_d2negloglikelihood_dtheta2: compute second order derivative of negative log-likelihood
-                                    for a given theta
+This file contains necessary functions to compute negative log-likelihood for simplified likelihoods
 
 for details see https://arxiv.org/abs/1809.05548
 """
-from typing import Optional, Callable
+from typing import Optional, Callable, Tuple, Union
 
 from autograd.scipy.stats.poisson import logpmf
 from autograd.scipy.special import gammaln
@@ -20,17 +12,22 @@ from autograd import grad, hessian
 
 from .sldata import expansion_output
 
-__all__ = ["twice_nll", "twice_nll_func", "gradient_twice_nll_func", "hessian_twice_nll_func"]
+__all__ = [
+    "logpdf",
+    "twice_nll_func",
+    "hessian_logpdf_func",
+    "objective_wrapper",
+]
 
 # pylint: disable=E1101
 
 
-def twice_nll(
+def logpdf(
     pars: np.ndarray,
     signal: np.ndarray,
     background: np.ndarray,
     observed: np.ndarray,
-    third_moment_expansion: Optional[expansion_output],
+    third_moment_expansion: expansion_output,
 ) -> float:
     """
     Compute twice negative log-likelihood
@@ -67,62 +64,85 @@ def twice_nll(
     )
     gaussian = -0.5 * (pars[1:] @ third_moment_expansion.inv_covariance @ pars[1:]) + logcoeff
 
-    return -2.0 * (gaussian + np.sum(poisson))
+    return (gaussian + np.sum(poisson)).astype(np.float64)
 
 
 def twice_nll_func(
     signal: np.ndarray,
     background: np.ndarray,
-    observed: np.ndarray,
     third_moment_expansion: Optional[expansion_output],
-) -> Callable[[np.ndarray], np.ndarray]:
+) -> Callable[[np.ndarray, np.ndarray], np.ndarray]:
     """
     Function to generate a callable for twice negative log-likelihood
 
     :param signal (`np.ndarray`): signal yields
     :param background (`np.ndarray`): background yields
-    :param observed (`np.ndarray`): observed yields
     :param third_moment_expansion (`Optional[expansion_output]`): computed third momenta expansion
     :return `Callable[[np.ndarray], np.ndarray]`: function to compute twice negative log-likelihood
     """
-    return lambda pars: twice_nll(pars, signal, background, observed, third_moment_expansion)
+
+    def twice_nll(pars: np.ndarray, data: np.ndarray) -> float:
+        """
+        Compute twice negative log likelihood
+
+        :param pars (`np.ndarray`): poi and nuisance parameters
+        :param data (`np.ndarray`): observations
+        :return `np.ndarray`: twice negative log likelihood value
+        """
+        return -2.0 * logpdf(pars, signal, background, data, third_moment_expansion)
+
+    return twice_nll
 
 
-def gradient_twice_nll_func(
+def hessian_logpdf_func(
     signal: np.ndarray,
     background: np.ndarray,
-    observed: np.ndarray,
     third_moment_expansion: Optional[expansion_output],
-) -> Callable[[np.ndarray], np.ndarray]:
-    """
-    Function to generate a callable for the gradient of twice negative log-likelihood
-
-    :param signal (`np.ndarray`): signal yields
-    :param background (`np.ndarray`): background yields
-    :param observed (`np.ndarray`): observed yields
-    :param third_moment_expansion (`Optional[expansion_output]`): computed third momenta expansion
-    :return `Callable[[np.ndarray], np.ndarray]`: function to compute gradient of twice negative log-likelihood
-    """
-    # pylint: disable=E1120
-    _grad = grad(twice_nll, argnum=0)
-    return lambda pars: _grad(pars, signal, background, observed, third_moment_expansion)
-
-
-def hessian_twice_nll_func(
-    signal: np.ndarray,
-    background: np.ndarray,
-    observed: np.ndarray,
-    third_moment_expansion: Optional[expansion_output],
-) -> Callable[[np.ndarray], np.ndarray]:
+) -> Callable[[np.ndarray, np.ndarray], np.ndarray]:
     """
     Function to generate a callable for the hessian of twice negative log-likelihood
 
     :param signal (`np.ndarray`): signal yields
     :param background (`np.ndarray`): background yields
-    :param observed (`np.ndarray`): observed yields
     :param third_moment_expansion (`Optional[expansion_output]`): computed third momenta expansion
     :return `Callable[[np.ndarray], np.ndarray]`: function to compute hessian of twice negative log-likelihood
     """
+
+    def func(pars: np.ndarray, data: np.ndarray) -> np.ndarray:
+        return logpdf(pars, signal, background, data, third_moment_expansion)
+
     # pylint: disable=E1120
-    _hessian = hessian(twice_nll, argnum=0)
-    return lambda pars: _hessian(pars, signal, background, observed, third_moment_expansion)
+    return hessian(func, argnum=0)
+
+
+def objective_wrapper(
+    signal: np.ndarray,
+    background: np.ndarray,
+    data: np.ndarray,
+    third_moment_expansion: Optional[expansion_output],
+    do_grad: bool,
+) -> Callable[[np.ndarray], Union[Tuple[float, np.ndarray], float]]:
+    """
+    Retreive objective function (twice negative log-likelihood) and its gradient
+
+    :param signal (`np.ndarray`): signal yields
+    :param background (`np.ndarray`): background yields
+    :param third_moment_expansion (`Optional[expansion_output]`): computed third momenta expansion
+    :return `Callable[[np.ndarray], Tuple[np.ndarray, np.ndarray]]`: function to compute objective
+        function and its gradient
+    """
+    twice_nll = twice_nll_func(signal, background, third_moment_expansion)
+    if do_grad:
+        # pylint: disable=E1120
+        grad_twice_nll = grad(twice_nll, argnum=0)
+
+        def func(pars: np.ndarray) -> Tuple[float, np.ndarray]:
+            pars = np.array(pars).astype(np.float64)
+            return twice_nll(pars, data), grad_twice_nll(pars, data)
+
+    else:
+
+        def func(pars: np.ndarray) -> float:
+            return twice_nll(pars, data)
+
+    return func

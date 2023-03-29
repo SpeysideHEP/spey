@@ -1,6 +1,6 @@
 """Simplified Likelihood Interface"""
 
-from typing import Optional, Text, Callable, List
+from typing import Optional, Text, Callable, List, Union, Tuple
 import numpy as np
 
 from spey.optimizer import fit
@@ -8,7 +8,7 @@ from spey.base import BackendBase, DataBase
 from spey.utils import ExpectationType
 from spey._version import __version__
 from .sldata import SLData, expansion_output
-from .negative_loglikelihood import twice_nll_func, gradient_twice_nll_func, hessian_twice_nll_func
+from .operators import logpdf, hessian_logpdf_func, objective_wrapper
 from .sampler import sample_generator
 
 __all__ = ["SimplifiedLikelihoodInterface"]
@@ -59,51 +59,58 @@ class SimplifiedLikelihoodInterface(BackendBase):
             self._third_moment_expansion = self.model.compute_expansion()
         return self._third_moment_expansion
 
-    def get_twice_nll_func(
+    def get_objective_function(
         self,
         expected: ExpectationType = ExpectationType.observed,
         data: Optional[np.ndarray] = None,
-    ) -> Callable[[np.ndarray], float]:
+        do_grad: bool = True,
+    ) -> Callable[[np.ndarray], Union[Tuple[float, np.ndarray], float]]:
+        """
+        Construct objective function for optimisation
+
+        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori..
+        :param data (`Optional[np.ndarray]`, default `None`): observed data to be used for nll computation.
+        :param do_grad (`bool`, default `True`): if true include gradient.
+        :return `Callable[[np.ndarray], Union[Tuple[float, np.ndarray], float]]`: function to compute objective
+                function and its gradient
+        """
+        current_model: SLData = (
+            self.model if expected != ExpectationType.apriori else self.model.expected_dataset
+        )
+
+        return objective_wrapper(
+            signal=current_model.signal,
+            background=current_model.background,
+            data=data if data is not None else current_model.observed,
+            third_moment_expansion=self.third_moment_expansion,
+            do_grad=do_grad,
+        )
+
+    def get_logpdf_func(
+        self,
+        expected: ExpectationType = ExpectationType.observed,
+        data: Optional[np.array] = None,
+    ) -> Callable[[np.ndarray, np.ndarray], float]:
         """
         Generate function to compute twice negative log-likelihood for the statistical model
 
         :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
         :param data (`Union[List[float], np.ndarray]`, default `None`): observed data to be used for nll computation.
-        :return `Callable[[np.ndarray], float]`: function to compute twice negative log-likelihood for given nuisance parameters.
+        :return `Callable[[np.ndarray, np.ndarray], float]`: function to compute twice negative log-likelihood
+            for given nuisance parameters.
         """
         current_model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
         )
-        return twice_nll_func(
-            current_model.signal,
-            current_model.background,
-            data if data is not None else current_model.observed,
-            self.third_moment_expansion,
+        return lambda pars: logpdf(
+            pars=pars,
+            signal=current_model.signal,
+            background=current_model.background,
+            observed=data or current_model.observed,
+            third_moment_expansion=self.third_moment_expansion,
         )
 
-    def get_gradient_twice_nll_func(
-        self,
-        expected: ExpectationType = ExpectationType.observed,
-        data: Optional[np.ndarray] = None,
-    ) -> Callable[[np.ndarray], float]:
-        """
-        Generate function to compute gradient of twice negative log-likelihood for the statistical model.
-
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
-        :param data (`Union[List[float], np.ndarray]`, default `None`): observed data to be used for nll computation.
-        :return `Callable[[np.ndarray], float]`: function to compute gradient of twice negative log-likelihood for given nuisance parameters.
-        """
-        current_model: SLData = (
-            self.model if expected != ExpectationType.apriori else self.model.expected_dataset
-        )
-        return gradient_twice_nll_func(
-            current_model.signal,
-            current_model.background,
-            data if data is not None else current_model.observed,
-            self.third_moment_expansion,
-        )
-
-    def get_hessian_twice_nll_func(
+    def get_hessian_logpdf_func(
         self,
         expected: ExpectationType = ExpectationType.observed,
         data: Optional[np.ndarray] = None,
@@ -113,17 +120,18 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
         :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
         :param data (`Union[List[float], np.ndarray]`, default `None`): observed data to be used for nll computation.
-        :return `Callable[[np.ndarray], float]`: function to compute hessian of twice negative log-likelihood for given nuisance parameters.
+        :return `Callable[[np.ndarray], float]`: function to compute hessian of twice negative log-likelihood
+            for given nuisance parameters.
         """
         current_model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
         )
-        return hessian_twice_nll_func(
-            current_model.signal,
-            current_model.background,
-            data if data is not None else current_model.observed,
-            self.third_moment_expansion,
+
+        hess = hessian_logpdf_func(
+            current_model.signal, current_model.background, self.third_moment_expansion
         )
+
+        return lambda pars: hess(pars, data or current_model.observed)
 
     def get_sampler(self, pars: np.ndarray) -> Callable[[int], np.ndarray]:
         """
@@ -163,14 +171,18 @@ class SimplifiedLikelihoodInterface(BackendBase):
             for sig, bkg in zip(model.signal, model.background)
         ]
 
+        func = objective_wrapper(
+            signal=model.signal,
+            background=model.background,
+            data=model.observed,
+            third_moment_expansion=self.third_moment_expansion,
+            do_grad=True,
+        )
+
         _, fit_pars = fit(
-            func=twice_nll_func(
-                model.signal, model.background, model.observed, self.third_moment_expansion
-            ),
+            func=func,
             model_configuration=model.config(allow_negative_signal=test_statistics in ["q", "qmu"]),
-            gradient=gradient_twice_nll_func(
-                model.signal, model.background, model.observed, self.third_moment_expansion
-            ),
+            do_grad=True,
             fixed_poi_value=1.0 if test_statistics == "q0" else 0.0,
             bounds=par_bounds,
             **kwargs,
