@@ -91,17 +91,11 @@ def test_simplified_likelihood():
         xsection=0.5,
     )
 
-    twice_nll_func = stat_model_sl.backend.get_twice_nll_func()
-
-    assert np.isclose(
-        twice_nll_func(stat_model_sl.backend.model.config().suggested_init), 25.43995316717471
-    ), "twice negloglikelihood is wrong"
-
-    grad_twice_nll_func = stat_model_sl.backend.get_gradient_twice_nll_func()
-
-    grads = grad_twice_nll_func(
-        np.array(stat_model_sl.backend.model.config().suggested_init, dtype=np.float32)
+    twice_nll, grads = stat_model_sl.backend.get_objective_function(do_grad=True)(
+        stat_model_sl.backend.model.config().suggested_init
     )
+
+    assert np.isclose(twice_nll, 25.43995316717471), "twice negloglikelihood is wrong"
 
     assert np.isclose(grads[0], 10.068618), "first Gradient"
     assert np.isclose(grads[1], 1.0037898), "second Gradient"
