@@ -8,7 +8,7 @@ from .scipy_tools import minimize
 def fit(
     func: Callable[[np.ndarray], np.ndarray],
     model_configuration: ModelConfig,
-    gradient: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+    do_grad: bool = False,
     hessian: Optional[Callable[[np.ndarray], np.ndarray]] = None,
     initial_parameters: Optional[np.ndarray] = None,
     bounds: Optional[List[Tuple[float, float]]] = None,
@@ -31,7 +31,7 @@ def fit(
     return minimize(
         func=func,
         init_pars=init_pars,
-        gradient=gradient,
+        do_grad=do_grad,
         hessian=hessian,
         bounds=par_bounds,
         constraints=constraints,

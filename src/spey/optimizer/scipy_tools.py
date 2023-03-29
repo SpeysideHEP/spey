@@ -9,7 +9,7 @@ import numpy as np
 def minimize(
     func: Callable[[np.ndarray], float],
     init_pars: List[float],
-    gradient: Callable[[np.ndarray], np.ndarray] = None,
+    do_grad: bool = False,
     hessian: Callable[[np.ndarray], np.ndarray] = None,
     bounds: List[Tuple[float, float]] = None,
     constraints: List[Dict] = None,
@@ -27,7 +27,7 @@ def minimize(
 
     :param func (`Callable[[np.ndarray], float]`): the objective function to be minimized.
     :param init_pars (`List[float]`): initial set of parameters
-    :param gradient (`Callable[[np.ndarray], np.ndarray]`, default `None`): gradient of the objective function.
+    :param do_grad (`bool`, default `False`): if true func is expected to return both objective and its gradient
     :param hessian (`Callable[[np.ndarray], np.ndarray]`, default `None`): hessian matrix of the objective function.
     :param bounds (`List[Tuple[float, float]]`, default `None`): Bounds on variables for Nelder-Mead, L-BFGS-B, TNC, SLSQP,
                                                                 Powell, and trust-constr methods.
@@ -53,7 +53,7 @@ def minimize(
                 func,
                 init_pars,
                 method=method,
-                jac=gradient,
+                jac=do_grad,
                 hess=hessian,
                 bounds=bounds,
                 constraints=constraints,
