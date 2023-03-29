@@ -9,7 +9,6 @@ from spey.base.backend_base import BackendBase, DataBase
 from spey.system.exceptions import UnknownCrossSection, MethodNotAvailable
 from spey.base.hypotest_base import HypothesisTestingBase
 from spey.optimizer.core import fit
-from .functiontools import get_function
 
 __all__ = ["StatisticalModel", "statistical_model_wrapper"]
 
@@ -78,6 +77,29 @@ class StatisticalModel(HypothesisTestingBase):
         """Observed excluded cross-section"""
         return self.excluded_cross_section(ExpectationType.observed)
 
+    def _get_objective_and_grad(
+        self, expected: ExpectationType, data: np.ndarray
+    ) -> Tuple[Callable, bool]:
+        """
+        Retreive objective and gradient function
+
+        :param expected (`ExpectationType`): observed, apriori or aposteriori.
+        :param data (`np.ndarray`): observations
+        :return `Tuple[Callable, bool]`: objective and grad function and a boolean indicating
+            that the backend is differentiable.
+        """
+        do_grad = True
+        try:
+            objective_and_grad = self.backend.get_objective_function(
+                expected=expected, data=data, do_grad=do_grad
+            )
+        except NotImplementedError:
+            do_grad = False
+            objective_and_grad = self.backend.get_objective_function(
+                expected=expected, data=data, do_grad=do_grad
+            )
+        return objective_and_grad, do_grad
+
     def fixed_poi_fit(
         self,
         poi_test: float = 1.0,
@@ -100,12 +122,12 @@ class StatisticalModel(HypothesisTestingBase):
         :param kwargs: keyword arguments for optimiser
         :return `float`: (float) negative log-likelihood value and fit parameters
         """
+        objective_and_grad, do_grad = self._get_objective_and_grad(expected, data)
+
         twice_nll, fit_param = fit(
-            func=self.backend.get_twice_nll_func(expected=expected, data=data),
+            func=objective_and_grad,
             model_configuration=self.backend.model.config(),
-            gradient=get_function(
-                self.backend, "get_gradient_twice_nll_func", expected=expected, data=data
-            ),
+            do_grad=do_grad,
             # hessian=get_function(
             #     self.backend,
             #     "get_hessian_twice_nll_func",
@@ -150,7 +172,6 @@ class StatisticalModel(HypothesisTestingBase):
             )
         except NotImplementedError:
             # add a debug message here
-            _ = kwargs.pop("marginalize", False)
             negloglikelihood, _ = self.fixed_poi_fit(
                 poi_test=poi_test,
                 expected=expected,
@@ -237,14 +258,14 @@ class StatisticalModel(HypothesisTestingBase):
                 **kwargs,
             )
         except NotImplementedError:
+            objective_and_grad, do_grad = self._get_objective_and_grad(expected, None)
+
             twice_nll, fit_param = fit(
-                func=self.backend.get_twice_nll_func(expected=expected),
+                func=objective_and_grad,
                 model_configuration=self.backend.model.config(
                     allow_negative_signal=allow_negative_signal
                 ),
-                gradient=get_function(
-                    self.backend, "get_gradient_twice_nll_func", expected=expected
-                ),
+                do_grad=do_grad,
                 # hessian=get_function(
                 #     self.backend,
                 #     "get_hessian_twice_nll_func",
@@ -298,14 +319,14 @@ class StatisticalModel(HypothesisTestingBase):
                 expected=expected, test_statistics=test_statistics
             )
 
+            objective_and_grad, do_grad = self._get_objective_and_grad(expected, data)
+
             twice_nll, fit_param = fit(
-                func=self.backend.get_twice_nll_func(expected=expected, data=data),
+                func=objective_and_grad,
                 model_configuration=self.backend.model.config(
                     allow_negative_signal=allow_negative_signal
                 ),
-                gradient=get_function(
-                    self.backend, "get_gradient_twice_nll_func", expected=expected, data=data
-                ),
+                do_grad=do_grad,
                 # hessian=get_function(
                 #     self.backend,
                 #     "get_hessian_twice_nll_func",
@@ -382,7 +403,7 @@ class StatisticalModel(HypothesisTestingBase):
         :return `float`: sigma mu
         """
         try:
-            hessian_func = self.backend.get_hessian_twice_nll_func(expected=expected)
+            hessian_func = self.backend.get_hessian_logpdf_func(expected=expected)
         except NotImplementedError as exc:
             raise MethodNotAvailable(
                 f"{self.backend_type} backend does not have Hessian definition."
@@ -396,10 +417,10 @@ class StatisticalModel(HypothesisTestingBase):
             **kwargs,
         )
 
-        hessian = hessian_func(fit_param) / 2.0
+        hessian = -1.0 * hessian_func(fit_param)
 
         poi_index = self.backend.model.config().poi_index
-        return 1.0 / hessian[poi_index, poi_index]
+        return np.sqrt(np.linalg.inv(hessian)[poi_index, poi_index])
 
 
 def statistical_model_wrapper(func: BackendBase) -> StatisticalModel:

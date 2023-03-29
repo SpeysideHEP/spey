@@ -56,7 +56,8 @@ class BackendBase(ABC):
         """Get statistical model"""
         # This method must be casted as property
 
-    def get_twice_nll_func(
+    @abstractmethod
+    def get_logpdf_func(
         self,
         expected: ExpectationType = ExpectationType.observed,
         data: Optional[Union[List[float], np.ndarray]] = None,
@@ -71,26 +72,29 @@ class BackendBase(ABC):
         :raises `NotImplementedError`: If the method is not implemented
         :return `Callable[[np.ndarray], float]`: function to compute twice negative log-likelihood for given nuisance parameters.
         """
-        raise NotImplementedError("This method has not been implemented")
 
-    def get_gradient_twice_nll_func(
+    @abstractmethod
+    def get_objective_function(
         self,
         expected: ExpectationType = ExpectationType.observed,
         data: Optional[Union[List[float], np.ndarray]] = None,
-    ) -> Callable[[np.ndarray], float]:
+        do_grad: bool = True,
+    ) -> Callable[[np.ndarray], Union[float, Tuple[float, np.ndarray]]]:
         """
-        Generate function to compute gradient of twice negative log-likelihood for the statistical model.
+        Generate function to compute objective function and its gradient.
         Interface will first look for default likelihood computers that defined for the backend. If its not
         defined then it will call this function.
 
         :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
         :param data (`Union[List[float], np.ndarray]`, default `None`): observed data to be used for nll computation.
+        :param do_grad (`bool`, default `True`): if true include gradient.
         :raises `NotImplementedError`: If the method is not implemented
-        :return `Callable[[np.ndarray], float]`: function to compute gradient of twice negative log-likelihood for given nuisance parameters.
+        :return `Callable[[np.ndarray], Union[float, Tuple[float, np.ndarray]]]`: callable function that takes fit parameters
+            as input and returns either the value of the objective function or both its value and its gradient with respect
+            to fit parameters.
         """
-        raise NotImplementedError("This method has not been implemented")
 
-    def get_hessian_twice_nll_func(
+    def get_hessian_logpdf_func(
         self,
         expected: ExpectationType = ExpectationType.observed,
         data: Optional[Union[List[float], np.ndarray]] = None,
