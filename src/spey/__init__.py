@@ -4,7 +4,7 @@ import pkg_resources
 from semantic_version import Version, SimpleSpec
 
 from spey.interface.statistical_model import StatisticalModel, statistical_model_wrapper
-from spey.base import BackendBase
+from spey.base import BackendBase, DataBase
 from spey.combiner import StatisticsCombiner
 from spey.system.exceptions import PluginError
 from .utils import ExpectationType
@@ -20,7 +20,13 @@ __all__ = [
     "get_uncorrelated_region_statistical_model",
     "get_backend",
     "get_backend_metadata",
+    "BackendBase",
+    "DataBase",
 ]
+
+
+def __dir__():
+    return __all__
 
 
 def version() -> Text:
