@@ -14,46 +14,71 @@ __all__ = ["BackendBase", "DataBase"]
 
 class DataBase(ABC):
     """
-    Data base is a class that keeps track of the input data which then wrapped with a statistical
-    model class which is based on BackendBase class.
+    An abstract class construction to enforce certain behaviour on statistical model data space.
+    Each backend requires different ways of data embedding, while simple ``numpy`` arrays are
+    possiblitiy, in order to track different error sources, different backends have been developed
+    with different data structures. In order to perform certain computations, ``spey`` needs to
+    have access to specific information regarding the data. Hence, each data hanler object of any
+    backend is required to inherit :obj:`~spey.DataBase`.
     """
 
     @property
     @abstractmethod
     def minimum_poi(self) -> float:
-        """Find minimum POI test that can be applied to this statistical model"""
+        r"""
+        Retreive minimum value that :math:`\mu` can take. This will limit the span of the scan
+        and ensures that :math:`N^{\rm bkg} + \mu N^{\rm sig} \geq 0`.
+
+        Returns:
+            :obj:`float`:
+            :math:`\min\left(\frac{N^{\rm bkg}_i}{N^{\rm sig}_i}\right)\ ,\ i\in {\rm bins}`
+        """
         # This method must be casted as property
 
     @property
     @abstractmethod
     def isAlive(self) -> bool:
-        """Does the statitical model has any non-zero signal events?"""
+        """Returns True if at least one bin has non-zero signal yield."""
         # This method has to be a property
 
     @abstractmethod
     def config(
         self, allow_negative_signal: bool = True, poi_upper_bound: float = 40.0
     ) -> ModelConfig:
-        """
-        Configuration of the statistical model
+        r"""
+        Model configuration.
 
-        :param allow_negative_signal (`bool`, default `True`): if the negative POI is allowed during fits.
-        :param poi_upper_bound (`float`, default `40.0`): sets the upper bound for POI
-        :return `ModelConfig`: Configuration information of the model.
+        Args:
+            allow_negative_signal (:obj:`bool`, default :obj:`True`): If :obj:`True` :math:`\hat\mu`
+              value will be allowed to be negative.
+            poi_upper_bound (:obj:`float`, default :obj:`40.0`): upper bound for parameter of interest,
+              :math:`\mu`.
+
+        Returns:
+            ~spey.base.ModelConfig:
+            Model configuration. Information regarding the position of POI in parameter list, suggested
+            input and bounds.
         """
 
 
 class BackendBase(ABC):
     """
-    Standard base for Statistical model which includes all the required functions to be able to work
-    through out the software. This ensures the uniformity of the backends that will be included in
-    the future.
+    An abstract class construction to enforce certain behaviour on statistical model backend.
+    In order to perform certain computations, ``spey`` needs to have access to specific
+    function constructions such as precsription to form likelihood. Hence, each backend is
+    required to inherit :obj:`~spey.BackendBase`.
     """
 
     @property
     @abstractmethod
     def model(self) -> DataBase:
-        """Get statistical model"""
+        """
+        Accessor to the model container.
+
+        Returns:
+            ~spey.DataBase:
+            Data container object that inherits :obj:`~spey.DataBase`.
+        """
         # This method must be casted as property
 
     @abstractmethod
@@ -62,15 +87,28 @@ class BackendBase(ABC):
         expected: ExpectationType = ExpectationType.observed,
         data: Optional[Union[List[float], np.ndarray]] = None,
     ) -> Callable[[np.ndarray], float]:
-        """
-        Generate function to compute twice negative log-likelihood for the statistical model
-        Interface will first look for default likelihood computers that defined for the backend. If its not
-        defined then it will call this function.
+        r"""
+        Generate function to compute :math:`\log\mathcal{L}(\mu, \theta)` where :math:`\mu` is the
+        parameter of interest and :math:`\theta` are nuisance parameters.
 
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
-        :param data (`Union[List[float], np.ndarray]`, default `None`): observed data to be used for nll computation.
-        :raises `NotImplementedError`: If the method is not implemented
-        :return `Callable[[np.ndarray], float]`: function to compute twice negative log-likelihood for given nuisance parameters.
+        Args:
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+            data (:obj:`Union[List[float], np.ndarray]`, default :obj:`None`): input data that to fit
+
+        Returns:
+            :obj:`Callable[[np.ndarray], float]`:
+            Function that takes fit parameters (:math:`\mu` and :math:`\theta`) and computes
+            :math:`\log\mathcal{L}(\mu, \theta)`.
         """
 
     @abstractmethod
@@ -80,18 +118,31 @@ class BackendBase(ABC):
         data: Optional[Union[List[float], np.ndarray]] = None,
         do_grad: bool = True,
     ) -> Callable[[np.ndarray], Union[float, Tuple[float, np.ndarray]]]:
-        """
-        Generate function to compute objective function and its gradient.
-        Interface will first look for default likelihood computers that defined for the backend. If its not
-        defined then it will call this function.
+        r"""
+        Objective function is the function to perform the optimisation on. This function is
+        expected to be twice negative log-likelihood, :math:`-2\log\mathcal{L}(\mu, \theta)`.
+        Additionally, if available it canbe bundled with the gradient of twice negative log-likelihood.
 
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
-        :param data (`Union[List[float], np.ndarray]`, default `None`): observed data to be used for nll computation.
-        :param do_grad (`bool`, default `True`): if true include gradient.
-        :raises `NotImplementedError`: If the method is not implemented
-        :return `Callable[[np.ndarray], Union[float, Tuple[float, np.ndarray]]]`: callable function that takes fit parameters
-            as input and returns either the value of the objective function or both its value and its gradient with respect
-            to fit parameters.
+        Args:
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+            data (:obj:`Union[List[float], np.ndarray]`, default :obj:`None`): input data that to fit
+            do_grad (:obj:`bool`, default :obj:`True`): If ``True`` return objective and its gradient
+              as ``tuple`` (subject to availablility) if ``False`` only returns objective function.
+
+        Returns:
+            :obj:`Callable[[np.ndarray], Union[float, Tuple[float, np.ndarray]]]`:
+            Function which takes fit parameters (:math:`\mu` and :math:`\theta`) and returns either
+            objective or objective and its gradient.
         """
 
     def get_hessian_logpdf_func(
@@ -99,25 +150,49 @@ class BackendBase(ABC):
         expected: ExpectationType = ExpectationType.observed,
         data: Optional[Union[List[float], np.ndarray]] = None,
     ) -> Callable[[np.ndarray], float]:
-        """
-        Generate function to compute hessian of twice negative log-likelihood for the statistical model.
-        Interface will first look for default likelihood computers that defined for the backend. If its not
-        defined then it will call this function.
+        r"""
+        Currently Hessian of :math:`\log\mathcal{L}(\mu, \theta)` is only used to compute
+        variance on :math:`\mu`. This method returns a callable function which takes fit
+        parameters (:math:`\mu` and :math:`\theta`) and returns Hessian.
 
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
-        :param data (`Union[List[float], np.ndarray]`, default `None`): observed data to be used for nll computation.
-        :raises `NotImplementedError`: If the method is not implemented
-        :return `Callable[[np.ndarray], float]`: function to compute hessian of twice negative log-likelihood for given nuisance parameters.
+        Args:
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+            data (:obj:`Union[List[float], np.ndarray]`, default :obj:`None`): input data that to fit
+
+        Raises:
+            :obj:`NotImplementedError`: If the Hessian of the backend has not been implemented.
+
+        Returns:
+            :obj:`Callable[[np.ndarray], float]`:
+            Function that takes fit parameters (:math:`\mu` and :math:`\theta`) and
+            returns Hessian of :math:`\log\mathcal{L}(\mu, \theta)`.
         """
         raise NotImplementedError("This method has not been implemented")
 
     def get_sampler(self, pars: np.ndarray) -> Callable[[int], np.ndarray]:
-        """
-        Returns function that generates samples for a given statistical model with respect to
-        a set of nuisance parameters.
+        r"""
+        Retreives the function to sample from.
 
-        :return `Callable[[int], np.ndarray]`: returns sampling function which takes an integer parameter
-            as number of samples and returns generated samples
+        Args:
+            pars (:obj:`np.ndarray`): fit parameters (:math:`\mu` and :math:`\theta`)
+
+        Raises:
+            :obj:`NotImplementedError`: If the sampler for the backend has not been implemented.
+
+        Returns:
+            :obj:`Callable[[int], np.ndarray]`:
+            Function that takes ``number_of_samples`` as input and draws as many samples
+            from the statistical model.
         """
         raise NotImplementedError("This method has not been implemented")
 
@@ -128,25 +203,85 @@ class BackendBase(ABC):
         test_statistics: Text = "qtilde",
         **kwargs,
     ) -> Union[List[float], np.ndarray]:
-        """
-        Method to generate Asimov data for given statistical model
+        r"""
+        Backend specific method to generate Asimov data.
 
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
-        :param test_statistics (`Text`, default `"qtilde"`): definition of test statistics. `q`, `qtilde` or `q0`
-        :raises `NotImplementedError`: if the method has not been implemented
-        :return ` Union[List[float], np.ndarray]`: Asimov data
+        Args:
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            test_statistics (:obj:`Text`, default :obj:`"qtilde"`): test statistics.
+
+              * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
+                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
+                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+
+                .. warning::
+
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
+                    assumed to be :obj:`False`. If this function has been executed by user, :obj:`spey`
+                    assumes that this is taken care of throughout the external code consistently.
+                    Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+                    is taken care of automatically in the backend.
+
+              * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
+                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
+              * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
+                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            :obj:`Union[List[float], np.ndarray]`:
+            Asimov data.
         """
 
     def negative_loglikelihood(
         self, poi_test: float = 1.0, expected: ExpectationType = ExpectationType.observed, **kwargs
     ) -> Tuple[float, np.ndarray]:
-        """
-        Negative log-likelihood computer. Interface will initially call this method.
+        r"""
+        Backend specific method to compute negative log-likelihood for a parameter of interest
+        :math:`\mu`.
 
-        :param poi_test (`float`, default `1.0`): parameter of interest (signal strength).
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): expectation type, observed, apriori, aposteriori.
-        :raises `NotImplementedError`: if the method has not been implemented
-        :return `Tuple[float, np.ndarray]`: negative log-likelihood value and fit parameters
+        .. note::
+
+            Interface first calls backend specific methods to compute likelihood. If they are not
+            implemented, it optimizes objective function through ``spey`` interface. Either prescription
+            to optimizing the likelihood or objective function must be available for a backend to
+            be sucessfully integrated to the ``spey`` interface.
+
+        Args:
+            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest, :math:`\mu`.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            kwargs: keyword arguments for the optimiser.
+
+        Raises:
+            :obj:`NotImplementedError`: If the method is not available for the backend.
+
+        Returns:
+            :obj:`Tuple[float, np.ndarray]`:
+            value of negative log-likelihood at POI of interest and fit parameters
+            (:math:`\mu` and :math:`\theta`).
         """
         raise NotImplementedError("This method has not been implemented")
 
@@ -157,14 +292,58 @@ class BackendBase(ABC):
         test_statistics: Text = "qtilde",
         **kwargs,
     ) -> Tuple[float, np.ndarray]:
-        """
-        Negative log-likelihood computer for Asimov data. Interface will initially call this method.
+        r"""
+        Compute negative log-likelihood at fixed :math:`\mu` for Asimov data.
 
-        :param poi_test (`float`, default `1.0`): parameter of interest (signal strength).
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): expectation type, observed, apriori, aposteriori.
-        :param test_statistics (`Text`, default `"qtilde"`): definition of test statistics. `q`, `qtilde` or `q0`
-        :raises `NotImplementedError`: if the method has not been implemented
-        :return `Tuple[float, np.ndarray]`: negative log-likelihood value and fit parameters
+        .. note::
+
+            Interface first calls backend specific methods to compute likelihood. If they are not
+            implemented, it optimizes objective function through ``spey`` interface. Either prescription
+            to optimizing the likelihood or objective function must be available for a backend to
+            be sucessfully integrated to the ``spey`` interface.
+
+        Args:
+            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest, :math:`\mu`.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            test_statistics (:obj:`Text`, default :obj:`"qtilde"`): test statistics.
+
+              * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
+                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
+                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+
+                .. warning::
+
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
+                    assumed to be :obj:`False`. If this function has been executed by user, :obj:`spey`
+                    assumes that this is taken care of throughout the external code consistently.
+                    Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+                    is taken care of automatically in the backend.
+
+              * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
+                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
+              * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
+                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+
+            kwargs: keyword arguments for the optimiser.
+
+        Raises:
+            :obj:`NotImplementedError`: If the method is not available for the backend.
+
+        Returns:
+            :obj:`Tuple[float, np.ndarray]`:
+            value of negative log-likelihood at POI of interest and fit parameters
+            (:math:`\mu` and :math:`\theta`).
         """
         raise NotImplementedError("This method has not been implemented")
 
@@ -174,13 +353,39 @@ class BackendBase(ABC):
         allow_negative_signal: bool = True,
         **kwargs,
     ) -> Tuple[float, np.ndarray]:
-        """
-        Find nuisance parameters that maximizes the likelihood. Interface will initially call this method.
+        r"""
+        A backend specific method to minimize negative log-likelihood.
 
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): expectation type, observed, apriori, aposteriori.
-        :param allow_negative_signal (`bool`, default `True`): If true negative signal values will be allowed.
-        :raises `NotImplementedError`: if the method has not been implemented
-        :return `Tuple[float, np.ndarray]`: negative log-likelihood value and fit parameters
+        .. note::
+
+            Interface first calls backend specific methods to compute likelihood. If they are not
+            implemented, it optimizes objective function through ``spey`` interface. Either prescription
+            to optimizing the likelihood or objective function must be available for a backend to
+            be sucessfully integrated to the ``spey`` interface.
+
+        Args:
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            allow_negative_signal (:obj:`bool`, default :obj:`True`): If :obj:`True` :math:`\hat\mu`
+              value will be allowed to be negative.
+            kwargs: keyword arguments for the optimiser.
+
+        Raises:
+            :obj:`NotImplementedError`: If the method is not available for the backend.
+
+        Returns:
+            :obj:`Tuple[float, np.ndarray]`:
+            value of negative log-likelihood and fit parameters (:math:`\mu` and :math:`\theta`).
         """
         raise NotImplementedError("This method has not been implemented")
 
@@ -190,13 +395,55 @@ class BackendBase(ABC):
         test_statistics: Text = "qtilde",
         **kwargs,
     ) -> Tuple[float, np.ndarray]:
-        """
-        Find nuisance parameters that maximizes the likelihood for Asimov data.
-        Interface will initially call this method.
+        r"""
+        A backend specific method to minimize negative log-likelihood for Asimov data.
 
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): expectation type, observed, apriori, aposteriori.
-        :param test_statistics (`Text`, default `"qtilde"`): definition of test statistics. `q`, `qtilde` or `q0`
-        :raises `NotImplementedError`: if the method has not been implemented
-        :return `Tuple[float, np.ndarray]`: negative log-likelihood value and fit parameters
+        .. note::
+
+            Interface first calls backend specific methods to compute likelihood. If they are not
+            implemented, it optimizes objective function through ``spey`` interface. Either prescription
+            to optimizing the likelihood or objective function must be available for a backend to
+            be sucessfully integrated to the ``spey`` interface.
+
+        Args:
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            test_statistics (:obj:`Text`, default :obj:`"qtilde"`): test statistics.
+
+              * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
+                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
+                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+
+                .. warning::
+
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
+                    assumed to be :obj:`False`. If this function has been executed by user, :obj:`spey`
+                    assumes that this is taken care of throughout the external code consistently.
+                    Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+                    is taken care of automatically in the backend.
+
+              * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
+                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
+              * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
+                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+
+            kwargs: keyword arguments for the optimiser.
+
+        Raises:
+            :obj:`NotImplementedError`: If the method is not available for the backend.
+
+        Returns:
+            :obj:`Tuple[float, np.ndarray]`:
+            value of negative log-likelihood and fit parameters (:math:`\mu` and :math:`\theta`).
         """
         raise NotImplementedError("This method has not been implemented")

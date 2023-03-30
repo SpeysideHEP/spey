@@ -307,7 +307,7 @@ class StatisticalModel(HypothesisTestingBase):
         Compute likelihood of the statistical model generated with the Asimov data.
 
         Args:
-            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest.
+            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest, :math:`\mu`.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
 
