@@ -1,5 +1,5 @@
-The :attr:`hypothesis_testing` module
-=====================================
+The ``test_statistics`` module
+==============================
 
 .. autosummary:: 
     spey.hypothesis_testing.test_statistics.qmu

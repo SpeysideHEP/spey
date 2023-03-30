@@ -5,5 +5,6 @@ Description of all functions and classes
     :maxdepth: 2
 
     spey
-    spey.hypothesis_testing
+    spey.base
+    spey.hypothesis_testing.test_statistics
     spey.system.exceptions
