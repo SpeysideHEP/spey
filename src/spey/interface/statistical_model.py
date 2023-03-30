@@ -209,7 +209,7 @@ class StatisticalModel(HypothesisTestingBase):
         **kwargs,
     ) -> float:
         r"""
-        Compute likelihood for the asimov data
+        Compute likelihood of the statistical model generated with the Asimov data.
 
         Args:
             poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest.
@@ -221,8 +221,15 @@ class StatisticalModel(HypothesisTestingBase):
               * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
                 :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
                 (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
-                Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
-                keyword will be set to :obj:`False`.
+
+                .. warning::
+
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
+                    assumed to be :obj:`False`. If this function has been executed by user, spey assumes
+                    that this is taken care of through out the external code consistently. Whilst executing
+                    computing p-values or upper limit on :math:`\mu` this is taken care of automatically
+                    in the backend.
+
               * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
                 eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
               * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)

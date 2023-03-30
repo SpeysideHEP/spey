@@ -5,15 +5,4 @@ Description of all functions and classes
     :maxdepth: 2
 
     spey
-
-.. autosummary::
-    spey.ExpectationType
-    spey.StatisticalModel
-    spey.StatisticsCombiner
-    spey.AvailableBackends
-    spey.get_multi_region_statistical_model
-    spey.get_uncorrelated_region_statistical_model
-    spey.get_backend
-    spey.get_backend_metadata
-    spey.BackendBase
-    spey.DataBase
+    spey.hypothesis_testing
