@@ -22,7 +22,8 @@ class StatisticalModel(HypothesisTestingBase):
     with respect to :math:`\mu` and nuisance parameters, :math:`\partial_\theta\log\mathcal{L}`,
     its Hessian and Assimov data generation. Depending on availablility :class:`~spey.StatisticalModel`
     will take propriate action to perform requested computation. The goal of this class is to collect
-    all different backends under same roof in order to perform combination of different likelihood recipies.
+    all different backends under same roof in order to perform combination of different likelihood
+    recipies.
 
     Args:
         backend (~spey.BackendBase): Statistical model backend
@@ -35,7 +36,8 @@ class StatisticalModel(HypothesisTestingBase):
         :obj:`AssertionError`: If the given backend does not inherit :class:`~spey.BackendBase`
 
     Returns:
-        ~spey.StatisticalModel: General statistical model object that wraps around different likelihood prescriptions.
+        ~spey.StatisticalModel:
+        General statistical model object that wraps around different likelihood prescriptions.
     """
 
     __slots__ = ["_backend", "xsection", "analysis"]
@@ -49,13 +51,13 @@ class StatisticalModel(HypothesisTestingBase):
     def __repr__(self):
         return (
             f"StatisticalModel(analysis='{self.analysis}', "
-            f"xsection={self.xsection:.3e} [pb], "
+            f"xsection={self.xsection:.3e} [au], "
             f"backend={str(self.backend_type)})"
         )
 
     @property
     def backend(self) -> BackendBase:
-        """Get backend"""
+        """Accessor to the backend"""
         return self._backend
 
     @property
@@ -65,18 +67,50 @@ class StatisticalModel(HypothesisTestingBase):
 
     @property
     def isAlive(self) -> bool:
-        """Is the statistical model has non-zero signal yields in any region"""
+        """Returns True if at least one bin has non-zero signal yield."""
         return self.backend.model.isAlive
 
-    def excluded_cross_section(
-        self, expected: Optional[ExpectationType] = ExpectationType.observed
-    ) -> float:
+    def excluded_cross_section(self, expected: ExpectationType = ExpectationType.observed) -> float:
         """
-        Compute excluded cross section at 95% CLs
+        Compute excluded cross section value at 95% CL
 
-        :param expected: observed, apriori or aposteriori
-        :return: excluded cross section value in pb
-        :raises UnknownCrossSection: if cross section is nan.
+        Args:
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+        Raises:
+            ~spey.system.exceptions.UnknownCrossSection: If the cross-section is :obj:`nan`.
+
+        Returns:
+            :obj:`float`:
+            Returns the upper limit at 95% CL on cross section value where the unit is defined
+            by the user.
+
+        Example:
+
+        .. code-block:: python3
+
+            >>> import spey
+            >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
+            ...     1, 2.0, 1.1, 0.5, 0.123, "simple_sl", "simplified_likelihoods"
+            ... )
+            >>> for expectation in spey.ExpectationType:
+            >>>     print(
+            ...         f"Excluded cross section with {expectation}: ",
+            ...         statistical_model.excluded_cross_section(expected=expectation)
+            ...     )
+            >>> # Excluded cross section with apriori: 1.126437181831991
+            >>> # Excluded cross section with aposteriori: 0.9600107752838337
+            >>> # Excluded cross section with observed: 0.828274776848163
         """
         if np.isnan(self.xsection):
             raise UnknownCrossSection("Cross-section value has not been initialised.")
@@ -85,12 +119,22 @@ class StatisticalModel(HypothesisTestingBase):
 
     @property
     def s95exp(self) -> float:
-        """Expected excluded cross-section (apriori)"""
+        """
+        Compute excluded cross section value at 95% CL with :obj:`~spey.ExpectationType.apriori`
+
+        Raises:
+            ~spey.system.exceptions.UnknownCrossSection: If the cross-section is :obj:`nan`.
+        """
         return self.excluded_cross_section(ExpectationType.apriori)
 
     @property
     def s95obs(self) -> float:
-        """Observed excluded cross-section"""
+        """
+        Compute excluded cross section value at 95% CL with :obj:`~spey.ExpectationType.observed`
+
+        Raises:
+            ~spey.system.exceptions.UnknownCrossSection: If the cross-section is :obj:`nan`.
+        """
         return self.excluded_cross_section(ExpectationType.observed)
 
     def _get_objective_and_grad(
@@ -125,18 +169,42 @@ class StatisticalModel(HypothesisTestingBase):
         par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> Tuple[float, np.ndarray]:
-        """
-        Find the minimum of the negative log-likelihood for given parameter of interest.
+        r"""
+        Find the minimum of negative log-likelihood for a given parameter of interest.
 
-        :param poi_test (`float`, default `1.0`): POI (signal strength).
-        :param data (`Union[List[float], np.ndarray]`, default `None`): observed data to be used for nll computation.
-            If not provided, observations that are defined in the statistical model definition will be used. Possible
-            usecase of keyword data is to compute Asimov likelihood which has been achieved via `asimov_likelihood` function.
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori or aposteriori.
-        :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
-        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
-        :param kwargs: keyword arguments for optimiser
-        :return `float`: (float) negative log-likelihood value and fit parameters
+        Args:
+            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest or signal strength,
+              :math:`\mu`.
+            data (:obj:`Union[List[float], np.ndarray]`, default :obj:`None`): input data that to fit
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+            init_pars (:obj:`List[float]`, default :obj:`None`): initial parameters for the optimiser
+            par_bounds (:obj:`List[Tuple[float, float]]`, default :obj:`None`): parameter bounds for
+              the optimiser.
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            :obj:`Tuple[float, np.ndarray]`:
+            negative log-likelihood value and fit parameters.
+
+        Example:
+
+        .. code-block:: python3
+
+            >>> import spey
+            >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
+            ...     1, 2.0, 1.1, 0.5, 0.123, "simple_sl", "simplified_likelihoods"
+            ... )
+            >>> statistical_model.fixed_poi_fit(0.5) # (2.3078367000498305, array([0.5, -0.51327448]))
         """
         objective_and_grad, do_grad = self._get_objective_and_grad(expected, data)
 
@@ -169,16 +237,43 @@ class StatisticalModel(HypothesisTestingBase):
         par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> float:
-        """
-        Compute the likelihood of the given statistical model
+        r"""
+        Compute the likelihood of the statistical model at a fixed parameter of interest
 
-        :param poi_test (`float`, default `1.0`): POI (signal strength).
-        :param expected (~spey.ExpectationType, default ~spey.ExpectationType.observed): observed, apriori or aposteriori.
-        :param return_nll (`bool`, default `True`): if true returns negative log-likelihood value.
-        :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
-        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
-        :param kwargs: keyword arguments for optimiser
-        :return `float`: (float) likelihood or negative log-likelihood value for a given POI test
+        Args:
+            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest or signal strength,
+              :math:`\mu`.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+            return_nll (:obj:`bool`, default :obj:`True`): If :obj:`True`, returns negative log-likelihood value.
+              if :obj:`False` returns likelihood value.
+            init_pars (:obj:`List[float]`, default :obj:`None`): initial parameters for the optimiser
+            par_bounds (:obj:`List[Tuple[float, float]]`, default :obj:`None`): parameter bounds for
+              the optimiser.
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            :obj:`float`:
+            Likelihood of the statistical model at a fixed signal strength.
+
+        Example:
+
+        .. code-block:: python3
+
+            >>> import spey
+            >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
+            ...     1, 2.0, 1.1, 0.5, 0.123, "simple_sl", "simplified_likelihoods"
+            ... )
+            >>> statistical_model.likelihood(0.5) # 2.3078367000498305
         """
         try:
             negloglikelihood, _ = self.backend.negative_loglikelihood(
@@ -213,9 +308,19 @@ class StatisticalModel(HypothesisTestingBase):
 
         Args:
             poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest.
-            expected (~spey.ExpectationType): :obj:`observed`, :obj:`apriori` or :obj:`aposteriori`.
-              Default :attr:`~spey.ExpectationType.observed`.
-            return_nll (:obj:`bool`, default :obj:`True`): if false returns likelihood value.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+            return_nll (:obj:`bool`, default :obj:`True`): If :obj:`True`, returns negative log-likelihood value.
+              if :obj:`False` returns likelihood value.
             test_statistics (:obj:`Text`, default :obj:`"qtilde"`): test statistics.
 
               * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
@@ -225,10 +330,10 @@ class StatisticalModel(HypothesisTestingBase):
                 .. warning::
 
                     Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
-                    assumed to be :obj:`False`. If this function has been executed by user, spey assumes
-                    that this is taken care of through out the external code consistently. Whilst executing
-                    computing p-values or upper limit on :math:`\mu` this is taken care of automatically
-                    in the backend.
+                    assumed to be :obj:`False`. If this function has been executed by user, :obj:`spey`
+                    assumes that this is taken care of throughout the external code consistently.
+                    Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+                    is taken care of automatically in the backend.
 
               * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
                 eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
@@ -239,12 +344,31 @@ class StatisticalModel(HypothesisTestingBase):
               the fit is performed via :math:`\mu=1` if :obj:`test_statistics="q0"` and :math:`\mu=0`
               for others. Note that this :math:`\mu` does not correspond to the :obj:`poi_test` input
               of this function but it determines how Asimov data is generated.
-            init_pars (:obj:`List[float]`, default :obj:`None`): initial fit parameters.
-            par_bounds (:obj:`List[Tuple[float, float]]`, default :obj:`None`): bounds for fit
-              parameters.
+            init_pars (:obj:`List[float]`, default :obj:`None`): initial parameters for the optimiser
+            par_bounds (:obj:`List[Tuple[float, float]]`, default :obj:`None`): parameter bounds for
+              the optimiser.
+            kwargs: keyword arguments for the optimiser.
 
         Returns:
-            :obj:`float`: likelihood computed for asimov data
+            :obj:`float`:
+            likelihood computed for asimov data
+
+        Example:
+
+        .. code-block:: python3
+
+            >>> import spey
+            >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
+            ...     1, 2.0, 1.1, 0.5, 0.123, "simple_sl", "simplified_likelihoods"
+            ... )
+            >>> for test_stat in ["q", "qtilde", "q0"]:
+            >>>     print(
+            ...         f"L_A with {test_stat}: ",
+            ...         statistical_model.asimov_likelihood(0.5, test_statistics=test_stat)
+            ...     )
+            >>> # L_A with q:  2.2866167339701358
+            >>> # L_A with qtilde:  2.2866167339701358
+            >>> # L_A with q0:  2.2829074109879595
         """
         try:
             negloglikelihood, _ = self.backend.asimov_negative_loglikelihood(
@@ -278,16 +402,46 @@ class StatisticalModel(HypothesisTestingBase):
         par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> Tuple[float, float]:
-        """
-        Find the POI that maximizes the likelihood and the value of the maximum likelihood
+        r"""
+        Find the maximum of the likelihood.
 
-        :param return_nll: if true, likelihood will be returned
-        :param expected: observed, apriori or aposteriori
-        :param allow_negative_signal: allow negative POI
-        :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
-        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
-        :param kwargs: keyword arguments for optimiser
-        :return: muhat, maximum of the likelihood
+        Args:
+            return_nll (:obj:`bool`, default :obj:`True`): If :obj:`True`, returns negative log-likelihood value.
+              if :obj:`False` returns likelihood value.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+            allow_negative_signal (:obj:`bool`, default :obj:`True`): If :obj:`True` :math:`\hat\mu`
+              value will be allowed to be negative.
+            init_pars (:obj:`List[float]`, default :obj:`None`): initial parameters for the optimiser
+            par_bounds (:obj:`List[Tuple[float, float]]`, default :obj:`None`): parameter bounds for
+              the optimiser.
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            :obj:`Tuple[float, float]`:
+            :math:`\hat\mu` value and maximum value of the likelihood.
+
+        Examples:
+
+        .. code-block:: python3
+
+            >>> import spey
+            >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
+            ...     1, 2.0, 1.1, 0.5, 0.123, "simple_sl", "simplified_likelihoods"
+            ... )
+            >>> print("muhat: %.3f, negative log-likelihood %.3f" % statistical_model.maximize_likelihood())
+            >>> # muhat: -2.001, negative log-likelihood 2.014
+            >>> print("muhat: %.3f, negative log-likelihood %.3f" % statistical_model.maximize_likelihood(allow_negative_signal=False))
+            >>> # muhat: 0.000, negative log-likelihood 2.210
         """
         try:
             negloglikelihood, fit_param = self.backend.minimize_negative_loglikelihood(
@@ -330,19 +484,65 @@ class StatisticalModel(HypothesisTestingBase):
         par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> Tuple[float, float]:
-        """
-        Find maximum of the likelihood for the asimov data
+        r"""
+        Find the maximum of the likelihood which computed with respect to Asimov data.
 
-        :param expected (`ExpectationType`): observed, apriori or aposteriori,.
-            (default `ExpectationType.observed`)
-        :param return_nll (`bool`): if false, likelihood value is returned.
-            (default `True`)
-        :param test_statistics (`Text`): test statistics. `"qmu"` or `"qtilde"` for exclusion
-                                     tests `"q0"` for discovery test. (default `"qtilde"`)
-        :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
-        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
-        :param kwargs: keyword arguments for optimiser
-        :return `Tuple[float, float]`: muhat, negative log-likelihood
+        Args:
+            return_nll (:obj:`bool`, default :obj:`True`): If :obj:`True`, returns negative log-likelihood value.
+              if :obj:`False` returns likelihood value.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+            test_statistics (:obj:`Text`, default :obj:`"qtilde"`): test statistic.
+
+              * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
+                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
+                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+
+                .. warning::
+
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
+                    assumed to be :obj:`False`. If this function has been executed by user, :obj:`spey`
+                    assumes that this is taken care of throughout the external code consistently.
+                    Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+                    is taken care of automatically in the backend.
+
+              * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
+                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
+              * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
+                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+
+            init_pars (:obj:`List[float]`, default :obj:`None`): initial parameters for the optimiser
+            par_bounds (:obj:`List[Tuple[float, float]]`, default :obj:`None`): parameter bounds for
+              the optimiser.
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            :obj:`Tuple[float, float]`:
+            :math:`\hat\mu` value and maximum value of the likelihood.
+
+        Example:
+
+        .. code-block:: python3
+
+            >>> import spey
+            >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
+            ...     1, 2.0, 1.1, 0.5, 0.123, "simple_sl", "simplified_likelihoods"
+            ... )
+            >>> print("muhat: %.3f, negative log-likelihood %.3f" % statistical_model.maximize_asimov_likelihood(test_statistics="q"))
+            >>> # muhat: -0.871, negative log-likelihood 2.209
+            >>> print("muhat: %.3f, negative log-likelihood %.3f" % statistical_model.maximize_asimov_likelihood(test_statistics="qtilde"))
+            >>> # muhat: 0.000, negative log-likelihood 2.242
+            >>> print("muhat: %.3f, negative log-likelihood %.3f" % statistical_model.maximize_asimov_likelihood(test_statistics="q0"))
+            >>> # muhat: 0.000, negative log-likelihood 2.225
         """
         try:
             negloglikelihood, fit_param = self.backend.minimize_asimov_negative_loglikelihood(
@@ -392,20 +592,49 @@ class StatisticalModel(HypothesisTestingBase):
         par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> Union[np.ndarray, Callable[[int], np.ndarray]]:
-        """
-        Sample from statistical model using fixed POI nuissance parameters
+        r"""
+        Sample data from the statistical model with fixed parameter of interest.
 
-        :param poi_test (`float`): signal strength
-        :param size (`int`, default `None`): number of samples to be drawn from the model. If not initiated
-            a callable function will be returned which initialized with respect to nuisance parameters that
-            minimizes negative log-likelihood of the given statistical model. Then one can sample through
-            this function by inputting the size of the sample.
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori or aposteriori.
-        :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
-        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
-        :param kwargs: optimizer options
-        :raises `MethodNotAvailable`: Will be raised if backend does not have sampling capabilities.
-        :return `np.ndarray`: Sampled yields.
+        Args:
+            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest or signal strength,
+              :math:`\mu`.
+            size (:obj:`int`, default :obj:`None`): sample size. If :obj:`None` a callable function
+              will be returned which takes sample size as input.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+            init_pars (:obj:`List[float]`, default :obj:`None`): initial parameters for the optimiser
+            par_bounds (:obj:`List[Tuple[float, float]]`, default :obj:`None`): parameter bounds for
+              the optimiser.
+            kwargs: keyword arguments for the optimiser.
+
+        Raises:
+            ~spey.system.exceptions.MethodNotAvailable: If bacend does not have sampler implementation.
+
+        Returns:
+            :obj:`Union[np.ndarray, Callable[[int], np.ndarray]]`:
+            Sampled data with shape of ``(size, number of bins)`` or callable function to sample from
+            directly.
+
+        Example:
+
+        .. code-block:: python3
+
+            >>> import spey
+            >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
+            ...     1, 2.0, 1.1, 0.5, 0.123, "simple_sl", "simplified_likelihoods"
+            ... )
+            >>> bkg_sample = statistical_model.fixed_poi_sampler(0., 10)
+            >>> bkg_sample.shape
+            >>> # (10, 1)
         """
         _, fit_param = self.fixed_poi_fit(
             poi_test=poi_test,
@@ -432,15 +661,44 @@ class StatisticalModel(HypothesisTestingBase):
         par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> float:
-        """
-        Compute sigma mu from inverse Hessian. see eq. (28) in https://arxiv.org/abs/1007.1727
+        r"""
+        Compute variance of :math:`\mu` from inverse Hessian. See eq. (27-28) in :xref:`1007.1727`.
 
-        :param poi_test (`float`): parameter of interest
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori or aposteriori.
-        :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
-        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
-        :raises `MethodNotAvailable`: If the hessian is not defined for the backend.
-        :return `float`: sigma mu
+        Args:
+            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest or signal strength,
+              :math:`\mu`.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+            init_pars (:obj:`List[float]`, default :obj:`None`): initial parameters for the optimiser
+            par_bounds (:obj:`List[Tuple[float, float]]`, default :obj:`None`): parameter bounds for
+              the optimiser.
+            kwargs: keyword arguments for the optimiser.
+        Raises:
+            ~spey.system.exceptions.MethodNotAvailable: If bacend does not have Hessian implementation.
+
+        Returns:
+            :obj:`float`:
+            variance on parameter of interest.
+
+        Example:
+
+        .. code-block:: python3
+
+            >>> import spey
+            >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
+            ...     1, 2.0, 1.1, 0.5, 0.123, "simple_sl", "simplified_likelihoods"
+            ... )
+            >>> statistical_model.sigma_mu_from_hessian(0.3)
+            >>> # 3.993148035554591
         """
         try:
             hessian_func = self.backend.get_hessian_logpdf_func(expected=expected)
@@ -463,29 +721,58 @@ class StatisticalModel(HypothesisTestingBase):
         return np.sqrt(np.linalg.inv(hessian)[poi_index, poi_index])
 
 
-def statistical_model_wrapper(func: BackendBase) -> StatisticalModel:
+def statistical_model_wrapper(
+    func: BackendBase,
+) -> Callable[[DataBase, Text, float, ...], StatisticalModel]:
     """
-    Wrapper for statistical model backends. Converts a backend base type statistical
-    model into `StatisticalModel` instance.
+    Backend wrapper for :class:`~spey.StatisticalModel`. This function allows a universal
+    integration of each backend to the :obj:`spey` environment. :func:`~spey.get_backend` function
+    automatically wraps the backend with :func:`~spey.statistical_model_wrapper` before returning
+    the object.
 
-    :param func (`BackendBase`): Statistical model described in one of the backends
-    :return `StatisticalModel`: initialised statistical model
+    Args:
+        func (~spey.BackendBase): Desired backend to be used for statistical analysis.
+
+    Returns:
+        :obj:`Callable[[DataBase, Text, float, ...], StatisticalModel]`:
+        Wrapper that takes the following inputs
+
+        * **model** (:obj:`~spey.DataBase`): Backend specific container for specifications about signal,
+          background, data yields and uncertainties. :func:`~spey.get_backend` function returns
+          the model input that backend requires. This also ensured by the metadata specification of each
+          backend where a valid backend required to include :attr:`datastructure` attribute which then
+          returned by :func:`~spey.get_backend` function.
+        * **analysis** (:obj:`Text`, default :obj:`"__unknown_analysis__"`): Unique identifier of the
+          statistical model. This attribue will be used for book keeping purposes.
+        * **xsection** (:obj:`float`, default :obj:`np.nan`): cross section, unit is determined by the
+          user. Cross section value is only used for computing upper limit on excluded
+          cross-section value.
+        * **other keyword arguments**: Backend specific keyword inputs.
     """
 
     def wrapper(
         model: DataBase, analysis: Text = "__unknown_analysis__", xsection: float = np.nan, **kwargs
     ) -> StatisticalModel:
         """
-        Statistical Model Base wrapper
+        Statistical Model Backend wrapper.
 
-        :param model (`DataBase`): Container that holds yield counts for statistical model and model properties.
-                                   See current statistical model properties below for details.
-        :param analysis (`Text`, default `"__unknown_analysis__"`): analysis name.
-        :param xsection (`float`, default `np.nan`): cross section value. This value is only used for excluded
-                                                     cross section value computation and does not assume any units.
-        :param kwargs: Backend specific inputs. See current statistical model properties below for details.
-        :return `StatisticalModel`: Statistical model interface
-        :raises AssertionError: if the input function or model does not satisfy basic properties
+        Args:
+            model (~spey.DataBase): Backend specific container for specifications about signal,
+              background and data yields and uncertainties. :func:`~spey.get_backend` function returns
+              the model input that backend requires.
+            analysis (:obj:`Text`, default :obj:`"__unknown_analysis__"`): Unique identifier of the
+              statistical model. This attribue will be used for book keeping purposes.
+            xsection (:obj:`float`, default :obj:`np.nan`): cross section, unit is determined by the
+              user. Cross section value is only used for computing upper limit on excluded
+              cross-section value.
+            kwargs: Backend specific keyword inputs.
+
+        Raises:
+            :obj:`AssertionError`: If the model input does not inherit :class:`~spey.DataBase`.
+
+        Returns:
+            ~spey.StatisticalModel:
+            Backend wraped with statistical model interface.
         """
         assert isinstance(model, DataBase), "Input model does not satisfy base data properties."
         return StatisticalModel(backend=func(model, **kwargs), analysis=analysis, xsection=xsection)
