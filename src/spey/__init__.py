@@ -16,8 +16,8 @@ __all__ = [
     "StatisticsCombiner",
     "ExpectationType",
     "AvailableBackends",
-    "get_multi_region_statistical_model",
-    "get_uncorrelated_region_statistical_model",
+    "get_correlated_nbin_statistical_model",
+    "get_uncorrelated_nbin_statistical_model",
     "get_backend",
     "get_backend_metadata",
     "BackendBase",
@@ -30,7 +30,12 @@ def __dir__():
 
 
 def version() -> Text:
-    """Version of the package"""
+    """
+    Version of :obj:`spey` package
+
+    Returns:
+        :obj:`Text`: version in X.Y.Z format
+    """
     return __version__
 
 
@@ -41,25 +46,51 @@ def _get_backend_entrypoints() -> Dict:
 
 def AvailableBackends() -> List[Text]:
     """
-    Return list of available backends
+    Returns a list of available backends. The default backends are automatically installed
+    with :obj:`spey` package. However there are plugins available to interface for other
+    packages that has different likelihood prescription such as `pyhf <https://pyhf.readthedocs.io/en/v0.7.0/>`_.
 
-    :return `List[Text]`: List of backend names
+    Returns:
+        :obj:`List[Text]`: list of names of available backends.
     """
     return [*_get_backend_entrypoints().keys()]
 
 
-def get_backend(name: Text) -> Tuple[Callable, StatisticalModel]:
+def get_backend(name: Text) -> Tuple[Union[Callable, DataBase], StatisticalModel]:
     """
-    Retreive backend by name.
+    Statistical model backend retreiver. Available backend names can be found via
+    :func:`~spey.AvailableBackends` function.
 
-    :param name (`Text`): backend identifier
-    :raises `PluginError`: if backend is not available in the current system
-                           or if the required version does not match with current
-                           spey version.
-    :raises `AssertionError`: if the backend does not include basic metadata to identify
-                             its properties.
-    :return `Tuple[Callable, StatisticalModel]`: Function to setup model
-                    specific data structure and statistical model backend.
+    Args:
+        name (:obj:`Text`): backend identifier. This backend refers to different packages
+          that prescribes likelihood function.
+
+    Raises:
+        ~spey.system.exception.PluginError: If the backend is not available or the available backend requires
+          different version of :obj:`spey`.
+        :obj:`AssertionError`: If the backend does not have necessary metadata.
+
+    Returns:
+        :obj:`Tuple[Union[Callable, DataBase], StatisticalModel]`:
+        statistical model wraped with :func:`~spey.interface.statistiacl_model.statistical_model_wrapper`
+        and backend specific data handler.
+
+    Example:
+
+    .. code-block:: python3
+
+        >>> import spey; import numpy as np
+        >>> data_handler, stat_wrapper = spey.get_backend("simplified_likelihoods")
+        >>> data = np.array([1])
+        >>> signal = np.array([0.5])
+        >>> background = np.array([2.])
+        >>> background_unc = np.array([[1.1]])
+        >>> stat_model = stat_wrapper(
+        ...    data_handler(data, signal, background, background_unc),
+        ...    analysis="simple_sl",
+        ...    xsection=0.123
+        ... )
+        >>> stat_model.exclusion_confidence_level() # [0.4022058844566345]
     """
     backend = _get_backend_entrypoints().get(name, False)
 
@@ -85,11 +116,37 @@ def get_backend(name: Text) -> Tuple[Callable, StatisticalModel]:
 
 def get_backend_metadata(name: Text) -> Dict[Text, Text]:
     """
-    Retreive metadata for the plugin.
+    Retreive metadata about the backend. This includes citation information,
+    doi, author names etc. Available backend names can be found via
+    :func:`~spey.AvailableBackends` function.
 
-    :param name (`Text`): name of the backend. Available backends can be found via `spey.AvailableBackends()` function.
-    :raises `PluginError`: If the plugin does not exist
-    :return `Dict[Text, Text]`: metadata for the plugin.
+    Args:
+        name (:obj:`Text`): backend identifier. This backend refers to different packages
+          that prescribes likelihood function.
+
+    Raises:
+        ~spey.system.exceptions.PluginError: If the backend does not exists.
+
+    Returns:
+        :obj:`Dict[Text, Text]`:
+        Metadata about the backend.
+
+    Example:
+
+    .. code-block:: python3
+
+        >>> spey.get_backend_metadata("simplified_likelihoods")
+
+    will return the following
+
+    .. code-block:: python3
+
+        >>> {'name': 'simplified_likelihoods',
+        ... 'author': 'SpeysideHEP',
+        ... 'version': '0.0.1',
+        ... 'spey_requires': '0.0.1',
+        ... 'doi': ['10.1007/JHEP04(2019)064'],
+        ... 'arXiv': ['1809.05548']}
     """
     backend = _get_backend_entrypoints().get(name, False)
 
@@ -111,35 +168,62 @@ def get_backend_metadata(name: Text) -> Dict[Text, Text]:
     )
 
 
-def get_uncorrelated_region_statistical_model(
-    observations: Union[int, np.ndarray],
-    backgrounds: Union[float, np.ndarray],
-    background_uncertainty: Union[float, np.ndarray],
-    signal_yields: Union[float, np.ndarray],
-    xsection: Union[float, np.ndarray],
+def get_uncorrelated_nbin_statistical_model(
+    data: Union[float, int, np.ndarray, List[float]],
+    backgrounds: Union[float, np.ndarray, List[float]],
+    background_uncertainty: Union[float, np.ndarray, List[float]],
+    signal_yields: Union[float, np.ndarray, List[float]],
+    xsection: Union[float, np.ndarray, List[float]],
     analysis: Text,
     backend: Text,
 ) -> StatisticalModel:
     """
-    Create statistical model from a single bin or multiple uncorrelated regions
+    Create a statistical model from uncorrelated bins.
 
-    :param observations: number of observed events
-    :param backgrounds: number of expected background events
-    :param background_uncertainty: uncertainty on background
-    :param signal_yields: signal yields
-    :param xsection: cross-section
-    :param analysis: name of the analysis
-    :param backend: pyhf or simplified_likelihoods
-    :return: Statistical model
+    Args:
+        data (:obj:`float, int, np.ndarray, List[float]`): data yields
+        backgrounds (:obj:`float, np.ndarray, List[float]`): background yields
+        background_uncertainty (:obj:`float, np.ndarray, List[float]`): absolute background uncertainty
+        signal_yields (:obj:`float, np.ndarray, List[float]`): signal yields
+        xsection (:obj:`float, np.ndarray, List[float]`): cross section value, unit determined by the user.
+        analysis (:obj:`Text`): unique analysis name for the statistical model.
+        backend (:obj:`Text`): statistical model backend. Currently available backend names can be
+          retreived via :func:`~spey.AvailableBackends` function.
 
-    :raises NotImplementedError: If requested backend has not been recognised.
+    Raises:
+        `NotImplementedError`: If the backend is not implemented.
+
+    Returns:
+        :class:`~spey.StatisticalModel`:
+        Statistical model object.
+
+    Example:
+
+    A single bin example can be initiated via
+
+    .. code-block:: python3
+
+        >>> import spey
+        >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
+        ...     1, 2.0, 1.1, 0.5, 0.123, "simple_sl", "simplified_likelihoods"
+        ... )
+        >>> statistical_model.exclusion_confidence_level() # [0.4014584422111511]
+
+    And a multi-bin structure can be embeded via simple :obj:`List[float]` inputs
+
+    .. code-block:: python3
+
+        >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
+        ...     [1, 3], [2.0, 2.8], [1.1, 0.8], [0.5, 2.0], 0.123, "simple_sl", "simplified_likelihoods"
+        ... )
+        >>> statistical_model.exclusion_confidence_level() # [0.7016751766204834]
     """
     datastructure, statistical_model = get_backend(backend)
 
     if backend == "pyhf":
         model = datastructure(
             signal=signal_yields,
-            background=observations,
+            background=data,
             nb=backgrounds,
             delta_nb=background_uncertainty,
             name="pyhfModel",
@@ -159,11 +243,7 @@ def get_uncorrelated_region_statistical_model(
             if isinstance(signal_yields, (list, float))
             else signal_yields
         )
-        nobs = (
-            np.array(observations).reshape(-1)
-            if isinstance(observations, (list, float, int))
-            else observations
-        )
+        nobs = np.array(data).reshape(-1) if isinstance(data, (list, float, int)) else data
         nb = (
             np.array(backgrounds).reshape(-1)
             if isinstance(backgrounds, (list, float))
@@ -188,123 +268,139 @@ def get_uncorrelated_region_statistical_model(
     )
 
 
-def get_multi_region_statistical_model(
-    analysis: Text,
-    signal: Union[np.ndarray, List[Dict[Text, List]], List[float]],
-    observed: Union[np.ndarray, Dict[Text, List], List[float]],
-    covariance: Optional[Union[np.ndarray, List[List[float]]]] = None,
-    nb: Optional[Union[np.ndarray, List[float]]] = None,
+def get_correlated_nbin_statistical_model(
+    data: Union[np.ndarray, Dict[Text, List], List[float]],
+    signal_yields: Union[np.ndarray, List[Dict[Text, List]], List[float]],
+    covariance_matrix: Optional[Union[np.ndarray, List[List[float]]]] = None,
+    backgrounds: Optional[Union[np.ndarray, List[float]]] = None,
     third_moment: Optional[Union[np.ndarray, List[float]]] = None,
     delta_sys: float = 0.0,
     xsection: float = np.nan,
+    analysis: Text = "__unknown_analysis__",
 ) -> StatisticalModel:
     """
-    Create a statistical model from multibin data.
+    Create a statistical model from a correlated multi-bin data structure.
 
-    :param signal: number of signal events. For simplified likelihood backend this input can
-                   contain `np.array` or `List[float]` which contains signal yields per region.
-                   For `pyhf` backend this input expected to be a JSON-patch i.e. `List[Dict]`,
-                   see `pyhf` documentation for details on JSON-patch format.
-    :param observed: number of observed events. For simplified likelihood backend this input can
-                       be `np.ndarray` or `List[float]` which contains observations. For `pyhf`
-                       backend this contains **background only** JSON sterilized HistFactory
-                       i.e. `Dict[List]`.
-    :param covariance: Covariance matrix either in the form of `List` or NumPy array. Only used for
-                       simplified likelihood backend.
-    :param nb: number of expected background yields. Only used for simplified likelihood backend.
-    :param third_moment: third moment. Only used for simplified likelihood backend.
-    :param delta_sys: systematic uncertainty on signal. Only used for simplified likelihood backend.
-    :param xsection: cross-section in pb
-    :param analysis: name of the analysis
-    :return: Statistical model
+    Args:
+        data (:obj:`Union[np.ndarray, Dict[Text, List], List[float]]`): data yields. In order to activate
+          :xref:`pyhf` plugin :obj:`JSON` type of input should be used. For details about the dictionary
+          structure please refer to :xref:`pyhf` documentation `in this link <https://pyhf.readthedocs.io/>`_.
+          Additionally analysis specific, **background only** :obj:`JSON` files can be found through
+          :xref:`HEPData`.
+        signal_yields (:obj:`Union[np.ndarray, List[Dict[Text, List]], List[float]]`): signal yields. To
+          activate :xref:`pyhf` plugin input needs to have a :obj:`JSONPATCH` structure consistent with
+          the input data.
+        covariance_matrix (:obj:`Optional[Union[np.ndarray, List[List[float]]]]`, default :obj:`None`):
+          Simplified likelihoods are constructed via covariance matrices. Input should have a matrix structure
+          with each axis have the same dimensionality as number of reqions included in data input.
+          This input is only used for :obj:`simplified_likelihoods` backend.
+        backgrounds (:obj:`Optional[Union[np.ndarray, List[float]]]`, default :obj:`None`): The SM backgrounds
+          for simplified likelihood backend. These are combined background only yields and the size of the input
+          vector should be the same as data input. This input is only used for :obj:`simplified_likelihoods` backend.
+        third_moment (:obj:`Optional[Union[np.ndarray, List[float]]]`, default :obj:`None`): Third moment information
+          for the scewed gaussian formation in simplified likelihoods. This input is only used for
+          :obj:`simplified_likelihoods` backend.
+        delta_sys (:obj:`float`, default :obj:`0.0`): Systematic uncertainties on signal.
+          This input is only used for :obj:`simplified_likelihoods` backend.
+        xsection (:obj:`float`, default :obj:`np.nan`): cross section value. unit is determined by the user.
+        analysis (:obj:`Text`, default :obj:`"__unknown_analysis__"`): unique analysis identifier.
 
-    :raises NotImplementedError: if input patter does not match to any backend specific input option
+    Raises:
+        `NotImplementedError`: If the plugin does not exist or the inputs are not consistently matching
+          to a particular plugin.
 
-    `pyhf` interface example
+    Returns:
+        :obj:`StatisticalModel`:
+        Model formed with correlated multi-bin structure.
+
+    Example:
+
+    :obj:`simplified_likelihoods` backend can be invoked via the following input structure
 
     .. code-block:: python3
 
         >>> import spey
-        >>> background = {
-        >>>   "channels": [
-        >>>     { "name": "singlechannel",
-        >>>       "samples": [
-        >>>         { "name": "background",
-        >>>           "data": [50.0, 52.0],
-        >>>           "modifiers": [{ "name": "uncorr_bkguncrt", "type": "shapesys", "data": [3.0, 7.0]}]
-        >>>         }
-        >>>       ]
-        >>>     }
-        >>>   ],
-        >>>   "observations": [{"name": "singlechannel", "data": [51.0, 48.0]}],
-        >>>   "measurements": [{"name": "Measurement", "config": { "poi": "mu", "parameters": []} }],
-        >>>   "version": "1.0.0"
-        >>> }
-        >>> signal = [{"op": "add",
-        >>>     "path": "/channels/0/samples/1",
-        >>>     "value": {"name": "signal", "data": [12.0, 11.0],
-        >>>       "modifiers": [{"name": "mu", "type": "normfactor", "data": None}]}}]
-        >>> multi_bin = spey.get_multi_region_statistical_model(
-        >>>     "simpleanalysis", signal, background, xsection=1.
-        >>> )
-        >>> print(multi_bin)
-        >>> # StatisticalModel(analysis='simpleanalysis', xsection=1.000e+00 [pb], backend=pyhf)
-        >>> multi_bin.exclusion_confidence_level()
-        >>> # [0.9474850257628679] # 1-CLs
-        >>> multi_bin.s95exp
-        >>> # 1.0685773410460155 # prefit excluded cross section in pb
-        >>> multi_bin.maximize_likelihood()
-        >>> # (-0.0669277855002002, 12.483595567080783) # muhat and maximum negative log-likelihood
-        >>> multi_bin.likelihood(poi_test=1.5)
-        >>> # 16.59756909879556
-        >>> multi_bin.exclusion_confidence_level(expected=spey.ExpectationType.aposteriori)
-        >>> # [0.9973937390501324, 0.9861799464393675, 0.9355467946443513, 0.7647435613928496, 0.4269637940897122]
+        >>> statistical_model = spey.get_correlated_nbin_statistical_model(
+        ...     analysis="simple_sl_test",
+        ...     signal_yields=[12.0, 11.0],
+        ...     data=[51.0, 48.0],
+        ...     covariance_matrix=[[3.,0.5], [0.6,7.]],
+        ...     backgrounds=[50.0, 52.0],
+        ...     delta_sys=0.,
+        ...     third_moment=[0.2, 0.1],
+        ...     xsection=0.5
+        ... )
+        >>> statistical_model.exclusion_confidence_level() # [0.9733284916728735]
+        >>> statistical_model.backend_type # 'simplified_likelihoods'
 
-    Simplified Likelihood interface example
+    Assuming that :xref:`pyhf` plugin for spey has been installed via ``pip install spey-pyhf`` command,
+    :obj:`JSON` type of input can be given to the function as follows;
 
     .. code-block:: python3
 
-        >>> stat_model_sl = spey.get_multi_region_statistical_model(
-        >>>     "simple_sl_test",
-        >>>     signal=[12.0, 11.0],
-        >>>     observed=[51.0, 48.0],
-        >>>     covariance=[[3.,0.5], [0.6,7.]],
-        >>>     nb=[50.0, 52.0],
-        >>>     delta_sys=0.,
-        >>>     third_moment=[0.2, 0.1],
-        >>>     xsection=0.5
-        >>> )
-        >>> stat_model_sl.chi2(poi_test=2.5)
-        >>> # 24.80950457177922
-        >>> stat_model_sl.s95exp, stat_model_sl.s95obs
-        >>> # 0.47739909991661555, 0.4351657698811163
-
+        >>> import spey
+        >>> background_only = {
+        ...   "channels": [
+        ...     { "name": "singlechannel",
+        ...       "samples": [
+        ...         { "name": "background",
+        ...           "data": [50.0, 52.0],
+        ...           "modifiers": [{ "name": "uncorr_bkguncrt", "type": "shapesys", "data": [3.0, 7.0]}]
+        ...         }
+        ...       ]
+        ...     }
+        ...   ],
+        ...   "observations": [{"name": "singlechannel", "data": [51.0, 48.0]}],
+        ...   "measurements": [{"name": "Measurement", "config": { "poi": "mu", "parameters": []} }],
+        ...   "version": "1.0.0"
+        ... }
+        >>> signal = [{"op": "add",
+        ...     "path": "/channels/0/samples/1",
+        ...     "value": {"name": "signal", "data": [12.0, 11.0],
+        ...     "modifiers": [{"name": "mu", "type": "normfactor", "data": None}]}}]
+        >>> statistical_model = spey.get_correlated_nbin_statistical_model(
+        ...     analysis="simple_pyhf",
+        ...     data=background_only,
+        ...     signal_yields=signal,
+        ... )
+        >>> statistical_model.exclusion_confidence_level() # [0.9474850259721279]
+        >>> statistical_model.backend_type # 'pyhf'
     """
 
-    if isinstance(signal, list) and isinstance(signal[0], dict) and isinstance(observed, dict):
+    if (
+        isinstance(signal_yields, list)
+        and isinstance(signal_yields[0], dict)
+        and isinstance(data, dict)
+    ):
         PyhfDataWrapper, PyhfInterface = get_backend("pyhf")
-        model = PyhfDataWrapper(signal=signal, background=observed, name="pyhfModel")
+        model = PyhfDataWrapper(signal=signal_yields, background=data, name="pyhfModel")
         return PyhfInterface(model=model, xsection=xsection, analysis=analysis)
 
     if (
-        covariance is not None
-        and isinstance(signal, (list, np.ndarray))
-        and isinstance(observed, (list, np.ndarray))
+        covariance_matrix is not None
+        and isinstance(signal_yields, (list, np.ndarray))
+        and isinstance(data, (list, np.ndarray))
     ):
         SLData, SimplifiedLikelihoodInterface = get_backend("simplified_likelihoods")
 
         # Convert everything to numpy array
-        covariance = np.array(covariance) if isinstance(covariance, list) else covariance
-        signal = np.array(signal) if isinstance(signal, list) else signal
-        observed = np.array(observed) if isinstance(observed, list) else observed
-        nb = np.array(nb) if isinstance(nb, list) else nb
+        covariance_matrix = (
+            np.array(covariance_matrix)
+            if isinstance(covariance_matrix, list)
+            else covariance_matrix
+        )
+        signal_yields = (
+            np.array(signal_yields) if isinstance(signal_yields, list) else signal_yields
+        )
+        data = np.array(data) if isinstance(data, list) else data
+        backgrounds = np.array(backgrounds) if isinstance(backgrounds, list) else backgrounds
         third_moment = np.array(third_moment) if isinstance(third_moment, list) else third_moment
 
         model = SLData(
-            observed=observed,
-            signal=signal,
-            background=nb,
-            covariance=covariance,
+            observed=data,
+            signal=signal_yields,
+            background=backgrounds,
+            covariance=covariance_matrix,
             delta_sys=delta_sys,
             third_moment=third_moment,
             name="SLModel",

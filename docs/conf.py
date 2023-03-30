@@ -44,7 +44,11 @@ extensions = [
 ]
 
 # external links
-xref_links = {"1007.1727": ("[arXiv:1007.1727]", "https://doi.org/10.48550/arXiv.1007.1727")}
+xref_links = {
+    "1007.1727": ("[arXiv:1007.1727]", "https://doi.org/10.48550/arXiv.1007.1727"),
+    "pyhf": ("pyhf", "https://pyhf.readthedocs.io/"),
+    "HEPData": ("HEPData", "https://www.hepdata.net"),
+}
 
 source_suffix = {
     ".rst": "restructuredtext",
