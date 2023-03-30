@@ -1,11 +1,34 @@
+from typing import Text, List
 from enum import Enum, auto
 from dataclasses import dataclass, field
 import numpy as np
-from typing import Text, List, Union
 
 __all__ = ["ExpectationType"]
 
+
 class ExpectationType(Enum):
+    """
+    Expectation type has been used to determine the nature of the statistical model through out the package.
+    It consists of three main arguments:
+
+        * :obj:`observed` : indicates that the fit of the statistical model will be done over experimental data
+        * :obj:`aposteriori`: as in :obj:`observed` the fit will be done over data where the likelihood results will
+          be identical to :obj:`observed`, computation of :math:`CL_s` values will be done for by centralising the test
+          statistics around background.
+        * :obj:`apriori`: theorists are generatly interested in difference of their model from the SM simulation. Hence
+          this option will overwrite the observed data in the statistical model with simulated background values and performs
+          the computation with respect to prefit values, meaning prior to the experimental observation. :math:`CL_s` values
+          are again computed by centralising the test statistics around the background i.e. SM background.
+
+    User can simply set the value of :obj:`expected` to a desired :obj:`ExpectationType`:
+
+    .. code-block:: python3
+
+        >>> expected = spey.ExpectationType.aposteriori
+
+    This will trigger appropriate action to be taken through out the package.
+    """
+
     apriori = auto()
     aposteriori = auto()
     observed = auto()
@@ -21,38 +44,15 @@ class ExpectationType(Enum):
         if isinstance(other, ExpectationType):
             other = str(other)
             return current == other
-        elif isinstance(other, str):
+        if isinstance(other, str):
             current = str(self)
             return other == current
-        elif isinstance(other, bool):
+        if isinstance(other, bool):
             return self == (ExpectationType.apriori if other else ExpectationType.observed)
-        elif other is None:
+        if other is None:
             return False
-        else:
-            raise ValueError(f"Unknown comparison: type({other}) = {type(other)}")
 
-    @staticmethod
-    def as_expectationtype(other: Union[Text, bool]):
-        """
-        Convert string or boolean into expectation type
-
-        :param other: input that needs to be converted to expectation type.
-        :return: ExpectationType object
-        :raises ValueError: if can not find the appropriate expectation type.
-        """
-        if isinstance(other, ExpectationType):
-            return other
-        elif isinstance(other, (str, bool)):
-            if other in ["aposteriori", "posteriori"]:
-                return ExpectationType.aposteriori
-            elif other in ["apriori", "expected"] or other is True:
-                return ExpectationType.apriori
-            elif other == "observed" or other is False:
-                return ExpectationType.observed
-            else:
-                raise ValueError(f"Unknown expectation type: {other}")
-        else:
-            raise ValueError(f"Unknown expectation type: {other}")
+        raise ValueError(f"Unknown comparison: type({other}) = {type(other)}")
 
 
 class Units(Enum):

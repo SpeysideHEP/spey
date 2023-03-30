@@ -14,12 +14,28 @@ __all__ = ["StatisticalModel", "statistical_model_wrapper"]
 
 
 class StatisticalModel(HypothesisTestingBase):
-    """
-    Statistical model base
+    r"""
+    Statistical model base. This class wraps around the various statistical model backends available
+    through `spey`'s plugin system. Each backend has to inherit :class:`~spey.BackendBase` which sets
+    certain requirements on the available functionality to be used for hypothesis testing. These
+    requirements are such as accessibility to log-likelihood, :math:`\log\mathcal{L}`, it's derivative
+    with respect to :math:`\mu` and nuisance parameters, :math:`\partial_\theta\log\mathcal{L}`,
+    its Hessian and Assimov data generation. Depending on availablility :class:`~spey.StatisticalModel`
+    will take propriate action to perform requested computation. The goal of this class is to collect
+    all different backends under same roof in order to perform combination of different likelihood recipies.
 
-    :param backend (`BackendBase`): Statistical model backend
-    :param analysis (`Text`): Unique identifier of the statistical model
-    :param xsection (`float`, default `np.nan`): cross section, unit is determined by the user
+    Args:
+        backend (~spey.BackendBase): Statistical model backend
+        analysis (:obj:`Text`): Unique identifier of the statistical model. This attribue will be used
+          for book keeping purposes.
+        xsection (:obj:`float`, default :obj:`np.nan`): cross section, unit is determined by the user.
+          Cross section value is only used for computing upper limit on excluded cross-section value.
+
+    Raises:
+        :obj:`AssertionError`: If the given backend does not inherit :class:`~spey.BackendBase`
+
+    Returns:
+        ~spey.StatisticalModel: General statistical model object that wraps around different likelihood prescriptions.
     """
 
     __slots__ = ["_backend", "xsection", "analysis"]
@@ -157,7 +173,7 @@ class StatisticalModel(HypothesisTestingBase):
         Compute the likelihood of the given statistical model
 
         :param poi_test (`float`, default `1.0`): POI (signal strength).
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori or aposteriori.
+        :param expected (~spey.ExpectationType, default ~spey.ExpectationType.observed): observed, apriori or aposteriori.
         :param return_nll (`bool`, default `True`): if true returns negative log-likelihood value.
         :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
         :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
@@ -192,19 +208,36 @@ class StatisticalModel(HypothesisTestingBase):
         par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> float:
-        """
+        r"""
         Compute likelihood for the asimov data
 
-        :param poi_test (`float`): parameter of interest. (default `1.0`)
-        :param expected (`ExpectationType`): observed, apriori or aposteriori.
-                                             (default `ExpectationType.observed`)
-        :param return_nll (`bool`): if false returns likelihood value. (default `True`)
-        :param test_statistics (`Text`): test statistics. `"qmu"` or `"qtilde"` for exclusion
-                                     tests `"q0"` for discovery test. (default `"qtilde"`)
-        :param init_pars (`Optional[List[float]]`, default `None`): initial fit parameters.
-        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): bounds for fit parameters.
-        :param kwargs: keyword arguments for optimiser
-        :return float: likelihood computed for asimov data
+        Args:
+            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest.
+            expected (~spey.ExpectationType): :obj:`observed`, :obj:`apriori` or :obj:`aposteriori`.
+              Default :attr:`~spey.ExpectationType.observed`.
+            return_nll (:obj:`bool`, default :obj:`True`): if false returns likelihood value.
+            test_statistics (:obj:`Text`, default :obj:`"qtilde"`): test statistics.
+
+              * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
+                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
+                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+                Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
+                keyword will be set to :obj:`False`.
+              * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
+                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
+              * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
+                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+
+              The choice of :obj:`test_statistics` will effect the generation of the Asimov data where
+              the fit is performed via :math:`\mu=1` if :obj:`test_statistics="q0"` and :math:`\mu=0`
+              for others. Note that this :math:`\mu` does not correspond to the :obj:`poi_test` input
+              of this function but it determines how Asimov data is generated.
+            init_pars (:obj:`List[float]`, default :obj:`None`): initial fit parameters.
+            par_bounds (:obj:`List[Tuple[float, float]]`, default :obj:`None`): bounds for fit
+              parameters.
+
+        Returns:
+            :obj:`float`: likelihood computed for asimov data
         """
         try:
             negloglikelihood, _ = self.backend.asimov_negative_loglikelihood(

@@ -10,6 +10,18 @@ requirements = [x for x in requirements.split("\n") if x != ""]
 with open("src/spey/_version.py", mode="r", encoding="UTF-8") as f:
     version = f.readlines()[-1].split()[-1].strip("\"'")
 
+docs = [
+    "sphinx>=6.1.3",
+    "sphinxcontrib-bibtex~=2.1",
+    "sphinx-click",
+    "sphinx_rtd_theme",
+    "nbsphinx!=0.8.8",
+    "sphinx-issues",
+    "sphinx-copybutton>=0.3.2",
+    "sphinx-togglebutton>=0.3.0",
+    "myst-parser",
+]
+
 setup(
     name="spey",
     version=version,
@@ -40,5 +52,8 @@ setup(
         "Programming Language :: Python :: 3",
         "Topic :: Scientific/Engineering :: Physics",
     ],
-    extras_require={"dev": ["pytest>=7.1.2", "pytest-cov>=3.0.0", "twine>=3.7.1", "wheel>=0.37.1"]},
+    extras_require={
+        "dev": ["pytest>=7.1.2", "pytest-cov>=3.0.0", "twine>=3.7.1", "wheel>=0.37.1"],
+        "doc": docs,
+    },
 )
