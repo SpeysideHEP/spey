@@ -8,13 +8,20 @@ import copy
 @dataclass
 class ModelConfig:
     """
-    Configuration class for statistical model data. This class contains information
-    regarding how the fit should evolve.
+    Container to hold certain properties of the backend and statistical model.
+    This will ensure the consistency of the computation through out the package.
 
-    :param poi_index (`int`): index of the parameter of interest within parameter list
-    :param minimum_poi (`float`): minimum value that parameter of interest can take
-    :param suggested_init (`List[float]`): suggested initialisation for parameters
-    :param suggested_bounds (`List[Tuple[float, float]]`): suggested boundaries for parameters
+    Args:
+        poi_index (:obj:`int`): index of the parameter of interest within the parameter list.
+        minimum_poi (:obj:`float`): minimum value parameter of interest can take,
+          see :attr:`~spey.DataBase.minimum_poi`.
+        suggested_init (:obj:`List[float]`): suggested initial parameters for the optimiser.
+        suggested_bounds (:obj:`List[Tuple[float, float]]`): suggested parameter bounds for the
+          optimiser.
+
+    Returns:
+        :obj:~spey.base.model_config.ModelConfig:
+        Model configuration container for optimiser.
     """
 
     poi_index: int
@@ -23,11 +30,16 @@ class ModelConfig:
     suggested_bounds: List[Tuple[float, float]]
 
     def fixed_poi_bounds(self, poi_value: Optional[float] = None) -> List[Tuple[float, float]]:
-        """
-        Adjust bounds with respect to fixed POI value
+        r"""
+        Adjust the bounds for the parameter of interest for fixed POI fit.
 
-        :param poi_value (`Optional[float]`, default `None`): desired POI value
-        :return `List[Tuple[float, float]]`: updated bounds
+        Args:
+            poi_value (:obj:`Optional[float]`, default :obj:`None`): parameter of interest,
+              :math:`\mu`.
+
+        Returns:
+            :obj:`List[Tuple[float, float]]`:
+            Updated bounds.
         """
         if poi_value is None:
             return self.suggested_bounds
@@ -40,11 +52,17 @@ class ModelConfig:
         self, allow_negative_signal: bool = True, poi_upper_bound: Optional[float] = None
     ) -> List[Tuple[float, float]]:
         """
-        Rescale bounds for POI
+        Rescale bounds for POI.
 
-        :param allow_negative_signal (`bool`, default `True`): if true, POI can take negative values.
-        :param poi_upper_bound (`Optional[float]`, default `None`): sets new upper bound for POI.
-        :return `List[Tuple[float, float]]`: rescaled bounds
+        Args:
+            allow_negative_signal (:obj:`bool`, default :obj:`True`): If :obj:`True` :math:`\hat\mu`
+              value will be allowed to be negative.
+            poi_upper_bound (:obj:`float`, default :obj:`None`): Maximum value POI can take during
+              optimisation.
+
+        Returns:
+            :obj:`List[Tuple[float, float]]`:
+            Updated bounds.
         """
         bounds = copy.deepcopy(self.suggested_bounds)
         if poi_upper_bound:
