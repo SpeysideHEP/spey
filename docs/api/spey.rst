@@ -12,6 +12,7 @@ The spey package
     spey.get_backend_metadata
     spey.BackendBase
     spey.DataBase
+    spey.statistical_model_wrapper
 
 .. automodule:: spey
     :members:

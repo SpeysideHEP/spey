@@ -6,3 +6,4 @@ Description of all functions and classes
 
     spey
     spey.hypothesis_testing
+    spey.system.exceptions
