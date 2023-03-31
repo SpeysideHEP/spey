@@ -42,58 +42,101 @@ def qmu_tilde(
     mu: float, muhat: float, max_logpdf: float, logpdf: Callable[[float], float]
 ) -> float:
     r"""
-    The "alternative" test statistic, `\tilde{q}_{\mu}`, for establishing
-    an upper limit on the strength parameter,`\mu`, for models with
-    bounded POI, as defined in Equation (16) in `arXiv:1007.1727`
+    Alternative test statistics, :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`.
 
-    **qmu_tilde test statistic used for fit configuration with POI bounded at zero.**
+    .. warning::
 
-    :param mu: Signal strength
-    :param muhat: signal strength that minimizes logpdf
-    :param max_logpdf: maximum value of logpdf
-    :param logpdf: logpdf function which takes mu as an input
-    :return: The calculated test statistic
+        Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
+        assumed to be ``False``. If this function has been executed by user, :obj:`spey`
+        assumes that this is taken care of throughout the external code consistently.
+        Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+        is taken care of automatically in the backend.
+
+    Args:
+        mu (``float``): parameter of interest, :math:`\mu`.
+        muhat (``float``): :math:`\hat\mu` value that maximizes the likelihood.
+        max_logpdf (``float``): maximum value of :math:`\log\mathcal{L}`.
+        logpdf (``Callable[[float], float]``): :math:`\log\mathcal{L}(\mu, \theta_\mu)`.
+
+    Returns:
+        ``float``:
+        the value of :math:`\tilde{q}_{\mu}`.
     """
     return 0.0 if muhat > mu else _tmu_tilde(mu, muhat, max_logpdf, logpdf)
 
 
 def qmu(mu: float, muhat: float, max_logpdf: float, logpdf: Callable[[float], float]) -> float:
     r"""
-    The test statistic, `q_{\mu}`, for establishing an upper
-    limit on the strength parameter, `\mu`, as defined in
-    Equation (14) in arXiv:1007.1727
+    Test statistic :math:`q_{\mu}`, see eq. (54) of :xref:`1007.1727`
 
-    **qmu test statistic used for fit configuration with POI not bounded at zero.**
+    Args:
+        mu (``float``): parameter of interest, :math:`\mu`.
+        muhat (``float``): :math:`\hat\mu` value that maximizes the likelihood.
+        max_logpdf (``float``): maximum value of :math:`\log\mathcal{L}`.
+        logpdf (``Callable[[float], float]``): :math:`\log\mathcal{L}(\mu, \theta_\mu)`.
 
-    :param mu: Signal strength
-    :param muhat: signal strength that minimizes logpdf
-    :param max_logpdf: maximum value of logpdf
-    :param logpdf: logpdf function which takes mu as an input
-    :return: The calculated test statistic
+    Returns:
+        ``float``:
+        the value of :math:`q_{\mu}`.
     """
     return 0.0 if muhat > mu else _tmu(mu, max_logpdf, logpdf)
 
 
 def q0(mu: float, muhat: float, max_logpdf: float, logpdf: Callable[[float], float]) -> float:
     r"""
-    The test statistic,`q_{0}`, for discovery of a positive signal
-    as defined in Equation (12) in `arXiv:1007.1727`, for `\mu=0`.
+    Discovery test statistics, :math:`q_{0}` see eq. (47) of :xref:`1007.1727`.
 
-    :param mu: Signal strength (only for function consistency, its overwritten by zero)
-    :param muhat: signal strength that minimizes logpdf
-    :param max_logpdf: maximum value of logpdf
-    :param logpdf: logpdf function which takes mu as an input
-    :return: The calculated test statistic
+    Args:
+        mu (``float``): parameter of interest, :math:`\mu`.
+
+          .. note::
+
+            ``mu`` argument is overwritten by zero.
+
+        muhat (``float``): :math:`\hat\mu` value that maximizes the likelihood.
+        max_logpdf (``float``): maximum value of :math:`\log\mathcal{L}`.
+        logpdf (``Callable[[float], float]``): :math:`\log\mathcal{L}(\mu, \theta_\mu)`.
+
+    Returns:
+        ``float``:
+        the value of :math:`q_{0}`.
     """
     mu = 0.0
     return 0.0 if muhat < 0.0 else _tmu(mu, max_logpdf, logpdf)
 
 
-def get_test_statistic(test_stat: Text) -> Callable:
-    """
-    Retrieve test statistic function
+def get_test_statistic(
+    test_stat: Text,
+) -> Callable[[float, float, float, Callable[[float], float]], float]:
+    r"""
+    Retreive the test statistic function
 
-    :raises UnknownTestStatistics: if input doesn't match any available function.
+    Args:
+        test_stat (``Text``): test statistic.
+
+          * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
+            :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
+            (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+
+            .. warning::
+
+                Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
+                assumed to be ``False``. If this function has been executed by user, :obj:`spey`
+                assumes that this is taken care of throughout the external code consistently.
+                Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+                is taken care of automatically in the backend.
+
+          * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
+            eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
+          * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
+            of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+
+    Raises:
+        ``UnknownTestStatistics``: If the ``test_stat`` input does not match any of the above.
+
+    Returns:
+        ``Callable[[float, float, float, Callable[[float], float]], float]``:
+        returns the function to compute test statistic
     """
     # syntax with mu is not necessary so accomodate both
     if test_stat in ["qmu", "q"]:
@@ -116,18 +159,37 @@ def compute_teststatistics(
     asimov_logpdf: Callable[[float], float],
     teststat: Text,
 ) -> Tuple[float, float, float]:
-    """
-    Compute the test statistic for the observed data under the studied model.
+    r"""
+    Compute test statistics
 
-    :param mu (`float`): Signal strength
-    :param maximum_likelihood (`Tuple[float, float]`): muhat and minimum negative log-likelihood
-    :param logpdf (`Callable[[float], float]`): log of the full density
-    :param maximum_asimov_likelihood (`Tuple[float, float]`): muhat and minimum negative
-                                                              log-likelihood for asimov data
-    :param asimov_logpdf (`Callable[[float], float]`): log of the full density for asimov data
-    :param teststat (`Text`): `"qmutilde"`, `"q"` or `"q0"`
-    :return `Tuple[float, float, float]`: sqrt(qmu), sqrt(qmuA) and distance between them
-    :raises `UnknownTestStatistics`: if input doesn't match any available function.
+    Args:
+        mu (``float``): parameter of interest, :math:`\mu`.
+        maximum_likelihood (``Tuple[float, float]``): (:math:`\hat\mu` and :math:`\arg\min\log\mathcal{L}`)
+        logpdf (``Callable[[float], float]``): function to compute :math:`\log\mathcal{L}` with fixed :math:`\mu`.
+        maximum_asimov_likelihood (``Tuple[float, float]``): (:math:`\hat\mu_A` and :math:`\arg\min\log\mathcal{L}_A`)
+        asimov_logpdf (``Callable[[float], float]``): function to compute :math:`\log\mathcal{L}_A` with fixed :math:`\mu`.
+        teststat (``Text``): test statistic.
+
+          * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
+            :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
+            (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+
+            .. warning::
+
+                Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
+                assumed to be ``False``. If this function has been executed by user, :obj:`spey`
+                assumes that this is taken care of throughout the external code consistently.
+                Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+                is taken care of automatically in the backend.
+
+          * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
+            eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
+          * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
+            of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+
+    Returns:
+        ``Tuple[float, float, float]``:
+        :math:`\sqrt{q_\mu}`, :math:`\sqrt{q_{\mu,A}}` and :math:`\Delta(\sqrt{q_\mu}, \sqrt{q_{\mu,A}})`
     """
     teststat_func = get_test_statistic(teststat)
 
