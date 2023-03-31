@@ -147,7 +147,7 @@ class StatisticalModel(HypothesisTestingBase):
         """
         Retreive objective and gradient function
 
-        :param expected (`ExpectationType`): observed, apriori or aposteriori.
+        :param expected (``ExpectationType``): observed, apriori or aposteriori.
         :param data (`np.ndarray`): observations
         :return `Tuple[Callable, bool]`: objective and grad function and a boolean indicating
             that the backend is differentiable.
@@ -740,7 +740,7 @@ def statistical_model_wrapper(
         func (~spey.BackendBase): Desired backend to be used for statistical analysis.
 
     Returns:
-        :obj:`Callable[[DataBase, Text, float, ...], StatisticalModel]`:
+        ``Callable[[DataBase, Text, float, ...], StatisticalModel]``:
         Wrapper that takes the following inputs
 
         * **model** (:obj:`~spey.DataBase`): Backend specific container for specifications about signal,
@@ -766,9 +766,9 @@ def statistical_model_wrapper(
             model (~spey.DataBase): Backend specific container for specifications about signal,
               background and data yields and uncertainties. :func:`~spey.get_backend` function returns
               the model input that backend requires.
-            analysis (:obj:`Text`, default :obj:`"__unknown_analysis__"`): Unique identifier of the
+            analysis (``Text``, default ``"__unknown_analysis__"``): Unique identifier of the
               statistical model. This attribue will be used for book keeping purposes.
-            xsection (:obj:`float`, default :obj:`np.nan`): cross section, unit is determined by the
+            xsection (``float``, default ``np.nan``): cross section, unit is determined by the
               user. Cross section value is only used for computing upper limit on excluded
               cross-section value.
             kwargs: Backend specific keyword inputs.
