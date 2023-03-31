@@ -31,7 +31,7 @@ class DataBase(ABC):
 
         Returns:
             :obj:`float`:
-            :math:`\min\left(\frac{N^{\rm bkg}_i}{N^{\rm sig}_i}\right)\ ,\ i\in {\rm bins}`
+            :math:`-\min\left(\frac{N^{\rm bkg}_i}{N^{\rm sig}_i}\right)\ ,\ i\in {\rm bins}`
         """
         # This method must be casted as property
 
