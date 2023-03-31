@@ -3,11 +3,15 @@ The ``spey.base`` module
 
 .. autosummary:: 
     spey.base.hypotest_base.HypothesisTestingBase
-    spey.base.ModelConfig
+    spey.base.model_config.ModelConfig
 
 
-.. automodule:: spey.base
+.. automodule:: spey.base.hypotest_base
     :members:
     :undoc-members:
     :show-inheritance:
-    :noindex:
+
+.. automodule:: spey.base.model_config
+    :members:
+    :undoc-members:
+    :show-inheritance:
