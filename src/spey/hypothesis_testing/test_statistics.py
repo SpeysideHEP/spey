@@ -91,7 +91,8 @@ def q0(mu: float, muhat: float, max_logpdf: float, logpdf: Callable[[float], flo
 
           .. note::
 
-            ``mu`` argument is overwritten by zero.
+            ``mu`` argument is overwritten by zero. This input is only for consistency with
+            other test statistic functions.
 
         muhat (``float``): :math:`\hat\mu` value that maximizes the likelihood.
         max_logpdf (``float``): maximum value of :math:`\log\mathcal{L}`.
@@ -132,7 +133,8 @@ def get_test_statistic(
             of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
 
     Raises:
-        ``UnknownTestStatistics``: If the ``test_stat`` input does not match any of the above.
+        :obj:`~spey.system.exceptions.UnknownTestStatistics`: If the ``test_stat`` input does not match
+          any of the above.
 
     Returns:
         ``Callable[[float, float, float, Callable[[float], float]], float]``:

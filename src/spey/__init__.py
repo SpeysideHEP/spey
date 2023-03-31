@@ -31,10 +31,10 @@ def __dir__():
 
 def version() -> Text:
     """
-    Version of :obj:`spey` package
+    Version of ``spey`` package
 
     Returns:
-        :obj:`Text`: version in X.Y.Z format
+        ``Text``: version in X.Y.Z format
     """
     return __version__
 
@@ -47,11 +47,12 @@ def _get_backend_entrypoints() -> Dict:
 def AvailableBackends() -> List[Text]:
     """
     Returns a list of available backends. The default backends are automatically installed
-    with :obj:`spey` package. However there are plugins available to interface for other
-    packages that has different likelihood prescription such as `pyhf <https://pyhf.readthedocs.io/en/v0.7.0/>`_.
+    with ``spey`` package. However there are plugins available to interface for other
+    packages that has different likelihood prescription such as
+    `pyhf <https://pyhf.readthedocs.io/en/v0.7.0/>`_.
 
     Returns:
-        :obj:`List[Text]`: list of names of available backends.
+        ``List[Text]``: list of names of available backends.
     """
     return [*_get_backend_entrypoints().keys()]
 
@@ -62,17 +63,17 @@ def get_backend(name: Text) -> Tuple[Union[Callable, DataBase], StatisticalModel
     :func:`~spey.AvailableBackends` function.
 
     Args:
-        name (:obj:`Text`): backend identifier. This backend refers to different packages
+        name (``Text``): backend identifier. This backend refers to different packages
           that prescribes likelihood function.
 
     Raises:
-        ~spey.system.exception.PluginError: If the backend is not available or the available backend requires
-          different version of :obj:`spey`.
+        :obj:`~spey.system.exceptions.PluginError`: If the backend is not available or the available backend requires
+          different version of ``spey``.
         :obj:`AssertionError`: If the backend does not have necessary metadata.
 
     Returns:
-        :obj:`Tuple[Union[Callable, DataBase], StatisticalModel]`:
-        statistical model wraped with :func:`~spey.interface.statistiacl_model.statistical_model_wrapper`
+        ``Tuple[Union[Callable, DataBase], StatisticalModel]``:
+        statistical model wraped with :func:`~spey.interface.statistical_model.statistical_model_wrapper`
         and backend specific data handler.
 
     Example:
@@ -121,14 +122,14 @@ def get_backend_metadata(name: Text) -> Dict[Text, Text]:
     :func:`~spey.AvailableBackends` function.
 
     Args:
-        name (:obj:`Text`): backend identifier. This backend refers to different packages
+        name (``Text``): backend identifier. This backend refers to different packages
           that prescribes likelihood function.
 
     Raises:
         ~spey.system.exceptions.PluginError: If the backend does not exists.
 
     Returns:
-        :obj:`Dict[Text, Text]`:
+        ``Dict[Text, Text]``:
         Metadata about the backend.
 
     Example:
@@ -181,13 +182,13 @@ def get_uncorrelated_nbin_statistical_model(
     Create a statistical model from uncorrelated bins.
 
     Args:
-        data (:obj:`float, int, np.ndarray, List[float]`): data yields
-        backgrounds (:obj:`float, np.ndarray, List[float]`): background yields
-        background_uncertainty (:obj:`float, np.ndarray, List[float]`): absolute background uncertainty
-        signal_yields (:obj:`float, np.ndarray, List[float]`): signal yields
-        xsection (:obj:`float, np.ndarray, List[float]`): cross section value, unit determined by the user.
-        analysis (:obj:`Text`): unique analysis name for the statistical model.
-        backend (:obj:`Text`): statistical model backend. Currently available backend names can be
+        data (``float, int, np.ndarray, List[float]``): data yields
+        backgrounds (``float, np.ndarray, List[float]``): background yields
+        background_uncertainty (``float, np.ndarray, List[float]``): absolute background uncertainty
+        signal_yields (``float, np.ndarray, List[float]``): signal yields
+        xsection (``float, np.ndarray, List[float]``): cross section value, unit determined by the user.
+        analysis (``Text``): unique analysis name for the statistical model.
+        backend (``Text``): statistical model backend. Currently available backend names can be
           retreived via :func:`~spey.AvailableBackends` function.
 
     Raises:
@@ -282,40 +283,40 @@ def get_correlated_nbin_statistical_model(
     Create a statistical model from a correlated multi-bin data structure.
 
     Args:
-        data (:obj:`Union[np.ndarray, Dict[Text, List], List[float]]`): data yields. In order to activate
-          :xref:`pyhf` plugin :obj:`JSON` type of input should be used. For details about the dictionary
+        data (``Union[np.ndarray, Dict[Text, List], List[float]]``): data yields. In order to activate
+          :xref:`pyhf` plugin ``JSON`` type of input should be used. For details about the dictionary
           structure please refer to :xref:`pyhf` documentation `in this link <https://pyhf.readthedocs.io/>`_.
-          Additionally analysis specific, **background only** :obj:`JSON` files can be found through
+          Additionally analysis specific, **background only** ``JSON`` files can be found through
           :xref:`HEPData`.
-        signal_yields (:obj:`Union[np.ndarray, List[Dict[Text, List]], List[float]]`): signal yields. To
-          activate :xref:`pyhf` plugin input needs to have a :obj:`JSONPATCH` structure consistent with
+        signal_yields (``Union[np.ndarray, List[Dict[Text, List]], List[float]]``): signal yields. To
+          activate :xref:`pyhf` plugin input needs to have a ``JSONPATCH`` structure consistent with
           the input data.
-        covariance_matrix (:obj:`Optional[Union[np.ndarray, List[List[float]]]]`, default :obj:`None`):
+        covariance_matrix (``Optional[Union[np.ndarray, List[List[float]]]]``, default ``None``):
           Simplified likelihoods are constructed via covariance matrices. Input should have a matrix structure
           with each axis have the same dimensionality as number of reqions included in data input.
-          This input is only used for :obj:`simplified_likelihoods` backend.
-        backgrounds (:obj:`Optional[Union[np.ndarray, List[float]]]`, default :obj:`None`): The SM backgrounds
+          This input is only used for ``"simplified_likelihoods"`` backend.
+        backgrounds (``Optional[Union[np.ndarray, List[float]]]``, default ``None``): The SM backgrounds
           for simplified likelihood backend. These are combined background only yields and the size of the input
-          vector should be the same as data input. This input is only used for :obj:`simplified_likelihoods` backend.
-        third_moment (:obj:`Optional[Union[np.ndarray, List[float]]]`, default :obj:`None`): Third moment information
+          vector should be the same as data input. This input is only used for ``"simplified_likelihoods"`` backend.
+        third_moment (``Optional[Union[np.ndarray, List[float]]]``, default ``None``): Third moment information
           for the scewed gaussian formation in simplified likelihoods. This input is only used for
-          :obj:`simplified_likelihoods` backend.
-        delta_sys (:obj:`float`, default :obj:`0.0`): Systematic uncertainties on signal.
-          This input is only used for :obj:`simplified_likelihoods` backend.
-        xsection (:obj:`float`, default :obj:`np.nan`): cross section value. unit is determined by the user.
-        analysis (:obj:`Text`, default :obj:`"__unknown_analysis__"`): unique analysis identifier.
+          ``"simplified_likelihoods"`` backend.
+        delta_sys (``float``, default ``0.0``): Systematic uncertainties on signal.
+          This input is only used for ``"simplified_likelihoods"`` backend.
+        xsection (``float``, default ``np.nan``): cross section value. unit is determined by the user.
+        analysis (``Text``, default ``"__unknown_analysis__"``): unique analysis identifier.
 
     Raises:
         `NotImplementedError`: If the plugin does not exist or the inputs are not consistently matching
           to a particular plugin.
 
     Returns:
-        :obj:`StatisticalModel`:
+        :class:`~spey.StatisticalModel`:
         Model formed with correlated multi-bin structure.
 
     Example:
 
-    :obj:`simplified_likelihoods` backend can be invoked via the following input structure
+    ``"simplified_likelihoods"`` backend can be invoked via the following input structure
 
     .. code-block:: python3
 
@@ -334,7 +335,7 @@ def get_correlated_nbin_statistical_model(
         >>> statistical_model.backend_type # 'simplified_likelihoods'
 
     Assuming that :xref:`pyhf` plugin for spey has been installed via ``pip install spey-pyhf`` command,
-    :obj:`JSON` type of input can be given to the function as follows;
+    ``JSON`` type of input can be given to the function as follows;
 
     .. code-block:: python3
 
@@ -397,16 +398,15 @@ def get_correlated_nbin_statistical_model(
         third_moment = np.array(third_moment) if isinstance(third_moment, list) else third_moment
 
         model = SLData(
-            observed=data,
-            signal=signal_yields,
-            background=backgrounds,
-            covariance=covariance_matrix,
+            observed=data.astype(np.float64),
+            signal=signal_yields.astype(np.float64),
+            background=backgrounds.astype(np.float64),
+            covariance=covariance_matrix.astype(np.float64),
             delta_sys=delta_sys,
             third_moment=third_moment,
             name="SLModel",
         )
 
-        # pylint: disable=E1123
         return SimplifiedLikelihoodInterface(model=model, xsection=xsection, analysis=analysis)
 
     raise NotImplementedError("Requested backend has not been recognised.")
