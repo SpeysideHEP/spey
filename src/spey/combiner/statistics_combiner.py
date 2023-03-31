@@ -3,7 +3,7 @@ Statistical Model combiner class: this class combines likelihoods
 of different statistical models for hypothesis testing
 """
 
-from typing import List, Text, Generator, Any, Tuple, Union, Dict, Optional
+from typing import List, Text, Iterator, Tuple, Union, Dict, Optional
 import warnings
 import numpy as np
 
@@ -20,9 +20,23 @@ __all__ = ["StatisticsCombiner"]
 
 class StatisticsCombiner(HypothesisTestingBase):
     """
-    Statistical model combination routine
+    Module to combine **uncorrelated** statistical models. It takes serries of
+    :class:`~spey.StatisticalModel` as input. These statistical models does not
+    need to have same backend. However, this class assumes that all the input
+    statistical model's are completely independent from each other.
 
-    :param args: Statistical models
+    .. warning::
+
+        :obj:`~spey.StatisticsCombiner` assumes that all input are uncorrelated and
+        non of the statistical models posesses the same set of nuisance parameters.
+
+    Raises:
+        :obj:`~spey.system.exceptions.AnalysisQueryError`: If multiple :class:`~spey.StatisticalModel`
+          has the same :attr:`~spey.StatisticalModel.analysis` attribute.
+        :obj:`TypeError`: If the input type is not :class:`~spey.StatisticalModel`.
+
+    Returns:
+        :obj:`~spey.StatisticsCombiner`:
     """
 
     __slots__ = ["_statistical_models", "_recorder"]
@@ -35,10 +49,16 @@ class StatisticsCombiner(HypothesisTestingBase):
 
     def append(self, statistical_model: StatisticalModel) -> None:
         """
-        Add new analysis to the statistical model stack
+        Append new independent :class:`~spey.StatisticalModel` to the stack.
 
-        :param statistical_model: statistical model to be added to the stack
-        :raises AnalysisQueryError: if analysis name matches with another analysis within the stack
+        Args:
+            statistical_model (:class:`~spey.StatisticalModel`): new statistical model
+              to be added to the stack.
+
+        Raises:
+            :obj:`~spey.system.exceptions.AnalysisQueryError`: If multiple :class:`~spey.StatisticalModel`
+              has the same :attr:`~spey.StatisticalModel.analysis` attribute.
+            :obj:`TypeError`: If the input type is not :class:`~spey.StatisticalModel`.
         """
         if isinstance(statistical_model, StatisticalModel):
             if statistical_model.analysis in self.analyses:
@@ -48,7 +68,16 @@ class StatisticsCombiner(HypothesisTestingBase):
             raise TypeError(f"Can not append type {type(statistical_model)}.")
 
     def remove(self, analysis: Text) -> None:
-        """Remove a specific analysis from the model list"""
+        """
+        Remove an analysis from the stack.
+
+        Args:
+            analysis (``Text``): unique identifier of the analysis to be removed.
+
+        Raises:
+            :obj:`~spey.system.exceptions.AnalysisQueryError`: If the unique identifier does not match
+              any of the statistical models in the stack.
+        """
         to_remove = None
         for name, model in self.items():
             if name == analysis:
@@ -58,23 +87,47 @@ class StatisticsCombiner(HypothesisTestingBase):
         self._statistical_models.remove(to_remove)
 
     @property
-    def statistical_models(self) -> List[StatisticalModel]:
-        """Retreive the list of statistical models"""
-        return self._statistical_models
+    def statistical_models(self) -> Tuple[StatisticalModel]:
+        """
+        Accessor to the statistical model stack
+
+        Returns:
+            ``Tuple[StatisticalModel]``:
+            statistical model stack as an ntuple.
+        """
+        return tuple(self._statistical_models)
 
     @property
     def analyses(self) -> List[Text]:
-        """List of analyses that are included in combiner database"""
+        """
+        List of the unique identifiers of the statistical models within the stack.
+
+        Returns:
+            ``List[Text]``:
+            List of analysis names.
+        """
         return [model.analysis for model in self]
 
     @property
     def minimum_poi(self) -> float:
-        """Find minimum POI test that can be applied to this statistical model"""
+        r"""
+        Find the maximum minimum poi, :math:`\mu` value within the analysis stack.
+
+        Returns:
+            ``float``:
+            minimum poi value that the combined stack can take.
+        """
         return max(model.backend.model.minimum_poi for model in self)
 
     @property
     def isAlive(self) -> bool:
-        """Is there any statistical model with non-zero signal yields in any region"""
+        """
+        Returns true if there is at least one statistical model with at least
+        one non zero bin with signal yield.
+
+        Returns:
+            ``bool``
+        """
         return any(model.isAlive for model in self)
 
     def __getitem__(self, item: Union[Text, int]) -> StatisticalModel:
@@ -99,14 +152,24 @@ class StatisticsCombiner(HypothesisTestingBase):
         """Number of statistical models within the stack"""
         return len(self._statistical_models)
 
-    def items(self) -> Generator[tuple[Any, Any], Any, None]:
-        """Returns a generator for analysis name and corresponding statistical model"""
+    def items(self) -> Iterator[Tuple[Text, StatisticalModel]]:
+        """
+        Returns a generator that returns analysis name and :obj:`~spey.StatisticalModel`
+        every iteration.
+
+        Returns:
+            ``Iterator[Tuple[Text, StatisticalModel]]``
+        """
         return ((model.analysis, model) for model in self)
 
     def find_most_sensitive(self) -> StatisticalModel:
         """
-        Find the most sensitive statistical model which will return
-        the model with minimum expected excluded cross-section
+        If the cross sections are defined, finds the statistical model with minimum prefit
+        excluded cross section value. See :attr:`~spey.StatisticalModel.s95exp`.
+
+        Returns:
+            :obj:`~spey.StatisticalModel`:
+            Statistical model with minimum prefit excluded cross section value.
         """
         return self[np.argmin([model.s95exp for model in self])]
 
@@ -118,26 +181,39 @@ class StatisticsCombiner(HypothesisTestingBase):
         statistical_model_options: Optional[Dict[Text, Dict]] = None,
         **kwargs,
     ) -> float:
-        """
-        Compute the combined likelihood of the statistical model collection
+        r"""
+        Compute the likelihood of the statistical model stack at a fixed parameter of interest
 
-        :param poi_test (`float`, default `1.0`): parameter of interest (signal strength).
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
-        :param return_nll (`bool`, default `True`): if false returns likelihood value, if true will return negative
-            log-likelihood value.
-        :param statistical_model_options (`Optional[Dict[Text, Dict]]`, default `None`): statistical model specific options.
-            should be in the following form:
+        Args:
+            poi_test (``float``, default ``1.0``): parameter of interest or signal strength,
+              :math:`\mu`.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
 
-        ..code-block:: python3
-            >>> statistical_model_options = {
-            >>>     str(spey.AvailableBackends.pyhf): {"opt1": value},
-            >>>     str(spey.AvailableBackends.simplified_likelihoods): {"opt1": value},
-            >>> }
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
 
-        note that each type of dictionary will be fed with respect to the backend type.
+            return_nll (``bool``, default ``True``): If ``True``, returns negative log-likelihood value.
+              if ``False`` returns likelihood value.
+            statistical_model_options (``Optional[Dict[Text, Dict]]``, default ``None``): backend specific
+              options. The dictionary key needs to be the backend name and the item needs to be the dictionary
+              holding the keyword arguments specific to that particular backend.
 
-        :param kwargs: keyword arguments for optimiser.
-        :return `float`: likelihood value
+              .. code-block:: python3
+
+                >>> statistical_model_options = {"simplified_likelihoods" : {"init_pars" : [1., 3., 4.]}}
+
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            ``float``:
+            value of the likelihood of the stacked statistical model.
         """
         statistical_model_options = statistical_model_options or {}
 
@@ -177,27 +253,57 @@ class StatisticsCombiner(HypothesisTestingBase):
         statistical_model_options: Optional[Dict[Text, Dict]] = None,
         **kwargs,
     ) -> float:
-        """
-        Compute the combined likelihood of the statistical model collection for Asimov data.
-        Asimov data for each statistical model is computed independently.
+        r"""
+        Compute likelihood of the statistical model stack generated with the Asimov data.
 
-        :param poi_test (`float`, default `1.0`): parameter of interest (signal strength).
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
-        :param return_nll (`bool`, default `True`): if false returns likelihood value, if true will return negative
-            log-likelihood value.
-        :param test_statistics (`Text`, default `"qtilde"`): test statistics, `q`, `qtilde` or `q0`
-        :param statistical_model_options (`Optional[Dict[Text, Dict]]`, default `None`): statistical model specific options.
-            should be in the following form:
+        Args:
+            poi_test (``float``, default ``1.0``): parameter of interest, :math:`\mu`.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
 
-        ..code-block:: python3
-            >>> statistical_model_options = {
-            >>>     str(spey.AvailableBackends.pyhf): {"opt1": value},
-            >>>     str(spey.AvailableBackends.simplified_likelihoods): {"opt1": value},
-            >>> }
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
 
-        note that each type of dictionary will be fed with respect to the backend type.
-        :param kwargs: keyword arguments for optimiser.
-        :return `float`: likelihood value for Asimov data
+            return_nll (``bool``, default ``True``): If ``True``, returns negative log-likelihood value.
+              if ``False`` returns likelihood value.
+            test_statistics (``Text``, default ``"qtilde`"`): test statistics.
+
+              * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
+                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
+                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+
+                .. warning::
+
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence ``allow_negative_signal``
+                    assumed to be ``False``. If this function has been executed by user, ``spey``
+                    assumes that this is taken care of throughout the external code consistently.
+                    Whilst computing p-values or upper limit on :math:`\mu` through ``spey`` this
+                    is taken care of automatically in the backend.
+
+              * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
+                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
+              * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
+                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+
+            statistical_model_options (``Dict[Text, Dict]``, default ``None``): backend specific
+              options. The dictionary key needs to be the backend name and the item needs to be the dictionary
+              holding the keyword arguments specific to that particular backend.
+
+              .. code-block:: python3
+
+                >>> statistical_model_options = {"simplified_likelihoods" : {"init_pars" : [1., 3., 4.]}}
+
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            ``float``:
+            likelihood computed for asimov data
         """
         statistical_model_options = statistical_model_options or {}
 
@@ -233,39 +339,50 @@ class StatisticsCombiner(HypothesisTestingBase):
         **optimiser_options,
     ) -> Tuple[float, float]:
         r"""
-        Minimize negative log-likelihood of the combined statistical model with respect to POI
+        Find the maximum of the likelihood.
 
-        :param return_nll (`bool`, default `True`): if true returns negative log-likelihood value.
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori or aposteriori.
-        :param allow_negative_signal (`bool`, default `True`): if true, $\hat\mu$ is allowed to be negative.
-            Note that this has been superseeded by the `par_bounds` option defined by the user.
-        :param initial_muhat_value (`float`, default `None`): Initial value for muhat. If None,
-            an initial value will be estimated with respect to $\hat\mu_i$ weighted by $\sigma_{\hat\mu}$.
+        Args:
+            return_nll (``bool``, default ``True``): If  ``True``, returns negative log-likelihood value.
+              if ``False`` returns likelihood value.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
 
-        ..math::
-            \tilde{\mu} = \frac{1}{\mathcal{N}}\sum \frac{\hat\mu_i}{\sigma^2_{\hat\mu}}
-            \mathcal{N} = \sum\frac{1}{\sigma^2_{\hat\mu}}
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
 
-        :param par_bounds (`Optional[List[Tuple[float, float]]]`, default `None`): User defined upper and lower limits for muhat.
-            If none the lower limit will be set as the maximum $\mu$ value that the statistical model ensample can take and the max
-            value will be set to 10.
-        :param statistical_model_options (`Optional[Dict[Text, Dict]]`, default `None`): options for the likelihood computation of the where user
-            can define individual options for each statistical model type.
+            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
+              value will be allowed to be negative.
+            initial_muhat_value (``float``, default ``None``): Initialisation for the :math:`\hat\mu` for
+              the optimiser. If ``None`` the initial value will be estimated by weighted combination of
+              :math:`\hat\mu_i` where :math:`i` stands for the statistical models within the stack.
 
-        .. code-block:: python3
+              .. math::
 
-            >>> import spey
-            >>> combiner = spey.StatisticsCombiner(stat_model1, stat_model2)
-            >>> statistical_model_options = {
-            >>>     str(spey.AvailableBackends.pyhf): {"init_pars": [1,1,0.5]},
-            >>>     str(spey.AvailableBackends.simplified_likelihoods): {"init_pars": [1,2,0.3,0.5]},
-            >>> }
-            >>> muhat, nll_min = combiner.maximize_likelihood(
-            >>>     statistical_model_options=statistical_model_options
-            >>> )
+                    \mu_{\rm init} = \frac{1}{\sum_i \sigma_{\hat\mu, i}^2} \sum_i \frac{\hat\mu_i}{\sigma_{\hat\mu, i}^2}
 
-        :param kwargs: Additional optimizer specific options.
-        :return `Tuple[float, float]`: $\hat\mu$ value and minimum negative log-likelihood
+              where the value of :math:`\sigma_{\hat\mu}` has been estimated by
+              :func:`~spey.base.hypotest_base.HypothesisTestingBase.sigma_mu` function.
+            par_bounds (``List[Tuple[float, float]]``, default  ``None``): parameter bounds for
+              the optimiser.
+            statistical_model_options (``Dict[Text, Dict]``, default ``None``): backend specific
+              options. The dictionary key needs to be the backend name and the item needs to be the dictionary
+              holding the keyword arguments specific to that particular backend.
+
+              .. code-block:: python3
+
+                >>> statistical_model_options = {"simplified_likelihoods" : {"init_pars" : [1., 3., 4.]}}
+
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            ``Tuple[float, float]``:
+            :math:`\hat\mu` value and maximum value of the likelihood.
         """
         statistical_model_options = statistical_model_options or {}
 
@@ -327,16 +444,59 @@ class StatisticsCombiner(HypothesisTestingBase):
         statistical_model_options: Optional[Dict[Text, Dict]] = None,
         **optimiser_options,
     ) -> Tuple[float, float]:
-        """
-        Find maximum of the likelihood for the asimov data
+        r"""
+        Find the maximum of the likelihood which computed with respect to Asimov data.
 
-        :param expected (`ExpectationType`): observed, apriori or aposteriori,.
-            (default `ExpectationType.observed`)
-        :param return_nll (`bool`): if false, likelihood value is returned.
-            (default `True`)
-        :param test_statistics (`Text`): test statistics. `"qmu"` or `"qtilde"` for exclusion
-                                     tests `"q0"` for discovery test. (default `"qtilde"`)
-        :return `Tuple[float, float]`: muhat, negative log-likelihood
+        Args:
+            return_nll (``bool``, default ``True``): If ``True``, returns negative log-likelihood value.
+              if ``False`` returns likelihood value.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            test_statistics (``Text``, default ``"qtilde"``): test statistic.
+
+              * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
+                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
+                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+
+                .. warning::
+
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
+                    assumed to be :obj:`False`. If this function has been executed by user, :obj:`spey`
+                    assumes that this is taken care of throughout the external code consistently.
+                    Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+                    is taken care of automatically in the backend.
+
+              * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
+                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
+              * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
+                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+
+            initial_muhat_value (``float``, default ``None``): Initial value for :math:`\hat\mu`.
+            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
+              the optimiser.
+            statistical_model_options (``Dict[Text, Dict]``, default ``None``): backend specific
+              options. The dictionary key needs to be the backend name and the item needs to be the dictionary
+              holding the keyword arguments specific to that particular backend.
+
+              .. code-block:: python3
+
+                >>> statistical_model_options = {"simplified_likelihoods" : {"init_pars" : [1., 3., 4.]}}
+
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            ``Tuple[float, float]``:
+            :math:`\hat\mu` value and maximum value of the likelihood.
         """
         allow_negative_signal: bool = True if test_statistics in ["q", "qmu"] else False
 

@@ -62,7 +62,7 @@ class StatisticalModel(HypothesisTestingBase):
 
     @property
     def backend_type(self) -> Text:
-        """Return type of the backend"""
+        """Return type of the backend e.g. ``simplified_likelihoods``"""
         return self.backend.name
 
     @property
@@ -121,6 +121,8 @@ class StatisticalModel(HypothesisTestingBase):
     def s95exp(self) -> float:
         """
         Compute excluded cross section value at 95% CL with :obj:`~spey.ExpectationType.apriori`
+        expectation. See :func:`~spey.StatisticalModel.excluded_cross_section`
+        for reference.
 
         Raises:
             ~spey.system.exceptions.UnknownCrossSection: If the cross-section is :obj:`nan`.
@@ -131,6 +133,8 @@ class StatisticalModel(HypothesisTestingBase):
     def s95obs(self) -> float:
         """
         Compute excluded cross section value at 95% CL with :obj:`~spey.ExpectationType.observed`
+        expectation. See :func:`~spey.StatisticalModel.excluded_cross_section`
+        for reference.
 
         Raises:
             ~spey.system.exceptions.UnknownCrossSection: If the cross-section is :obj:`nan`.
@@ -241,7 +245,7 @@ class StatisticalModel(HypothesisTestingBase):
         Compute the likelihood of the statistical model at a fixed parameter of interest
 
         Args:
-            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest or signal strength,
+            poi_test (``float``, default ``1.0``): parameter of interest or signal strength,
               :math:`\mu`.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
@@ -254,15 +258,15 @@ class StatisticalModel(HypothesisTestingBase):
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
-            return_nll (:obj:`bool`, default :obj:`True`): If :obj:`True`, returns negative log-likelihood value.
-              if :obj:`False` returns likelihood value.
-            init_pars (:obj:`List[float]`, default :obj:`None`): initial parameters for the optimiser
-            par_bounds (:obj:`List[Tuple[float, float]]`, default :obj:`None`): parameter bounds for
+            return_nll (``bool``, default ``True``): If ``True``, returns negative log-likelihood value.
+              if ``False`` returns likelihood value.
+            init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
+            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
               the optimiser.
             kwargs: keyword arguments for the optimiser.
 
         Returns:
-            :obj:`float`:
+            ``float``:
             Likelihood of the statistical model at a fixed signal strength.
 
         Example:
@@ -307,7 +311,7 @@ class StatisticalModel(HypothesisTestingBase):
         Compute likelihood of the statistical model generated with the Asimov data.
 
         Args:
-            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest, :math:`\mu`.
+            poi_test (``float``, default ``1.0``): parameter of interest, :math:`\mu`.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
 
@@ -319,9 +323,9 @@ class StatisticalModel(HypothesisTestingBase):
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
-            return_nll (:obj:`bool`, default :obj:`True`): If :obj:`True`, returns negative log-likelihood value.
-              if :obj:`False` returns likelihood value.
-            test_statistics (:obj:`Text`, default :obj:`"qtilde"`): test statistics.
+            return_nll (``bool``, default ``True``): If ``True``, returns negative log-likelihood value.
+              if ``False`` returns likelihood value.
+            test_statistics (``Text``, default ``"qtilde`"`): test statistics.
 
               * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
                 :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
@@ -329,10 +333,10 @@ class StatisticalModel(HypothesisTestingBase):
 
                 .. warning::
 
-                    Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
-                    assumed to be :obj:`False`. If this function has been executed by user, :obj:`spey`
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence ``allow_negative_signal``
+                    assumed to be ``False``. If this function has been executed by user, ``spey``
                     assumes that this is taken care of throughout the external code consistently.
-                    Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+                    Whilst computing p-values or upper limit on :math:`\mu` through ``spey`` this
                     is taken care of automatically in the backend.
 
               * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
@@ -340,17 +344,17 @@ class StatisticalModel(HypothesisTestingBase):
               * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
                 of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
 
-              The choice of :obj:`test_statistics` will effect the generation of the Asimov data where
-              the fit is performed via :math:`\mu=1` if :obj:`test_statistics="q0"` and :math:`\mu=0`
-              for others. Note that this :math:`\mu` does not correspond to the :obj:`poi_test` input
+              The choice of ``test_statistics`` will effect the generation of the Asimov data where
+              the fit is performed via :math:`\mu=1` if ``test_statistics="q0"`` and :math:`\mu=0`
+              for others. Note that this :math:`\mu` does not correspond to the ``poi_test`` input
               of this function but it determines how Asimov data is generated.
-            init_pars (:obj:`List[float]`, default :obj:`None`): initial parameters for the optimiser
-            par_bounds (:obj:`List[Tuple[float, float]]`, default :obj:`None`): parameter bounds for
+            init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
+            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
               the optimiser.
             kwargs: keyword arguments for the optimiser.
 
         Returns:
-            :obj:`float`:
+            ``float``:
             likelihood computed for asimov data
 
         Example:
@@ -406,8 +410,8 @@ class StatisticalModel(HypothesisTestingBase):
         Find the maximum of the likelihood.
 
         Args:
-            return_nll (:obj:`bool`, default :obj:`True`): If :obj:`True`, returns negative log-likelihood value.
-              if :obj:`False` returns likelihood value.
+            return_nll (``bool``, default ``True``): If  ``True``, returns negative log-likelihood value.
+              if ``False`` returns likelihood value.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
 
@@ -419,15 +423,16 @@ class StatisticalModel(HypothesisTestingBase):
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
-            allow_negative_signal (:obj:`bool`, default :obj:`True`): If :obj:`True` :math:`\hat\mu`
+
+            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
               value will be allowed to be negative.
-            init_pars (:obj:`List[float]`, default :obj:`None`): initial parameters for the optimiser
-            par_bounds (:obj:`List[Tuple[float, float]]`, default :obj:`None`): parameter bounds for
+            init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
+            par_bounds (``List[Tuple[float, float]]``, default  ``None``): parameter bounds for
               the optimiser.
             kwargs: keyword arguments for the optimiser.
 
         Returns:
-            :obj:`Tuple[float, float]`:
+            ``Tuple[float, float]``:
             :math:`\hat\mu` value and maximum value of the likelihood.
 
         Examples:
@@ -488,8 +493,8 @@ class StatisticalModel(HypothesisTestingBase):
         Find the maximum of the likelihood which computed with respect to Asimov data.
 
         Args:
-            return_nll (:obj:`bool`, default :obj:`True`): If :obj:`True`, returns negative log-likelihood value.
-              if :obj:`False` returns likelihood value.
+            return_nll (``bool``, default ``True``): If ``True``, returns negative log-likelihood value.
+              if ``False`` returns likelihood value.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
 
@@ -501,7 +506,8 @@ class StatisticalModel(HypothesisTestingBase):
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
-            test_statistics (:obj:`Text`, default :obj:`"qtilde"`): test statistic.
+
+            test_statistics (``Text``, default ``"qtilde"``): test statistic.
 
               * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
                 :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
@@ -520,13 +526,13 @@ class StatisticalModel(HypothesisTestingBase):
               * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
                 of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
 
-            init_pars (:obj:`List[float]`, default :obj:`None`): initial parameters for the optimiser
-            par_bounds (:obj:`List[Tuple[float, float]]`, default :obj:`None`): parameter bounds for
+            init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
+            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
               the optimiser.
             kwargs: keyword arguments for the optimiser.
 
         Returns:
-            :obj:`Tuple[float, float]`:
+            ``Tuple[float, float]``:
             :math:`\hat\mu` value and maximum value of the likelihood.
 
         Example:

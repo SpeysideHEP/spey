@@ -303,7 +303,7 @@ class BackendBase(ABC):
             be sucessfully integrated to the ``spey`` interface.
 
         Args:
-            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest, :math:`\mu`.
+            poi_test (``float``, default ``1.0``): parameter of interest, :math:`\mu`.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
 
@@ -316,7 +316,7 @@ class BackendBase(ABC):
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
 
-            test_statistics (:obj:`Text`, default :obj:`"qtilde"`): test statistics.
+            test_statistics (``Text``, default ``"qtilde"``): test statistics.
 
               * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
                 :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
@@ -324,10 +324,10 @@ class BackendBase(ABC):
 
                 .. warning::
 
-                    Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
-                    assumed to be :obj:`False`. If this function has been executed by user, :obj:`spey`
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence ``allow_negative_signal``
+                    assumed to be ``False``. If this function has been executed by user, ``spey``
                     assumes that this is taken care of throughout the external code consistently.
-                    Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+                    Whilst computing p-values or upper limit on :math:`\mu` through ``spey`` this
                     is taken care of automatically in the backend.
 
               * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
@@ -341,7 +341,7 @@ class BackendBase(ABC):
             :obj:`NotImplementedError`: If the method is not available for the backend.
 
         Returns:
-            :obj:`Tuple[float, np.ndarray]`:
+            ``Tuple[float, np.ndarray]``:
             value of negative log-likelihood at POI of interest and fit parameters
             (:math:`\mu` and :math:`\theta`).
         """
