@@ -15,12 +15,16 @@ from spey.utils import ExpectationType
 
 
 class HypothesisTestingBase(ABC):
-    """Abstract class for accomodating hypothesis testing interface"""
+    """
+    Abstract class that ensures classes that are performing hypothesis teststing includes certain
+    set of function to perform necessary computations. This class gives the ability to compute
+    exclusion limits and upper limits for the class inherits it.
+    """
 
     @property
     @abstractmethod
     def isAlive(self) -> bool:
-        """Is the statistical model has non-zero signal yields in any region"""
+        """Returns True if at least one bin has non-zero signal yield."""
         # This method has to be a property
 
     @abstractmethod
@@ -31,7 +35,31 @@ class HypothesisTestingBase(ABC):
         return_nll: bool = True,
         **kwargs,
     ) -> float:
-        """Compute likelihood"""
+        r"""
+        Compute likelihood of the statistical model
+
+        Args:
+            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest, :math:`\mu`.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            return_nll (:obj:`bool`, default :obj:`True`): If ``True`` returns negative log-likelihood,
+              else likelihood value.
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            :obj:`float`:
+            value of likelihood at fixed :math:`\mu`.
+        """
 
     @abstractmethod
     def maximize_likelihood(
@@ -41,7 +69,32 @@ class HypothesisTestingBase(ABC):
         allow_negative_signal: bool = True,
         **kwargs,
     ) -> Tuple[float, float]:
-        """Compute maximum  likelihood"""
+        r"""
+        Compute maximum of the likelihood.
+
+        Args:
+            return_nll (:obj:`bool`, default :obj:`True`): If ``True`` returns negative log-likelihood,
+              else likelihood value.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            allow_negative_signal (:obj:`bool`, default :obj:`True`): If :obj:`True` :math:`\hat\mu`
+              value will be allowed to be negative.
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            :obj:`Tuple[float, float]`:
+            value of :math:`\hat\mu` and maximum likelihood.
+        """
 
     @abstractmethod
     def asimov_likelihood(
@@ -52,7 +105,50 @@ class HypothesisTestingBase(ABC):
         test_statistics: Text = "qtilde",
         **kwargs,
     ) -> float:
-        """Compute likelihood for the asimov data"""
+        r"""
+        Compute likelihood at fixed :math:`\mu` for Asimov data
+
+        Args:
+            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest, :math:`\mu`.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            return_nll (:obj:`bool`, default :obj:`True`): If ``True`` returns negative log-likelihood,
+              else likelihood value.
+            test_statistics (:obj:`Text`, default :obj:`"qtilde"`): test statistics.
+
+              * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
+                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
+                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+
+                .. warning::
+
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
+                    assumed to be :obj:`False`. If this function has been executed by user, :obj:`spey`
+                    assumes that this is taken care of throughout the external code consistently.
+                    Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+                    is taken care of automatically in the backend.
+
+              * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
+                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
+              * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
+                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            :obj:`float`:
+            value of the likelihood.
+        """
 
     @abstractmethod
     def maximize_asimov_likelihood(
@@ -62,7 +158,49 @@ class HypothesisTestingBase(ABC):
         test_statistics: Text = "qtilde",
         **kwargs,
     ) -> Tuple[float, float]:
-        """Compute maximum likelihood for asimov data"""
+        r"""
+        Compute maximum of the likelihood for Asimov data.
+
+        Args:
+            return_nll (:obj:`bool`, default :obj:`True`): If ``True`` returns negative log-likelihood,
+              else likelihood value.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            test_statistics (:obj:`Text`, default :obj:`"qtilde"`): test statistics.
+
+              * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
+                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
+                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+
+                .. warning::
+
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
+                    assumed to be :obj:`False`. If this function has been executed by user, :obj:`spey`
+                    assumes that this is taken care of throughout the external code consistently.
+                    Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+                    is taken care of automatically in the backend.
+
+              * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
+                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
+              * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
+                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            :obj:`Tuple[float, float]`:
+            value of :math:`\hat\mu` and maximum likelihood.
+        """
 
     def chi2(
         self,
@@ -72,17 +210,31 @@ class HypothesisTestingBase(ABC):
         **kwargs,
     ) -> float:
         r"""
-        Compute $$\chi^2$$
-
         .. math::
 
-            \chi^2 = -2\log\left(\frac{\mathcal{L}_{\mu = 1}}{\mathcal{L}_{max}}\right)
+            \chi^2 = -2\log\left(\frac{\mathcal{L}(\mu,\theta_\mu)}{\mathcal{L}(\hat\mu,\hat\theta)}\right)
 
-        :param poi_test: POI (signal strength)
-        :param expected: observed, apriori or aposteriori
-        :param allow_negative_signal: if true, allow negative mu
-        :param isAsimov: if true, computes likelihood for Asimov data
-        :return: chi^2
+        Args:
+            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest, :math:`\mu`.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            allow_negative_signal (:obj:`bool`, default :obj:`True`): If :obj:`True` :math:`\hat\mu`
+              value will be allowed to be negative.
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            :obj:`float`:
+            value of the :math:`\chi^2`.
         """
         return 2.0 * (
             self.likelihood(poi_test=poi_test, expected=expected, **kwargs)
@@ -100,13 +252,46 @@ class HypothesisTestingBase(ABC):
         Tuple[float, float], Callable[[float], float], Tuple[float, float], Callable[[float], float]
     ]:
         r"""
-        Retreive necessary inputs for hypotesis testing
+        Prepare necessary computations for hypothesis testing
 
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
-        :param test_statistics (`Text`, default `"qtilde"`): test statistics, "q", "qtilde", "q0".
-        :return `Tuple[ Tuple[float, float], Callable[[float], float], Tuple[float, float], Callable[[float], float] ]`:
-            $\hat\mu$, negative log-likelihood, logpdf, $\hat\mu_A$, negative log-likelihood for asimov data,
-            logpdf for asimov data
+        Args:
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+                p-values to be computed.
+
+                * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+                * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+                * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            test_statistics (:obj:`Text`, default :obj:`"qtilde"`): test statistics.
+
+                * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
+                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
+                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+
+                .. warning::
+
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
+                    assumed to be :obj:`False`. If this function has been executed by user, :obj:`spey`
+                    assumes that this is taken care of throughout the external code consistently.
+                    Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+                    is taken care of automatically in the backend.
+
+                * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
+                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
+                * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
+                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            :obj:`Tuple[ Tuple[float, float], Callable[[float], float], Tuple[float, float], Callable[[float], float]]`:
+            (:math:`\hat\mu`, :math:`\arg\min(-\log\mathcal{L})`), :math:`\log\mathcal{L(\mu, \theta_\mu)}`,
+            (:math:`\hat\mu_A`, :math:`\arg\min(-\log\mathcal{L}_A)`), :math:`\log\mathcal{L_A(\mu, \theta_\mu)}`
         """
         allow_negative_signal = True if test_statistics in ["q" or "qmu"] else False
 
@@ -142,20 +327,52 @@ class HypothesisTestingBase(ABC):
         **kwargs,
     ) -> float:
         r"""
-        Estimation of `\sigma_{\mu}` denoted as `\sigma_A` where
+        Estimate variance on :math:`\mu` via :math:`q_{\mu,A}`
 
         .. math::
 
             \sigma^2_A = \frac{(\mu - \mu^\prime)^2}{q_{\mu,A}}\quad , \quad q_{\mu,A} = -2\ln\lambda_A(\mu)
 
-        see eq. (31) in https://arxiv.org/abs/1007.1727
+        see eq. (31) in :xref:`1007.1727`
 
-        :param poi_test (`float`): Parameter of interest
-        :param expected (`ExpectationType`, default `ExpectationType.observed`):
-                                                                observed, apriori or aposteriori.
-        :param test_statistics (`Text`, default `"qtilde"`): sets which test statistics to be used
-                                                          i.e. `"qmu"`, `"qtilde"` or `"q0"`.
-        :return `float`: deviation in POI
+        Args:
+            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest, :math:`\mu`.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            test_statistics (:obj:`Text`, default :obj:`"qtilde"`): test statistics.
+
+              * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
+                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
+                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+
+                .. warning::
+
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
+                    assumed to be :obj:`False`. If this function has been executed by user, :obj:`spey`
+                    assumes that this is taken care of throughout the external code consistently.
+                    Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+                    is taken care of automatically in the backend.
+
+              * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
+                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
+              * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
+                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            :obj:`float`:
+            value of the variance on :math:`\mu`.
         """
         teststat_func = get_test_statistic(test_statistics)
 
@@ -178,18 +395,84 @@ class HypothesisTestingBase(ABC):
     def exclusion_confidence_level(
         self,
         poi_test: float = 1.0,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
+        expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = False,
         **kwargs,
     ) -> List[float]:
-        """
-        Compute exclusion confidence level of a given statistical model.
+        r"""
+        Compute exclusion confidence level (:math:`1-CL_s`) at a given POI, :math:`\mu`.
 
-        :param poi_test: parameter of interest
-        :param expected: observed, apriori or aposteriori
-        :param allow_negative_signal: if true muhat is allowed to be negative
-        :param kwargs: backend specific inputs.
-        :return: 1-CLs value (float)
+        Args:
+            poi_test (``float``, default ``1.0``): parameter of interest, :math:`\mu`.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+
+                .. note::
+
+                    In case of :obj:`~spey.ExpectationType.observed`, function will return one value
+                    which has been fit to the observed data.
+
+
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+
+                .. note::
+
+                    In case of :obj:`~spey.ExpectationType.aposteriori`, function will return five value
+                    for expected p-values which has been fit to the observed data. Values represent
+                    :math:`1\sigma` and :math:`2\sigma` fluctuations from the background. The order of the
+                    output order is :math:`-2\sigma` value, :math:`-1\sigma` value, central value,
+                    :math:`1\sigma` and :math:`2\sigma` value.
+
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+                .. note::
+
+                    In case of :obj:`~spey.ExpectationType.apriori`, function will return five value
+                    for expected p-values which has been fit to the SM background. Values represent
+                    :math:`1\sigma` and :math:`2\sigma` fluctuations from the background. The
+                    output order is :math:`-2\sigma` value, :math:`-1\sigma` value, central value,
+                    :math:`1\sigma` and :math:`2\sigma` value.
+
+            allow_negative_signal (``bool``, default ``False``): If ``True`` :math:`\hat\mu`
+              value will be allowed to be negative.
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            ``List[float]``:
+            Exclusion confidence level i.e. :math:`1-CL_s`.
+
+        Example:
+
+        .. code-block:: python3
+
+            >>> import spey
+            >>> statistical_model = spey.get_correlated_nbin_statistical_model(
+            ...     analysis="simple_sl_test",
+            ...     signal_yields=[12.0, 11.0],
+            ...     data=[51.0, 48.0],
+            ...     covariance_matrix=[[3.,0.5], [0.6,7.]],
+            ...     backgrounds=[50.0, 52.0],
+            ...     delta_sys=0.,
+            ...     third_moment=[0.2, 0.1],
+            ...     xsection=0.5
+            ... )
+            >>> for expectation in spey.ExpectationType:
+            >>>     if expectation == spey.ExpectationType.observed:
+            >>>         print("1-CLs : %.3f" % tuple(statistical_model.exclusion_confidence_level(expected=expectation)))
+            >>>     else:
+            >>>         print(
+            ...             "1-CLs %s at -2sig %.3f, -1sig %.3f, central %.3f, 1sig %.3f, 2sig %.3f" % tuple([expectation] + statistical_model.exclusion_confidence_level(expected=expectation))
+            ...         )
+            >>> # 1-CLs apriori at -2sig 0.999, -1sig 0.993, central 0.959, 1sig 0.825, 2sig 0.507
+            >>> # 1-CLs aposteriori at -2sig 0.999, -1sig 0.994, central 0.963, 1sig 0.835, 2sig 0.523
+            >>> # 1-CLs : 0.973
         """
         test_stat = "q" if allow_negative_signal else "qmutilde"
 
@@ -223,14 +506,32 @@ class HypothesisTestingBase(ABC):
         )
 
     def significance(
-        self, expected: Optional[ExpectationType] = ExpectationType.observed, **kwargs
+        self, expected: ExpectationType = ExpectationType.observed, **kwargs
     ) -> Tuple[float, float, List[float], List[float]]:
-        """
-        Compute the significance of the statistical model
+        r"""
+        Compute the discovery of a positive signal.
 
-        :param expected: observed, apriori or aposteriori
-        :param kwargs: backend dependent arguments
-        :return: sqrt(q0_A), sqrt(q0), pvalues, expected pvalues
+        Args:
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+                .. note::
+
+                    Since :obj:`~spey.ExpectationType.aposteriori` and :obj:`~spey.ExpectationType.observed`
+                    are both represent post-fit computation the result will be the same. The only difference
+                    can be seen via prefit, :obj:`~spey.ExpectationType.apriori`, computation.
+
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            ``Tuple[float, float, List[float], List[float]]``:
+            (:math:`\sqrt{q_{0,A}}`, :math:`\sqrt{q_0}`, p-values and expected p-values)
         """
         (
             maximum_likelihood,
@@ -248,7 +549,7 @@ class HypothesisTestingBase(ABC):
 
     def poi_upper_limit(
         self,
-        expected: Optional[ExpectationType] = ExpectationType.observed,
+        expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = False,
         confidence_level: float = 0.95,
         low_init: Optional[float] = None,
@@ -258,24 +559,85 @@ class HypothesisTestingBase(ABC):
         **kwargs,
     ) -> Union[float, List[float]]:
         r"""
-        Compute the upper limit on parameter of interest, described by the confidence level.
-        The algorithm will return infinity if the signal yields in all the regions are zero.
-        This means that the algorithm is not able to set a bound with the given information.
+        Compute the upper limit for the parameter of interest i.e. :math:`\mu`.
 
+        Args:
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
 
-        :param expected: observed, apriori or aposteriori
-        :param allow_negative_signal: if true muhat is allowed to be negative
-        :param confidence_level: exclusion confidence level (default 1 - CLs = 95%)
-        :param low_init (`Optional[float]`, default `None`): initialized lower bound for bracketing.
-                                    if None its set to `$\hat{\mu} + 1.5\sigma_\mu$`
-        :param hig_init (`Optional[float]`, default `None`): initialised upper bound for bracketing.
-                                    if None its set to `$\hat{\mu} + 2.5\sigma_\mu$`
-        :param expected_pvalue (`Text`, default `"nominal"`): find the upper limit for pvalue range,
-                                                        only for expected. `nominal`, `1sigma`, `2sigma`
-        :param maxiter (`int`, default `10000`): If convergence is not achieved in maxiter iterations,
-                                           an error is raised. Must be > 0.
-        :param kwargs: backend specific inputs.
-        :return: excluded parameter of interest
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
+              value will be allowed to be negative.
+            confidence_level (``float``, default ``0.95``): Determines the confidence level of the upper
+              limit i.e. the value of :math:`1-CL_s`. It needs to be between ``[0,1]``.
+            low_init (``Optional[float]``, default ``None``): Lower limit for the search algorithm to start
+              If ``None`` it the lower limit will be determined by :math:`\hat\mu + 1.5\sigma_{\hat\mu}`.
+
+              .. note::
+
+                :math:`\sigma_{\hat\mu}` is determined via
+                :func:`~spey.base.hypotest_base.HypothesisTestingBase.sigma_mu` function.
+
+            hig_init (``Optional[float]``, default ``None``): Upper limit for the search algorithm to start
+              If ``None`` it the upper limit will be determined by :math:`\hat\mu + 2.5\sigma_{\hat\mu}`.
+
+              .. note::
+
+                :math:`\sigma_{\hat\mu}` is determined via
+                :func:`~spey.base.hypotest_base.HypothesisTestingBase.sigma_mu` function.
+
+            expected_pvalue (``Text``, default ``"nominal"``): In case of :obj:`~spey.ExpectationType.aposteriori`
+              and :obj:`~spey.ExpectationType.apriori` expectation, gives the choice to find excluded upper
+              limit for statistical deviations as well.
+
+              * ``"nominal"``: only find the upper limit for the central p-value. Returns a single value.
+              * ``"1sigma"``: find the upper limit for central p-value and :math:`1\sigma` fluctuation from
+                background. Returns 3 values.
+              * ``"2sigma"``: find the upper limit for central p-value and :math:`1\sigma` and
+                :math:`2\sigma` fluctuation from background. Returns 5 values.
+
+              .. note::
+
+                For ``expected=spey.ExpectationType.observed``, ``expected_pvalue`` argument will
+                be overwritten to ``"nominal"``.
+
+            maxiter (``int``, default ``10000``): Maximum iteration limit for the optimiser.
+
+        Returns:
+            ``Union[float, List[float]]``:
+            In case of nominal values it returns a single value for the upper limit. In case of
+            ``expected_pvalue="1sigma"`` or ``expected_pvalue="2sigma"`` it will return a list of
+            multiple upper limit values for fluctuations as well as the central value. The
+            output order is :math:`-2\sigma` value, :math:`-1\sigma` value, central value,
+            :math:`1\sigma` and :math:`2\sigma` value.
+
+        Example:
+
+        .. code-block:: python3
+
+            >>> import spey
+            >>> statistical_model = spey.get_correlated_nbin_statistical_model(
+            ...     analysis="simple_sl_test",
+            ...     signal_yields=[12.0, 11.0],
+            ...     data=[51.0, 48.0],
+            ...     covariance_matrix=[[3.,0.5], [0.6,7.]],
+            ...     backgrounds=[50.0, 52.0],
+            ...     delta_sys=0.,
+            ...     third_moment=[0.2, 0.1],
+            ...     xsection=0.5
+            ... )
+            >>> statistical_model.poi_upper_limit(
+            ...     expected=spey.ExpectationType.apriori, expected_pvalue="1sigma"
+            ... )
+            >>> # [0.6776948439956527, 0.9552928963772295, 1.3583327313197415]
         """
         assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
         expected_pvalue = "nominal" if expected == ExpectationType.observed else expected_pvalue
