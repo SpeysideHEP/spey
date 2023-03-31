@@ -550,7 +550,6 @@ class HypothesisTestingBase(ABC):
     def poi_upper_limit(
         self,
         expected: ExpectationType = ExpectationType.observed,
-        allow_negative_signal: bool = False,
         confidence_level: float = 0.95,
         low_init: Optional[float] = None,
         hig_init: Optional[float] = None,
@@ -574,8 +573,6 @@ class HypothesisTestingBase(ABC):
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
 
-            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
-              value will be allowed to be negative.
             confidence_level (``float``, default ``0.95``): Determines the confidence level of the upper
               limit i.e. the value of :math:`1-CL_s`. It needs to be between ``[0,1]``.
             low_init (``Optional[float]``, default ``None``): Lower limit for the search algorithm to start
@@ -641,7 +638,6 @@ class HypothesisTestingBase(ABC):
         """
         assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
         expected_pvalue = "nominal" if expected == ExpectationType.observed else expected_pvalue
-        test_stat = "q" if allow_negative_signal else "qmutilde"
 
         # If the signal yields in all regions are zero then return inf.
         # This means we are not able to set a bound with the given information.
@@ -657,7 +653,7 @@ class HypothesisTestingBase(ABC):
             logpdf_asimov,
         ) = self._prepare_for_hypotest(
             expected=expected,
-            test_statistics=test_stat,
+            test_statistics="qtilde",
             **kwargs,
         )
 
@@ -674,7 +670,7 @@ class HypothesisTestingBase(ABC):
             asimov_logpdf=logpdf_asimov,
             expected=expected,
             confidence_level=confidence_level,
-            allow_negative_signal=allow_negative_signal,
+            allow_negative_signal=False,
             low_init=low_init,
             hig_init=hig_init,
             expected_pvalue=expected_pvalue,
