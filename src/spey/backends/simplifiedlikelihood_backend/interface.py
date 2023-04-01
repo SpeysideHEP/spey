@@ -18,11 +18,12 @@ class SimplifiedLikelihoodInterface(BackendBase):
     """
     Simplified Likelihood Interface.
 
-    :param model (`SLData`): contains all the information regarding the regions,
-                  yields and correlation matrices
-    :param ntoys (`int`, default `10000`): number of toy examples to run for the
-                    test statistics. Only used for marginalised likelihood.
-    :raises AssertionError: if the input type is wrong.
+    Args:
+        model (~spey.backends.simplifiedlikelihood_backend.sldata.SLData):
+          contains all the information regarding the regions, yields and correlation matrices
+
+    Raises:
+        ``AssertionError``: if the input type is wrong.
     """
 
     name: Text = "simplified_likelihoods"
@@ -33,23 +34,24 @@ class SimplifiedLikelihoodInterface(BackendBase):
     arXiv: List[Text] = ["1809.05548"]
     datastructure = SLData
 
-    __slots__ = ["_model", "ntoys", "_third_moment_expansion", "_asimov_nuisance"]
+    __slots__ = ["_model", "_third_moment_expansion"]
 
-    def __init__(self, model: SLData, ntoys: int = 10000):
-        assert (
-            isinstance(model, SLData) and isinstance(model, DataBase) and isinstance(ntoys, int)
+    def __init__(self, model: SLData):
+        assert isinstance(model, SLData) and isinstance(
+            model, DataBase
         ), "Invalid statistical model."
         self._model = model
-        self.ntoys = ntoys
         self._third_moment_expansion: Optional[expansion_output] = None
-        self._asimov_nuisance = {
-            str(ExpectationType.observed): None,
-            str(ExpectationType.apriori): None,
-        }
 
     @property
     def model(self) -> SLData:
-        """Get statistical model"""
+        """
+        Accessor to the model container.
+
+        Returns:
+            ~spey.backends.simplifiedlikelihood_backend.sldata.SLData:
+            Data container object that inherits :obj:`~spey.DataBase`.
+        """
         return self._model
 
     @property
@@ -65,14 +67,29 @@ class SimplifiedLikelihoodInterface(BackendBase):
         data: Optional[np.ndarray] = None,
         do_grad: bool = True,
     ) -> Callable[[np.ndarray], Union[Tuple[float, np.ndarray], float]]:
-        """
-        Construct objective function for optimisation
+        r"""
+        Objective function i.e. twice negative log-likelihood, :math:`-2\log\mathcal{L}(\mu, \theta)`
 
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori..
-        :param data (`Optional[np.ndarray]`, default `None`): observed data to be used for nll computation.
-        :param do_grad (`bool`, default `True`): if true include gradient.
-        :return `Callable[[np.ndarray], Union[Tuple[float, np.ndarray], float]]`: function to compute objective
-                function and its gradient
+        Args:
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+            data (``np.ndarray``, default ``None``): input data that to fit
+            do_grad (``bool``, default ``True``): If ``True`` return objective and its gradient
+              as ``tuple`` if ``False`` only returns objective function.
+
+        Returns:
+            ``Callable[[np.ndarray], Union[float, Tuple[float, np.ndarray]]]``:
+            Function which takes fit parameters (:math:`\mu` and :math:`\theta`) and returns either
+            objective or objective and its gradient.
         """
         current_model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
@@ -91,13 +108,28 @@ class SimplifiedLikelihoodInterface(BackendBase):
         expected: ExpectationType = ExpectationType.observed,
         data: Optional[np.array] = None,
     ) -> Callable[[np.ndarray, np.ndarray], float]:
-        """
-        Generate function to compute twice negative log-likelihood for the statistical model
+        r"""
+        Generate function to compute :math:`\log\mathcal{L}(\mu, \theta)` where :math:`\mu` is the
+        parameter of interest and :math:`\theta` are nuisance parameters.
 
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
-        :param data (`Union[List[float], np.ndarray]`, default `None`): observed data to be used for nll computation.
-        :return `Callable[[np.ndarray, np.ndarray], float]`: function to compute twice negative log-likelihood
-            for given nuisance parameters.
+        Args:
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+            data (``np.array``, default ``None``): input data that to fit
+
+        Returns:
+            ``Callable[[np.ndarray], float]``:
+            Function that takes fit parameters (:math:`\mu` and :math:`\theta`) and computes
+            :math:`\log\mathcal{L}(\mu, \theta)`.
         """
         current_model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
@@ -115,13 +147,29 @@ class SimplifiedLikelihoodInterface(BackendBase):
         expected: ExpectationType = ExpectationType.observed,
         data: Optional[np.ndarray] = None,
     ) -> Callable[[np.ndarray], float]:
-        """
-        Generate function to compute hessian of twice negative log-likelihood for the statistical model.
+        r"""
+        Currently Hessian of :math:`\log\mathcal{L}(\mu, \theta)` is only used to compute
+        variance on :math:`\mu`. This method returns a callable function which takes fit
+        parameters (:math:`\mu` and :math:`\theta`) and returns Hessian.
 
-        :param expected (`ExpectationType`, default `ExpectationType.observed`): observed, apriori, aposteriori.
-        :param data (`Union[List[float], np.ndarray]`, default `None`): observed data to be used for nll computation.
-        :return `Callable[[np.ndarray], float]`: function to compute hessian of twice negative log-likelihood
-            for given nuisance parameters.
+        Args:
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+            data (``np.ndarray``, default ``None``): input data that to fit
+
+        Returns:
+            ``Callable[[np.ndarray], float]``:
+            Function that takes fit parameters (:math:`\mu` and :math:`\theta`) and
+            returns Hessian of :math:`\log\mathcal{L}(\mu, \theta)`.
         """
         current_model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset
@@ -134,12 +182,16 @@ class SimplifiedLikelihoodInterface(BackendBase):
         return lambda pars: hess(pars, data or current_model.observed)
 
     def get_sampler(self, pars: np.ndarray) -> Callable[[int], np.ndarray]:
-        """
-        Sampler function predefined with respect to the statistical model yields.
+        r"""
+        Retreives the function to sample from.
 
-        :param pars (`np.ndarray`): nuisance parameters
-        :return `Callable[[int], np.ndarray]`: eturns function to sample from
-            a preconfigured statistical model
+        Args:
+            pars (``np.ndarray``): fit parameters (:math:`\mu` and :math:`\theta`)
+
+        Returns:
+            ``Callable[[int], np.ndarray]``:
+            Function that takes ``number_of_samples`` as input and draws as many samples
+            from the statistical model.
         """
         return sample_generator(
             pars=pars,
@@ -154,12 +206,46 @@ class SimplifiedLikelihoodInterface(BackendBase):
         test_statistics: Text = "qtilde",
         **kwargs,
     ) -> np.ndarray:
-        """
-        Generate Asimov data with respect to the given test statistics
+        r"""
+        Backend specific method to generate Asimov data.
 
-        :param model (`SLData`): Container for the statistical model properties
-        :param test_statistics (`Text`, default `"qtilde"`): test statistics, `q0`, `qtilde`, `q`.
-        :return `np.ndarray`: Asimov data
+        Args:
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            test_statistics (``Text``, default ``"qtilde"``): test statistics.
+
+              * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
+                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
+                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+
+                .. warning::
+
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence ``allow_negative_signal``
+                    assumed to be ``False``. If this function has been executed by user, ``spey``
+                    assumes that this is taken care of throughout the external code consistently.
+                    Whilst computing p-values or upper limit on :math:`\mu` through ``spey`` this
+                    is taken care of automatically in the backend.
+
+              * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
+                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
+              * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
+                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            ``Union[List[float], np.ndarray]``:
+            Asimov data.
         """
         model: SLData = (
             self.model if expected != ExpectationType.apriori else self.model.expected_dataset

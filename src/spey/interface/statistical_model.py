@@ -27,9 +27,9 @@ class StatisticalModel(HypothesisTestingBase):
 
     Args:
         backend (~spey.BackendBase): Statistical model backend
-        analysis (:obj:`Text`): Unique identifier of the statistical model. This attribue will be used
+        analysis (``Text``): Unique identifier of the statistical model. This attribue will be used
           for book keeping purposes.
-        xsection (:obj:`float`, default :obj:`np.nan`): cross section, unit is determined by the user.
+        xsection (``float``, default ``np.nan``): cross section, unit is determined by the user.
           Cross section value is only used for computing upper limit on excluded cross-section value.
 
     Raises:
@@ -46,7 +46,9 @@ class StatisticalModel(HypothesisTestingBase):
         assert isinstance(backend, BackendBase), "Invalid backend"
         self._backend: BackendBase = backend
         self.xsection: float = xsection
+        """Value of the cross section, unit is defined by the user."""
         self.analysis: Text = analysis
+        """Unique identifier as analysis name"""
 
     def __repr__(self):
         return (
@@ -88,10 +90,10 @@ class StatisticalModel(HypothesisTestingBase):
                 prescription which means that the SM will be assumed to be the truth.
 
         Raises:
-            ~spey.system.exceptions.UnknownCrossSection: If the cross-section is :obj:`nan`.
+            ~spey.system.exceptions.UnknownCrossSection: If the cross-section is ``nan``.
 
         Returns:
-            :obj:`float`:
+            ``float``:
             Returns the upper limit at 95% CL on cross section value where the unit is defined
             by the user.
 
@@ -125,7 +127,7 @@ class StatisticalModel(HypothesisTestingBase):
         for reference.
 
         Raises:
-            ~spey.system.exceptions.UnknownCrossSection: If the cross-section is :obj:`nan`.
+            ~spey.system.exceptions.UnknownCrossSection: If the cross-section is ``nan``.
         """
         return self.excluded_cross_section(ExpectationType.apriori)
 
@@ -137,7 +139,7 @@ class StatisticalModel(HypothesisTestingBase):
         for reference.
 
         Raises:
-            ~spey.system.exceptions.UnknownCrossSection: If the cross-section is :obj:`nan`.
+            ~spey.system.exceptions.UnknownCrossSection: If the cross-section is ``nan``.
         """
         return self.excluded_cross_section(ExpectationType.observed)
 
@@ -177,9 +179,9 @@ class StatisticalModel(HypothesisTestingBase):
         Find the minimum of negative log-likelihood for a given parameter of interest.
 
         Args:
-            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest or signal strength,
+            poi_test (``float``, default ``1.0``): parameter of interest or signal strength,
               :math:`\mu`.
-            data (:obj:`Union[List[float], np.ndarray]`, default :obj:`None`): input data that to fit
+            data (``Union[List[float], np.ndarray]``, default ``None``): input data that to fit
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
 
@@ -191,13 +193,13 @@ class StatisticalModel(HypothesisTestingBase):
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
-            init_pars (:obj:`List[float]`, default :obj:`None`): initial parameters for the optimiser
-            par_bounds (:obj:`List[Tuple[float, float]]`, default :obj:`None`): parameter bounds for
+            init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
+            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
               the optimiser.
             kwargs: keyword arguments for the optimiser.
 
         Returns:
-            :obj:`Tuple[float, np.ndarray]`:
+            ``Tuple[float, np.ndarray]``:
             negative log-likelihood value and fit parameters.
 
         Example:
@@ -325,7 +327,7 @@ class StatisticalModel(HypothesisTestingBase):
                 prescription which means that the SM will be assumed to be the truth.
             return_nll (``bool``, default ``True``): If ``True``, returns negative log-likelihood value.
               if ``False`` returns likelihood value.
-            test_statistics (``Text``, default ``"qtilde`"`): test statistics.
+            test_statistics (``Text``, default ``"qtilde"``): test statistics.
 
               * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
                 :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
@@ -515,10 +517,10 @@ class StatisticalModel(HypothesisTestingBase):
 
                 .. warning::
 
-                    Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
-                    assumed to be :obj:`False`. If this function has been executed by user, :obj:`spey`
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence ``allow_negative_signal``
+                    assumed to be ``False``. If this function has been executed by user, ``spey``
                     assumes that this is taken care of throughout the external code consistently.
-                    Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+                    Whilst computing p-values or upper limit on :math:`\mu` through ``spey`` this
                     is taken care of automatically in the backend.
 
               * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
@@ -602,9 +604,9 @@ class StatisticalModel(HypothesisTestingBase):
         Sample data from the statistical model with fixed parameter of interest.
 
         Args:
-            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest or signal strength,
+            poi_test (``float``, default ``1.0``): parameter of interest or signal strength,
               :math:`\mu`.
-            size (:obj:`int`, default :obj:`None`): sample size. If :obj:`None` a callable function
+            size (``int``, default ``None``): sample size. If ``None`` a callable function
               will be returned which takes sample size as input.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
@@ -617,8 +619,8 @@ class StatisticalModel(HypothesisTestingBase):
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
-            init_pars (:obj:`List[float]`, default :obj:`None`): initial parameters for the optimiser
-            par_bounds (:obj:`List[Tuple[float, float]]`, default :obj:`None`): parameter bounds for
+            init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
+            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
               the optimiser.
             kwargs: keyword arguments for the optimiser.
 
@@ -626,7 +628,7 @@ class StatisticalModel(HypothesisTestingBase):
             ~spey.system.exceptions.MethodNotAvailable: If bacend does not have sampler implementation.
 
         Returns:
-            :obj:`Union[np.ndarray, Callable[[int], np.ndarray]]`:
+            ``Union[np.ndarray, Callable[[int], np.ndarray]]``:
             Sampled data with shape of ``(size, number of bins)`` or callable function to sample from
             directly.
 
@@ -671,7 +673,7 @@ class StatisticalModel(HypothesisTestingBase):
         Compute variance of :math:`\mu` from inverse Hessian. See eq. (27-28) in :xref:`1007.1727`.
 
         Args:
-            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest or signal strength,
+            poi_test (``float``, default ``1.0``): parameter of interest or signal strength,
               :math:`\mu`.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
@@ -684,15 +686,15 @@ class StatisticalModel(HypothesisTestingBase):
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
-            init_pars (:obj:`List[float]`, default :obj:`None`): initial parameters for the optimiser
-            par_bounds (:obj:`List[Tuple[float, float]]`, default :obj:`None`): parameter bounds for
+            init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
+            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
               the optimiser.
             kwargs: keyword arguments for the optimiser.
         Raises:
             ~spey.system.exceptions.MethodNotAvailable: If bacend does not have Hessian implementation.
 
         Returns:
-            :obj:`float`:
+            ``float``:
             variance on parameter of interest.
 
         Example:

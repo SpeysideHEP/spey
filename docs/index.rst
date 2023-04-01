@@ -10,8 +10,9 @@ Welcome to spey's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   introduction
    installation
-   api/index
+   api
    releases/changelog-dev
 
 

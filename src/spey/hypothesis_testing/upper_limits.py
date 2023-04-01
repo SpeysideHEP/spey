@@ -16,13 +16,17 @@ def find_root_limits(
     computer: Callable[[float], float], loc: float = 0.0, low_ini: float = 1.0, hig_ini: float = 1.0
 ) -> Tuple[float, float]:
     """
-    Find limits for brent bracketing
+    Find upper and lower bracket limits for the root finding algorithm
 
-    :param hig_ini:
-    :param low_ini:
-    :param computer: POI dependent function
-    :param loc: location of the root
-    :return: lower and upper bound
+    Args:
+        computer (``Callable[[float], float]``): Function that we want to find the root
+        loc (``float``, default ``0.0``): location of the root e.g. ``0.95`` for :math:`1-CL_s` value
+        low_ini (``float``, default ``1.0``): Initial value for low bracket
+        hig_ini (``float``, default ``1.0``): initial value for high bracket
+
+    Returns:
+        ``Tuple[float, float]``:
+        Returns lower and upper limits for the bracketing.
     """
     assert callable(computer), "Invalid input. Computer must be callable."
 
@@ -51,25 +55,58 @@ def find_poi_upper_limit(
     expected_pvalue: Text = "nominal",
     maxiter: int = 10000,
 ) -> Union[float, List[float]]:
-    """
-    Compute the upper limit on parameter of interest, described by the confidence level
+    r"""
+    Find upper limit for parameter of interest, :math:`\mu`
 
-    :param maximum_likelihood (`Tuple[float, float]`): muhat and minimum negative log-likelihood
-    :param logpdf (`Callable[[float], float]`): log of the full density
-    :param maximum_asimov_likelihood (`Tuple[float, float]`): muhat and minimum negative
-                                                              log-likelihood for asimov data
-    :param asimov_logpdf (`Callable[[float], float]`): log of the full density for asimov data
-    :param expected (`ExpectationType`): observed, apriori or aposteriori
-    :param confidence_level (`float`, default `0.95`): exclusion confidence level (default 1 - CLs = 95%).
-    :param allow_negative_signal (`bool`, default `True`): allow negative signals while
-                                                           minimising negative log-likelihood.
-    :param low_init (`float`, default `1.0`): initialized lower bound for bracketing.
-    :param hig_init (`float`, default `1.0`): initialised upper bound for bracketing.
-    :param expected_pvalue (`Text`, default `"nominal"`): find the upper limit for pvalue range,
-                                                    only for expected. `nominal`, `1sigma`, `2sigma`
-    :param maxiter (`int`, default `200`): If convergence is not achieved in maxiter iterations,
-                                           an error is raised. Must be >= 0.
-    :return `Union[float, List[float]]`: excluded parameter of interest
+    Args:
+        maximum_likelihood (``Tuple[float, float]``): Tuple including :math:`\hat\mu`
+          and minimum negative log-likelihood.
+        logpdf (``Callable[[float], float]``): log-likelihood as function of POI,
+          :math:`\log\mathcal{L}(\mu)`
+        maximum_asimov_likelihood (``Tuple[float, float]``): Tuple including
+          :math:`\hat\mu_A` and minimum negative log-likelihood for Asimov data.
+        asimov_logpdf (``Callable[[float], float]``): log-likelihood as function of POI,
+          :math:`\log\mathcal{L}_A(\mu)` for Asimov data.
+        expected (~spey.ExpectationType): Sets which values the fitting algorithm should
+          focus and p-values to be computed.
+
+          * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+            prescriotion which means that the experimental data will be assumed to be the truth
+          * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+            post-fit prescriotion which means that the experimental data will be assumed to be
+            the truth.
+          * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+            prescription which means that the SM will be assumed to be the truth.
+
+        confidence_level (``float``, default ``0.95``): Determines the confidence level of the upper
+              limit i.e. the value of :math:`1-CL_s`. It needs to be between ``[0,1]``.
+        allow_negative_signal (``bool``, default ``True``): _description_
+        low_init (``float``, default ``None``): Lower limit for the search algorithm to start
+        hig_init (``float``, default ``None``): Upper limit for the search algorithm to start
+        expected_pvalue (``Text``, default ``"nominal"``): In case of :obj:`~spey.ExpectationType.aposteriori`
+          and :obj:`~spey.ExpectationType.apriori` expectation, gives the choice to find excluded upper
+          limit for statistical deviations as well.
+
+          * ``"nominal"``: only find the upper limit for the central p-value. Returns a single value.
+          * ``"1sigma"``: find the upper limit for central p-value and :math:`1\sigma` fluctuation from
+            background. Returns 3 values.
+          * ``"2sigma"``: find the upper limit for central p-value and :math:`1\sigma` and
+            :math:`2\sigma` fluctuation from background. Returns 5 values.
+
+            .. note::
+
+              For ``expected=spey.ExpectationType.observed``, ``expected_pvalue`` argument will
+              be overwritten to ``"nominal"``.
+
+        maxiter (``int``, default ``10000``): Maximum iteration limit for the optimiser.
+
+    Returns:
+        ``Union[float, List[float]]``:
+        In case of nominal values it returns a single value for the upper limit. In case of
+        ``expected_pvalue="1sigma"`` or ``expected_pvalue="2sigma"`` it will return a list of
+        multiple upper limit values for fluctuations as well as the central value. The
+        output order is :math:`-2\sigma` value, :math:`-1\sigma` value, central value,
+        :math:`1\sigma` and :math:`2\sigma` value.
     """
     assert expected_pvalue in [
         "nominal",

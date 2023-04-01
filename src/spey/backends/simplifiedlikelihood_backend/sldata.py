@@ -19,25 +19,26 @@ expansion_output = output = namedtuple(
 @dataclass(frozen=True)
 class SLData(DataBase):
     """
-    SLData structure for simplified likelihoods
+    Data container for simplified likelihoods
 
-    :param observed: number of observed events.
-    :param signal: number of signal events.
-    :param background: number of expected background yields.
-    :param covariance: Covariance matrix or single region uncertainty
-    :param delta_sys: systematic uncertainty on signal.
-    :param third_moment: third moment.
-    :param name: name of the statistical model.
+    Args:
+        observed (``np.ndarray``): observed yields
+        signal (``np.ndarray``): signal yields
+        background (``np.ndarray``): simulated background yields
+        covariance (``np.ndarray``): covariance matrix
+        delta_sys (``float``, default ``0.0``): systematic uncertainty on signal yields
+        third_moment (``np.ndarray``, default ``None``): third moment for skewed gaussian
+        name (``str``): name of the dataset.
 
-    :raises TypeError: If the types of the inputs does not match the expected types
-    :raises AssertionError: If the dimensionality of the inputs are wrong.
+    Raises:
+        ``TypeError``: If the data is not ``numpy`` array.
     """
 
     observed: np.ndarray
     signal: np.ndarray
     background: np.ndarray
     covariance: np.ndarray
-    delta_sys: Optional[float] = 0.2
+    delta_sys: Optional[float] = 0.0
     third_moment: Optional[np.ndarray] = None
     name: Text = "__unknown_model__"
 
@@ -89,13 +90,15 @@ class SLData(DataBase):
 
     def reset_observations(self, observations: np.ndarray, name: Text):
         """
-        Create the same statistical model with different observed yields
+        Create an new dataset by overwriding observed yields.
 
-        :param observations: new observed yields
-        :param name: name of the statistical model.
-        :return: creates a new dataset by replacing the observations
-        :raises AssertionError: if dimensionality of input does not match the
-                                current statistical model
+        Args:
+            observations (``np.ndarray``): observed yields
+            name (``Text``): name of the dataset.
+
+        Returns:
+            ~spey.backends.simplifiedlikelihood_backend.sldata.SLData:
+            updated data container with new observed yields.
         """
         assert len(observations) == len(
             self
@@ -113,12 +116,19 @@ class SLData(DataBase):
     def config(
         self, allow_negative_signal: bool = True, poi_upper_bound: float = 40.0
     ) -> ModelConfig:
-        """
-        Configuration of the statistical model
+        r"""
+        Model configuration.
 
-        :param allow_negative_signal (`bool`, default `True`): if the negative POI is allowed during fits.
-        :param poi_upper_bound (`float`, default `40.0`): sets the upper bound for POI
-        :return `ModelConfig`: Configuration information of the model.
+        Args:
+            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
+              value will be allowed to be negative.
+            poi_upper_bound (``float``, default ``40.0``): upper bound for parameter of interest,
+              :math:`\mu`.
+
+        Returns:
+            ~spey.base.ModelConfig:
+            Model configuration. Information regarding the position of POI in
+            parameter list, suggested input and bounds.
         """
         minimum_poi = self.minimum_poi
         return ModelConfig(
@@ -167,7 +177,7 @@ class SLData(DataBase):
         return np.diag(self.covariance)
 
     def compute_expansion(self) -> expansion_output:
-        """Compute the terms described in arXiv:1809.05548 eqs. 3.10, 3.11, 3.12, 3.13"""
+        """Compute the terms described in :xref:`1809.05548` eqs. 3.10, 3.11, 3.12, 3.13"""
         if self.isLinear:
             return expansion_output(
                 None,

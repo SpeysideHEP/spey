@@ -48,6 +48,7 @@ xref_links = {
     "1007.1727": ("[arXiv:1007.1727]", "https://doi.org/10.48550/arXiv.1007.1727"),
     "pyhf": ("pyhf", "https://pyhf.readthedocs.io/"),
     "HEPData": ("HEPData", "https://www.hepdata.net"),
+    "1809.05548": ("[arXiv:1809.05548]", "https://doi.org/10.48550/arXiv.1809.05548"),
 }
 
 source_suffix = {
@@ -58,17 +59,17 @@ source_suffix = {
 
 bibtex_default_style = "unsrt"
 
-bibtex_bibfiles = []
+bibtex_bibfiles = ["bib/references.bib"]
 
 # exclude_patterns = ["releases/changelog-dev.md", "figs"]
 
-intersphinx_mapping = {
-    "python": ("https://docs.python.org/3", None),
-    "numpy": ("https://numpy.org/doc/stable/", None),
-    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
-    "matplotlib": ("https://matplotlib.org/stable/", None),
-    "iminuit": ("https://iminuit.readthedocs.io/en/stable/", None),
-}
+# intersphinx_mapping = {
+#     "python": ("https://docs.python.org/3", None),
+#     "numpy": ("https://numpy.org/doc/stable/", None),
+#     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
+#     "matplotlib": ("https://matplotlib.org/stable/", None),
+#     "iminuit": ("https://iminuit.readthedocs.io/en/stable/", None),
+# }
 
 # GitHub repo
 issues_github_path = "SpeysideHEP/spey"
@@ -78,7 +79,7 @@ autosummary_generate = True
 numpydoc_show_class_members = False
 
 templates_path = ["_templates"]
-exclude_patterns = []
+exclude_patterns = ["_api/"]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:

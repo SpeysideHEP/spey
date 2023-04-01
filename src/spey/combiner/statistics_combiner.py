@@ -272,7 +272,7 @@ class StatisticsCombiner(HypothesisTestingBase):
 
             return_nll (``bool``, default ``True``): If ``True``, returns negative log-likelihood value.
               if ``False`` returns likelihood value.
-            test_statistics (``Text``, default ``"qtilde`"`): test statistics.
+            test_statistics (``Text``, default ``"qtilde"``): test statistics.
 
               * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
                 :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
