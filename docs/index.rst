@@ -10,8 +10,8 @@ Welcome to spey's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   introduction
-   installation
+   quick_start
+   new_plugin
    api
    releases/changelog-dev
 
