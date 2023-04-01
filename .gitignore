@@ -133,3 +133,7 @@ dmypy.json
 
 # VScode type checker
 .vscode/
+
+# sphinx documentation
+docs/_build
+docs/_generated
