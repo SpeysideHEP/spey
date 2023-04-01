@@ -82,15 +82,12 @@ Default Backends
 Simplified Likelihoods
 ~~~~~~~~~~~~~~~~~~~~~~
 
-.. autoclass:: spey.backends.simplifiedlikelihood_backend.interface.SimplifiedLikelihoodInterface
-    :members:
-    :undoc-members:
-    :show-inheritance:
+.. autosummary:: 
+    :toctree: _generated/
+    :nosignatures:
 
-.. autoclass:: spey.backends.simplifiedlikelihood_backend.sldata.SLData
-    :members:
-    :undoc-members:
-    :show-inheritance:
+    spey.backends.simplifiedlikelihood_backend.interface.SimplifiedLikelihoodInterface
+    spey.backends.simplifiedlikelihood_backend.sldata.SLData
 
 Exceptions
 ----------
