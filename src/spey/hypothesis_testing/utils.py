@@ -90,15 +90,20 @@ def expected_pvalues(
     bkg_only_distribution: AsymptoticTestStatisticsDistribution,
 ) -> List[List]:
     r"""
-    Calculate the `\mathrm{CL}_{s}` values corresponding to the
+    Calculate the :math:`CL_s` values corresponding to the
     median significance of variations of the signal strength from the
-    background only hypothesis `\left(\mu=0\right)` at
-    `(-2,-1,0,1,2)\sigma`.
+    background only hypothesis :math:`\mu=0` at :math:`(-2,-1,0,1,2)\sigma`.
 
-    :param sig_plus_bkg_distribution: The distribution for the signal + background hypothesis.
-    :param bkg_only_distribution: The distribution for the background-only hypothesis.
-    :return: The p-values for the test statistic corresponding to the `\mathrm{CL}_{s+b}`,
-            `\mathrm{CL}_{b}`, and `\mathrm{CL}_{s}`.
+    Args:
+        sig_plus_bkg_distribution (~spey.hypothesis_testing.asymptotic_calculator.AsymptoticTestStatisticsDistribution):
+          The distribution for the signal + background hypothesis.
+        bkg_only_distribution (~spey.hypothesis_testing.asymptotic_calculator.AsymptoticTestStatisticsDistribution):
+          The distribution for the background-only hypothesis.
+
+    Returns:
+        ``List[List]``:
+        The p-values for the test statistic corresponding to the :math:`CL_{s+b}`,
+        :math:`CL_{b}`, and :math:`CL_{s}`.
     """
     return list(
         map(
