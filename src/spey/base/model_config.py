@@ -25,9 +25,13 @@ class ModelConfig:
     """
 
     poi_index: int
+    """Index of the parameter of interest wihin the parameter list"""
     minimum_poi: float
+    """Minimum value that parameter of interest can take during optimisation"""
     suggested_init: List[float]
+    """Suggested initialisation for parameters"""
     suggested_bounds: List[Tuple[float, float]]
+    """Suggested upper and lower bounds for parameters"""
 
     def fixed_poi_bounds(self, poi_value: Optional[float] = None) -> List[Tuple[float, float]]:
         r"""

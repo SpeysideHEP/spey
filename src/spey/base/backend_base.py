@@ -23,7 +23,6 @@ class DataBase(ABC):
     """
 
     @property
-    @abstractmethod
     def minimum_poi(self) -> float:
         r"""
         Retreive minimum value that :math:`\mu` can take. This will limit the span of the scan
@@ -31,9 +30,11 @@ class DataBase(ABC):
 
         Returns:
             ``float``:
-            :math:`-\min\left(\frac{N^{\rm bkg}_i}{N^{\rm sig}_i}\right)\ ,\ i\in {\rm bins}`
+            :math:`-\min\left(\frac{N^{\rm bkg}_i}{N^{\rm sig}_i}\right)\ ,\ i\in {\rm bins}`.
+            By default returns ``-np.inf`` meaning that there wont be any lower bounds for
+            the parameter of interest during optimisation.
         """
-        # This method must be casted as property
+        return -np.inf
 
     @property
     @abstractmethod
@@ -55,7 +56,7 @@ class DataBase(ABC):
               :math:`\mu`.
 
         Returns:
-            ~spey.base.ModelConfig:
+            ~spey.base.model_config.ModelConfig:
             Model configuration. Information regarding the position of POI in parameter list, suggested
             input and bounds.
         """
