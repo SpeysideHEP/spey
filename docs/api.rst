@@ -34,11 +34,6 @@ Base Classes
     :undoc-members:
     :show-inheritance:
 
-.. autoclass:: spey.DataBase
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 .. autoclass:: spey.base.hypotest_base.HypothesisTestingBase
     :members:
     :undoc-members:
