@@ -220,7 +220,7 @@ class StatisticalModel(HypothesisTestingBase):
 
         twice_nll, fit_param = fit(
             func=objective_and_grad,
-            model_configuration=self.backend.model.config(),
+            model_configuration=self.backend.config(),
             do_grad=do_grad,
             # hessian=get_function(
             #     self.backend,
@@ -467,7 +467,7 @@ class StatisticalModel(HypothesisTestingBase):
 
             twice_nll, fit_param = fit(
                 func=objective_and_grad,
-                model_configuration=self.backend.model.config(
+                model_configuration=self.backend.config(
                     allow_negative_signal=allow_negative_signal
                 ),
                 do_grad=do_grad,
@@ -483,7 +483,7 @@ class StatisticalModel(HypothesisTestingBase):
             )
             negloglikelihood = twice_nll / 2.0
 
-        muhat = fit_param[self.backend.model.config().poi_index]
+        muhat = fit_param[self.backend.config().poi_index]
         return muhat, negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
     def maximize_asimov_likelihood(
@@ -580,7 +580,7 @@ class StatisticalModel(HypothesisTestingBase):
 
             twice_nll, fit_param = fit(
                 func=objective_and_grad,
-                model_configuration=self.backend.model.config(
+                model_configuration=self.backend.config(
                     allow_negative_signal=allow_negative_signal
                 ),
                 do_grad=do_grad,
@@ -597,7 +597,7 @@ class StatisticalModel(HypothesisTestingBase):
             )
             negloglikelihood = twice_nll / 2.0
 
-        muhat: float = fit_param[self.backend.model.config().poi_index]
+        muhat: float = fit_param[self.backend.config().poi_index]
         return muhat, negloglikelihood if return_nll else np.exp(-negloglikelihood)
 
     def fixed_poi_sampler(
@@ -734,7 +734,7 @@ class StatisticalModel(HypothesisTestingBase):
 
         hessian = -1.0 * hessian_func(fit_param)
 
-        poi_index = self.backend.model.config().poi_index
+        poi_index = self.backend.config().poi_index
         return np.sqrt(np.linalg.inv(hessian)[poi_index, poi_index])
 
 

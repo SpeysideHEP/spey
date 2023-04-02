@@ -6,60 +6,10 @@ from typing import Text, Tuple, Callable, Union, List, Optional
 import numpy as np
 
 from spey.utils import ExpectationType
-from .model_config import ModelConfig
+from spey.base.model_config import ModelConfig
 
 
-__all__ = ["BackendBase", "DataBase"]
-
-
-class DataBase(ABC):
-    """
-    An abstract class construction to enforce certain behaviour on statistical model data space.
-    Each backend requires different ways of data embedding, while simple ``numpy`` arrays are
-    possiblitiy, in order to track different error sources, different backends have been developed
-    with different data structures. In order to perform certain computations, ``spey`` needs to
-    have access to specific information regarding the data. Hence, each data hanler object of any
-    backend is required to inherit :obj:`~spey.DataBase`.
-    """
-
-    @property
-    def minimum_poi(self) -> float:
-        r"""
-        Retreive minimum value that :math:`\mu` can take. This will limit the span of the scan
-        and ensures that :math:`N^{\rm bkg} + \mu N^{\rm sig} \geq 0`.
-
-        Returns:
-            ``float``:
-            :math:`-\min\left(\frac{N^{\rm bkg}_i}{N^{\rm sig}_i}\right)\ ,\ i\in {\rm bins}`.
-            By default returns ``-np.inf`` meaning that there wont be any lower bounds for
-            the parameter of interest during optimisation.
-        """
-        return -np.inf
-
-    @property
-    @abstractmethod
-    def isAlive(self) -> bool:
-        """Returns True if at least one bin has non-zero signal yield."""
-        # This method has to be a property
-
-    @abstractmethod
-    def config(
-        self, allow_negative_signal: bool = True, poi_upper_bound: float = 40.0
-    ) -> ModelConfig:
-        r"""
-        Model configuration.
-
-        Args:
-            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
-              value will be allowed to be negative.
-            poi_upper_bound (``float``, default ``40.0``): upper bound for parameter of interest,
-              :math:`\mu`.
-
-        Returns:
-            ~spey.base.model_config.ModelConfig:
-            Model configuration. Information regarding the position of POI in parameter list, suggested
-            input and bounds.
-        """
+__all__ = ["BackendBase"]
 
 
 class BackendBase(ABC):
@@ -70,17 +20,24 @@ class BackendBase(ABC):
     required to inherit :obj:`~spey.BackendBase`.
     """
 
-    @property
     @abstractmethod
-    def model(self) -> DataBase:
-        """
-        Accessor to the model container.
+    def config(
+        self, allow_negative_signal: bool = True, poi_upper_bound: float = 10.0
+    ) -> ModelConfig:
+        r"""
+        Model configuration.
+
+        Args:
+            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
+              value will be allowed to be negative.
+            poi_upper_bound (``float``, default ``10.0``): upper bound for parameter
+              of interest, :math:`\mu`.
 
         Returns:
-            ~spey.DataBase:
-            Data container object that inherits :obj:`~spey.DataBase`.
+            ~spey.base.model_config.ModelConfig:
+            Model configuration. Information regarding the position of POI in
+            parameter list, suggested input and bounds.
         """
-        # This method must be casted as property
 
     @abstractmethod
     def get_logpdf_func(
@@ -247,7 +204,10 @@ class BackendBase(ABC):
         """
 
     def negative_loglikelihood(
-        self, poi_test: float = 1.0, expected: ExpectationType = ExpectationType.observed, **kwargs
+        self,
+        poi_test: float = 1.0,
+        expected: ExpectationType = ExpectationType.observed,
+        **kwargs,
     ) -> Tuple[float, np.ndarray]:
         r"""
         Backend specific method to compute negative log-likelihood for a parameter of interest

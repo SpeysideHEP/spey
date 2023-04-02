@@ -5,6 +5,7 @@ from autograd import numpy as np
 
 from spey.optimizer import fit
 from spey.base import BackendBase
+from spey.base import ModelConfig
 from spey.utils import ExpectationType
 from spey._version import __version__
 from .sldata import SLData, expansion_output
@@ -97,6 +98,27 @@ class SimplifiedLikelihoodInterface(BackendBase):
         if self._third_moment_expansion is None:
             self._third_moment_expansion = self.model.compute_expansion()
         return self._third_moment_expansion
+
+    def config(
+        self, allow_negative_signal: bool = True, poi_upper_bound: float = 10.0
+    ) -> ModelConfig:
+        r"""
+        Model configuration.
+
+        Args:
+            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
+              value will be allowed to be negative.
+            poi_upper_bound (``float``, default ``40.0``): upper bound for parameter
+              of interest, :math:`\mu`.
+
+        Returns:
+            ~spey.base.ModelConfig:
+            Model configuration. Information regarding the position of POI in
+            parameter list, suggested input and bounds.
+        """
+        return self.model.config(
+            allow_negative_signal=allow_negative_signal, poi_upper_bound=poi_upper_bound
+        )
 
     def get_objective_function(
         self,
