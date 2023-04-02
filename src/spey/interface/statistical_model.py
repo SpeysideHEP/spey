@@ -1,11 +1,11 @@
 """Statistical Model wrapper class"""
 
-from typing import Optional, Text, Tuple, List, Callable, Union
+from typing import Optional, Text, Tuple, List, Callable, Union, Any
 
 import numpy as np
 
 from spey.utils import ExpectationType
-from spey.base.backend_base import BackendBase, DataBase
+from spey.base.backend_base import BackendBase
 from spey.system.exceptions import UnknownCrossSection, MethodNotAvailable
 from spey.base.hypotest_base import HypothesisTestingBase
 from spey.optimizer.core import fit
@@ -72,7 +72,9 @@ class StatisticalModel(HypothesisTestingBase):
         """Returns True if at least one bin has non-zero signal yield."""
         return self.backend.model.isAlive
 
-    def excluded_cross_section(self, expected: ExpectationType = ExpectationType.observed) -> float:
+    def excluded_cross_section(
+        self, expected: ExpectationType = ExpectationType.observed
+    ) -> float:
         """
         Compute excluded cross section value at 95% CL
 
@@ -117,7 +119,9 @@ class StatisticalModel(HypothesisTestingBase):
         if np.isnan(self.xsection):
             raise UnknownCrossSection("Cross-section value has not been initialised.")
 
-        return self.poi_upper_limit(expected=expected, confidence_level=0.95) * self.xsection
+        return (
+            self.poi_upper_limit(expected=expected, confidence_level=0.95) * self.xsection
+        )
 
     @property
     def s95exp(self) -> float:
@@ -553,7 +557,10 @@ class StatisticalModel(HypothesisTestingBase):
             >>> # muhat: 0.000, negative log-likelihood 2.225
         """
         try:
-            negloglikelihood, fit_param = self.backend.minimize_asimov_negative_loglikelihood(
+            (
+                negloglikelihood,
+                fit_param,
+            ) = self.backend.minimize_asimov_negative_loglikelihood(
                 expected=expected,
                 test_statistics=test_statistics,
                 init_pars=init_pars,
@@ -561,7 +568,9 @@ class StatisticalModel(HypothesisTestingBase):
                 **kwargs,
             )
         except NotImplementedError:
-            allow_negative_signal: bool = True if test_statistics in ["q", "qmu"] else False
+            allow_negative_signal: bool = (
+                True if test_statistics in ["q", "qmu"] else False
+            )
 
             data = self.backend.generate_asimov_data(
                 expected=expected, test_statistics=test_statistics
@@ -731,7 +740,7 @@ class StatisticalModel(HypothesisTestingBase):
 
 def statistical_model_wrapper(
     func: BackendBase,
-) -> Callable[[DataBase, Text, float, ...], StatisticalModel]:
+) -> Callable[[Any, ...], StatisticalModel]:
     """
     Backend wrapper for :class:`~spey.StatisticalModel`. This function allows a universal
     integration of each backend to the :obj:`spey` environment. :func:`~spey.get_backend` function
@@ -741,33 +750,30 @@ def statistical_model_wrapper(
     Args:
         func (~spey.BackendBase): Desired backend to be used for statistical analysis.
 
+    Raises:
+        :obj:`AssertionError`: If the input function does not inherit :obj:`~spey.BackendBase`
+
     Returns:
-        ``Callable[[DataBase, Text, float, ...], StatisticalModel]``:
+        ``Callable[[Any, ...], StatisticalModel]``:
         Wrapper that takes the following inputs
 
-        * **model** (:obj:`~spey.DataBase`): Backend specific container for specifications about signal,
-          background, data yields and uncertainties. :func:`~spey.get_backend` function returns
-          the model input that backend requires. This also ensured by the metadata specification of each
-          backend where a valid backend required to include :attr:`datastructure` attribute which then
-          returned by :func:`~spey.get_backend` function.
-        * **analysis** (:obj:`Text`, default :obj:`"__unknown_analysis__"`): Unique identifier of the
+        * **args**: Backend specific arguments.
+        * **analysis** (``Text``, default ``"__unknown_analysis__"``): Unique identifier of the
           statistical model. This attribue will be used for book keeping purposes.
-        * **xsection** (:obj:`float`, default :obj:`np.nan`): cross section, unit is determined by the
+        * **xsection** (``float``, default ``np.nan``): cross section, unit is determined by the
           user. Cross section value is only used for computing upper limit on excluded
           cross-section value.
         * **other keyword arguments**: Backend specific keyword inputs.
     """
 
     def wrapper(
-        model: DataBase, analysis: Text = "__unknown_analysis__", xsection: float = np.nan, **kwargs
+        *args, analysis: Text = "__unknown_analysis__", xsection: float = np.nan, **kwargs
     ) -> StatisticalModel:
         """
         Statistical Model Backend wrapper.
 
         Args:
-            model (~spey.DataBase): Backend specific container for specifications about signal,
-              background and data yields and uncertainties. :func:`~spey.get_backend` function returns
-              the model input that backend requires.
+            args: Backend dependent arguments.
             analysis (``Text``, default ``"__unknown_analysis__"``): Unique identifier of the
               statistical model. This attribue will be used for book keeping purposes.
             xsection (``float``, default ``np.nan``): cross section, unit is determined by the
@@ -782,11 +788,12 @@ def statistical_model_wrapper(
             ~spey.StatisticalModel:
             Backend wraped with statistical model interface.
         """
-        assert isinstance(model, DataBase), "Input model does not satisfy base data properties."
-        return StatisticalModel(backend=func(model, **kwargs), analysis=analysis, xsection=xsection)
+        return StatisticalModel(
+            backend=func(*args, **kwargs), analysis=analysis, xsection=xsection
+        )
 
     wrapper.__doc__ += (
-        "\n\n\t Current statistical model properties:\n"
+        "\n\n\t Current statistical model backend properties:\n"
         + getattr(func, "__doc__", "no docstring available").replace("\n", "\n\t")
         + "\n"
     )

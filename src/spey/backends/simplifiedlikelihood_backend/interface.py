@@ -1,10 +1,10 @@
 """Simplified Likelihood Interface"""
 
 from typing import Optional, Text, Callable, List, Union, Tuple
-import numpy as np
+from autograd import numpy as np
 
 from spey.optimizer import fit
-from spey.base import BackendBase, DataBase
+from spey.base import BackendBase
 from spey.utils import ExpectationType
 from spey._version import __version__
 from .sldata import SLData, expansion_output
@@ -13,34 +13,71 @@ from .sampler import sample_generator
 
 __all__ = ["SimplifiedLikelihoodInterface"]
 
+# pylint: disable=E1101
+
 
 class SimplifiedLikelihoodInterface(BackendBase):
     """
     Simplified Likelihood Interface.
 
     Args:
-        model (~spey.backends.simplifiedlikelihood_backend.sldata.SLData):
-          contains all the information regarding the regions, yields and correlation matrices
+        signal_yields (``np.ndarray``): signal yields
+        background_yields (``np.ndarray``): background yields
+        data (``np.ndarray``): observed yields
+        covariance_matrix (``np.ndarray``): covariance matrix. The dimensionality of each axis has
+          to match with ``background_yields``, ``signal_yields``, and ``data`` inputs.
 
-    Raises:
-        ``AssertionError``: if the input type is wrong.
+          .. warning::
+
+            The diagonal terms of the covariance matrix involves squared absolute background
+            uncertainties. In case of uncorralated bins user should provide a diagonal matrix
+            with squared background uncertainties.
+
+        delta_sys (``float``, default ``0.0``): systematic uncertainty on signal.
+        third_moment (``np.ndarray``, default ``None``): third moment for skewed gaussian.
+          See eqs. 3.10, 3.11, 3.12, 3.13 in :xref:`1809.05548` for details.
+
+    .. note::
+
+        To enable a differentiable statistical model, all inputs are wrapped with
+        :func:`autograd.numpy.array` function.
     """
 
     name: Text = "simplified_likelihoods"
+    """Name of the backend"""
     version: Text = __version__
+    """Version of the backend"""
     author: Text = "SpeysideHEP"
+    """Author of the backend"""
     spey_requires: Text = __version__
+    """Spey version required for the backend"""
     doi: List[Text] = ["10.1007/JHEP04(2019)064"]
+    """Citable DOI for the backend"""
     arXiv: List[Text] = ["1809.05548"]
-    datastructure = SLData
+    """arXiv reference for the backend"""
 
     __slots__ = ["_model", "_third_moment_expansion"]
 
-    def __init__(self, model: SLData):
-        assert isinstance(model, SLData) and isinstance(
-            model, DataBase
-        ), "Invalid statistical model."
-        self._model = model
+    def __init__(
+        self,
+        signal_yields: np.ndarray,
+        background_yields: np.ndarray,
+        data: np.ndarray,
+        covariance_matrix: np.ndarray,
+        delta_sys: float = 0.0,
+        third_moment: Optional[np.ndarray] = None,
+    ):
+        self._model = SLData(
+            observed=np.array(data, dtype=np.float64),
+            signal=np.array(signal_yields, dtype=np.float64),
+            background=np.array(background_yields, dtype=np.float64),
+            covariance=np.array(covariance_matrix, dtype=np.float64),
+            delta_sys=delta_sys,
+            third_moment=np.array(third_moment, dtype=np.float64)
+            if third_moment
+            else None,
+            name="sl_model",
+        )
         self._third_moment_expansion: Optional[expansion_output] = None
 
     @property
@@ -92,7 +129,9 @@ class SimplifiedLikelihoodInterface(BackendBase):
             objective or objective and its gradient.
         """
         current_model: SLData = (
-            self.model if expected != ExpectationType.apriori else self.model.expected_dataset
+            self.model
+            if expected != ExpectationType.apriori
+            else self.model.expected_dataset
         )
 
         return objective_wrapper(
@@ -132,7 +171,9 @@ class SimplifiedLikelihoodInterface(BackendBase):
             :math:`\log\mathcal{L}(\mu, \theta)`.
         """
         current_model: SLData = (
-            self.model if expected != ExpectationType.apriori else self.model.expected_dataset
+            self.model
+            if expected != ExpectationType.apriori
+            else self.model.expected_dataset
         )
         return lambda pars: logpdf(
             pars=pars,
@@ -172,7 +213,9 @@ class SimplifiedLikelihoodInterface(BackendBase):
             returns Hessian of :math:`\log\mathcal{L}(\mu, \theta)`.
         """
         current_model: SLData = (
-            self.model if expected != ExpectationType.apriori else self.model.expected_dataset
+            self.model
+            if expected != ExpectationType.apriori
+            else self.model.expected_dataset
         )
 
         hess = hessian_logpdf_func(
@@ -248,7 +291,9 @@ class SimplifiedLikelihoodInterface(BackendBase):
             Asimov data.
         """
         model: SLData = (
-            self.model if expected != ExpectationType.apriori else self.model.expected_dataset
+            self.model
+            if expected != ExpectationType.apriori
+            else self.model.expected_dataset
         )
 
         # Do not allow asimov data to be negative!
@@ -267,7 +312,9 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
         _, fit_pars = fit(
             func=func,
-            model_configuration=model.config(allow_negative_signal=test_statistics in ["q", "qmu"]),
+            model_configuration=model.config(
+                allow_negative_signal=test_statistics in ["q", "qmu"]
+            ),
             do_grad=True,
             fixed_poi_value=1.0 if test_statistics == "q0" else 0.0,
             bounds=par_bounds,

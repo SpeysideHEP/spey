@@ -7,7 +7,7 @@ from collections import namedtuple
 import numpy as np
 
 from spey.system.exceptions import NegativeExpectedYields
-from spey.base import DataBase, ModelConfig
+from spey.base import ModelConfig
 
 __all__ = ["SLData", "expansion_output"]
 
@@ -17,7 +17,7 @@ expansion_output = output = namedtuple(
 
 
 @dataclass(frozen=True)
-class SLData(DataBase):
+class SLData:
     """
     Data container for simplified likelihoods
 
