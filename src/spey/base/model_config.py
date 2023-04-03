@@ -7,14 +7,22 @@ import copy
 
 @dataclass
 class ModelConfig:
-    """
+    r"""
     Container to hold certain properties of the backend and statistical model.
     This will ensure the consistency of the computation through out the package.
 
     Args:
         poi_index (:obj:`int`): index of the parameter of interest within the parameter list.
-        minimum_poi (:obj:`float`): minimum value parameter of interest can take,
-          see :attr:`~spey.DataBase.minimum_poi`.
+        minimum_poi (:obj:`float`): minimum value parameter of interest can take to ensure
+          :math:`N^{\rm bkg}+\mu N^{\rm sig}\geq0`. This value can be set to :math:`-\infty`
+          but note that optimiser will take it as a lower bound so such low value might effect
+          the convergence of the optimisation algorithm especially for relatively flat objective
+          surfaceses. Hence we suggest setting the minimum value to
+
+            .. math::
+
+                \mu_{\rm min} = - \min\left( \frac{N^{\rm bkg}_i}{N^{\rm sig}_i} \right)\ ,\ i\in {\rm bins}
+
         suggested_init (:obj:`List[float]`): suggested initial parameters for the optimiser.
         suggested_bounds (:obj:`List[Tuple[float, float]]`): suggested parameter bounds for the
           optimiser.
@@ -27,13 +35,24 @@ class ModelConfig:
     poi_index: int
     """Index of the parameter of interest wihin the parameter list"""
     minimum_poi: float
-    """Minimum value that parameter of interest can take during optimisation"""
+    r"""
+    minimum value parameter of interest can take to ensure :math:`N^{\rm bkg}+\mu N^{\rm sig}\geq0`.
+    This value can be set to :math:`-\infty` but note that optimiser will take it as a lower bound so 
+    such low value might effect the convergence of the optimisation algorithm especially for relatively
+    flat objective surfaceses. Hence we suggest setting the minimum value to
+
+    .. math::
+
+        \mu_{\rm min} = - \min\left( \frac{N^{\rm bkg}_i}{N^{\rm sig}_i} \right)\ ,\ i\in {\rm bins}
+    """
     suggested_init: List[float]
     """Suggested initialisation for parameters"""
     suggested_bounds: List[Tuple[float, float]]
     """Suggested upper and lower bounds for parameters"""
 
-    def fixed_poi_bounds(self, poi_value: Optional[float] = None) -> List[Tuple[float, float]]:
+    def fixed_poi_bounds(
+        self, poi_value: Optional[float] = None
+    ) -> List[Tuple[float, float]]:
         r"""
         Adjust the bounds for the parameter of interest for fixed POI fit.
 
@@ -49,7 +68,10 @@ class ModelConfig:
             return self.suggested_bounds
         bounds = copy.deepcopy(self.suggested_bounds)
         if not bounds[self.poi_index][0] < poi_value < bounds[self.poi_index][1]:
-            bounds[self.poi_index] = (self.minimum_poi if poi_value < 0.0 else 0.0, poi_value + 1)
+            bounds[self.poi_index] = (
+                self.minimum_poi if poi_value < 0.0 else 0.0,
+                poi_value + 1,
+            )
         return bounds
 
     def rescale_poi_bounds(

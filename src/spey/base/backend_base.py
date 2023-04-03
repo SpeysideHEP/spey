@@ -157,14 +157,16 @@ class BackendBase(ABC):
     @abstractmethod
     def generate_asimov_data(
         self,
+        poi_asimov: float = 0.0,
         expected: ExpectationType = ExpectationType.observed,
-        test_statistics: Text = "qtilde",
         **kwargs,
     ) -> Union[List[float], np.ndarray]:
         r"""
         Backend specific method to generate Asimov data.
 
         Args:
+            poi_asimov (``float``, default ``0.0``): parameter of interest where the Asimov data
+              will be computed.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
 
@@ -176,25 +178,6 @@ class BackendBase(ABC):
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
-
-            test_statistics (``Text``, default ``"qtilde"``): test statistics.
-
-              * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
-                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
-                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
-
-                .. warning::
-
-                    Note that this assumes that :math:`\hat\mu\geq0`, hence ``allow_negative_signal``
-                    assumed to be ``False``. If this function has been executed by user, ``spey``
-                    assumes that this is taken care of throughout the external code consistently.
-                    Whilst computing p-values or upper limit on :math:`\mu` through ``spey`` this
-                    is taken care of automatically in the backend.
-
-              * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
-                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
-              * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
-                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
 
             kwargs: keyword arguments for the optimiser.
 

@@ -267,8 +267,8 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
     def generate_asimov_data(
         self,
+        poi_asimov: float = 0.0,
         expected: ExpectationType = ExpectationType.observed,
-        test_statistics: Text = "qtilde",
         **kwargs,
     ) -> np.ndarray:
         r"""
@@ -287,29 +287,10 @@ class SimplifiedLikelihoodInterface(BackendBase):
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
 
-            test_statistics (``Text``, default ``"qtilde"``): test statistics.
-
-              * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
-                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
-                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
-
-                .. warning::
-
-                    Note that this assumes that :math:`\hat\mu\geq0`, hence ``allow_negative_signal``
-                    assumed to be ``False``. If this function has been executed by user, ``spey``
-                    assumes that this is taken care of throughout the external code consistently.
-                    Whilst computing p-values or upper limit on :math:`\mu` through ``spey`` this
-                    is taken care of automatically in the backend.
-
-              * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
-                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
-              * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
-                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
-
             kwargs: keyword arguments for the optimiser.
 
         Returns:
-            ``Union[List[float], np.ndarray]``:
+            ``np.ndarray``:
             Asimov data.
         """
         model: SLData = (
@@ -319,10 +300,12 @@ class SimplifiedLikelihoodInterface(BackendBase):
         )
 
         # Do not allow asimov data to be negative!
-        par_bounds = [(0.0, 1.0)] + [
-            (-1 * (bkg + sig * (test_statistics == "q0")), 100.0)
-            for sig, bkg in zip(model.signal, model.background)
-        ]
+        par_bounds = kwargs.get("par_bounds", None)
+        if par_bounds is None:
+            par_bounds = [(0.0, 1.0)] + [
+                (-1 * (bkg + sig * poi_asimov), 100.0)
+                for sig, bkg in zip(model.signal, model.background)
+            ]
 
         func = objective_wrapper(
             signal=model.signal,
@@ -334,11 +317,10 @@ class SimplifiedLikelihoodInterface(BackendBase):
 
         _, fit_pars = fit(
             func=func,
-            model_configuration=model.config(
-                allow_negative_signal=test_statistics in ["q", "qmu"]
-            ),
+            model_configuration=model.config(),
             do_grad=True,
-            fixed_poi_value=1.0 if test_statistics == "q0" else 0.0,
+            fixed_poi_value=poi_asimov,
+            initial_parameters=kwargs.get("init_pars", None),
             bounds=par_bounds,
             **kwargs,
         )
