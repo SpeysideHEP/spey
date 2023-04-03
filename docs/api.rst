@@ -25,6 +25,7 @@ Main Classes
     :members:
     :undoc-members:
     :show-inheritance:
+    :inherited-members:
 
 Base Classes
 ------------
@@ -32,17 +33,14 @@ Base Classes
 .. autoclass:: spey.BackendBase
     :members:
     :undoc-members:
-    :show-inheritance:
 
 .. autoclass:: spey.base.hypotest_base.HypothesisTestingBase
     :members:
     :undoc-members:
-    :show-inheritance:
 
 .. autoclass:: spey.base.model_config.ModelConfig
     :members:
     :undoc-members:
-    :show-inheritance:
 
 Statistical Model Combiner
 --------------------------
@@ -51,6 +49,7 @@ Statistical Model Combiner
     :members:
     :undoc-members:
     :show-inheritance:
+    :inherited-members:
 
 Hypothesis testing
 ------------------
