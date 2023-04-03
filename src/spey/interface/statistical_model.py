@@ -218,7 +218,7 @@ class StatisticalModel(HypothesisTestingBase):
         """
         objective_and_grad, do_grad = self._get_objective_and_grad(expected, data)
 
-        twice_nll, fit_param = fit(
+        _, fit_param = fit(
             func=objective_and_grad,
             model_configuration=self.backend.config(),
             do_grad=do_grad,
@@ -234,9 +234,11 @@ class StatisticalModel(HypothesisTestingBase):
             fixed_poi_value=poi_test,
             **kwargs,
         )
-        negloglikelihood = twice_nll / 2.0
 
-        return negloglikelihood, fit_param
+        return (
+            -self.backend.get_logpdf_func(expected=expected, data=data)(fit_param),
+            fit_param,
+        )
 
     def likelihood(
         self,
@@ -465,7 +467,7 @@ class StatisticalModel(HypothesisTestingBase):
         except NotImplementedError:
             objective_and_grad, do_grad = self._get_objective_and_grad(expected, None)
 
-            twice_nll, fit_param = fit(
+            _, fit_param = fit(
                 func=objective_and_grad,
                 model_configuration=self.backend.config(
                     allow_negative_signal=allow_negative_signal
@@ -481,7 +483,9 @@ class StatisticalModel(HypothesisTestingBase):
                 bounds=par_bounds,
                 **kwargs,
             )
-            negloglikelihood = twice_nll / 2.0
+            negloglikelihood = -self.backend.get_logpdf_func(
+                expected=expected, data=None
+            )(fit_param)
 
         muhat = fit_param[self.backend.config().poi_index]
         return muhat, negloglikelihood if return_nll else np.exp(-negloglikelihood)
@@ -578,7 +582,7 @@ class StatisticalModel(HypothesisTestingBase):
 
             objective_and_grad, do_grad = self._get_objective_and_grad(expected, data)
 
-            twice_nll, fit_param = fit(
+            _, fit_param = fit(
                 func=objective_and_grad,
                 model_configuration=self.backend.config(
                     allow_negative_signal=allow_negative_signal
@@ -595,7 +599,9 @@ class StatisticalModel(HypothesisTestingBase):
                 bounds=par_bounds,
                 **kwargs,
             )
-            negloglikelihood = twice_nll / 2.0
+            negloglikelihood = -self.backend.get_logpdf_func(
+                expected=expected, data=data
+            )(fit_param)
 
         muhat: float = fit_param[self.backend.config().poi_index]
         return muhat, negloglikelihood if return_nll else np.exp(-negloglikelihood)

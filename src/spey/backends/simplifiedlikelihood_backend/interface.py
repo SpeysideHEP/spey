@@ -201,7 +201,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
             pars=pars,
             signal=current_model.signal,
             background=current_model.background,
-            observed=data or current_model.observed,
+            observed=current_model.observed if data is None else data,
             third_moment_expansion=self.third_moment_expansion,
         )
 
