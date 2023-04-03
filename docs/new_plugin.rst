@@ -152,7 +152,9 @@ clicking on the functions;
 
 Beyond the usage of asymptotic hypothesis testing spey also supports sampling from the statistical model which can be embeded
 via :func:`~spey.BackendBase.get_sampler` function which takes fit parameters as input and returns a callable function which 
-then takes number of samples as input and returns sampled outputs.
+then takes number of samples as input and returns sampled outputs. Additionally, if implemented, spey can use the Hessian 
+of :math:`\log\mathcal{L}(\mu, \theta)` to compute variance on :math:`\mu` which can be implemented via 
+:func:`~spey.BackendBase.get_hessian_logpdf_func`.
 
 Identifying and installing your statistical model
 -------------------------------------------------
