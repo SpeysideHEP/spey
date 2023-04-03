@@ -5,7 +5,7 @@ from semantic_version import Version, SimpleSpec
 
 from spey.interface.statistical_model import StatisticalModel, statistical_model_wrapper
 from spey.base import BackendBase
-from spey.combiner import StatisticsCombiner
+from spey.combiner import UnCorrStatisticsCombiner
 from spey.system.exceptions import PluginError
 from .utils import ExpectationType
 from ._version import __version__
@@ -13,7 +13,7 @@ from ._version import __version__
 __all__ = [
     "version",
     "StatisticalModel",
-    "StatisticsCombiner",
+    "UnCorrStatisticsCombiner",
     "ExpectationType",
     "AvailableBackends",
     "get_correlated_nbin_statistical_model",

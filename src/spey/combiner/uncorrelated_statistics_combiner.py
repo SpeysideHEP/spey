@@ -15,10 +15,10 @@ from spey.base.hypotest_base import HypothesisTestingBase
 from spey.optimizer.core import fit
 from spey.base.model_config import ModelConfig
 
-__all__ = ["StatisticsCombiner"]
+__all__ = ["UnCorrStatisticsCombiner"]
 
 
-class StatisticsCombiner(HypothesisTestingBase):
+class UnCorrStatisticsCombiner(HypothesisTestingBase):
     """
     Module to combine **uncorrelated** statistical models. It takes serries of
     :class:`~spey.StatisticalModel` as input. These statistical models does not
@@ -27,7 +27,7 @@ class StatisticsCombiner(HypothesisTestingBase):
 
     .. warning::
 
-        :obj:`~spey.StatisticsCombiner` assumes that all input are uncorrelated and
+        :obj:`~spey.UnCorrStatisticsCombiner` assumes that all input are uncorrelated and
         non of the statistical models posesses the same set of nuisance parameters.
 
     Raises:
@@ -36,7 +36,7 @@ class StatisticsCombiner(HypothesisTestingBase):
         :obj:`TypeError`: If the input type is not :class:`~spey.StatisticalModel`.
 
     Returns:
-        :obj:`~spey.StatisticsCombiner`:
+        :obj:`~spey.UnCorrStatisticsCombiner`:
     """
 
     __slots__ = ["_statistical_models", "_recorder"]
@@ -135,7 +135,9 @@ class StatisticsCombiner(HypothesisTestingBase):
         if isinstance(item, int):
             if item < len(self):
                 return self.statistical_models[item]
-            raise AnalysisQueryError("Request exceeds number of statistical models available.")
+            raise AnalysisQueryError(
+                "Request exceeds number of statistical models available."
+            )
         if isinstance(item, slice):
             return self.statistical_models[item]
 
@@ -401,10 +403,15 @@ class StatisticsCombiner(HypothesisTestingBase):
                     expected=expected, **current_kwargs, **optimiser_options
                 )[0]
                 _sigma_mu[idx] = stat_model.sigma_mu(
-                    poi_test=_mu[idx], expected=expected, **current_kwargs, **optimiser_options
+                    poi_test=_mu[idx],
+                    expected=expected,
+                    **current_kwargs,
+                    **optimiser_options,
                 )
             norm = np.sum(np.power(_sigma_mu, -2))
-            mu_init = np.true_divide(1.0, norm) * np.sum(np.true_divide(_mu, np.square(_sigma_mu)))
+            mu_init = np.true_divide(1.0, norm) * np.sum(
+                np.true_divide(_mu, np.square(_sigma_mu))
+            )
 
         config: ModelConfig = ModelConfig(
             poi_index=0,
@@ -412,7 +419,12 @@ class StatisticsCombiner(HypothesisTestingBase):
             suggested_init=[float(mu_init)],
             suggested_bounds=(
                 par_bounds
-                or [(self.minimum_poi if allow_negative_signal else 0.0, max(10.0, mu_init))]
+                or [
+                    (
+                        self.minimum_poi if allow_negative_signal else 0.0,
+                        max(10.0, mu_init),
+                    )
+                ]
             ),
         )
 

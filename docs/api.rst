@@ -47,7 +47,7 @@ Base Classes
 Statistical Model Combiner
 --------------------------
 
-.. autoclass:: spey.StatisticsCombiner
+.. autoclass:: spey.UnCorrStatisticsCombiner
     :members:
     :undoc-members:
     :show-inheritance:
@@ -87,7 +87,13 @@ Simplified Likelihoods
 Exceptions
 ----------
 
-.. automodule:: spey.system.exceptions
-    :members:
-    :undoc-members:
-    :show-inheritance:
+.. autosummary:: 
+    :toctree: _generated/
+    :nosignatures:
+
+    spey.system.exceptions.AnalysisQueryError
+    spey.system.exceptions.MethodNotAvailable
+    spey.system.exceptions.NegativeExpectedYields
+    spey.system.exceptions.PluginError
+    spey.system.exceptions.UnknownCrossSection
+    spey.system.exceptions.UnknownTestStatistics

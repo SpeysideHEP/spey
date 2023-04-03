@@ -1,3 +1,3 @@
-from .statistics_combiner import StatisticsCombiner
+from .uncorrelated_statistics_combiner import UnCorrStatisticsCombiner
 
-__all__ = ["StatisticsCombiner"]
+__all__ = ["UnCorrStatisticsCombiner"]
