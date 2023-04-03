@@ -60,7 +60,7 @@ inheriting it. The most basic implementation of a statistical model can be found
     >>>     def generate_asimov_data(
     ...          self,
     ...          poi_asimov = 0.0,
-    ...          expected = ExpectationType.observed,
+    ...          expected = spey.ExpectationType.observed,
     ...          **kwargs,
     ...      ):
     >>>         ...
