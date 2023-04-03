@@ -392,7 +392,7 @@ class StatisticalModel(HypothesisTestingBase):
         except NotImplementedError:
             # add a debug logger here saying backend has no implementation etc.
             data = self.backend.generate_asimov_data(
-                expected=expected, test_statistics=test_statistics
+                poi_asimov=1.0 if test_statistics == "q0" else 0.0, expected=expected
             )
             negloglikelihood, _ = self.fixed_poi_fit(
                 poi_test=poi_test,
@@ -577,7 +577,7 @@ class StatisticalModel(HypothesisTestingBase):
             )
 
             data = self.backend.generate_asimov_data(
-                expected=expected, test_statistics=test_statistics
+                poi_asimov=1.0 if test_statistics == "q0" else 0.0, expected=expected
             )
 
             objective_and_grad, do_grad = self._get_objective_and_grad(expected, data)
