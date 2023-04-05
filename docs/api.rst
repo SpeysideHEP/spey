@@ -8,7 +8,6 @@ Top-Level
 
 .. autosummary:: 
     :toctree: _generated/
-    :nosignatures:
 
     spey.ExpectationType
     spey.AvailableBackends
@@ -56,7 +55,6 @@ Hypothesis testing
 
 .. autosummary:: 
     :toctree: _generated/
-    :nosignatures:
 
     spey.hypothesis_testing.test_statistics.qmu
     spey.hypothesis_testing.test_statistics.qmu_tilde
@@ -78,9 +76,8 @@ Simplified Likelihoods
 
 .. autosummary:: 
     :toctree: _generated/
-    :nosignatures:
 
-    spey.backends.simplifiedlikelihood_backend.interface.SimplifiedLikelihoodInterface
+    spey.backends.simplifiedlikelihood_backend.SimplifiedLikelihoodInterface
     spey.backends.simplifiedlikelihood_backend.sldata.SLData
 
 Exceptions
