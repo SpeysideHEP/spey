@@ -31,7 +31,7 @@ jobs:
 
       - name: Compile Docs
         run: |
-          cd docs; mkdir _build _generated; make clean; make html
+          cd docs; mkdir _build _generated _static; make clean; make html
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
