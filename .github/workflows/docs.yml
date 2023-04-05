@@ -29,7 +29,7 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           python -m pip install -e .[doc]
 
-      -name: Compile Docs
+      - name: Compile Docs
         run: |
           cd docs; mkdir _build _generated; make clean; make html
 
