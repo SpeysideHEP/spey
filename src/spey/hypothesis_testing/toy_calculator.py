@@ -1,27 +1,30 @@
-"""Tools for computing confidence level and pvalues at the asymptotic limit"""
+from typing import Text, List, Tuple
 
-from typing import Tuple, Text, List
+import numpy as np
 
-from .distributions import AsymptoticTestStatisticsDistribution
+from .distributions import EmpricTestStatisticsDistribution
 from .utils import pvalues, expected_pvalues
 
-__all__ = ["compute_asymptotic_confidence_level"]
+__all__ = ["compute_toy_confidence_level"]
 
 
-def compute_asymptotic_confidence_level(
-    sqrt_qmuA: float, delta_test_statistic: float, test_stat: Text = "qtilde"
+def __dir__():
+    return __all__
+
+
+def compute_toy_confidence_level(
+    signal_like_test_statistic: List[float],
+    background_like_test_statistic: List[float],
+    test_statistic: float,
+    test_stat: Text = "qtilde",
 ) -> Tuple[List[float], List[float]]:
     r"""
     Compute confidence limits i.e. :math:`CL_{s+b}`, :math:`CL_b` and :math:`CL_s`
 
-    .. note::
-
-        see :func:`~spey.hypothesis_testing.test_statistics.compute_teststatistics` for
-        details regarding the arguments.
-
     Args:
-        sqrt_qmuA (``float``): test statistic for Asimov data :math:`\sqrt{q_{\mu,A}}`.
-        delta_test_statistic (``float``): :math:`\Delta{\sqrt{q_{\mu}},\sqrt{q_{\mu,A}}}`
+        signal_like_test_statistic (``List[float]``): signal like test statistic values
+        background_like_test_statistic (``List[float]``): background like test statistic values
+        test_statistic (``float``): value for parameter of interest
         test_stat (``Text``, default ``"qtilde"``): test statistics.
 
           * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
@@ -41,18 +44,21 @@ def compute_asymptotic_confidence_level(
           * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
             of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
 
+
     Returns:
         ``Tuple[List[float], List[float]]``:
         returns p-values and expected p-values.
     """
-    cutoff = -sqrt_qmuA  # use clipped normal -> normal will mean -np.inf
-    # gives more stable result for cases that \hat\mu > \mu : see eq 14, 16 :xref:`1007.1727`
 
-    sig_plus_bkg_distribution = AsymptoticTestStatisticsDistribution(-sqrt_qmuA, cutoff)
-    bkg_only_distribution = AsymptoticTestStatisticsDistribution(0.0, cutoff)
+    sig_plus_bkg_distribution = EmpricTestStatisticsDistribution(
+        np.array(signal_like_test_statistic, dtype=np.float64)
+    )
+    bkg_only_distribution = EmpricTestStatisticsDistribution(
+        np.array(background_like_test_statistic, dtype=np.float64)
+    )
 
     CLsb_obs, CLb_obs, CLs_obs = pvalues(
-        delta_test_statistic, sig_plus_bkg_distribution, bkg_only_distribution
+        test_statistic, sig_plus_bkg_distribution, bkg_only_distribution
     )
     CLsb_exp, CLb_exp, CLs_exp = expected_pvalues(
         sig_plus_bkg_distribution, bkg_only_distribution

@@ -7,13 +7,16 @@ import numpy as np
 
 from spey.hypothesis_testing.test_statistics import compute_teststatistics
 from spey.utils import ExpectationType
-from .utils import compute_confidence_level
+from .asymptotic_calculator import compute_asymptotic_confidence_level
 
 __all__ = ["find_poi_upper_limit", "find_root_limits"]
 
 
 def find_root_limits(
-    computer: Callable[[float], float], loc: float = 0.0, low_ini: float = 1.0, hig_ini: float = 1.0
+    computer: Callable[[float], float],
+    loc: float = 0.0,
+    low_ini: float = 1.0,
+    hig_ini: float = 1.0,
 ) -> Tuple[float, float]:
     """
     Find upper and lower bracket limits for the root finding algorithm
@@ -134,7 +137,7 @@ def find_poi_upper_limit(
         pvalue = list(
             map(
                 lambda x: 1.0 - x,
-                compute_confidence_level(sqrt_qmuA, delta_teststat, test_stat)[
+                compute_asymptotic_confidence_level(sqrt_qmuA, delta_teststat, test_stat)[
                     0 if expected == ExpectationType.observed else 1
                 ],
             )
@@ -153,7 +156,14 @@ def find_poi_upper_limit(
         low, hig = find_root_limits(comp, loc=0.0, low_ini=low_init, hig_ini=hig_init)
         with warnings.catch_warnings(record=True):
             x0, r = scipy.optimize.toms748(
-                comp, low, hig, k=2, xtol=2e-12, rtol=1e-4, full_output=True, maxiter=maxiter
+                comp,
+                low,
+                hig,
+                k=2,
+                xtol=2e-12,
+                rtol=1e-4,
+                full_output=True,
+                maxiter=maxiter,
             )
         if not r.converged:
             warnings.warn(f"Optimiser did not converge.\n{r}", category=RuntimeWarning)
