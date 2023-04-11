@@ -60,3 +60,15 @@ class PluginError(Exception):
 
 class MethodNotAvailable(Exception):
     """If the method is not available for a given backend"""
+
+
+class CanNotFindRoots(Exception):
+    """Unable to find roots of the function"""
+
+
+class UnknownComputer(Exception):
+    """Unknown computation base"""
+
+
+class CalculatorNotAvailable(Exception):
+    """Unavailable calculator Exception"""
