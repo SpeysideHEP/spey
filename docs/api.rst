@@ -63,10 +63,12 @@ Hypothesis testing
     spey.hypothesis_testing.test_statistics.compute_teststatistics
     spey.hypothesis_testing.upper_limits.find_poi_upper_limit
     spey.hypothesis_testing.upper_limits.find_root_limits
-    spey.hypothesis_testing.utils.compute_confidence_level
     spey.hypothesis_testing.utils.pvalues
     spey.hypothesis_testing.utils.expected_pvalues
-    spey.hypothesis_testing.asymptotic_calculator.AsymptoticTestStatisticsDistribution
+    spey.hypothesis_testing.distributions.AsymptoticTestStatisticsDistribution
+    spey.hypothesis_testing.distributions.EmpricTestStatisticsDistribution
+    spey.hypothesis_testing.asymptotic_calculator.compute_asymptotic_confidence_level
+    spey.hypothesis_testing.toy_calculator.compute_toy_confidence_level
 
 Default Backends
 ----------------
@@ -93,3 +95,4 @@ Exceptions
     spey.system.exceptions.PluginError
     spey.system.exceptions.UnknownCrossSection
     spey.system.exceptions.UnknownTestStatistics
+    spey.system.exceptions.CalculatorNotAvailable
