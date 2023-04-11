@@ -4,14 +4,27 @@ tools to compute exclusion limits and POI upper limits
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple, Callable, List, Text, Union
+from typing import Optional, Tuple, Callable, List, Text, Union, Dict
+from functools import partial
+import tqdm
 import numpy as np
 
 from spey.hypothesis_testing.upper_limits import find_poi_upper_limit
-from spey.hypothesis_testing.utils import compute_confidence_level
+from spey.hypothesis_testing.asymptotic_calculator import (
+    compute_asymptotic_confidence_level,
+)
+from spey.hypothesis_testing.toy_calculator import compute_toy_confidence_level
 from spey.hypothesis_testing.test_statistics import compute_teststatistics
 from spey.hypothesis_testing.test_statistics import get_test_statistic
 from spey.utils import ExpectationType
+from spey.system.exceptions import CalculatorNotAvailable
+
+
+__all__ = ["HypothesisTestingBase"]
+
+
+def __dir__():
+    return __all__
 
 
 class HypothesisTestingBase(ABC):
@@ -19,13 +32,69 @@ class HypothesisTestingBase(ABC):
     Abstract class that ensures classes that are performing hypothesis teststing includes certain
     set of function to perform necessary computations. This class gives the ability to compute
     exclusion limits and upper limits for the class inherits it.
+
+    Args:
+        ntoys (``int``, default ``1000``): Number of toy samples for hypothesis testing.
+          (Only used for toy-based hypothesis testing)
     """
+
+    __slots__ = ["ntoys"]
+
+    def __init__(self, ntoys: int = 1000):
+        self.ntoys = ntoys
+        """Number of toy samples for sample generator during hypothesis testing"""
 
     @property
     @abstractmethod
-    def isAlive(self) -> bool:
+    def is_alive(self) -> bool:
         """Returns True if at least one bin has non-zero signal yield."""
         # This method has to be a property
+
+    @property
+    @abstractmethod
+    def is_asymptotic_calculator_available(self) -> bool:
+        """Check if Asymptotic calculator is available for the backend"""
+        # This method has to be a property
+
+    @property
+    @abstractmethod
+    def is_toy_calculator_available(self) -> bool:
+        """Check if Toy calculator is available for the backend"""
+        # This method has to be a property
+
+    @abstractmethod
+    def prepare_for_fit(
+        self,
+        data: Optional[Union[List[float], np.ndarray]] = None,
+        expected: ExpectationType = ExpectationType.observed,
+        allow_negative_signal: Optional[bool] = True,
+    ) -> Dict:
+        r"""
+        Prepare backend for the optimiser.
+
+        Args:
+            data (``Union[List[float], np.ndarray]``, default ``None``): input data that to fit
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
+              value will be allowed to be negative.
+
+        Returns:
+            ``Dict``:
+            Dictionary of necessary toolset for the fit. objective function, ``"func"``, use gradient
+            boolean, ``"do_grad"`` and function to compute negative log-likelihood with given
+            fit parameters, ``"nll"``.
+        """
 
     @abstractmethod
     def likelihood(
@@ -33,6 +102,7 @@ class HypothesisTestingBase(ABC):
         poi_test: float = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
+        data: Optional[Union[List[float], np.ndarray]] = None,
         **kwargs,
     ) -> float:
         r"""
@@ -54,6 +124,8 @@ class HypothesisTestingBase(ABC):
 
             return_nll (:obj:`bool`, default :obj:`True`): If ``True`` returns negative log-likelihood,
               else likelihood value.
+            data (``Union[List[float], np.ndarray]``, default ``None``): input data that to fit. If
+              ``None`` data will be set according to ``expected`` input.
             kwargs: keyword arguments for the optimiser.
 
         Returns:
@@ -67,6 +139,7 @@ class HypothesisTestingBase(ABC):
         return_nll: bool = True,
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = True,
+        data: Optional[Union[List[float], np.ndarray]] = None,
         **kwargs,
     ) -> Tuple[float, float]:
         r"""
@@ -89,6 +162,8 @@ class HypothesisTestingBase(ABC):
 
             allow_negative_signal (:obj:`bool`, default :obj:`True`): If :obj:`True` :math:`\hat\mu`
               value will be allowed to be negative.
+            data (``Union[List[float], np.ndarray]``, default ``None``): input data that to fit. If
+              ``None`` data will be set according to ``expected`` input.
             kwargs: keyword arguments for the optimiser.
 
         Returns:
@@ -202,6 +277,49 @@ class HypothesisTestingBase(ABC):
             value of :math:`\hat\mu` and maximum likelihood.
         """
 
+    @abstractmethod
+    def fixed_poi_sampler(
+        self,
+        poi_test: float,
+        size: Optional[int] = None,
+        expected: ExpectationType = ExpectationType.observed,
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
+        **kwargs,
+    ) -> Union[np.ndarray, Callable[[int], np.ndarray]]:
+        r"""
+        Sample data from the statistical model with fixed parameter of interest.
+
+        Args:
+            poi_test (``float``, default ``1.0``): parameter of interest or signal strength,
+              :math:`\mu`.
+            size (``int``, default ``None``): sample size. If ``None`` a callable function
+              will be returned which takes sample size as input.
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+            init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
+            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
+              the optimiser.
+            kwargs: keyword arguments for the optimiser.
+
+        Raises:
+            ~spey.system.exceptions.MethodNotAvailable: If bacend does not have sampler implementation.
+
+        Returns:
+            ``Union[np.ndarray, Callable[[int], np.ndarray]]``:
+            Sampled data with shape of ``(size, number of bins)`` or callable function to sample from
+            directly.
+        """
+
     def chi2(
         self,
         poi_test: float = 1.0,
@@ -247,9 +365,14 @@ class HypothesisTestingBase(ABC):
         self,
         expected: ExpectationType = ExpectationType.observed,
         test_statistics: Text = "qtilde",
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> Tuple[
-        Tuple[float, float], Callable[[float], float], Tuple[float, float], Callable[[float], float]
+        Tuple[float, float],
+        Callable[[float], float],
+        Tuple[float, float],
+        Callable[[float], float],
     ]:
         r"""
         Prepare necessary computations for hypothesis testing
@@ -286,6 +409,9 @@ class HypothesisTestingBase(ABC):
                 * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
                 of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
 
+            init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
+            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
+              the optimiser.
             kwargs: keyword arguments for the optimiser.
 
         Returns:
@@ -296,16 +422,26 @@ class HypothesisTestingBase(ABC):
         allow_negative_signal = True if test_statistics in ["q" or "qmu"] else False
 
         muhat, nll = self.maximize_likelihood(
-            expected=expected, allow_negative_signal=allow_negative_signal, **kwargs
+            expected=expected,
+            allow_negative_signal=allow_negative_signal,
+            init_pars=init_pars,
+            par_bounds=par_bounds,
+            **kwargs,
         )
         muhatA, nllA = self.maximize_asimov_likelihood(
-            expected=expected, test_statistics=test_statistics, **kwargs
+            expected=expected,
+            test_statistics=test_statistics,
+            init_pars=init_pars,
+            par_bounds=par_bounds,
+            **kwargs,
         )
 
         def logpdf(mu: Union[float, np.ndarray]) -> float:
             return -self.likelihood(
                 poi_test=float(mu) if isinstance(mu, (float, int)) else mu[0],
                 expected=expected,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
                 **kwargs,
             )
 
@@ -314,6 +450,8 @@ class HypothesisTestingBase(ABC):
                 poi_test=float(mu) if isinstance(mu, (float, int)) else mu[0],
                 expected=expected,
                 test_statistics=test_statistics,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
                 **kwargs,
             )
 
@@ -397,6 +535,7 @@ class HypothesisTestingBase(ABC):
         poi_test: float = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = False,
+        method: Text = "asymptotic",
         **kwargs,
     ) -> List[float]:
         r"""
@@ -442,7 +581,16 @@ class HypothesisTestingBase(ABC):
 
             allow_negative_signal (``bool``, default ``False``): If ``True`` :math:`\hat\mu`
               value will be allowed to be negative.
+            method (``Text``, default ``asymptotic``): Chooses the computation basis for hypothesis
+              testing
+
+              * ``asymptotic``: Uses asymptotic hypothesis testing to compute p-values.
+              * ``toy``: Uses generated toy samples to compute p-values.
+
             kwargs: keyword arguments for the optimiser.
+
+        Raises:
+          :obj:`~spey.system.exceptions.CalculatorNotAvailable`: If calculator is not available.
 
         Returns:
             ``List[float]``:
@@ -474,29 +622,97 @@ class HypothesisTestingBase(ABC):
             >>> # 1-CLs aposteriori at -2sig 0.999, -1sig 0.994, central 0.963, 1sig 0.835, 2sig 0.523
             >>> # 1-CLs : 0.973
         """
-        test_stat = "q" if allow_negative_signal else "qmutilde"
+        if not getattr(self, f"is_{method}_calculator_available", False):
+            raise CalculatorNotAvailable(f"{method} calculator is not available.")
 
-        (
-            maximum_likelihood,
-            logpdf,
-            maximum_asimov_likelihood,
-            logpdf_asimov,
-        ) = self._prepare_for_hypotest(
-            expected=expected,
-            test_statistics=test_stat,
-            **kwargs,
-        )
+        test_stat = "q" if allow_negative_signal else "qtilde"
 
-        _, sqrt_qmuA, delta_teststat = compute_teststatistics(
-            poi_test,
-            maximum_likelihood,
-            logpdf,
-            maximum_asimov_likelihood,
-            logpdf_asimov,
-            test_stat,
-        )
+        if method == "asymptotic":
+            (
+                maximum_likelihood,
+                logpdf,
+                maximum_asimov_likelihood,
+                logpdf_asimov,
+            ) = self._prepare_for_hypotest(
+                expected=expected,
+                test_statistics=test_stat,
+                **kwargs,
+            )
 
-        pvalues, expected_pvalues = compute_confidence_level(sqrt_qmuA, delta_teststat, test_stat)
+            _, sqrt_qmuA, delta_teststat = compute_teststatistics(
+                poi_test,
+                maximum_likelihood,
+                logpdf,
+                maximum_asimov_likelihood,
+                logpdf_asimov,
+                test_stat,
+            )
+
+            pvalues, expected_pvalues = compute_asymptotic_confidence_level(
+                sqrt_qmuA, delta_teststat, test_stat
+            )
+
+        elif method == "toy":
+
+            signal_samples = self.fixed_poi_sampler(
+                poi_test=poi_test, size=self.ntoys, expected=expected, **kwargs
+            )
+
+            bkg_samples = self.fixed_poi_sampler(
+                poi_test=0.0, size=self.ntoys, expected=expected, **kwargs
+            )
+
+            test_stat_func = get_test_statistic(test_stat)
+
+            def logpdf(
+                mu: Union[float, np.ndarray], data: Union[float, np.ndarray]
+            ) -> float:
+                """Compute logpdf with respect to poi and given data"""
+                return -self.likelihood(
+                    poi_test=float(mu) if isinstance(mu, (float, int)) else mu[0],
+                    expected=expected,
+                    data=data,
+                    **kwargs,
+                )
+
+            def maximize_likelihood(
+                data: Union[float, np.ndarray]
+            ) -> Tuple[float, float]:
+                """Compute maximum likelihood with respect to given data"""
+                return self.maximize_likelihood(
+                    expected=expected,
+                    allow_negative_signal=allow_negative_signal,
+                    data=data,
+                    **kwargs,
+                )
+
+            signal_like_test_stat, bkg_like_test_stat = [], []
+            with tqdm.tqdm(total=self.ntoys, unit="toy") as pbar:
+                for sig_smp, bkg_smp in zip(signal_samples, bkg_samples):
+                    signal_like_test_stat.append(
+                        test_stat_func(
+                            poi_test,
+                            *maximize_likelihood(data=sig_smp),
+                            partial(logpdf, data=sig_smp),
+                        )
+                    )
+
+                    bkg_like_test_stat.append(
+                        test_stat_func(
+                            poi_test,
+                            *maximize_likelihood(data=bkg_smp),
+                            partial(logpdf, data=bkg_smp),
+                        )
+                    )
+
+                    pbar.update()
+
+            pvalues, expected_pvalues = compute_toy_confidence_level(
+                signal_like_test_stat,
+                bkg_like_test_stat,
+                test_statistic=poi_test,
+                test_stat=test_stat,
+            )
 
         return list(
             map(
@@ -541,9 +757,16 @@ class HypothesisTestingBase(ABC):
         ) = self._prepare_for_hypotest(expected=expected, test_statistics="q0", **kwargs)
 
         sqrt_q0, sqrt_q0A, delta_teststat = compute_teststatistics(
-            0.0, maximum_likelihood, logpdf, maximum_asimov_likelihood, logpdf_asimov, "q0"
+            0.0,
+            maximum_likelihood,
+            logpdf,
+            maximum_asimov_likelihood,
+            logpdf_asimov,
+            "q0",
         )
-        pvalues, expected_pvalues = compute_confidence_level(sqrt_q0A, delta_teststat, "q0")
+        pvalues, expected_pvalues = compute_asymptotic_confidence_level(
+            sqrt_q0A, delta_teststat, "q0"
+        )
 
         return sqrt_q0A, sqrt_q0, pvalues, expected_pvalues
 
@@ -636,12 +859,16 @@ class HypothesisTestingBase(ABC):
             ... )
             >>> # [0.6776948439956527, 0.9552928963772295, 1.3583327313197415]
         """
-        assert 0.0 <= confidence_level <= 1.0, "Confidence level must be between zero and one."
-        expected_pvalue = "nominal" if expected == ExpectationType.observed else expected_pvalue
+        assert (
+            0.0 <= confidence_level <= 1.0
+        ), "Confidence level must be between zero and one."
+        expected_pvalue = (
+            "nominal" if expected == ExpectationType.observed else expected_pvalue
+        )
 
         # If the signal yields in all regions are zero then return inf.
         # This means we are not able to set a bound with the given information.
-        if not self.isAlive:
+        if not self.is_alive:
             return {"nominal": np.inf, "1sigma": [np.inf] * 3, "2sigma": [np.inf] * 5}[
                 expected_pvalue
             ]

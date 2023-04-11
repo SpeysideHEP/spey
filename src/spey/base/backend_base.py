@@ -12,6 +12,10 @@ from spey.base.model_config import ModelConfig
 __all__ = ["BackendBase"]
 
 
+def __dir__():
+    return __all__
+
+
 class BackendBase(ABC):
     """
     An abstract class construction to enforce certain behaviour on statistical model backend.
@@ -19,6 +23,11 @@ class BackendBase(ABC):
     function constructions such as precsription to form likelihood. Hence, each backend is
     required to inherit :obj:`~spey.BackendBase`.
     """
+
+    @property
+    def is_alive(self) -> bool:
+        """Returns True if at least one bin has non-zero signal yield."""
+        return True
 
     @abstractmethod
     def config(
@@ -154,11 +163,12 @@ class BackendBase(ABC):
         """
         raise NotImplementedError("This method has not been implemented")
 
-    @abstractmethod
     def generate_asimov_data(
         self,
         poi_asimov: float = 0.0,
         expected: ExpectationType = ExpectationType.observed,
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> Union[List[float], np.ndarray]:
         r"""
@@ -179,12 +189,16 @@ class BackendBase(ABC):
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
 
+            init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
+            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
+              the optimiser.
             kwargs: keyword arguments for the optimiser.
 
         Returns:
             ``Union[List[float], np.ndarray]``:
             Asimov data.
         """
+        raise NotImplementedError("This method has not been implemented")
 
     def negative_loglikelihood(
         self,
