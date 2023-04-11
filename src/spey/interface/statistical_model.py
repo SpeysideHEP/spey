@@ -1,6 +1,7 @@
 """Statistical Model wrapper class"""
 
-from typing import Optional, Text, Tuple, List, Callable, Union, Any
+from typing import Optional, Text, Tuple, List, Callable, Union, Any, Dict
+import inspect
 
 import numpy as np
 
@@ -11,6 +12,15 @@ from spey.base.hypotest_base import HypothesisTestingBase
 from spey.optimizer.core import fit
 
 __all__ = ["StatisticalModel", "statistical_model_wrapper"]
+
+
+def _module_check(backend: BackendBase, func_name: Union[Text, List[Text]]) -> bool:
+    """Check if the member function is implemented in backend or in plugin"""
+    func_name = [func_name] if isinstance(func_name, str) else func_name
+    return all(
+        ("spey/base/backend_base.py" not in inspect.getfile(getattr(backend, fn)))
+        for fn in func_name
+    )
 
 
 class StatisticalModel(HypothesisTestingBase):
@@ -31,6 +41,8 @@ class StatisticalModel(HypothesisTestingBase):
           for book keeping purposes.
         xsection (``float``, default ``np.nan``): cross section, unit is determined by the user.
           Cross section value is only used for computing upper limit on excluded cross-section value.
+        ntoys (``int``, default ``1000``): Number of toy samples for hypothesis testing. (Only used for
+          toy-based hypothesis testing)
 
     Raises:
         :obj:`AssertionError`: If the given backend does not inherit :class:`~spey.BackendBase`
@@ -42,19 +54,33 @@ class StatisticalModel(HypothesisTestingBase):
 
     __slots__ = ["_backend", "xsection", "analysis"]
 
-    def __init__(self, backend: BackendBase, analysis: Text, xsection: float = np.nan):
+    def __init__(
+        self,
+        backend: BackendBase,
+        analysis: Text,
+        xsection: float = np.nan,
+        ntoys: int = 1000,
+    ):
         assert isinstance(backend, BackendBase), "Invalid backend"
         self._backend: BackendBase = backend
         self.xsection: float = xsection
         """Value of the cross section, unit is defined by the user."""
         self.analysis: Text = analysis
         """Unique identifier as analysis name"""
+        super().__init__(ntoys=ntoys)
 
     def __repr__(self):
+        calc = f"calculators={self.available_calculators}"
+
+        if np.isnan(self.xsection):
+            return (
+                f"StatisticalModel(analysis='{self.analysis}', backend={self.backend_type}, "
+                + f"{calc})"
+            )
+
         return (
             f"StatisticalModel(analysis='{self.analysis}', "
-            f"xsection={self.xsection:.3e} [au], "
-            f"backend={str(self.backend_type)})"
+            f"xsection={self.xsection:.3e} [au], backend={self.backend_type}, {calc})"
         )
 
     @property
@@ -65,12 +91,34 @@ class StatisticalModel(HypothesisTestingBase):
     @property
     def backend_type(self) -> Text:
         """Return type of the backend e.g. ``simplified_likelihoods``"""
-        return self.backend.name
+        return getattr(self.backend, "name", self.backend.__class__.__name__)
 
     @property
-    def isAlive(self) -> bool:
+    def is_asymptotic_calculator_available(self) -> bool:
+        """Check if Asymptotic calculator is available for the backend"""
+        return _module_check(self.backend, "generate_asimov_data") or _module_check(
+            self.backend,
+            ["asimov_negative_loglikelihood", "minimize_asimov_negative_loglikelihood"],
+        )
+
+    @property
+    def is_toy_calculator_available(self) -> bool:
+        """Check if Toy calculator is available for the backend"""
+        return _module_check(self.backend, "get_sampler")
+
+    @property
+    def available_calculators(self) -> List[Text]:
+        """Retruns available calculator names i.e. ``toy`` and/or ``asymptotic``."""
+        calc = (
+            "toy " * self.is_toy_calculator_available
+            + "asymptotic" * self.is_asymptotic_calculator_available
+        )
+        return calc.split()
+
+    @property
+    def is_alive(self) -> bool:
         """Returns True if at least one bin has non-zero signal yield."""
-        return self.backend.model.isAlive
+        return self.backend.is_alive
 
     def excluded_cross_section(
         self, expected: ExpectationType = ExpectationType.observed
@@ -147,44 +195,16 @@ class StatisticalModel(HypothesisTestingBase):
         """
         return self.excluded_cross_section(ExpectationType.observed)
 
-    def _get_objective_and_grad(
-        self, expected: ExpectationType, data: np.ndarray
-    ) -> Tuple[Callable, bool]:
-        """
-        Retreive objective and gradient function
-
-        :param expected (``ExpectationType``): observed, apriori or aposteriori.
-        :param data (`np.ndarray`): observations
-        :return `Tuple[Callable, bool]`: objective and grad function and a boolean indicating
-            that the backend is differentiable.
-        """
-        do_grad = True
-        try:
-            objective_and_grad = self.backend.get_objective_function(
-                expected=expected, data=data, do_grad=do_grad
-            )
-        except NotImplementedError:
-            do_grad = False
-            objective_and_grad = self.backend.get_objective_function(
-                expected=expected, data=data, do_grad=do_grad
-            )
-        return objective_and_grad, do_grad
-
-    def fixed_poi_fit(
+    def prepare_for_fit(
         self,
-        poi_test: float = 1.0,
         data: Optional[Union[List[float], np.ndarray]] = None,
         expected: ExpectationType = ExpectationType.observed,
-        init_pars: Optional[List[float]] = None,
-        par_bounds: Optional[List[Tuple[float, float]]] = None,
-        **kwargs,
-    ) -> Tuple[float, np.ndarray]:
+        allow_negative_signal: Optional[bool] = True,
+    ) -> Dict:
         r"""
-        Find the minimum of negative log-likelihood for a given parameter of interest.
+        Prepare backend for the optimiser.
 
         Args:
-            poi_test (``float``, default ``1.0``): parameter of interest or signal strength,
-              :math:`\mu`.
             data (``Union[List[float], np.ndarray]``, default ``None``): input data that to fit
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
@@ -197,54 +217,42 @@ class StatisticalModel(HypothesisTestingBase):
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
-            init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
-            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
-              the optimiser.
-            kwargs: keyword arguments for the optimiser.
+
+            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
+              value will be allowed to be negative.
 
         Returns:
-            ``Tuple[float, np.ndarray]``:
-            negative log-likelihood value and fit parameters.
-
-        Example:
-
-        .. code-block:: python3
-
-            >>> import spey
-            >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
-            ...     1, 2.0, 1.1, 0.5, 0.123, "simple_sl", "simplified_likelihoods"
-            ... )
-            >>> statistical_model.fixed_poi_fit(0.5) # (2.3078367000498305, array([0.5, -0.51327448]))
+            ``Dict``:
+            Dictionary of necessary toolset for the fit. objective function, ``"func"``, use gradient
+            boolean, ``"do_grad"`` and function to compute negative log-likelihood with given
+            fit parameters, ``"nll"``.
         """
-        objective_and_grad, do_grad = self._get_objective_and_grad(expected, data)
+        do_grad = True
+        try:
+            objective_and_grad = self.backend.get_objective_function(
+                expected=expected, data=data, do_grad=do_grad
+            )
+        except NotImplementedError:
+            do_grad = False
+            objective_and_grad = self.backend.get_objective_function(
+                expected=expected, data=data, do_grad=do_grad
+            )
 
-        _, fit_param = fit(
-            func=objective_and_grad,
-            model_configuration=self.backend.config(),
-            do_grad=do_grad,
-            # hessian=get_function(
-            #     self.backend,
-            #     "get_hessian_twice_nll_func",
-            #     default=None,
-            #     expected=expected,
-            #     data=data,
-            # ),
-            initial_parameters=init_pars,
-            bounds=par_bounds,
-            fixed_poi_value=poi_test,
-            **kwargs,
-        )
-
-        return (
-            -self.backend.get_logpdf_func(expected=expected, data=data)(fit_param),
-            fit_param,
-        )
+        return {
+            "func": objective_and_grad,
+            "do_grad": do_grad,
+            "model_configuration": self.backend.config(
+                allow_negative_signal=allow_negative_signal
+            ),
+            "logpdf": self.backend.get_logpdf_func(expected=expected, data=data),
+        }
 
     def likelihood(
         self,
         poi_test: float = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
+        data: Optional[Union[List[float], np.ndarray]] = None,
         init_pars: Optional[List[float]] = None,
         par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
@@ -268,6 +276,8 @@ class StatisticalModel(HypothesisTestingBase):
                 prescription which means that the SM will be assumed to be the truth.
             return_nll (``bool``, default ``True``): If ``True``, returns negative log-likelihood value.
               if ``False`` returns likelihood value.
+            data (``Union[List[float], np.ndarray]``, default ``None``): input data that to fit. If
+              ``None`` data will be set according to ``expected`` input.
             init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
             par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
               the optimiser.
@@ -287,23 +297,17 @@ class StatisticalModel(HypothesisTestingBase):
             ... )
             >>> statistical_model.likelihood(0.5) # 2.3078367000498305
         """
-        try:
-            negloglikelihood, _ = self.backend.negative_loglikelihood(
-                poi_test=poi_test,
-                expected=expected,
-                **kwargs,
-            )
-        except NotImplementedError:
-            # add a debug message here
-            negloglikelihood, _ = self.fixed_poi_fit(
-                poi_test=poi_test,
-                expected=expected,
-                init_pars=init_pars,
-                par_bounds=par_bounds,
-                **kwargs,
-            )
+        fit_opts = self.prepare_for_fit(expected=expected, data=data)
 
-        return negloglikelihood if return_nll else np.exp(-negloglikelihood)
+        logpdf, _ = fit(
+            **fit_opts,
+            initial_parameters=init_pars,
+            bounds=par_bounds,
+            fixed_poi_value=poi_test,
+            **kwargs,
+        )
+
+        return -logpdf if return_nll else np.exp(logpdf)
 
     def asimov_likelihood(
         self,
@@ -382,34 +386,29 @@ class StatisticalModel(HypothesisTestingBase):
             >>> # L_A with qtilde:  2.2866167339701358
             >>> # L_A with q0:  2.2829074109879595
         """
-        try:
-            negloglikelihood, _ = self.backend.asimov_negative_loglikelihood(
-                poi_test=poi_test,
-                expected=expected,
-                test_statistics=test_statistics,
-                **kwargs,
-            )
-        except NotImplementedError:
-            # add a debug logger here saying backend has no implementation etc.
-            data = self.backend.generate_asimov_data(
-                poi_asimov=1.0 if test_statistics == "q0" else 0.0, expected=expected
-            )
-            negloglikelihood, _ = self.fixed_poi_fit(
-                poi_test=poi_test,
-                data=data,
-                expected=expected,
-                init_pars=init_pars,
-                par_bounds=par_bounds,
-                **kwargs,
-            )
+        data = self.backend.generate_asimov_data(
+            poi_asimov=1.0 if test_statistics == "q0" else 0.0,
+            expected=expected,
+            init_pars=init_pars,
+            par_bounds=par_bounds,
+        )
 
-        return negloglikelihood if return_nll else np.exp(-negloglikelihood)
+        return self.likelihood(
+            poi_test=poi_test,
+            expected=expected,
+            return_nll=return_nll,
+            data=data,
+            init_pars=init_pars,
+            par_bounds=par_bounds,
+            **kwargs,
+        )
 
     def maximize_likelihood(
         self,
         return_nll: Optional[bool] = True,
         expected: Optional[ExpectationType] = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
+        data: Optional[Union[List[float], np.ndarray]] = None,
         init_pars: Optional[List[float]] = None,
         par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
@@ -434,6 +433,8 @@ class StatisticalModel(HypothesisTestingBase):
 
             allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
               value will be allowed to be negative.
+            data (``Union[List[float], np.ndarray]``, default ``None``): input data that to fit. If
+              ``None`` data will be set according to ``expected`` input.
             init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
             par_bounds (``List[Tuple[float, float]]``, default  ``None``): parameter bounds for
               the optimiser.
@@ -456,39 +457,19 @@ class StatisticalModel(HypothesisTestingBase):
             >>> print("muhat: %.3f, negative log-likelihood %.3f" % statistical_model.maximize_likelihood(allow_negative_signal=False))
             >>> # muhat: 0.000, negative log-likelihood 2.210
         """
-        try:
-            negloglikelihood, fit_param = self.backend.minimize_negative_loglikelihood(
-                expected=expected,
-                allow_negative_signal=allow_negative_signal,
-                init_pars=init_pars,
-                par_bounds=par_bounds,
-                **kwargs,
-            )
-        except NotImplementedError:
-            objective_and_grad, do_grad = self._get_objective_and_grad(expected, None)
+        fit_opts = self.prepare_for_fit(
+            expected=expected, allow_negative_signal=allow_negative_signal, data=data
+        )
 
-            _, fit_param = fit(
-                func=objective_and_grad,
-                model_configuration=self.backend.config(
-                    allow_negative_signal=allow_negative_signal
-                ),
-                do_grad=do_grad,
-                # hessian=get_function(
-                #     self.backend,
-                #     "get_hessian_twice_nll_func",
-                #     default=None,
-                #     expected=expected,
-                # ),
-                initial_parameters=init_pars,
-                bounds=par_bounds,
-                **kwargs,
-            )
-            negloglikelihood = -self.backend.get_logpdf_func(
-                expected=expected, data=None
-            )(fit_param)
+        logpdf, fit_param = fit(
+            **fit_opts,
+            initial_parameters=init_pars,
+            bounds=par_bounds,
+            **kwargs,
+        )
 
         muhat = fit_param[self.backend.config().poi_index]
-        return muhat, negloglikelihood if return_nll else np.exp(-negloglikelihood)
+        return muhat, -logpdf if return_nll else np.exp(logpdf)
 
     def maximize_asimov_likelihood(
         self,
@@ -560,51 +541,24 @@ class StatisticalModel(HypothesisTestingBase):
             >>> print("muhat: %.3f, negative log-likelihood %.3f" % statistical_model.maximize_asimov_likelihood(test_statistics="q0"))
             >>> # muhat: 0.000, negative log-likelihood 2.225
         """
-        try:
-            (
-                negloglikelihood,
-                fit_param,
-            ) = self.backend.minimize_asimov_negative_loglikelihood(
-                expected=expected,
-                test_statistics=test_statistics,
-                init_pars=init_pars,
-                par_bounds=par_bounds,
-                **kwargs,
-            )
-        except NotImplementedError:
-            allow_negative_signal: bool = (
-                True if test_statistics in ["q", "qmu"] else False
-            )
+        allow_negative_signal: bool = True if test_statistics in ["q", "qmu"] else False
 
-            data = self.backend.generate_asimov_data(
-                poi_asimov=1.0 if test_statistics == "q0" else 0.0, expected=expected
-            )
+        data = self.backend.generate_asimov_data(
+            poi_asimov=1.0 if test_statistics == "q0" else 0.0,
+            expected=expected,
+            init_pars=init_pars,
+            par_bounds=par_bounds,
+        )
 
-            objective_and_grad, do_grad = self._get_objective_and_grad(expected, data)
-
-            _, fit_param = fit(
-                func=objective_and_grad,
-                model_configuration=self.backend.config(
-                    allow_negative_signal=allow_negative_signal
-                ),
-                do_grad=do_grad,
-                # hessian=get_function(
-                #     self.backend,
-                #     "get_hessian_twice_nll_func",
-                #     default=None,
-                #     expected=expected,
-                #     data=data,
-                # ),
-                initial_parameters=init_pars,
-                bounds=par_bounds,
-                **kwargs,
-            )
-            negloglikelihood = -self.backend.get_logpdf_func(
-                expected=expected, data=data
-            )(fit_param)
-
-        muhat: float = fit_param[self.backend.config().poi_index]
-        return muhat, negloglikelihood if return_nll else np.exp(-negloglikelihood)
+        return self.maximize_likelihood(
+            return_nll=return_nll,
+            expected=expected,
+            allow_negative_signal=allow_negative_signal,
+            data=data,
+            init_pars=init_pars,
+            par_bounds=par_bounds,
+            **kwargs,
+        )
 
     def fixed_poi_sampler(
         self,
@@ -659,11 +613,13 @@ class StatisticalModel(HypothesisTestingBase):
             >>> bkg_sample.shape
             >>> # (10, 1)
         """
-        _, fit_param = self.fixed_poi_fit(
-            poi_test=poi_test,
-            expected=expected,
-            init_pars=init_pars,
-            par_bounds=par_bounds,
+        fit_opts = self.prepare_for_fit(expected=expected)
+
+        _, fit_param = fit(
+            **fit_opts,
+            initial_parameters=init_pars,
+            bounds=par_bounds,
+            fixed_poi_value=poi_test,
             **kwargs,
         )
 
@@ -730,11 +686,15 @@ class StatisticalModel(HypothesisTestingBase):
                 f"{self.backend_type} backend does not have Hessian definition."
             ) from exc
 
-        _, fit_param = self.fixed_poi_fit(
-            poi_test=poi_test,
-            expected=expected,
-            init_pars=init_pars,
-            par_bounds=par_bounds,
+        fit_opts = self.prepare_for_fit(expected=expected)
+        _ = fit_opts.pop("nll")
+
+        _, fit_param = fit(
+            **fit_opts,
+            model_configuration=self.backend.config(),
+            initial_parameters=init_pars,
+            bounds=par_bounds,
+            fixed_poi_value=poi_test,
             **kwargs,
         )
 
@@ -766,25 +726,33 @@ def statistical_model_wrapper(
         * **args**: Backend specific arguments.
         * **analysis** (``Text``, default ``"__unknown_analysis__"``): Unique identifier of the
           statistical model. This attribue will be used for book keeping purposes.
-        * **xsection** (``float``, default ``np.nan``): cross section, unit is determined by the
+        * **xsection** (``float``, default ``nan``): cross section, unit is determined by the
           user. Cross section value is only used for computing upper limit on excluded
           cross-section value.
+        * **ntoys** (``int``, default ``1000``): Number of toy samples for hypothesis testing.
+            (Only used for toy-based hypothesis testing)
         * **other keyword arguments**: Backend specific keyword inputs.
     """
 
     def wrapper(
-        *args, analysis: Text = "__unknown_analysis__", xsection: float = np.nan, **kwargs
+        *args,
+        analysis: Text = "__unknown_analysis__",
+        xsection: float = np.nan,
+        ntoys: int = 1000,
+        **kwargs,
     ) -> StatisticalModel:
         """
         Statistical Model Backend wrapper.
 
         Args:
-            args: Backend dependent arguments.
+            args: Backend specific arguments.
             analysis (``Text``, default ``"__unknown_analysis__"``): Unique identifier of the
               statistical model. This attribue will be used for book keeping purposes.
-            xsection (``float``, default ``np.nan``): cross section, unit is determined by the
+            xsection (``float``, default ``nan``): cross section, unit is determined by the
               user. Cross section value is only used for computing upper limit on excluded
               cross-section value.
+            ntoys (``int``, default ``1000``): Number of toy samples for hypothesis testing.
+              (Only used for toy-based hypothesis testing)
             kwargs: Backend specific keyword inputs.
 
         Raises:
@@ -795,7 +763,10 @@ def statistical_model_wrapper(
             Backend wraped with statistical model interface.
         """
         return StatisticalModel(
-            backend=func(*args, **kwargs), analysis=analysis, xsection=xsection
+            backend=func(*args, **kwargs),
+            analysis=analysis,
+            xsection=xsection,
+            ntoys=ntoys,
         )
 
     wrapper.__doc__ += (
