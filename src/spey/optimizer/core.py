@@ -13,6 +13,7 @@ def fit(
     initial_parameters: Optional[np.ndarray] = None,
     bounds: Optional[List[Tuple[float, float]]] = None,
     fixed_poi_value: Optional[float] = None,
+    logpdf: Optional[Callable[[List[float]], float]] = None,
     **options,
 ) -> Tuple[float, np.ndarray]:
 
@@ -23,12 +24,15 @@ def fit(
     if fixed_poi_value is not None:
         init_pars[model_configuration.poi_index] = fixed_poi_value
         constraints = [
-            {"type": "eq", "fun": lambda v: v[model_configuration.poi_index] - fixed_poi_value}
+            {
+                "type": "eq",
+                "fun": lambda v: v[model_configuration.poi_index] - fixed_poi_value,
+            }
         ]
 
     options.update({"poi_index": model_configuration.poi_index})
 
-    return minimize(
+    fun, x = minimize(
         func=func,
         init_pars=init_pars,
         do_grad=do_grad,
@@ -37,3 +41,5 @@ def fit(
         constraints=constraints,
         **options,
     )
+
+    return fun if logpdf is None else logpdf(x), x
