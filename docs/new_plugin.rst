@@ -38,7 +38,7 @@ inheriting it. The most basic implementation of a statistical model can be found
     >>>     version = "1.0.0"
     >>>     author = "John Smith <john.smith@smith.com>"
     >>>     spey_requires = ">=0.1.0,<0.2.0"
-    
+
     >>>     def config(
     ...         self, allow_negative_signal: bool = True, poi_upper_bound: float = 10.0
     ...     ):
@@ -63,6 +63,9 @@ inheriting it. The most basic implementation of a statistical model can be found
     ...          expected = spey.ExpectationType.observed,
     ...          **kwargs,
     ...      ):
+    >>>         ...
+
+    >>>     def get_sampler(self, pars):
     >>>         ...
 
 :class:`~spey.BackendBase` requires certain functionality from the statistical model to be 
@@ -104,12 +107,13 @@ by clicking on them.)
     and bounds should have the type of ``List[Tuple[float, float], ...]``.
 
 * :func:`~spey.BackendBase.get_logpdf_func`: This function returns a function that takes a NumPy array 
-  as an input which indicates the fit parameters (nuisance and POI) and returns the value of natural logarithm
-  of the likelihood function, :math:`\log\mathcal{L}(\mu, \theta)`. The input ``expected`` defines which data to be 
-  used in the absence of ``data`` input i.e. if ``expected=spey.ExpectationType.observed`` yields of observed data 
-  should be used to compute the likelihood but if ``expected=spey.ExpectationType.apriori`` background yields should
-  be used. This ensures the difference between prefit and postfit likelihoods. If ``data`` is provided, it is 
-  it is overwritten, this is for the case where Asimov data is in use.
+  as an input which indicates the fit parameters (nuisance, :math:`\theta`, and POI, :math:`\mu`) and returns the
+  value of natural logarithm of the likelihood function, :math:`\log\mathcal{L}(\mu, \theta)`. The input 
+  ``expected`` defines which data to be used in the absence of ``data`` input i.e. if 
+  ``expected=spey.ExpectationType.observed`` yields of observed data should be used to compute the likelihood but 
+  if ``expected=spey.ExpectationType.apriori`` background yields should be used. This ensures the difference between 
+  prefit and postfit likelihoods. If ``data`` is provided, it is it is overwritten, this is for the case where Asimov 
+  data is in use.
 
 * :func:`~spey.BackendBase.get_objective_function`: This function is crutial for the optimisation procedure. If 
   ``do_grad=True`` it is typically a function of :math:`-\log\mathcal{L}(\mu,\theta)` and its gradient 
@@ -128,12 +132,16 @@ by clicking on them.)
     If gradient is not available, in case of ``do_grad=True`` this function should raise 
     :obj:`NotImplementedError` so that spey can autimatically switch to ``do_grad=False`` mode.
 
-* :func:`~spey.BackendBase.generate_asimov_data`: This function is crutial for asymptotic hypothesis testing.
+* :func:`~spey.BackendBase.generate_asimov_data`: This function is crutial for **asymptotic** hypothesis testing.
   It needs to generate Asimov data with respect to the given ``poi_asimov``, :math:`\mu_A`. As before the input 
   ``expected`` defines which data to be used in the absence of ``data`` input i.e. if 
   ``expected=spey.ExpectationType.observed`` yields of observed data should be used to compute the likelihood 
   but if ``expected=spey.ExpectationType.apriori`` background yields should be used. This ensures the difference 
   between prefit and postfit likelihoods.
+
+* :func:`~spey.BackendBase.get_sampler`: This function is crutial for **toy** based hypothesis testing. It takes 
+  fit parameters (nuisance, :math:`\theta`, and POI, :math:`\mu`) as input and returns a callable function which 
+  takes number of samples to be generated as an input and returns sampled data in shape ``(n_samples, nbins)``.
 
 Beyond the basic functionality spey also allows integration of more complex likelihood computations to be held. Prior
 to calling :func:`~spey.BackendBase.get_objective_function` or :func:`~spey.BackendBase.generate_asimov_data` spey looks
@@ -145,16 +153,14 @@ clicking on the functions;
 .. hlist:: 
     :columns: 2
 
-    * :func:`~spey.BackendBase.negative_loglikelihood`
-    * :func:`~spey.BackendBase.asimov_negative_loglikelihood`
-    * :func:`~spey.BackendBase.minimize_negative_loglikelihood`
-    * :func:`~spey.BackendBase.minimize_asimov_negative_loglikelihood`
+    * :func:`~spey.BackendBase.negative_loglikelihood` (currently not used)
+    * :func:`~spey.BackendBase.asimov_negative_loglikelihood` (currently not used)
+    * :func:`~spey.BackendBase.minimize_negative_loglikelihood` (currently not used)
+    * :func:`~spey.BackendBase.minimize_asimov_negative_loglikelihood` (currently not used)
+    * :attr:`~spey.BackendBase.is_alive`
 
-Beyond the usage of asymptotic hypothesis testing spey also supports sampling from the statistical model which can be embeded
-via :func:`~spey.BackendBase.get_sampler` function which takes fit parameters as input and returns a callable function which 
-then takes number of samples as input and returns sampled outputs. Additionally, if implemented, spey can use the Hessian 
-of :math:`\log\mathcal{L}(\mu, \theta)` to compute variance on :math:`\mu` which can be implemented via 
-:func:`~spey.BackendBase.get_hessian_logpdf_func`.
+Additionally, if implemented, spey can use the Hessian of :math:`\log\mathcal{L}(\mu, \theta)` to compute variance 
+on :math:`\mu` which can be implemented via :func:`~spey.BackendBase.get_hessian_logpdf_func`.
 
 Identifying and installing your statistical model
 -------------------------------------------------
@@ -166,7 +172,8 @@ which will create an entry point for the statistical model class. So lets assume
 
     my_folder
     ├── my_subfolder
-    │   └── mystat_model # this includes the class MyStatisticalModel
+    │   ├── __init__.py
+    │   └── mystat_model.py # this includes class MyStatisticalModel
     └── setup.py
 
 ``setup.py`` file should include the following
@@ -174,13 +181,14 @@ which will create an entry point for the statistical model class. So lets assume
 .. code-block:: python3
 
     >>> from setuptools import setup
-    >>> stat_model_list = ["mystat_model = my_subfolder.mystat_model:MyStatisticalModel"]
+    >>> stat_model_list = ["my_stat_model = my_subfolder.mystat_model:MyStatisticalModel"]
     >>> setup(entry_points={"spey.backend.plugins": stat_model_list})
 
 where
 
 * ``stat_model_list`` is a list of statistical model s you would like to register.
-* ``mystat_model`` is the short name for statistical model 
+* ``my_stat_model`` is the short name for statistical model. This should be the same as ``name`` attribute
+  of the class. Spey will identify the backend with this name.
 * ``my_subfolder.mystat_model`` is the path to your statistical model class, `MyStatisticalModel`_.
 
 Note that ``stat_model_list`` can include as many implementation as desired. After this step is complete all one needs to do
