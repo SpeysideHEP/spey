@@ -93,6 +93,11 @@ class SimplifiedLikelihoodInterface(BackendBase):
         return self._model
 
     @property
+    def is_alive(self) -> bool:
+        """Returns True if at least one bin has non-zero signal yield."""
+        return self.model.isAlive
+
+    @property
     def third_moment_expansion(self) -> expansion_output:
         """Get third moment expansion"""
         if self._third_moment_expansion is None:
@@ -269,6 +274,8 @@ class SimplifiedLikelihoodInterface(BackendBase):
         self,
         poi_asimov: float = 0.0,
         expected: ExpectationType = ExpectationType.observed,
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> np.ndarray:
         r"""
@@ -287,6 +294,9 @@ class SimplifiedLikelihoodInterface(BackendBase):
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
 
+            init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
+            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
+              the optimiser.
             kwargs: keyword arguments for the optimiser.
 
         Returns:
@@ -320,7 +330,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
             model_configuration=model.config(),
             do_grad=True,
             fixed_poi_value=poi_asimov,
-            initial_parameters=kwargs.get("init_pars", None),
+            initial_parameters=init_pars,
             bounds=par_bounds,
             **kwargs,
         )
