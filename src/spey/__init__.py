@@ -52,6 +52,11 @@ def AvailableBackends() -> List[Text]:
     with ``spey`` package. To enable other backends, please see the relevant section
     in the documentation.
 
+    .. note::
+
+        This function does not validate the backend. For backend validation please use
+        :func:`~spey.get_backend` function.
+
     Returns:
         ``List[Text]``: list of names of available backends.
     """
@@ -119,6 +124,13 @@ def get_backend(name: Text) -> Callable[[Any, ...], StatisticalModel]:
         assert hasattr(
             statistical_model, "spey_requires"
         ), "Backend does not have `'spey_requires'` attribute."
+
+        if getattr(statistical_model, "name", False):
+            assert (
+                statistical_model.name == name
+            ), "The identity of the statistical model is wrongly set."
+        else:
+            setattr(statistical_model, "name", name)
 
         if Version(version()) not in SimpleSpec(statistical_model.spey_requires):
             raise PluginError(
