@@ -40,7 +40,7 @@ setup(
     packages=find_packages(where="src"),
     entry_points={
         "spey.backend.plugins": [
-            "simplified_likelihoods = spey.backends:SimplifiedLikelihoodInterface"
+            "simplified_likelihoods = spey.backends.simplifiedlikelihood_backend:SimplifiedLikelihoodInterface",
         ]
     },
     install_requires=requirements,
