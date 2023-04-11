@@ -5,6 +5,7 @@ SPHINXBUILD   = sphinx-build
 PAPER         =
 BUILDDIR      = _build
 GENERATEDDIR  = _generated
+STATICDIR     = _static
 
 # Internal variables.
 PAPEROPT_a4     = -D latex_paper_size=a4
@@ -47,12 +48,16 @@ help:
 
 .PHONY: clean
 clean:
-	rm -rf $(BUILDDIR)/*
-	rm -rf $(GENERATEDDIR)/*
+	rm -rf $(BUILDDIR)
+	rm -rf $(GENERATEDDIR)
+	rm -rf $(STATICDIR)
 
 
 .PHONY: html
 html:
+	if [ ! -d $(BUILDDIR) ]; then mkdir $(BUILDDIR); fi
+	if [ ! -d $(GENERATEDDIR) ]; then mkdir $(GENERATEDDIR); fi
+	if [ ! -d $(STATICDIR) ]; then mkdir $(STATICDIR); fi
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	mkdir -p $(BUILDDIR)/html/docs && rsync -r $(BUILDDIR)/html/_static $(BUILDDIR)/html/docs/
 	@echo

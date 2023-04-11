@@ -31,10 +31,10 @@ jobs:
 
       - name: Compile Docs
         run: |
-          cd docs; mkdir _build _generated _static; make clean; make html
+          cd docs; make clean; make html; cd ..
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
-          publish_dir: ./docs/_build
+          publish_dir: ./docs/_build/html/
           github_token: ${{ secrets.GITHUB_TOKEN }}
