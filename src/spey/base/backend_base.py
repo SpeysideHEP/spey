@@ -163,42 +163,21 @@ class BackendBase(ABC):
         """
         raise NotImplementedError("This method has not been implemented")
 
-    def generate_asimov_data(
-        self,
-        poi_asimov: float = 0.0,
-        expected: ExpectationType = ExpectationType.observed,
-        init_pars: Optional[List[float]] = None,
-        par_bounds: Optional[List[Tuple[float, float]]] = None,
-        **kwargs,
-    ) -> Union[List[float], np.ndarray]:
+    @abstractmethod
+    def expected_data(self, pars: List[float]) -> List[float]:
         r"""
-        Backend specific method to generate Asimov data.
+        Compute the expected value of the statistical model. This function is mainly used to 
+        generate Asimov data within the package, see 
+        :func:`~spey.StatisticalModel.generate_asimov_data`.
 
         Args:
-            poi_asimov (``float``, default ``0.0``): parameter of interest where the Asimov data
-              will be computed.
-            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
-              p-values to be computed.
-
-              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
-                (default).
-              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
-                the truth.
-              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
-                prescription which means that the SM will be assumed to be the truth.
-
-            init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
-            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
-              the optimiser.
-            kwargs: keyword arguments for the optimiser.
+            pars (``List[float]``): nuisance, :math:`\theta` and parameter of interest,
+              :math:`\mu`.
 
         Returns:
-            ``Union[List[float], np.ndarray]``:
-            Asimov data.
+            ``List[float]``:
+            Expected data of the statistical model
         """
-        raise NotImplementedError("This method has not been implemented")
 
     def negative_loglikelihood(
         self,

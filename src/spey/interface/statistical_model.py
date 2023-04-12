@@ -96,7 +96,7 @@ class StatisticalModel(HypothesisTestingBase):
     @property
     def is_asymptotic_calculator_available(self) -> bool:
         """Check if Asymptotic calculator is available for the backend"""
-        return _module_check(self.backend, "generate_asimov_data") or _module_check(
+        return _module_check(self.backend, "expected_data") or _module_check(
             self.backend,
             ["asimov_negative_loglikelihood", "minimize_asimov_negative_loglikelihood"],
         )
@@ -309,6 +309,74 @@ class StatisticalModel(HypothesisTestingBase):
 
         return -logpdf if return_nll else np.exp(logpdf)
 
+    def generate_asimov_data(
+        self,
+        expected: ExpectationType = ExpectationType.observed,
+        test_statistic: Text = "qtilde",
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
+        **kwargs,
+    ) -> List[float]:
+        r"""
+        Generate Asimov data for the statistical model. This function generates a set of parameters
+        (nuisance and poi i.e. :math:`\theta` and :math:`\mu`) with respect to ``test_statistic`` input
+        which determines the value of :math:`\mu` i.e. if ``test_statistic="q0"`` :math:`\mu=1` and 0 for
+        anything else. The objective function is used to optimize the statistical model to find the fit
+        parameters for fixed poi optimisation. Then fit parameters are used to retreive the expected
+        data through :func:`~spey.BackendBase.expected_data` function.
+
+        Args:
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+            test_statistic (``Text``, default ``"qtilde"``): test statistics.
+
+              * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
+                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
+                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+
+                .. warning::
+
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence ``allow_negative_signal``
+                    assumed to be ``False``. If this function has been executed by user, ``spey``
+                    assumes that this is taken care of throughout the external code consistently.
+                    Whilst computing p-values or upper limit on :math:`\mu` through ``spey`` this
+                    is taken care of automatically in the backend.
+
+              * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
+                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
+              * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
+                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+
+            init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
+            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
+              the optimiser.
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            ``List[float]``:
+            Asimov data
+        """
+        fit_opts = self.prepare_for_fit(expected=expected)
+
+        _, fit_pars = fit(
+            **fit_opts,
+            initial_parameters=init_pars,
+            bounds=par_bounds,
+            fixed_poi_value=1.0 if test_statistic == "q0" else 0.0,
+            **kwargs,
+        )
+
+        return self.backend.expected_data(fit_pars)
+
     def asimov_likelihood(
         self,
         poi_test: float = 1.0,
@@ -386,18 +454,17 @@ class StatisticalModel(HypothesisTestingBase):
             >>> # L_A with qtilde:  2.2866167339701358
             >>> # L_A with q0:  2.2829074109879595
         """
-        data = self.backend.generate_asimov_data(
-            poi_asimov=1.0 if test_statistics == "q0" else 0.0,
-            expected=expected,
-            init_pars=init_pars,
-            par_bounds=par_bounds,
-        )
-
         return self.likelihood(
             poi_test=poi_test,
             expected=expected,
             return_nll=return_nll,
-            data=data,
+            data=self.generate_asimov_data(
+                expected=expected,
+                test_statistic=test_statistics,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
+                **kwargs,
+            ),
             init_pars=init_pars,
             par_bounds=par_bounds,
             **kwargs,
@@ -543,18 +610,17 @@ class StatisticalModel(HypothesisTestingBase):
         """
         allow_negative_signal: bool = True if test_statistics in ["q", "qmu"] else False
 
-        data = self.backend.generate_asimov_data(
-            poi_asimov=1.0 if test_statistics == "q0" else 0.0,
-            expected=expected,
-            init_pars=init_pars,
-            par_bounds=par_bounds,
-        )
-
         return self.maximize_likelihood(
             return_nll=return_nll,
             expected=expected,
             allow_negative_signal=allow_negative_signal,
-            data=data,
+            data=self.generate_asimov_data(
+                expected=expected,
+                test_statistic=test_statistics,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
+                **kwargs,
+            ),
             init_pars=init_pars,
             par_bounds=par_bounds,
             **kwargs,
