@@ -10,7 +10,6 @@ import numpy as np
 from spey.interface.statistical_model import StatisticalModel
 from spey.utils import ExpectationType
 from spey.system.exceptions import AnalysisQueryError, NegativeExpectedYields
-from spey.base.recorder import Recorder
 from spey.base.hypotest_base import HypothesisTestingBase
 from spey.optimizer.core import fit
 from spey.base.model_config import ModelConfig
@@ -21,29 +20,32 @@ __all__ = ["UnCorrStatisticsCombiner"]
 class UnCorrStatisticsCombiner(HypothesisTestingBase):
     """
     Module to combine **uncorrelated** statistical models. It takes serries of
-    :class:`~spey.StatisticalModel` as input. These statistical models does not
+    :obj:`~spey.StatisticalModel` object as input. These statistical models does not
     need to have same backend. However, this class assumes that all the input
     statistical model's are completely independent from each other.
 
     .. warning::
 
         :obj:`~spey.UnCorrStatisticsCombiner` assumes that all input are uncorrelated and
-        non of the statistical models posesses the same set of nuisance parameters.
+        non of the statistical models posesses the same set of nuisance parameters. Thus 
+        each statistical model is optimised independently.
+
+    Args:
+        input arguments (:obj:`~spey.StatisticalModel`): Uncorrelated statistical models
+        ntoys (``int``, default ``1000``): Number of toy samples for hypothesis testing.
+          (Only used for toy-based hypothesis testing)
 
     Raises:
         :obj:`~spey.system.exceptions.AnalysisQueryError`: If multiple :class:`~spey.StatisticalModel`
           has the same :attr:`~spey.StatisticalModel.analysis` attribute.
         :obj:`TypeError`: If the input type is not :class:`~spey.StatisticalModel`.
-
-    Returns:
-        :obj:`~spey.UnCorrStatisticsCombiner`:
     """
 
-    __slots__ = ["_statistical_models", "_recorder"]
+    __slots__ = ["_statistical_models"]
 
-    def __init__(self, *args):
+    def __init__(self, *args, ntoys: int = 1000):
+        super().__init__(ntoys=ntoys)
         self._statistical_models = []
-        self._recorder = Recorder()
         for arg in args:
             self.append(arg)
 
@@ -117,10 +119,10 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
             ``float``:
             minimum poi value that the combined stack can take.
         """
-        return max(model.backend.model.minimum_poi for model in self)
+        return max(model.backend.config().minimum_poi for model in self)
 
     @property
-    def isAlive(self) -> bool:
+    def is_alive(self) -> bool:
         """
         Returns true if there is at least one statistical model with at least
         one non zero bin with signal yield.
@@ -128,7 +130,17 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
         Returns:
             ``bool``
         """
-        return any(model.isAlive for model in self)
+        return any(model.is_alive for model in self)
+
+    @property
+    def is_asymptotic_calculator_available(self) -> bool:
+        """Check if Asymptotic calculator is available for the backend"""
+        return all(model.is_asymptotic_calculator_available for model in self)
+
+    @property
+    def is_toy_calculator_available(self) -> bool:
+        """Check if Toy calculator is available for the backend"""
+        return False
 
     def __getitem__(self, item: Union[Text, int]) -> StatisticalModel:
         """Retrieve a statistical model"""
@@ -180,6 +192,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
         poi_test: float = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
+        data: Optional[Dict[Text, List[float]]] = None,
         statistical_model_options: Optional[Dict[Text, Dict]] = None,
         **kwargs,
     ) -> float:
@@ -203,6 +216,9 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
 
             return_nll (``bool``, default ``True``): If ``True``, returns negative log-likelihood value.
               if ``False`` returns likelihood value.
+            data (``Dict[Text, List[float]]``, default ``None``): Input data to be used for fit. It needs
+              to be given as a dictionary where the key argument is the name of the analysis and item is
+              the statistical model specific data.
             statistical_model_options (``Optional[Dict[Text, Dict]]``, default ``None``): backend specific
               options. The dictionary key needs to be the backend name and the item needs to be the dictionary
               holding the keyword arguments specific to that particular backend.
@@ -218,6 +234,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
             value of the likelihood of the stacked statistical model.
         """
         statistical_model_options = statistical_model_options or {}
+        data = data or {}
 
         nll = 0.0
         for statistical_model in self:
@@ -226,11 +243,13 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
             current_kwargs.update(
                 statistical_model_options.get(str(statistical_model.backend_type), {})
             )
+            current_data = data.get(statistical_model.analysis, None)
 
             try:
                 nll += statistical_model.likelihood(
                     poi_test=poi_test,
                     expected=expected,
+                    data=current_data,
                     **current_kwargs,
                     **kwargs,
                 )
@@ -245,6 +264,88 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
                 break
 
         return nll if return_nll or np.isnan(nll) else np.exp(-nll)
+
+    def generate_asimov_data(
+        self,
+        expected: ExpectationType = ExpectationType.observed,
+        test_statistic: Text = "qtilde",
+        statistical_model_options: Optional[Dict[Text, Dict]] = None,
+        **kwargs,
+    ) -> Dict[Text, List[float]]:
+        r"""
+        Generate Asimov data for the statistical model. This function calls
+        :func:`~spey.StatisticalModel.generate_asimov_data` function for each statistical model with
+        appropriate ``statistical_model_options`` and generates Asimov data for each statistical
+        model independently.
+
+        Args:
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            test_statistic (``Text``, default ``"qtilde"``): test statistics.
+
+              * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
+                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
+                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+
+                .. warning::
+
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence ``allow_negative_signal``
+                    assumed to be ``False``. If this function has been executed by user, ``spey``
+                    assumes that this is taken care of throughout the external code consistently.
+                    Whilst computing p-values or upper limit on :math:`\mu` through ``spey`` this
+                    is taken care of automatically in the backend.
+
+              * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
+                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
+              * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
+                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+
+            statistical_model_options (``Dict[Text, Dict]``, default ``None``): backend specific
+              options. The dictionary key needs to be the backend name and the item needs to be the dictionary
+              holding the keyword arguments specific to that particular backend.
+
+              .. code-block:: python3
+
+                >>> statistical_model_options = {"simplified_likelihoods" : {"init_pars" : [1., 3., 4.]}}
+
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            ``Dict[Text, List[float]]``:
+            Returns a dictionary for data specific to each analysis. keywords will be analysis names
+            and the items are data.
+        """
+        statistical_model_options = statistical_model_options or {}
+
+        data = {}
+        for statistical_model in self:
+            current_kwargs = {}
+            current_kwargs.update(
+                statistical_model_options.get(str(statistical_model.backend_type), {})
+            )
+
+            data.update(
+                {
+                    statistical_model.analysis: statistical_model.generate_asimov_data(
+                        expected=expected,
+                        test_statistic=test_statistic,
+                        **current_kwargs,
+                        **kwargs,
+                    )
+                }
+            )
+
+        return data
 
     def asimov_likelihood(
         self,
@@ -307,34 +408,26 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
             ``float``:
             likelihood computed for asimov data
         """
-        statistical_model_options = statistical_model_options or {}
-
-        nll = 0.0
-        for statistical_model in self:
-
-            current_kwargs = {}
-            current_kwargs.update(
-                statistical_model_options.get(str(statistical_model.backend_type), {})
-            )
-
-            nll += statistical_model.asimov_likelihood(
-                poi_test=poi_test,
+        return self.likelihood(
+            poi_test=poi_test,
+            expected=expected,
+            return_nll=return_nll,
+            data=self.generate_asimov_data(
                 expected=expected,
-                test_statistics=test_statistics,
-                **current_kwargs,
+                test_statistic=test_statistics,
+                statistical_model_options=statistical_model_options,
                 **kwargs,
-            )
-
-            if np.isnan(nll):
-                break
-
-        return nll if return_nll or np.isnan(nll) else np.exp(-nll)
+            ),
+            statistical_model_options=statistical_model_options,
+            **kwargs,
+        )
 
     def maximize_likelihood(
         self,
         return_nll: bool = True,
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = True,
+        data: Optional[Dict[Text, List[float]]] = None,
         initial_muhat_value: Optional[float] = None,
         par_bounds: Optional[List[Tuple[float, float]]] = None,
         statistical_model_options: Optional[Dict[Text, Dict]] = None,
@@ -360,6 +453,9 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
 
             allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
               value will be allowed to be negative.
+            data (``Dict[Text, List[float]]``, default ``None``): Input data to be used for fit. It needs
+              to be given as a dictionary where the key argument is the name of the analysis and item is
+              the statistical model specific data.
             initial_muhat_value (``float``, default ``None``): Initialisation for the :math:`\hat\mu` for
               the optimiser. If ``None`` the initial value will be estimated by weighted combination of
               :math:`\hat\mu_i` where :math:`i` stands for the statistical models within the stack.
@@ -387,6 +483,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
             :math:`\hat\mu` value and maximum value of the likelihood.
         """
         statistical_model_options = statistical_model_options or {}
+        data = data or {}
 
         # muhat initial value estimation in gaussian limit
         mu_init = initial_muhat_value or 0.0
@@ -434,7 +531,8 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
                 poi_test if isinstance(poi_test, float) else poi_test[0],
                 expected=expected,
                 return_nll=True,
-                **statistical_model_options,
+                data=data,
+                statistical_model_options=statistical_model_options,
                 **optimiser_options,
             )
 
@@ -523,12 +621,20 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
 
         statistical_model_options = statistical_model_options or {}
 
+        data = self.generate_asimov_data(
+            expected=expected,
+            test_statistic=test_statistics,
+            statistical_model_options=statistical_model_options,
+            **optimiser_options,
+        )
+
         def twice_nll(poi_test: Union[float, np.ndarray]) -> float:
             """Function to compute twice negative log-likelihood for a given poi test"""
-            return 2.0 * self.asimov_likelihood(
+            return 2.0 * self.likelihood(
                 poi_test if isinstance(poi_test, float) else poi_test[0],
                 expected=expected,
-                **statistical_model_options,
+                data=data,
+                statistical_model_options=statistical_model_options,
                 **optimiser_options,
             )
 
