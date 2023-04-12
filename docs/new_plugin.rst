@@ -57,12 +57,7 @@ inheriting it. The most basic implementation of a statistical model can be found
     ...     ):
     >>>         ...
     
-    >>>     def generate_asimov_data(
-    ...          self,
-    ...          poi_asimov = 0.0,
-    ...          expected = spey.ExpectationType.observed,
-    ...          **kwargs,
-    ...      ):
+    >>>     def expected_data(self, pars):
     >>>         ...
 
     >>>     def get_sampler(self, pars):
@@ -132,16 +127,14 @@ by clicking on them.)
     If gradient is not available, in case of ``do_grad=True`` this function should raise 
     :obj:`NotImplementedError` so that spey can autimatically switch to ``do_grad=False`` mode.
 
-* :func:`~spey.BackendBase.generate_asimov_data`: This function is crutial for **asymptotic** hypothesis testing.
-  It needs to generate Asimov data with respect to the given ``poi_asimov``, :math:`\mu_A`. As before the input 
-  ``expected`` defines which data to be used in the absence of ``data`` input i.e. if 
-  ``expected=spey.ExpectationType.observed`` yields of observed data should be used to compute the likelihood 
-  but if ``expected=spey.ExpectationType.apriori`` background yields should be used. This ensures the difference 
-  between prefit and postfit likelihoods.
+* :func:`~spey.BackendBase.expected_data`: This function is crutial for **asymptotic** hypothesis testing.
+  This function is used to generate expected value of the data with the given fit parameters i.e. :math:`\theta`
+  and :math:`\mu`. This function is mainly used to generate Asimov data through 
+  :func:`~spey.StatisticalModel.generate_asimov_data` function.
 
-* :func:`~spey.BackendBase.get_sampler`: This function is crutial for **toy** based hypothesis testing. It takes 
-  fit parameters (nuisance, :math:`\theta`, and POI, :math:`\mu`) as input and returns a callable function which 
-  takes number of samples to be generated as an input and returns sampled data in shape ``(n_samples, nbins)``.
+* :func:`~spey.BackendBase.get_sampler` (*optional*): This function is crutial for **toy** based hypothesis testing. 
+  It takes fit parameters (nuisance, :math:`\theta`, and POI, :math:`\mu`) as input and returns a callable function 
+  which takes number of samples to be generated as an input and returns sampled data in shape ``(n_samples, nbins)``.
 
 Beyond the basic functionality spey also allows integration of more complex likelihood computations to be held. Prior
 to calling :func:`~spey.BackendBase.get_objective_function` or :func:`~spey.BackendBase.generate_asimov_data` spey looks
