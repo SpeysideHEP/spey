@@ -270,6 +270,20 @@ class SimplifiedLikelihoodInterface(BackendBase):
             third_moment_expansion=self.third_moment_expansion,
         )
 
+    def expected_data(self, pars: List[float]) -> List[float]:
+        r"""
+        Compute the expected value of the statistical model
+
+        Args:
+            pars (``List[float]``): nuisance, :math:`\theta` and parameter of interest,
+              :math:`\mu`.
+
+        Returns:
+            ``List[float]``:
+            Expected data of the statistical model
+        """
+        return self.model.background + pars[1:]
+
     def generate_asimov_data(
         self,
         poi_asimov: float = 0.0,
