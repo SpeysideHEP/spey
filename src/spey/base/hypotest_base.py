@@ -4,7 +4,7 @@ tools to compute exclusion limits and POI upper limits
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple, Callable, List, Text, Union, Dict
+from typing import Optional, Tuple, Callable, List, Text, Union
 from functools import partial
 import tqdm
 import numpy as np
@@ -61,40 +61,6 @@ class HypothesisTestingBase(ABC):
     def is_toy_calculator_available(self) -> bool:
         """Check if Toy calculator is available for the backend"""
         # This method has to be a property
-
-    @abstractmethod
-    def prepare_for_fit(
-        self,
-        data: Optional[Union[List[float], np.ndarray]] = None,
-        expected: ExpectationType = ExpectationType.observed,
-        allow_negative_signal: Optional[bool] = True,
-    ) -> Dict:
-        r"""
-        Prepare backend for the optimiser.
-
-        Args:
-            data (``Union[List[float], np.ndarray]``, default ``None``): input data that to fit
-            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
-              p-values to be computed.
-
-              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
-                (default).
-              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
-                the truth.
-              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
-                prescription which means that the SM will be assumed to be the truth.
-
-            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
-              value will be allowed to be negative.
-
-        Returns:
-            ``Dict``:
-            Dictionary of necessary toolset for the fit. objective function, ``"func"``, use gradient
-            boolean, ``"do_grad"`` and function to compute negative log-likelihood with given
-            fit parameters, ``"nll"``.
-        """
 
     @abstractmethod
     def likelihood(
@@ -277,7 +243,6 @@ class HypothesisTestingBase(ABC):
             value of :math:`\hat\mu` and maximum likelihood.
         """
 
-    @abstractmethod
     def fixed_poi_sampler(
         self,
         poi_test: float,
@@ -319,6 +284,7 @@ class HypothesisTestingBase(ABC):
             Sampled data with shape of ``(size, number of bins)`` or callable function to sample from
             directly.
         """
+        raise NotImplementedError("This method has not been implemented")
 
     def chi2(
         self,
@@ -365,8 +331,6 @@ class HypothesisTestingBase(ABC):
         self,
         expected: ExpectationType = ExpectationType.observed,
         test_statistics: Text = "qtilde",
-        init_pars: Optional[List[float]] = None,
-        par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
     ) -> Tuple[
         Tuple[float, float],
@@ -409,10 +373,11 @@ class HypothesisTestingBase(ABC):
                 * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
                 of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
 
-            init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
-            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
-              the optimiser.
             kwargs: keyword arguments for the optimiser.
+
+              * **init_pars** (``List[float]``, default ``None``): initial parameters for the optimiser
+              * **par_bounds** (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
+                the optimiser.
 
         Returns:
             :obj:`Tuple[ Tuple[float, float], Callable[[float], float], Tuple[float, float], Callable[[float], float]]`:
@@ -424,15 +389,11 @@ class HypothesisTestingBase(ABC):
         muhat, nll = self.maximize_likelihood(
             expected=expected,
             allow_negative_signal=allow_negative_signal,
-            init_pars=init_pars,
-            par_bounds=par_bounds,
             **kwargs,
         )
         muhatA, nllA = self.maximize_asimov_likelihood(
             expected=expected,
             test_statistics=test_statistics,
-            init_pars=init_pars,
-            par_bounds=par_bounds,
             **kwargs,
         )
 
@@ -440,8 +401,6 @@ class HypothesisTestingBase(ABC):
             return -self.likelihood(
                 poi_test=float(mu) if isinstance(mu, (float, int)) else mu[0],
                 expected=expected,
-                init_pars=init_pars,
-                par_bounds=par_bounds,
                 **kwargs,
             )
 
@@ -450,8 +409,6 @@ class HypothesisTestingBase(ABC):
                 poi_test=float(mu) if isinstance(mu, (float, int)) else mu[0],
                 expected=expected,
                 test_statistics=test_statistics,
-                init_pars=init_pars,
-                par_bounds=par_bounds,
                 **kwargs,
             )
 
@@ -507,6 +464,10 @@ class HypothesisTestingBase(ABC):
                 of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
 
             kwargs: keyword arguments for the optimiser.
+
+              * **init_pars** (``List[float]``, default ``None``): initial parameters for the optimiser
+              * **par_bounds** (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
+                the optimiser.
 
         Returns:
             :obj:`float`:
@@ -588,6 +549,10 @@ class HypothesisTestingBase(ABC):
               * ``toy``: Uses generated toy samples to compute p-values.
 
             kwargs: keyword arguments for the optimiser.
+
+              * **init_pars** (``List[float]``, default ``None``): initial parameters for the optimiser
+              * **par_bounds** (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
+                the optimiser.
 
         Raises:
           :obj:`~spey.system.exceptions.CalculatorNotAvailable`: If calculator is not available.
@@ -744,6 +709,10 @@ class HypothesisTestingBase(ABC):
                     can be seen via prefit, :obj:`~spey.ExpectationType.apriori`, computation.
 
             kwargs: keyword arguments for the optimiser.
+
+              * **init_pars** (``List[float]``, default ``None``): initial parameters for the optimiser
+              * **par_bounds** (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
+                the optimiser.
 
         Returns:
             ``Tuple[float, float, List[float], List[float]]``:

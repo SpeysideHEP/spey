@@ -14,6 +14,10 @@ from spey.optimizer.core import fit
 __all__ = ["StatisticalModel", "statistical_model_wrapper"]
 
 
+def __dir__():
+    return __all__
+
+
 def _module_check(backend: BackendBase, func_name: Union[Text, List[Text]]) -> bool:
     """Check if the member function is implemented in backend or in plugin"""
     func_name = [func_name] if isinstance(func_name, str) else func_name
@@ -337,6 +341,7 @@ class StatisticalModel(HypothesisTestingBase):
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
+            
             test_statistic (``Text``, default ``"qtilde"``): test statistics.
 
               * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
