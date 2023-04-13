@@ -38,7 +38,7 @@ def pvalues(
     CLsb = sig_plus_bkg_distribution.pvalue(delta_test_statistic)
     CLb = bkg_only_distribution.pvalue(delta_test_statistic)
     with warnings.catch_warnings(record=True):
-        CLs = np.true_divide(CLsb, CLb )
+        CLs = np.true_divide(CLsb, CLb)
     return CLsb, CLb, CLs if CLb != 0.0 else 0.0
 
 
