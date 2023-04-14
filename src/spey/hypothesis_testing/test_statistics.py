@@ -214,7 +214,7 @@ def compute_teststatistics(
             " This might indicate unsuccessfull execution of the optimizer "
             " please check your settings. Clipping the values, results might be effected!"
             f"qmu={qmu_}, qmuA={qmuA}: poi={mu}, muhat={muhat}, min_nll={min_nll}, "
-            f"muhatA={muhatA}, min_nllA={min_nllA}",
+            f"muhatA={muhatA}, min_nllA={min_nllA}, logpdf(mu)={logpdf(mu)}, logpdfA(mu)={asimov_logpdf(mu)}",
             category=RuntimeWarning,
         )
     sqrt_qmu = np.sqrt(np.clip(qmu_, 0.0, None))
