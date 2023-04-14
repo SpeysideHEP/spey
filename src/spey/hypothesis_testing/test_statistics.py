@@ -1,5 +1,4 @@
 from typing import Callable, Text, Tuple
-import warnings
 import numpy as np
 
 from spey.system.exceptions import UnknownTestStatistics
@@ -21,7 +20,9 @@ def _tmu_tilde(
     :param logpdf: logpdf function which takes mu as an input
     :return: The calculated test statistic
     """
-    return -2.0 * (logpdf(mu) - (max_logpdf if muhat >= 0.0 else logpdf(0.0)))
+    return np.clip(
+        -2.0 * (logpdf(mu) - (max_logpdf if muhat >= 0.0 else logpdf(0.0))), 0.0, None
+    )
 
 
 def _tmu(mu: float, max_logpdf: float, logpdf: Callable[[float], float]) -> float:
@@ -35,7 +36,7 @@ def _tmu(mu: float, max_logpdf: float, logpdf: Callable[[float], float]) -> floa
     :param logpdf: logpdf function which takes mu as an input
     :return: The calculated test statistic
     """
-    return -2.0 * (logpdf(mu) - max_logpdf)
+    return np.clip(-2.0 * (logpdf(mu) - max_logpdf), 0.0, None)
 
 
 def qmu_tilde(
@@ -207,18 +208,7 @@ def compute_teststatistics(
     # max_logpdf = -min_nll
     qmu_ = teststat_func(mu, muhat, -min_nll, logpdf)
     qmuA = teststat_func(mu, muhatA, -min_nllA, asimov_logpdf)
-    # TODO: this is a temporary fix, more permanent fix is needed!
-    if qmu_ < 0.0 or qmuA < 0.0:
-        warnings.warn(
-            message="Encountered negative values for test statistics."
-            " This might indicate unsuccessfull execution of the optimizer "
-            " please check your settings. Clipping the values, results might be effected!"
-            f"qmu={qmu_}, qmuA={qmuA}: poi={mu}, muhat={muhat}, min_nll={min_nll}, "
-            f"muhatA={muhatA}, min_nllA={min_nllA}, logpdf(mu)={logpdf(mu)}, logpdfA(mu)={asimov_logpdf(mu)}",
-            category=RuntimeWarning,
-        )
-    sqrt_qmu = np.sqrt(np.clip(qmu_, 0.0, None))
-    sqrt_qmuA = np.sqrt(np.clip(qmuA, 0.0, None))
+    sqrt_qmu, sqrt_qmuA = np.sqrt(qmu_), np.sqrt(qmuA)
 
     if teststat in ["q", "q0", "qmu"]:
         delta_teststat = sqrt_qmu - sqrt_qmuA
