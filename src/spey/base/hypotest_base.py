@@ -752,6 +752,11 @@ class HypothesisTestingBase(ABC):
         r"""
         Compute the upper limit for the parameter of interest i.e. :math:`\mu`.
 
+        .. note::
+
+            This function uses ``"qtilde"`` test statistic which means signal values are always
+            assumed to be positive i.e. :math:`\hat\mu>0`.
+
         Args:
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
