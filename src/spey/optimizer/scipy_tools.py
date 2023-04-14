@@ -23,7 +23,7 @@ def minimize(
         maxiter = 10000
         disp = False
         tol = 1e-6
-        ntrials = 3
+        ntrials = 1
 
     :param func (`Callable[[np.ndarray], float]`): the objective function to be minimized.
     :param init_pars (`List[float]`): initial set of parameters
@@ -38,7 +38,7 @@ def minimize(
 
     method = options.pop("method", "SLSQP")
     tol = options.pop("tol", 1e-6)
-    ntrials = max(options.pop("ntrials", 3), 1)
+    ntrials = max(options.pop("ntrials", 1), 1)
     poi_index = options.pop("poi_index")
 
     options.update({"maxiter": options.get("maxiter", 10000)})
@@ -66,7 +66,8 @@ def minimize(
             # be bounds that lead to negative yields in the statistical model, e.g. Asimov data,
             # background + mu * signal etc.
             warnings.warn(
-                message=opt.message + "\nspey::Expanding the bounds.", category=RuntimeWarning
+                message=opt.message + "\nspey::Expanding the bounds.",
+                category=RuntimeWarning,
             )
             init_pars = opt.x
             for bdx, bound in enumerate(bounds):

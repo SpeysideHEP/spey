@@ -3,13 +3,16 @@
 from typing import Callable, Tuple, Text, List, Union
 from functools import partial
 import warnings, scipy
-import numpy as np
 
 from spey.hypothesis_testing.test_statistics import compute_teststatistics
 from spey.utils import ExpectationType
 from .asymptotic_calculator import compute_asymptotic_confidence_level
 
 __all__ = ["find_poi_upper_limit", "find_root_limits"]
+
+
+def __dir__():
+    return __all__
 
 
 def find_root_limits(
@@ -138,7 +141,6 @@ def find_poi_upper_limit(
                 ],
             )
         )
-        # always get the median
         return pvalue[pvalue_idx] - confidence_level
 
     result = []
