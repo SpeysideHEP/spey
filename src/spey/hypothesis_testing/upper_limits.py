@@ -3,6 +3,7 @@
 from typing import Callable, Tuple, Text, List, Union
 from functools import partial
 import warnings, scipy
+import numpy as np
 
 from spey.hypothesis_testing.test_statistics import compute_teststatistics
 from spey.utils import ExpectationType
@@ -15,12 +16,49 @@ def __dir__():
     return __all__
 
 
+class ComputerWrapper:
+    """
+    Wrapper for the computer function to track inputs and outputs
+
+    Args:
+        computer (``Callable[[float], float]``): desired function to be computed
+    """
+
+    def __init__(self, computer: Callable[[float], float]):
+        self.computer = computer
+        self._results = []
+
+    def __call__(self, value: float) -> float:
+        """Compute the input function and return its value"""
+        self._results.append((value, self.computer(value)))
+        return self[-1]
+
+    def __getitem__(self, item: int) -> float:
+        """Return result"""
+        return self._results[item][1]
+
+    def get_value(self, index: int) -> float:
+        """
+        Get input value of the execution
+
+        Args:
+            index (``int``): index of the execution
+
+        Returns:
+            ``float``:
+            returns the input value of the execution
+        """
+        return self._results[index][0]
+
+
 def find_root_limits(
     computer: Callable[[float], float],
     loc: float = 0.0,
     low_ini: float = 1.0,
     hig_ini: float = 1.0,
-) -> Tuple[float, float]:
+    low_bound: float = 1e-10,
+    hig_bound: float = 1e5,
+) -> Tuple[ComputerWrapper, ComputerWrapper]:
     """
     Find upper and lower bracket limits for the root finding algorithm
 
@@ -29,23 +67,30 @@ def find_root_limits(
         loc (``float``, default ``0.0``): location of the root e.g. ``0.95`` for :math:`1-CL_s` value
         low_ini (``float``, default ``1.0``): Initial value for low bracket
         hig_ini (``float``, default ``1.0``): initial value for high bracket
+        low_bound (``float``, default ``1e-10``): Stop the execution below this value
+        hig_bound (``float``, default ``1e5``): Stop the execution above this value
 
     Returns:
-        ``Tuple[float, float]``:
-        Returns lower and upper limits for the bracketing.
+        ``Tuple[ComputerWrapper, ComputerWrapper]``:
+        Returns lower and upper limits for the bracketing within a computer wrapper object.
     """
     assert callable(computer), "Invalid input. Computer must be callable."
 
     low, hig = low_ini, hig_ini
-    while computer(low) > loc:
+
+    low_computer = ComputerWrapper(computer)
+    while low_computer(low) > loc:
         low *= 0.5
-        if low < 1e-10:
+        if low < low_bound:
             break
-    while computer(hig) < loc:
+
+    hig_computer = ComputerWrapper(computer)
+    while hig_computer(hig) < loc:
         hig *= 2.0
-        if hig > 1e3:
+        if hig > hig_bound:
             break
-    return low, hig
+
+    return low_computer, hig_computer
 
 
 def find_poi_upper_limit(
@@ -151,12 +196,30 @@ def find_poi_upper_limit(
     }
     for pvalue_idx in index_range[expected_pvalue]:
         comp = partial(computer, pvalue_idx=pvalue_idx)
-        low, hig = find_root_limits(comp, loc=0.0, low_ini=low_init, hig_ini=hig_init)
+        # Set an upper bound for the computation
+        hig_bound = 1e5
+        low, hig = find_root_limits(
+            comp, loc=0.0, low_ini=low_init, hig_ini=hig_init, hig_bound=hig_bound
+        )
+
+        # Check if its possible to find roots
+        if np.sign(low[-1]) * np.sign(hig[-1]) > 0.0:
+            warnings.warn(
+                message="Can not find the roots of the function, returning `inf`"
+                + f"\n hig, low must bracket a root f({low.get_value(-1):.5e})={low[-1]:.5e}, "
+                + f"f({hig.get_value(-1):.5e})={hig[-1]:.5e}. "
+                + "This is likely due to low number of signal yields."
+                * (hig.get_value(-1) >= hig_bound),
+                category=RuntimeWarning,
+            )
+            result.append(np.inf)
+            continue
+
         with warnings.catch_warnings(record=True):
             x0, r = scipy.optimize.toms748(
                 comp,
-                low,
-                hig,
+                low.get_value(-1),
+                hig.get_value(-1),
                 k=2,
                 xtol=2e-12,
                 rtol=1e-4,
