@@ -40,7 +40,7 @@ def find_root_limits(
             break
     while computer(hig) < loc:
         hig *= 2.0
-        if hig > 1e10:
+        if hig > 1e3:
             break
     return low, hig
 
@@ -119,10 +119,6 @@ def find_poi_upper_limit(
     if expected is ExpectationType.observed:
         expected_pvalue = "nominal"
     test_stat = "q" if allow_negative_signal else "qtilde"
-
-    # make sure that initial values are not nan or None
-    low_init = 1.0 if not low_init or not np.isnan(low_init) else low_init
-    hig_init = 1.0 if not hig_init or not np.isnan(hig_init) else hig_init
 
     def computer(poi_test: float, pvalue_idx: int) -> float:
         """Compute 1 - CLs(POI) = `confidence_level`"""
