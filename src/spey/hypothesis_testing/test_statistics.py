@@ -65,7 +65,9 @@ def qmu_tilde(
     return 0.0 if muhat > mu else _tmu_tilde(mu, muhat, max_logpdf, logpdf)
 
 
-def qmu(mu: float, muhat: float, max_logpdf: float, logpdf: Callable[[float], float]) -> float:
+def qmu(
+    mu: float, muhat: float, max_logpdf: float, logpdf: Callable[[float], float]
+) -> float:
     r"""
     Test statistic :math:`q_{\mu}`, see eq. (54) of :xref:`1007.1727`
 
@@ -82,7 +84,9 @@ def qmu(mu: float, muhat: float, max_logpdf: float, logpdf: Callable[[float], fl
     return 0.0 if muhat > mu else _tmu(mu, max_logpdf, logpdf)
 
 
-def q0(mu: float, muhat: float, max_logpdf: float, logpdf: Callable[[float], float]) -> float:
+def q0(
+    mu: float, muhat: float, max_logpdf: float, logpdf: Callable[[float], float]
+) -> float:
     r"""
     Discovery test statistics, :math:`q_{0}` see eq. (47) of :xref:`1007.1727`.
 
@@ -148,7 +152,9 @@ def get_test_statistic(
     options = {"qmutilde": qmu_tilde, "q": qmu, "q0": q0}
 
     if options.get(test_stat, False) is False:
-        raise UnknownTestStatistics(f"Requested test statistics {test_stat} does not exist.")
+        raise UnknownTestStatistics(
+            f"Requested test statistics {test_stat} does not exist."
+        )
 
     return options[test_stat]
 
@@ -206,7 +212,9 @@ def compute_teststatistics(
         warnings.warn(
             message="Encountered negative values for test statistics."
             " This might indicate unsuccessfull execution of the optimizer "
-            " please check your settings. Clipping the values, results might be effected!",
+            " please check your settings. Clipping the values, results might be effected!"
+            f"qmu={qmu_}, qmuA={qmuA}: poi={mu}, muhat={muhat}, min_nll={min_nll}, "
+            f"muhatA={muhatA}, min_nllA={min_nllA}",
             category=RuntimeWarning,
         )
     sqrt_qmu = np.sqrt(np.clip(qmu_, 0.0, None))
