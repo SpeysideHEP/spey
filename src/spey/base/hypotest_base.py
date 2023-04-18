@@ -849,6 +849,7 @@ class HypothesisTestingBase(ABC):
                 expected_pvalue
             ]
 
+        optimiser_arguments = optimiser_arguments or {}
         (
             maximum_likelihood,
             logpdf,
