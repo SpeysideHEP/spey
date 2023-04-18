@@ -4,7 +4,7 @@ tools to compute exclusion limits and POI upper limits
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple, Callable, List, Text, Union
+from typing import Optional, Tuple, Callable, List, Text, Union, Dict, Any
 from functools import partial
 import tqdm
 import numpy as np
@@ -747,7 +747,7 @@ class HypothesisTestingBase(ABC):
         hig_init: Optional[float] = None,
         expected_pvalue: Text = "nominal",
         maxiter: int = 10000,
-        **kwargs,
+        optimiser_arguments: Optional[Dict[Text, Any]] = None,
     ) -> Union[float, List[float]]:
         r"""
         Compute the upper limit for the parameter of interest i.e. :math:`\mu`.
@@ -804,6 +804,8 @@ class HypothesisTestingBase(ABC):
                 be overwritten to ``"nominal"``.
 
             maxiter (``int``, default ``10000``): Maximum iteration limit for the optimiser.
+            optimiser_arguments (``Dict``, default ``None``): Arguments for optimiser that is used
+              to compute likelihood and its maximum.
 
         Returns:
             ``Union[float, List[float]]``:
@@ -855,7 +857,7 @@ class HypothesisTestingBase(ABC):
         ) = self._prepare_for_hypotest(
             expected=expected,
             test_statistics="qtilde",
-            **kwargs,
+            **optimiser_arguments,
         )
 
         if None in [low_init, hig_init]:
