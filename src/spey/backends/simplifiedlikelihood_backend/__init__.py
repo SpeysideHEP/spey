@@ -74,9 +74,9 @@ class SimplifiedLikelihoodInterface(BackendBase):
             background=np.array(background_yields, dtype=np.float64),
             covariance=np.array(covariance_matrix, dtype=np.float64),
             delta_sys=delta_sys,
-            third_moment=np.array(third_moment, dtype=np.float64)
-            if third_moment
-            else None,
+            third_moment=None
+            if third_moment is None
+            else np.array(third_moment, dtype=np.float64),
             name="sl_model",
         )
         self._third_moment_expansion: Optional[expansion_output] = None
