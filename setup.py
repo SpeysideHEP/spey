@@ -40,7 +40,9 @@ setup(
     packages=find_packages(where="src"),
     entry_points={
         "spey.backend.plugins": [
-            "simplified_likelihoods = spey.backends.simplifiedlikelihood_backend:SimplifiedLikelihoodInterface",
+            "simplified_likelihoods = spey.backends.simplifiedlikelihood_backend:SimplifiedLikelihoods",
+            "simplified_likelihoods.uncorrelated_background = spey.backends.simplifiedlikelihood_backend:UncorrelatedRegions",
+            "simplified_likelihoods.third_moment_expansion = spey.backends.simplifiedlikelihood_backend:ThirdMomentExpansion",
         ]
     },
     install_requires=requirements,

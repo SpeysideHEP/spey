@@ -250,6 +250,9 @@ def get_uncorrelated_nbin_statistical_model(
         ... )
         >>> statistical_model.exclusion_confidence_level() # [0.7016751766204834]
     """
+    if backend == "simplified_likelihoods":
+        backend = "simplified_likelihoods.uncorrelated_background"
+
     statistical_model = get_backend(backend)
 
     if backend == "pyhf":
@@ -262,9 +265,9 @@ def get_uncorrelated_nbin_statistical_model(
             analysis=analysis,
         )
 
-    if backend == "simplified_likelihoods":
+    if backend == "simplified_likelihoods.uncorrelated_background":
         # Convert everything to numpy array
-        covariance = (
+        background_uncertainty = (
             np.array(background_uncertainty).reshape(-1)
             if isinstance(background_uncertainty, (list, float))
             else background_uncertainty
@@ -282,14 +285,12 @@ def get_uncorrelated_nbin_statistical_model(
             if isinstance(backgrounds, (list, float))
             else backgrounds
         )
-        covariance = np.square(covariance) * np.eye(len(covariance))
 
         return statistical_model(
             signal_yields=signal_yields,
             background_yields=nb,
             data=nobs,
-            covariance_matrix=covariance,
-            delta_sys=0.0,
+            absolute_uncertainties=background_uncertainty,
             xsection=xsection,
             analysis=analysis,
         )
@@ -304,8 +305,6 @@ def get_correlated_nbin_statistical_model(
     signal_yields: Union[np.ndarray, List[Dict[Text, List]], List[float]],
     covariance_matrix: Optional[Union[np.ndarray, List[List[float]]]] = None,
     backgrounds: Optional[Union[np.ndarray, List[float]]] = None,
-    third_moment: Optional[Union[np.ndarray, List[float]]] = None,
-    delta_sys: float = 0.0,
     xsection: float = np.nan,
     analysis: Text = "__unknown_analysis__",
 ) -> StatisticalModel:
@@ -396,17 +395,12 @@ def get_correlated_nbin_statistical_model(
         backgrounds = (
             np.array(backgrounds) if isinstance(backgrounds, list) else backgrounds
         )
-        third_moment = (
-            np.array(third_moment) if isinstance(third_moment, list) else third_moment
-        )
 
         return SimplifiedLikelihoodInterface(
             signal_yields=signal_yields,
             background_yields=backgrounds,
             data=data,
             covariance_matrix=covariance_matrix,
-            delta_sys=delta_sys,
-            third_moment=third_moment,
             xsection=xsection,
             analysis=analysis,
         )

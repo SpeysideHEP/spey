@@ -12,7 +12,10 @@ from .sldata import SLData, expansion_output
 from .operators import logpdf, hessian_logpdf_func, objective_wrapper
 from .sampler import sample_generator
 
-__all__ = ["SimplifiedLikelihoodInterface"]
+
+def __dir__():
+    return []
+
 
 # pylint: disable=E1101
 
@@ -44,7 +47,7 @@ class SimplifiedLikelihoodInterface(BackendBase):
         :func:`autograd.numpy.array` function.
     """
 
-    name: Text = "simplified_likelihoods"
+    name: Text = "simplified_likelihoods.complete"
     """Name of the backend"""
     version: Text = __version__
     """Version of the backend"""
@@ -350,3 +353,156 @@ class SimplifiedLikelihoodInterface(BackendBase):
         )
 
         return model.background + fit_pars[1:]
+
+
+class UncorrelatedBackground(SimplifiedLikelihoodInterface):
+    r"""
+    Simplified likelihood interface with uncorrelated regions.
+    This simple backend is designed to handle single region statistical models or
+    multi-region statistical models with uncorrelated regions. Inputs has to be given
+    as list of ``NumPy`` array where each input should include same number of regions.
+    It assumes absolute uncertainties on the background sample e.g. for a background
+    sample yield reported as :math:`3.1\pm0.5` the background yield is ``3.1`` and the
+    absolute uncertainty is ``0.5``.
+
+    Args:
+        signal_yields (``np.ndarray``): signal yields
+        background_yields (``np.ndarray``): background yields
+        data (``np.ndarray``): observations
+        absolute_uncertainties (``np.ndarray``): absolute uncertainties on the background
+
+    .. note::
+
+        Each input should have the same dimensionality, i.e. if ``data`` has three regions,
+        ``signal_yields``, ``background_yields`` and ``absolute_uncertainties`` inputs should
+        have three regions as well.
+    """
+
+    name: Text = "simplified_likelihoods.uncorrelated_background"
+    """Name of the backend"""
+    version: Text = __version__
+    """Version of the backend"""
+    author: Text = "SpeysideHEP"
+    """Author of the backend"""
+    spey_requires: Text = __version__
+    """Spey version required for the backend"""
+    doi: List[Text] = ["10.1007/JHEP04(2019)064"]
+    """Citable DOI for the backend"""
+    arXiv: List[Text] = ["1809.05548"]
+    """arXiv reference for the backend"""
+
+    def __init__(
+        self,
+        signal_yields: np.ndarray,
+        background_yields: np.ndarray,
+        data: np.ndarray,
+        absolute_uncertainties: np.ndarray,
+    ):
+        covariance = np.square(absolute_uncertainties) * np.eye(
+            len(absolute_uncertainties)
+        )
+
+        super().__init__(
+            signal_yields=signal_yields,
+            background_yields=background_yields,
+            data=data,
+            covariance_matrix=covariance,
+        )
+
+
+class SimplifiedLikelihoods(SimplifiedLikelihoodInterface):
+    """
+    Simplified likelihoods for correlated multi-region statistical models.
+
+    Args:
+        signal_yields (``np.ndarray``): signal yields
+        background_yields (``np.ndarray``): background yields
+        data (``np.ndarray``): observations
+        covariance_matrix (``np.ndarray``): covariance matrix (square matrix)
+
+    .. note::
+
+        Each input should have the same dimensionality, i.e. if ``data`` has three regions,
+        ``signal_yields`` and ``background_yields`` inputs should have three regions as well.
+        Additionally ``covariance_matrix`` is expected to be square matrix, thus for a three
+        region statistical model it is expected to be 3x3 matrix.
+    """
+
+    name: Text = "simplified_likelihoods"
+    """Name of the backend"""
+    version: Text = __version__
+    """Version of the backend"""
+    author: Text = "SpeysideHEP"
+    """Author of the backend"""
+    spey_requires: Text = __version__
+    """Spey version required for the backend"""
+    doi: List[Text] = ["10.1007/JHEP04(2019)064"]
+    """Citable DOI for the backend"""
+    arXiv: List[Text] = ["1809.05548"]
+    """arXiv reference for the backend"""
+
+    def __init__(
+        self,
+        signal_yields: np.ndarray,
+        background_yields: np.ndarray,
+        data: np.ndarray,
+        covariance_matrix: np.ndarray,
+    ):
+
+        super().__init__(
+            signal_yields=signal_yields,
+            background_yields=background_yields,
+            data=data,
+            covariance_matrix=covariance_matrix,
+        )
+
+
+class ThirdMomentExpansion(SimplifiedLikelihoodInterface):
+    """
+    Simplified likelihood interface with third moment expansion.
+
+    Args:
+        signal_yields (``np.ndarray``): signal yields
+        background_yields (``np.ndarray``): background yields
+        data (``np.ndarray``): observations
+        covariance_matrix (``np.ndarray``): covariance matrix (square matrix)
+        third_moment (``np.ndarray``): third moment for each region.
+
+    .. note::
+
+        Each input should have the same dimensionality, i.e. if ``data`` has three regions,
+        ``signal_yields`` and ``background_yields`` inputs should have three regions as well.
+        Additionally ``covariance_matrix`` is expected to be square matrix, thus for a three
+        region statistical model it is expected to be 3x3 matrix. Following these,
+        ``third_moment`` should also have three inputs.
+    """
+
+    name: Text = "simplified_likelihoods.third_moment_expansion"
+    """Name of the backend"""
+    version: Text = __version__
+    """Version of the backend"""
+    author: Text = "SpeysideHEP"
+    """Author of the backend"""
+    spey_requires: Text = __version__
+    """Spey version required for the backend"""
+    doi: List[Text] = ["10.1007/JHEP04(2019)064"]
+    """Citable DOI for the backend"""
+    arXiv: List[Text] = ["1809.05548"]
+    """arXiv reference for the backend"""
+
+    def __init__(
+        self,
+        signal_yields: np.ndarray,
+        background_yields: np.ndarray,
+        data: np.ndarray,
+        covariance_matrix: np.ndarray,
+        third_moment: np.ndarray,
+    ):
+
+        super().__init__(
+            signal_yields=signal_yields,
+            background_yields=background_yields,
+            data=data,
+            covariance_matrix=covariance_matrix,
+            third_moment=third_moment,
+        )

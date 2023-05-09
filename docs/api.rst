@@ -79,7 +79,9 @@ Simplified Likelihoods
 .. autosummary:: 
     :toctree: _generated/
 
-    spey.backends.simplifiedlikelihood_backend.SimplifiedLikelihoodInterface
+    spey.backends.simplifiedlikelihood_backend.UncorrelatedRegions
+    spey.backends.simplifiedlikelihood_backend.SimplifiedLikelihoods
+    spey.backends.simplifiedlikelihood_backend.ThirdMomentExpansion
     spey.backends.simplifiedlikelihood_backend.sldata.SLData
 
 Exceptions
