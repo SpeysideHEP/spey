@@ -41,8 +41,9 @@ setup(
     entry_points={
         "spey.backend.plugins": [
             "simplified_likelihoods = spey.backends.simplifiedlikelihood_backend:SimplifiedLikelihoods",
-            "simplified_likelihoods.uncorrelated_background = spey.backends.simplifiedlikelihood_backend:UncorrelatedRegions",
+            "simplified_likelihoods.uncorrelated_background = spey.backends.simplifiedlikelihood_backend:UncorrelatedBackground",
             "simplified_likelihoods.third_moment_expansion = spey.backends.simplifiedlikelihood_backend:ThirdMomentExpansion",
+            "simplified_likelihoods.variable_gaussian = spey.backends.simplifiedlikelihood_backend:VariableGaussian",
         ]
     },
     install_requires=requirements,
