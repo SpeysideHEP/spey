@@ -61,7 +61,7 @@ class SimplifiedLikelihoodBase(BackendBase):
     arXiv: List[Text] = ["1809.05548"]
     """arXiv reference for the backend"""
 
-    __slots__ = ["_model", "_third_moment_expansion"]
+    __slots__ = ["_model", "_third_moment_expansion", "_gaussian"]
 
     def __init__(
         self,
