@@ -1,19 +1,19 @@
 """Data structure for Simplified Likelihood interface"""
 
 from dataclasses import dataclass
-from typing import Text, Optional
+from typing import Text, Optional, Union, Callable
 from collections import namedtuple
 
-import numpy as np
+import autograd.numpy as np
 
 from spey.system.exceptions import NegativeExpectedYields
 from spey.base import ModelConfig
 
+# pylint: disable=E1101
+
 __all__ = ["SLData", "expansion_output"]
 
-expansion_output = output = namedtuple(
-    "expansion", ["A", "B", "C", "rho", "V", "logdet_covariance", "inv_covariance"]
-)
+expansion_output = output = namedtuple("expansion", ["A", "B", "C", "rho", "V"])
 
 
 @dataclass(frozen=True)
@@ -37,18 +37,29 @@ class SLData:
     observed: np.ndarray
     signal: np.ndarray
     background: np.ndarray
-    covariance: np.ndarray
+    covariance: Optional[Union[np.ndarray, Callable[[np.ndarray], np.ndarray]]] = None
     delta_sys: Optional[float] = 0.0
     third_moment: Optional[np.ndarray] = None
     name: Text = "__unknown_model__"
 
     def __post_init__(self):
+        cov = (
+            self.covariance
+            if not callable(self.covariance)
+            else self.covariance(np.random.uniform(0, 1, (len(self.background))))
+        )
+
+        if cov is not None:
+            assert isinstance(cov, np.ndarray), "Covariance has to be numpy array"
+            assert (
+                cov.shape[0] == cov.shape[1] == len(self.observed)
+            ), "Dimensionality of covariance matrix does not match."
+
         # validate inputs
         if not (
             isinstance(self.observed, np.ndarray)
             and isinstance(self.signal, np.ndarray)
             and isinstance(self.background, np.ndarray)
-            and isinstance(self.covariance, np.ndarray)
             and isinstance(self.delta_sys, float)
             and (self.third_moment is None or isinstance(self.third_moment, np.ndarray))
         ):
@@ -56,20 +67,12 @@ class SLData:
                 f"Invalid type.\nobserved: {type(self.observed)}, "
                 f"\nsignal: {type(self.signal)}, "
                 f"\nbackground: {type(self.background)}, "
-                f"\ncovariance: {type(self.covariance)}, "
                 f"\ndelta_sys: {type(self.delta_sys)}, "
                 f"\nthird_moment: {type(self.third_moment)}"
             )
 
-        assert len(self.covariance.shape) == 2, "Covariance input has to be matrix."
-
         assert (
-            len(self.observed)
-            == len(self.signal)
-            == len(self.background)
-            == self.covariance.shape[0]
-            == self.covariance.shape[1]
-            >= 1
+            len(self.observed) == len(self.signal) == len(self.background) >= 1
         ), "Input shapes does not match"
 
         if self.third_moment is not None:
@@ -135,7 +138,9 @@ class SLData:
             poi_index=0,
             minimum_poi=minimum_poi,
             suggested_init=[1] * (len(self) + 1),
-            suggested_bounds=[(minimum_poi if allow_negative_signal else 0.0, poi_upper_bound)]
+            suggested_bounds=[
+                (minimum_poi if allow_negative_signal else 0.0, poi_upper_bound)
+            ]
             + [(-5.0, 5.0)] * len(self),
         )
 
@@ -179,15 +184,7 @@ class SLData:
     def compute_expansion(self) -> expansion_output:
         """Compute the terms described in :xref:`1809.05548` eqs. 3.10, 3.11, 3.12, 3.13"""
         if self.isLinear:
-            return expansion_output(
-                None,
-                None,
-                None,
-                None,
-                self.covariance,
-                np.linalg.slogdet(self.covariance),
-                np.linalg.inv(self.covariance),
-            )
+            return expansion_output(None, None, None, None, self.covariance)
 
         diag_cov: np.ndarray = self.diag_cov
 
@@ -199,7 +196,8 @@ class SLData:
             dm = np.sqrt(8.0 * m2**3 / m3**2 - 1.0)
             C[idx] = k * np.cos(4.0 * np.pi / 3.0 + np.arctan(dm) / 3.0)
 
-        B: np.ndarray = np.sqrt(diag_cov - 2.0 * np.square(C))  # B, as defined in Eq. 3.11
+        B: np.ndarray = np.sqrt(diag_cov - 2.0 * np.square(C))
+        # B, as defined in Eq. 3.11
         A: np.ndarray = self.background - C  # A, Eq. 1.30
         Cmat: np.ndarray = C.reshape(-1, 1) @ C.reshape(1, -1)
         Bmat: np.ndarray = B.reshape(-1, 1) @ B.reshape(1, -1)
@@ -216,7 +214,7 @@ class SLData:
                 V[idx][idy] = T
                 V[idy][idx] = T
 
-        return expansion_output(A, B, C, rho, V, np.linalg.slogdet(V), np.linalg.inv(V))
+        return expansion_output(A, B, C, rho, V)
 
     @property
     def correlation_matrix(self) -> np.ndarray:
@@ -230,24 +228,10 @@ class SLData:
         if np.all(self.signal == 0.0):
             return -np.inf
         return -np.min(
-            np.true_divide(self.background[self.signal != 0.0], self.signal[self.signal != 0.0])
+            np.true_divide(
+                self.background[self.signal != 0.0], self.signal[self.signal != 0.0]
+            )
         )
-
-    def suggested_theta_init(self, poi_test: float = 1.0) -> np.ndarray:
-        """
-        Compute nuisance parameter theta that minimizes the negative log-likelihood by setting
-        dNLL / dtheta = 0
-
-        :param poi_test: POI (signal strength)
-        :return:
-        """
-        diag_cov = np.diag(self.var_smu(poi_test) + self.covariance)
-        total_expected = self.background + poi_test * self
-
-        q = diag_cov * (total_expected - self.observed)
-        p = total_expected + diag_cov
-
-        return -p / 2.0 + np.sign(p) * np.sqrt(np.square(p) / 4.0 - q)
 
     def __mul__(self, signal_strength: float) -> np.ndarray:
         """

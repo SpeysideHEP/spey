@@ -3,12 +3,11 @@ This file contains necessary functions to compute negative log-likelihood for si
 
 for details see https://arxiv.org/abs/1809.05548
 """
-from typing import Optional, Callable, Tuple, Union
+from typing import Optional, Callable, Tuple, Union, Any
 
-from autograd.scipy.stats.poisson import logpmf
-from autograd.scipy.special import gammaln
 from autograd import numpy as np
 from autograd import grad, hessian
+from .distributions import Poisson
 
 from .sldata import expansion_output
 
@@ -20,6 +19,7 @@ __all__ = [
 ]
 
 # pylint: disable=E1101
+Distribution = Any
 
 
 def logpdf(
@@ -28,57 +28,60 @@ def logpdf(
     background: np.ndarray,
     observed: np.ndarray,
     third_moment_expansion: expansion_output,
+    gaussian: Distribution,
 ) -> float:
     """
-    Compute twice negative log-likelihood
+    Compute log-probability of the simplified likelihood
 
-    :param pars: nuisance parameters
-    :param signal: signal yields
-    :param background: expected background yields
-    :param observed: observations
-    :param third_moment_expansion: third moment expansion
-    :return: twice negative log-likelihood
+    Args:
+        pars (``np.ndarray``): nuisance parameters
+        signal (``np.ndarray``): signal yields
+        background (``np.ndarray``): background yields
+        observed (``np.ndarray``): data
+        third_moment_expansion (``expansion_output``): third moment expansion
+        gaussian (``Distribution``): Normal or Multivariate normal distribution
+
+    Returns:
+        ``float``:
+        log-probability value
     """
     if third_moment_expansion.A is None:
-        lmbda = background + pars[1:] + pars[0] * signal
+        lam = background + pars[1:] + pars[0] * signal
     else:
-        lmbda = (
+        lam = (
             pars[0] * signal
             + third_moment_expansion.A
             + pars[1:]
-            + third_moment_expansion.C * np.square(pars[1:]) / np.square(third_moment_expansion.B)
+            + third_moment_expansion.C
+            * np.square(pars[1:])
+            / np.square(third_moment_expansion.B)
         )
-    lmbda = np.clip(lmbda, 1e-5, None)
+    lam = np.clip(lam, 1e-5, None)
 
-    # scipy.stats.poisson.logpmf is faster than computing by hand
-    if observed.dtype in [np.int32, np.int16, np.int64]:
-        poisson = logpmf(observed, lmbda)
-    else:
-        poisson = -lmbda + observed * np.log(lmbda) - gammaln(observed + 1)
+    poisson = Poisson(lam)
 
-    # NOTE: autograd.scipy.stats.multivariate_normal.logpdf is too slow!!
-    # logpdf(pars[1:], mean=np.zeros(len(observed)), cov=third_moment_expansion.V)
-    logcoeff = (
-        -len(observed) / 2.0 * np.log(2.0 * np.pi)
-        - 0.5 * third_moment_expansion.logdet_covariance[1]
-    )
-    gaussian = -0.5 * (pars[1:] @ third_moment_expansion.inv_covariance @ pars[1:]) + logcoeff
-
-    return (gaussian + np.sum(poisson)).astype(np.float64)
+    return gaussian.log_prob(pars[1:]) + poisson.log_prob(observed)
 
 
 def twice_nll_func(
     signal: np.ndarray,
     background: np.ndarray,
-    third_moment_expansion: Optional[expansion_output],
+    third_moment_expansion: expansion_output,
+    gaussian: Distribution,
 ) -> Callable[[np.ndarray, np.ndarray], np.ndarray]:
-    """
-    Function to generate a callable for twice negative log-likelihood
+    r"""
+    Retreive twice negative log-likelihood function
 
-    :param signal (`np.ndarray`): signal yields
-    :param background (`np.ndarray`): background yields
-    :param third_moment_expansion (`Optional[expansion_output]`): computed third momenta expansion
-    :return `Callable[[np.ndarray], np.ndarray]`: function to compute twice negative log-likelihood
+    Args:
+        signal (``np.ndarray``): signal yields
+        background (``np.ndarray``): background yields
+        third_moment_expansion (``expansion_output``): third moment expansion
+        gaussian (``Distribution``): Normal or Multivariate normal distribution
+
+    Returns:
+        ``Callable[[np.ndarray, np.ndarray], np.ndarray]``:
+        Function that takes POI and nuisance parameters, :math:`\mu` and :math:`\theta`
+        to compute twice negative log-likelihood
     """
 
     def twice_nll(pars: np.ndarray, data: np.ndarray) -> float:
@@ -89,7 +92,9 @@ def twice_nll_func(
         :param data (`np.ndarray`): observations
         :return `np.ndarray`: twice negative log likelihood value
         """
-        return -2.0 * logpdf(pars, signal, background, data, third_moment_expansion)
+        return -2.0 * logpdf(
+            pars, signal, background, data, third_moment_expansion, gaussian
+        )
 
     return twice_nll
 
@@ -98,6 +103,7 @@ def hessian_logpdf_func(
     signal: np.ndarray,
     background: np.ndarray,
     third_moment_expansion: Optional[expansion_output],
+    gaussian: Distribution,
 ) -> Callable[[np.ndarray, np.ndarray], np.ndarray]:
     """
     Function to generate a callable for the hessian of twice negative log-likelihood
@@ -109,7 +115,7 @@ def hessian_logpdf_func(
     """
 
     def func(pars: np.ndarray, data: np.ndarray) -> np.ndarray:
-        return logpdf(pars, signal, background, data, third_moment_expansion)
+        return logpdf(pars, signal, background, data, third_moment_expansion, gaussian)
 
     # pylint: disable=E1120
     return hessian(func, argnum=0)
@@ -120,6 +126,7 @@ def objective_wrapper(
     background: np.ndarray,
     data: np.ndarray,
     third_moment_expansion: Optional[expansion_output],
+    gaussian: Distribution,
     do_grad: bool,
 ) -> Callable[[np.ndarray], Union[Tuple[float, np.ndarray], float]]:
     """
@@ -131,7 +138,7 @@ def objective_wrapper(
     :return `Callable[[np.ndarray], Tuple[np.ndarray, np.ndarray]]`: function to compute objective
         function and its gradient
     """
-    twice_nll = twice_nll_func(signal, background, third_moment_expansion)
+    twice_nll = twice_nll_func(signal, background, third_moment_expansion, gaussian)
     if do_grad:
         # pylint: disable=E1120
         grad_twice_nll = grad(twice_nll, argnum=0)

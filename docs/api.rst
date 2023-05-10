@@ -79,9 +79,10 @@ Simplified Likelihoods
 .. autosummary:: 
     :toctree: _generated/
 
-    spey.backends.simplifiedlikelihood_backend.UncorrelatedRegions
+    spey.backends.simplifiedlikelihood_backend.UncorrelatedBackground
     spey.backends.simplifiedlikelihood_backend.SimplifiedLikelihoods
     spey.backends.simplifiedlikelihood_backend.ThirdMomentExpansion
+    spey.backends.simplifiedlikelihood_backend.VariableGaussian
     spey.backends.simplifiedlikelihood_backend.sldata.SLData
 
 Exceptions
