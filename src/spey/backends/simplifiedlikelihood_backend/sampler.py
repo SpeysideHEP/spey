@@ -28,9 +28,25 @@ def sample_generator(
             pars[0] * signal
             + third_moment_expansion.A
             + pars[1:]
-            + third_moment_expansion.C * np.square(pars[1:]) / np.square(third_moment_expansion.B)
+            + third_moment_expansion.C
+            * np.square(pars[1:])
+            / np.square(third_moment_expansion.B)
         )
     lmbda = np.clip(lmbda, 1e-5, None)
+
+    cov = (
+        third_moment_expansion.V(pars[1:])
+        if callable(third_moment_expansion.V)
+        else third_moment_expansion.V
+    )
+
+    distributions = [
+        {"type": np.random.poisson, "kwargs": {"lam": lmbda}},
+        {
+            "type": np.random.multivariate_normal,
+            "kwargs": {"mean": np.zeros(len(background)), "cov": cov},
+        },
+    ]
 
     def sampler(number_of_samples: int) -> np.ndarray:
         """
@@ -39,6 +55,15 @@ def sample_generator(
         :param number_of_samples (`int`): number of samples to be drawn from the model
         :return `np.ndarray`: Sampled observations
         """
-        return scipy.stats.poisson(lmbda).rvs(size=(number_of_samples, len(lmbda)))
+        data = np.zeros((number_of_samples, len(distributions)))
+        for idx, dist in enumerate(distributions):
+            data[:, idx] = dist["type"](
+                size=(number_of_samples, len(background)), **dist["kwargs"]
+            )
+        random_idx = np.random.choice(
+            np.arange(2), size=(number_of_samples,), p=[0.5] * 2
+        )
+
+        return data[np.arange(number_of_samples), random_idx]
 
     return sampler
