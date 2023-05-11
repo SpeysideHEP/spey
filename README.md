@@ -116,4 +116,21 @@ print(stat_model.exclusion_confidence_level(expected=spey.ExpectationType.aposte
 
 Which can be used to produce uncertainty plots such as
 
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+
+poiUL = np.array([stat_model.exclusion_confidence_level(p, expected=spey.ExpectationType.aposteriori) for p in np.linspace(1,5,20)])
+plt.plot(np.linspace(1,5,20), poiUL[:,2], color="tab:red")
+plt.fill_between(np.linspace(1,5,20), poiUL[:,1], poiUL[:,3], alpha=0.8, color="green", lw=0)
+plt.fill_between(np.linspace(1,5,20), poiUL[:,0], poiUL[:,4], alpha=0.5, color="yellow", lw=0)
+plt.plot([1,5], [.95,.95], color="k", ls="dashed")
+plt.xlabel("$\mu$")
+plt.ylabel("$1-CL_s$")
+plt.xlim([1,5])
+plt.ylim([.4,1.01])
+plt.text(4,0.9, r"$95\%\ {\rm CL}$")
+plt.show()
+```
+
 ![Brazilian flag plot](./docs/figs/brazilian_plot.png)
