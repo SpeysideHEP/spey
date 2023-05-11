@@ -252,15 +252,17 @@ def get_uncorrelated_nbin_statistical_model(
     """
     if backend == "simplified_likelihoods":
         backend = "simplified_likelihoods.uncorrelated_background"
+    if backend == "pyhf":
+        backend = "pyhf.uncorrelated_background"
 
     statistical_model = get_backend(backend)
 
-    if backend == "pyhf":
+    if backend == "pyhf.uncorrelated_background":
         return statistical_model(
             signal_yields=signal_yields,
-            data=data,
             background_yields=backgrounds,
-            absolute_background_unc=background_uncertainty,
+            data=data,
+            absolute_uncertainties=background_uncertainty,
             xsection=xsection,
             analysis=analysis,
         )
@@ -327,11 +329,6 @@ def get_correlated_nbin_statistical_model(
         backgrounds (``Optional[Union[np.ndarray, List[float]]]``, default ``None``): The SM backgrounds
           for simplified likelihood backend. These are combined background only yields and the size of the input
           vector should be the same as data input. This input is only used for ``"simplified_likelihoods"`` backend.
-        third_moment (``Optional[Union[np.ndarray, List[float]]]``, default ``None``): Third moment information
-          for the scewed gaussian formation in simplified likelihoods. This input is only used for
-          ``"simplified_likelihoods"`` backend.
-        delta_sys (``float``, default ``0.0``): Systematic uncertainties on signal.
-          This input is only used for ``"simplified_likelihoods"`` backend.
         xsection (``float``, default ``np.nan``): cross section value. unit is determined by the user.
         analysis (``Text``, default ``"__unknown_analysis__"``): unique analysis identifier.
 
@@ -372,7 +369,10 @@ def get_correlated_nbin_statistical_model(
     ):
         PyhfInterface = get_backend("pyhf")
         return PyhfInterface(
-            signal_yields=signal_yields, data=data, xsection=xsection, analysis=analysis
+            signal_patch=signal_yields,
+            background_only_model=data,
+            xsection=xsection,
+            analysis=analysis,
         )
 
     if (
