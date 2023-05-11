@@ -377,26 +377,43 @@ class SimplifiedLikelihoodBase(BackendBase):
 class UncorrelatedBackground(SimplifiedLikelihoodBase):
     r"""
     Simplified likelihood interface with uncorrelated regions.
-    This simple backend is designed to handle single region statistical models or
-    multi-region statistical models with uncorrelated regions. Inputs has to be given
-    as list of ``NumPy`` array where each input should include same number of regions.
-    It assumes absolute uncertainties on the background sample e.g. for a background
-    sample yield reported as :math:`3.1\pm0.5` the background yield is ``3.1`` and the
-    absolute uncertainty is ``0.5``. It forms a combination of normal and poisson
-    distributions from the input data where the log-probability is computed as sum of
-    all normal and poisson distributions.
+    This simple backend is designed to handle single or multi-bin statistical models
+    with uncorrelated regions. Inputs has to be given as list of ``NumPy`` array where
+    each input should include same number of regions. It assumes absolute uncertainties
+    on the background sample e.g. for a background sample yield reported as
+    :math:`3.1\pm0.5` the background yield is ``3.1`` and the absolute uncertainty is
+    ``0.5``. It forms a combination of normal and poisson distributions from the input
+    data where the log-probability is computed as sum of all normal and poisson distributions.
 
     Args:
-        signal_yields (``np.ndarray``): signal yields
-        background_yields (``np.ndarray``): background yields
-        data (``np.ndarray``): observations
-        absolute_uncertainties (``np.ndarray``): absolute uncertainties on the background
+        signal_yields (``List[float]``): signal yields
+        background_yields (``List[float]``): background yields
+        data (``List[int]``): observations
+        absolute_uncertainties (``List[float]``): absolute uncertainties on the background
 
     .. note::
 
         Each input should have the same dimensionality, i.e. if ``data`` has three regions,
         ``signal_yields``, ``background_yields`` and ``absolute_uncertainties`` inputs should
         have three regions as well.
+
+    Example:
+
+    .. code:: python3
+
+        >>> import spey
+        >>> stat_wrapper = spey.get_backend('simplified_likelihoods.uncorrelated_background')
+
+        >>> data = [1, 3]
+        >>> signal = [0.5, 2.0]
+        >>> background = [2.0, 2.8]
+        >>> background_unc = [1.1, 0.8]
+
+        >>> stat_model = stat_wrapper(
+        ...     signal, background, data, background_unc, analysis="multi-bin", xsection=0.123
+        ... )
+        >>> print("1-CLs : %.3f" % tuple(stat_model.exclusion_confidence_level()))
+        >>> # 1-CLs : 0.702
     """
 
     name: Text = "simplified_likelihoods.uncorrelated_background"
@@ -414,10 +431,10 @@ class UncorrelatedBackground(SimplifiedLikelihoodBase):
 
     def __init__(
         self,
-        signal_yields: np.ndarray,
-        background_yields: np.ndarray,
-        data: np.ndarray,
-        absolute_uncertainties: np.ndarray,
+        signal_yields: List[float],
+        background_yields: List[float],
+        data: List[int],
+        absolute_uncertainties: List[float],
     ):
         super().__init__(
             signal_yields=signal_yields,
@@ -434,6 +451,12 @@ class UncorrelatedBackground(SimplifiedLikelihoodBase):
 class SimplifiedLikelihoods(SimplifiedLikelihoodBase):
     """
     Simplified likelihoods for correlated multi-region statistical models.
+    Main simplified likelihood backend which uses a Multivariate Normal and
+    a Poisson distributions to construct log-probability of the statistical
+    model. The Multivariate Normal distribution is constructed by the help
+    of a covariance matrix provided by the user which captures the
+    uncertainties and background correlations between each histogram bin.
+    This statistical model has been first proposed in :xref:`1809.05548`.
 
     Args:
         signal_yields (``np.ndarray``): signal yields
@@ -447,6 +470,23 @@ class SimplifiedLikelihoods(SimplifiedLikelihoodBase):
         ``signal_yields`` and ``background_yields`` inputs should have three regions as well.
         Additionally ``covariance_matrix`` is expected to be square matrix, thus for a three
         region statistical model it is expected to be 3x3 matrix.
+
+    Example:
+
+    .. code:: python3
+
+        >>> import spey
+
+        >>> stat_wrapper = spey.get_backend('simplified_likelihoods')
+
+        >>> signal_yields = [12.0, 11.0]
+        >>> background_yields = [50.0, 52.0]
+        >>> data = [51, 48]
+        >>> covariance_matrix = [[3.,0.5], [0.6,7.]]
+
+        >>> statistical_model = stat_wrapper(signal_yields,background_yields,data,covariance_matrix)
+        >>> print(statistical_model.exclusion_confidence_level())
+        >>> # [0.9734448420632104]
     """
 
     name: Text = "simplified_likelihoods"
