@@ -1,171 +1,119 @@
-# Spey: Statistical analysis for Phenomenology from Experimental Yields
-A universal statistics package for LHC reinterpretation
+# Spey: smooth combination of statistical models for reinterpretation studies
 
-# Outline
+A universal statistics package for reinterpretation studies. See the [documentation]() for details.
+
+## Outline
+
 * [Installation](#installation)
 * [What is Spey?](#what-is-spey)
 * [Usage](#usage)
 
 ## Installation
-`make install` or `pip install -e .`
+
+If you are using a specific branch you can either use `make install` or `pip install -e .`. **Note that `main` branch is not the stable version.** Stable version can either be downloaded from releases section or via pypi using the following command
+
+```bash
+pip install spey
+```
 
 ## What is Spey?
 
-Spey is a statistics tool which can simultaneously use various backends and efficiently combine 
-them within one global statistical model assumption.
+Spey is a plug-in based statistics tool which aims to collect all likelihood prescriptions under one roof. This provides user the workspace to freely combine different statistical models and study them through a single interface. In order to achieve a module that can be used both with statistical model prescriptions which has been proposed in the past and will be used in the future, Spey uses so-called plug-in system where developers can propose their own statistical model prescription and allow spey to use them.
 
-The name "Spey" originally comes from the Spey river, a river in mid-Highlands of Scotland. 
-The area "Speyside" is famous for its smooth whiskey.
+### What a plugin provides
+
+A quick intro on terminology of spey plugins in this section:
+
+* A plugin is an external Python package that provides additional statistical model prescriptions to spey.
+* Each plugin may provide one (or more) statistical model prescription, that are accessible directly through spey.
+* Depending on the scope of the plugin, you may wish to provide additional (custom) operations and differentiability through various autodif packages such as ``autograd``
+  or ``jax``. As long as they are implemented through set of predefined function names spey can automatically detect and use them within the interface.
+
+Finally, the name "Spey" originally comes from the Spey river, a river in mid-Highlands of Scotland. The area "Speyside" is famous for its smooth whiskey.
+
+### Officially available plug-ins
+
+* `simplified_likelihoods`: ...
+* `spey-pyhf`: Details can be found at the [dedicated repository]().
+* `spey-fastprof`: Details can be found at the [dedicated repository]().
 
 ## Usage
 
-### Using with JSON-HistFactory type input
+By default spey is shipped with `simplified_likelihood` backend which currently has four dedicated sub-plugin.
+
+* `'simplified_likelihoods'`: Main simplified likelihood backend which uses a Multivariate Normal and a Poisson distributions to construct log-probability of the statistical model. The Multivariate Normal distribution is constructed by the help of a covariance matrix provided by the user which captures the uncertainties and background correlations between each histogram bin. This statistical model has been first proposed in [JHEP 04 (2019), 064](https://doi.org/10.1007/JHEP04%282019%29064).
+
+* `'simplified_likelihoods.third_moment_expansion'`: Third moment expansion follows the above simplified likelihood construction and modifies the covariance matrix via third moment input.
+
+* `'simplified_likelihoods.uncorrelated_background'`: User can use multi or single bin histograms with unknown correlation structure within simplified likelihood interface. This particular plug-in replaces Multivariate Normal distribution of the likelihood with a simple Normal distribution to reduce the computational cost.
+
+* `'simplified_likelihoods.variable_gaussian'`: Variable Gaussian method is designed to capture asymetric uncertainties on the background yields. This method converts the covariance matrix in to a function which takes upper and lower envelops of the background uncertainties, best fit values and nuisance parameters which allows the interface dynamically change the covariance matrix with respect to given nuisance parameters. This implementation follows the method proposed in Ref. [arXiv:physics/0406120](https://arxiv.org/abs/physics/0406120).
+
+The list of available backends can be found via `AvailableBackends()` function which will return the following:
+
 ```python
-import madstats, json
-import numpy as np
-import matplotlib.pyplot as plt
+import spey
+print(spey.AvailableBackends())
+# ['simplified_likelihoods', 'simplified_likelihoods.third_moment_expansion', 'simplified_likelihoods.uncorrelated_background', 'simplified_likelihoods.variable_gaussian']
+```
 
-with open("test/signal_test.json", "r") as f:
-    signal = json.load(f)
+This function actively searches installed plugin entrypoints and extracts the ones that matches spey's requirements. A backend can be retreived via `get_backend` function
 
-with open("test/background_test.json", "r") as f:
-    background = json.load(f)
+```python
+stat_wrapper = spey.get_backend('simplified_likelihoods.uncorrelated_background')
+```
 
-stat_model = madstats.get_multi_region_statistical_model(
-    analysis="atlas_susy_2018_31",
-    signal=signal,
-    background=background,
-    xsection=0.000207244,
+Where the `stat_wrapper` is a function that aids the backend to be integrated within spey interface. Using this backend we can simply construct a single bin statistical model
+
+```python
+data = [1]
+signal = [0.5]
+background = [2.0]
+background_unc = [1.1]
+
+stat_model = stat_wrapper(
+    signal, background, data, background_unc, analysis="single_bin", xsection=0.123
 )
-print(stat_model)
-# Out: StatisticalModel(analysis='atlas_susy_2018_31', xsection=2.072e-04 [pb], backend=pyhf)
-
-print(f"1 - CLs : {stat_model.exclusion_confidence_level()}")
-# Out: 1 - CLs : 0.4133782692578205
-
-print(f"Expected exclusion cross-section at 95% CLs : {stat_model.s95exp}")
-# Out: Expected exclusion cross-section at 95% CLs : 0.0013489112699333228
-
-print(f"Observed exclusion cross-section at 95% CLs : {stat_model.s95obs}")
-# Out: Observed exclusion cross-section at 95% CLs : 0.0010071155210690825
-
-print(f"Upper limit on POI : {stat_model.computeUpperLimitOnMu()}")
-# Out: Upper limit on POI : 4.859564190370204
-
-mu = np.linspace(-2,2,25)
-
-nll_apriori = np.array([stat_model.likelihood(mu=m, return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.apriori) for m in mu])
-nll_observed = np.array([stat_model.likelihood(mu=m, return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.observed) for m in mu])
-
-muhat_obs, nll_min_obs = stat_model.maximize_likelihood(return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.observed)
-muhat_apri, nll_min_apri = stat_model.maximize_likelihood(return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.apriori)
-
-fig = plt.figure(figsize=(8,6))
-
-plt.plot(mu, nll_apriori, label=str(madstats.ExpectationType.apriori), color="tab:red")
-plt.scatter([muhat_apri], [nll_min_apri], label=str(madstats.ExpectationType.apriori) + " min NLL", color="tab:red")
-
-plt.plot(mu, nll_observed, label=str(madstats.ExpectationType.observed), color="tab:blue")
-plt.scatter([muhat_obs], [nll_min_obs], label=str(madstats.ExpectationType.observed)+ " min NLL", color="tab:blue", )
-
-plt.legend(loc="best", fontsize=15)
-
-plt.title("atlas - susy - 2018 - 31".upper(), fontsize=20)
-plt.xlabel("$\mu$")
-plt.ylabel("negative log-likelihood")
-plt.show()
 ```
-![Likelihood plot for pyhf backend](./docs/figs/pyhf_test.png)
 
-### Using with Simplified Likelihood type input
+where this data represents an observation count of `1` with signal yields $0.5$ and background yields $2\pm1.1$. `analysis` keyword takes a unique identifier for the model and `xsection` is the cross section value of the signal. Both of these are optional parameters. Using this information one can compute the exclusion confidence level
+
 ```python
-import madstats
-import numpy as np
-import matplotlib.pyplot as plt
+print("1-CLs : %.2f" % tuple(stat_model.exclusion_confidence_level()))
+# 1-CLs : 0.40
+```
 
-dat = np.load("test/simplified_likelihood_data.npz")
-sl_model = madstats.get_multi_region_statistical_model(
-    analysis="cms_sus_19_006",
-    signal=dat["nsignal"],
-    background=dat["observed"],
-    covariance=dat["covariance"],
-    nb=dat["backgrounds"],
-    xsection=0.000207244,
-    delta_sys=0.
+Additionally upper limit on parameter of interest, $\mu$, can be computed via
+
+```python
+print("POU upper limit : %.2f" % stat_model.poi_upper_limit())
+# POU upper limit : 6.73
+```
+
+One can also represent multibin uncorrelated statistical models via
+
+```python
+data = [1, 3]
+signal = [0.5, 2.0]
+background = [2.0, 2.8]
+background_unc = [1.1, 0.8]
+
+stat_model = stat_wrapper(
+    signal, background, data, background_unc, analysis="multi-bin", xsection=0.123
 )
-
-print(sl_model)
-# Out: StatisticalModel(analysis='cms_sus_19_006', xsection=2.072e-04 [pb], backend=simplified_likelihoods)
-
-print(f"1 - CLs : {sl_model.exclusion_confidence_level()}")
-# Out: 1 - CLs : 0.40245643517834495
-
-print(f"Expected exclusion cross-section at 95% CLs : {sl_model.s95exp}")
-# Out: Expected exclusion cross-section at 95% CLs : 0.0011728157614834948
-
-print(f"Observed exclusion cross-section at 95% CLs : {sl_model.s95obs}")
-# Out: Observed exclusion cross-section at 95% CLs : 0.0008587150231679837
-
-print(f"Upper limit on POI : {sl_model.computeUpperLimitOnMu()}")
-# Out: Upper limit on POI : 4.1434976342177245
-
-mu = np.linspace(-4,1,25)
-
-nll_apriori = np.array([sl_model.likelihood(mu=m, return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.apriori) for m in mu])
-nll_observed = np.array([sl_model.likelihood(mu=m, return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.observed) for m in mu])
-
-muhat_obs, nll_min_obs = sl_model.maximize_likelihood(return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.observed)
-muhat_apri, nll_min_apri = sl_model.maximize_likelihood(return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.apriori)
-
-fig = plt.figure(figsize=(8,6))
-
-plt.plot(mu, nll_apriori, label=str(madstats.ExpectationType.apriori), color="tab:red")
-plt.scatter([muhat_apri], [nll_min_apri], label=str(madstats.ExpectationType.apriori) + " min NLL", color="tab:red")
-
-plt.plot(mu, nll_observed, label=str(madstats.ExpectationType.observed), color="tab:blue")
-plt.scatter([muhat_obs], [nll_min_obs], label=str(madstats.ExpectationType.observed)+ " min NLL", color="tab:blue", )
-
-plt.legend(loc="best", fontsize=15)
-
-plt.title("cms - sus - 19 - 006".upper(), fontsize=20)
-plt.xlabel("$\mu$")
-plt.ylabel("negative log-likelihood")
-plt.show()
+print("1-CLs : %.2f" % tuple(stat_model.exclusion_confidence_level()))
+# 1-CLs : 0.70
+print("POU upper limit : %.2f" % stat_model.poi_upper_limit())
+# POU upper limit : 2.17
 ```
-![Likelihood plot for simplified likelihood backend](./docs/figs/sl_test.png)
 
-## Using prediction combiner
+Spey focuses on three main working points for expectation type i.e. `observed` which computes likelihood fits with respect to the observations, `aposteriori` beyond computing likelihood fits with observed values it computes the fluctuations in the background and returns $\pm1\sigma$ and $\pm2\sigma$ bands, `apriori` is similar to `aposteriori` where the only difference is that it assumes the Standard Model background is absolute truth. Using these one can compute the uncertainty bands on the expectation via
 
 ```python
-combiner = madstats.PredictionCombiner(sl_model, stat_model)
-
-print(f"1 - CLs : {combiner.computeCLs()}")
-# Out: 1 - CLs : 0.7817905182722031
-
-print(f"Upper limit on POI : {combiner.computeUpperLimitOnMu()}")
-# Out: Upper limit on POI : 2.192564980725874
-
-mu = np.linspace(-3,1,25)
-
-nll_apriori = np.array([combiner.likelihood(mu=m, return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.apriori) for m in mu])
-nll_observed = np.array([combiner.likelihood(mu=m, return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.observed) for m in mu])
-
-muhat_obs, nll_min_obs = combiner.maximize_likelihood(return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.observed)
-muhat_apri, nll_min_apri = combiner.maximize_likelihood(return_nll=True, allow_negative_signal=True, expected=madstats.ExpectationType.apriori)
-
-fig = plt.figure(figsize=(8,6))
-
-plt.plot(mu, nll_apriori, label=str(madstats.ExpectationType.apriori), color="tab:red")
-plt.scatter([muhat_apri], [nll_min_apri], label=str(madstats.ExpectationType.apriori) + " min NLL", color="tab:red")
-
-plt.plot(mu, nll_observed, label=str(madstats.ExpectationType.observed), color="tab:blue")
-plt.scatter([muhat_obs], [nll_min_obs], label=str(madstats.ExpectationType.observed)+ " min NLL", color="tab:blue", )
-
-plt.legend(loc="best", fontsize=15)
-
-plt.title("Combined", fontsize=20)
-plt.xlabel("$\mu$")
-plt.ylabel("negative log-likelihood")
-plt.show()
+print(stat_model.exclusion_confidence_level(expected=spey.ExpectationType.aposteriori))
+# [0.945840731123488, 0.8657740143137352, 0.6959070047129498, 0.41884413918205454, 0.41034502645428916]
 ```
-![Likelihood plot for prediction combiner](./docs/figs/combination_test.png)
+
+Which can be used to produce uncertainty plots such as
+
+![Brazilian flag plot](./docs/figs/brazilian_plot.png)
