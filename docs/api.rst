@@ -16,6 +16,8 @@ Top-Level
     spey.get_uncorrelated_nbin_statistical_model
     spey.get_correlated_nbin_statistical_model
     spey.statistical_model_wrapper
+    spey.helper_functions.correlation_to_covariance
+    spey.helper_functions.covariance_to_correlation
 
 Main Classes
 ------------
