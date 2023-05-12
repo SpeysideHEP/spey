@@ -2,6 +2,7 @@
 
 from typing import Optional, Text, Callable, List, Union, Tuple, Any
 from autograd import numpy as np
+from autograd import grad, hessian
 
 from spey.optimizer import fit
 from spey.base import BackendBase
@@ -11,14 +12,15 @@ from spey._version import __version__
 from .sldata import SLData, expansion_output
 from .operators import logpdf, hessian_logpdf_func, objective_wrapper
 from .sampler import sample_generator
-from .distributions import MultivariateNormal, Poisson, Normal
+from .distributions import MainModel, ConstraintModel
+from .third_moment import third_moment_expansion
 
 
 def __dir__():
     return []
 
 
-# pylint: disable=E1101
+# pylint: disable=E1101,E1120
 
 
 class SimplifiedLikelihoodBase(BackendBase):
@@ -61,41 +63,60 @@ class SimplifiedLikelihoodBase(BackendBase):
     arXiv: List[Text] = ["1809.05548"]
     """arXiv reference for the backend"""
 
-    __slots__ = ["_model", "_third_moment_expansion", "_gaussian"]
+    __slots__ = ["_model", "_third_moment_expansion", "_main_model", "_constraint_model"]
 
     def __init__(
         self,
         signal_yields: np.ndarray,
         background_yields: np.ndarray,
         data: np.ndarray,
-        covariance_matrix: np.ndarray,
-        delta_sys: float = 0.0,
+        covariance_matrix: Optional[
+            Union[np.ndarray, Callable[[np.ndarray], np.ndarray]]
+        ] = None,
         third_moment: Optional[np.ndarray] = None,
     ):
         self._model = SLData(
             observed=np.array(data, dtype=np.float64),
             signal=np.array(signal_yields, dtype=np.float64),
             background=np.array(background_yields, dtype=np.float64),
-            covariance=np.array(covariance_matrix, dtype=np.float64)
+            covariance_matrix=np.array(covariance_matrix, dtype=np.float64)
             if not callable(covariance_matrix) and covariance_matrix is not None
             else covariance_matrix,
-            delta_sys=delta_sys,
             third_moment=None
             if third_moment is None
             else np.array(third_moment, dtype=np.float64),
             name="sl_model",
         )
-        self._third_moment_expansion: Optional[expansion_output] = None
-        self._gaussian = None
+        self._main_model = None
+        self._constraint_model = None
 
     @property
-    def gaussian(self):
-        """Gaussian distribution"""
-        if self._gaussian is None:
-            self._gaussian = MultivariateNormal(
-                np.zeros(len(self.model.observed)), self.third_moment_expansion.V
+    def constraint_model(self) -> ConstraintModel:
+        """retreive constraint model"""
+        if self._constraint_model is None:
+            self._constraint_model = ConstraintModel(
+                "multivariatenormal",
+                np.zeros(len(self.model.observed)),
+                self.model.covariance_matrix,
             )
-        return self._gaussian
+        return self._constraint_model
+
+    @property
+    def main_model(self) -> MainModel:
+        """retreive the main model"""
+        if self._main_model is None:
+
+            def lam(pars: np.ndarray) -> np.ndarray:
+                """Compute lambda for Main model"""
+                return np.clip(
+                    self.model.background + pars[1:] + pars[0] * self.model.signal,
+                    1e-5,
+                    None,
+                )
+
+            self._main_model = MainModel(lam)
+
+        return self._main_model
 
     @property
     def model(self) -> SLData:
@@ -112,13 +133,6 @@ class SimplifiedLikelihoodBase(BackendBase):
     def is_alive(self) -> bool:
         """Returns True if at least one bin has non-zero signal yield."""
         return self.model.isAlive
-
-    @property
-    def third_moment_expansion(self) -> expansion_output:
-        """Get third moment expansion"""
-        if self._third_moment_expansion is None:
-            self._third_moment_expansion = self.model.compute_expansion()
-        return self._third_moment_expansion
 
     def config(
         self, allow_negative_signal: bool = True, poi_upper_bound: float = 10.0
@@ -177,14 +191,20 @@ class SimplifiedLikelihoodBase(BackendBase):
             else self.model.expected_dataset
         )
 
-        return objective_wrapper(
-            signal=current_model.signal,
-            background=current_model.background,
-            data=data if data is not None else current_model.observed,
-            third_moment_expansion=self.third_moment_expansion,
-            gaussian=self.gaussian,
-            do_grad=do_grad,
-        )
+        data = data if data is not None else current_model.observed
+
+        def twice_nll(pars: np.ndarray) -> np.ndarray:
+            """Compute twice negative log-likelihood"""
+            return -2.0 * (
+                self.main_model.log_prob(pars, data[: len(current_model)])
+                + self.constraint_model.log_prob(pars[1:])
+            )
+
+        if do_grad:
+            grad_twice_nll = grad(twice_nll, argnum=0)
+            return lambda pars: (twice_nll(pars), grad_twice_nll(pars))
+
+        return twice_nll
 
     def get_logpdf_func(
         self,
@@ -219,14 +239,12 @@ class SimplifiedLikelihoodBase(BackendBase):
             if expected != ExpectationType.apriori
             else self.model.expected_dataset
         )
-        return lambda pars: logpdf(
-            pars=pars,
-            signal=current_model.signal,
-            background=current_model.background,
-            observed=current_model.observed if data is None else data,
-            third_moment_expansion=self.third_moment_expansion,
-            gaussian=self.gaussian,
-        )
+
+        data = data if data is not None else current_model.observed
+
+        return lambda pars: self.main_model.log_prob(
+            pars, data[: len(current_model)]
+        ) + self.constraint_model.log_prob(pars[1:])
 
     def get_hessian_logpdf_func(
         self,
@@ -263,14 +281,15 @@ class SimplifiedLikelihoodBase(BackendBase):
             else self.model.expected_dataset
         )
 
-        hess = hessian_logpdf_func(
-            current_model.signal,
-            current_model.background,
-            self.third_moment_expansion,
-            gaussian=self.gaussian,
-        )
+        data = data if data is not None else current_model.observed
 
-        return lambda pars: hess(pars, data or current_model.observed)
+        def log_prob(pars: np.ndarray) -> np.ndarray:
+            """Compute log-probability"""
+            return self.main_model.log_prob(
+                pars, data[: len(current_model)]
+            ) + self.constraint_model.log_prob(pars[1:])
+
+        return hessian(log_prob, argnum=0)
 
     def get_sampler(self, pars: np.ndarray) -> Callable[[int], np.ndarray]:
         r"""
@@ -278,32 +297,59 @@ class SimplifiedLikelihoodBase(BackendBase):
 
         Args:
             pars (``np.ndarray``): fit parameters (:math:`\mu` and :math:`\theta`)
+            include_auxiliary (``bool``): wether or not to include auxiliary data
+              coming from the constraint model.
 
         Returns:
-            ``Callable[[int], np.ndarray]``:
+            ``Callable[[int, bool], np.ndarray]``:
             Function that takes ``number_of_samples`` as input and draws as many samples
             from the statistical model.
         """
-        return sample_generator(
-            pars=pars,
-            signal=self.model.signal,
-            background=self.model.background,
-            third_moment_expansion=self.third_moment_expansion,
-        )
 
-    def expected_data(self, pars: List[float]) -> List[float]:
+        def sampler(sample_size: int, include_auxiliary: bool = True) -> np.ndarray:
+            """
+            Fucntion to generate samples.
+
+            Args:
+                sample_size (``int``): number of samples to be generated.
+                include_auxiliary (``bool``): wether or not to include auxiliary data
+                    coming from the constraint model.
+
+            Returns:
+                ``np.ndarray``:
+                generated samples
+            """
+            sample = self.main_model.sample(pars, sample_size)
+
+            if include_auxiliary:
+                constraint_sample = self.constraint_model.sample(pars[1:], sample_size)
+                sample = np.hstack([sample, constraint_sample])
+
+            return sample
+
+        return sampler
+
+    def expected_data(
+        self, pars: List[float], include_auxiliary: bool = True
+    ) -> List[float]:
         r"""
         Compute the expected value of the statistical model
 
         Args:
             pars (``List[float]``): nuisance, :math:`\theta` and parameter of interest,
               :math:`\mu`.
+            include_auxiliary (``bool``): wether or not to include auxiliary data
+              coming from the constraint model.
 
         Returns:
             ``List[float]``:
             Expected data of the statistical model
         """
-        return self.model.background + pars[1:]
+        data = self.main_model.expected_data(pars)
+
+        if include_auxiliary:
+            data = np.hstack([data, self.constraint_model.expected_data()])
+        return data
 
     def generate_asimov_data(
         self,
@@ -344,25 +390,8 @@ class SimplifiedLikelihoodBase(BackendBase):
             else self.model.expected_dataset
         )
 
-        # Do not allow asimov data to be negative!
-        par_bounds = kwargs.get("par_bounds", None)
-        if par_bounds is None:
-            par_bounds = [(0.0, 1.0)] + [
-                (-1 * (bkg + sig * poi_asimov), 100.0)
-                for sig, bkg in zip(model.signal, model.background)
-            ]
-
-        func = objective_wrapper(
-            signal=model.signal,
-            background=model.background,
-            data=model.observed,
-            third_moment_expansion=self.third_moment_expansion,
-            gaussian=self.gaussian,
-            do_grad=True,
-        )
-
         _, fit_pars = fit(
-            func=func,
+            func=self.get_objective_function(expected=expected, do_grad=True),
             model_configuration=model.config(),
             do_grad=True,
             fixed_poi_value=poi_asimov,
@@ -371,7 +400,7 @@ class SimplifiedLikelihoodBase(BackendBase):
             **kwargs,
         )
 
-        return model.background + fit_pars[1:]
+        return self.expected_data(fit_pars)
 
 
 class UncorrelatedBackground(SimplifiedLikelihoodBase):
@@ -443,8 +472,8 @@ class UncorrelatedBackground(SimplifiedLikelihoodBase):
             covariance_matrix=None,
         )
 
-        self._gaussian = Normal(
-            np.zeros(len(self.model.observed)), absolute_uncertainties
+        self._constraint_model: ConstraintModel = ConstraintModel(
+            "normal", np.zeros(len(self.model.observed)), absolute_uncertainties
         )
 
 
@@ -567,6 +596,17 @@ class ThirdMomentExpansion(SimplifiedLikelihoodBase):
             third_moment=third_moment,
         )
 
+        A, B, C = third_moment_expansion(
+            self.model.background, self.model.covariance_matrix, self.model.third_moment
+        )
+
+        def lam(pars: np.ndarray) -> np.ndarray:
+            """Compute lambda for Main model with third moment"""
+            nI = A + B * pars[1:] + C * np.square(pars[1:])
+            return np.clip(pars[0] * self.model.signal + nI, 1e-5, None)
+
+        self._main_model = MainModel(lam)
+
 
 class VariableGaussian(SimplifiedLikelihoodBase):
     r"""
@@ -663,6 +703,6 @@ class VariableGaussian(SimplifiedLikelihoodBase):
             covariance_matrix=covariance_matrix,
         )
 
-        self._gaussian = MultivariateNormal(
-            np.zeros(len(self.model.observed)), covariance_matrix
+        self._constraint_model: ConstraintModel = ConstraintModel(
+            "multivariatenormal", np.zeros(len(self.model.observed)), covariance_matrix
         )
