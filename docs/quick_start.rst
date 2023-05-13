@@ -7,7 +7,7 @@ Installation
 
 .. code-block:: bash
 
-    $ pip install spey
+    >>> pip install spey
 
 
 Python >=3.8 is required. spey heavily relies on `numpy <https://numpy.org/doc/stable/>`_, 
@@ -43,22 +43,66 @@ Default plug-ins
   The Multivariate Normal distribution is constructed by the help of a covariance matrix 
   provided by the user which captures the uncertainties and background correlations between 
   each histogram bin. This statistical model has been first proposed in 
-  `JHEP 04 (2019), 064 <https://doi.org/10.1007/JHEP04%282019%29064>`_.
+  `JHEP 04 (2019), 064 <https://doi.org/10.1007/JHEP04%282019%29064>`_. The probability 
+  distribution of a simplified likelihood can be formed as follows;
+
+  .. math:: 
+
+        \mathcal{L}(\mu,\theta) = \underbrace{\left[\prod_i^N {\rm Poiss}\left(n^i_{obs} | \lambda_i(\mu, \theta)\right) \right]}_{\rm main\ model}
+        \cdot \underbrace{\mathcal{N}(\theta | 0, \Sigma)}_{\rm constraint\ model}
+
+  Here the first term is the so-called main model based on Poisson distribution centred around 
+  :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + \theta + n^i_{bkg}` and the second term is the 
+  multivariate normal distribution centred around zero with the standard deviation of :math:`\Sigma`
+  which, for multi-modal input, is covariance matrix.
 
 * ``'simplified_likelihoods.third_moment_expansion'``: Third moment expansion follows the above 
-  simplified likelihood construction and modifies the covariance matrix via third moment input.
+  simplified likelihood construction and modifies the :math:`\lambda` and :math:`\Sigma`. 
+  Using the expected background yields, :math:`m^{(1)}_i`, diagonal elements of the third moments, 
+  :math:`m^{(3)}_i` and the covariance matrix, :math:`m^{(2)}_{ij}`, one can write a modified 
+  correlation matrix and :math:`\lambda` function as follows
+
+  .. math:: 
+
+        C_i &= -sign(m^{(3)}_i) \sqrt{2 m^{(2)}_{ii}} \cos\left( \frac{4\pi}{3} + \frac{1}{3}\arctan\left(\sqrt{ \frac{8(m^{(2)}_{ii})^3}{(m^{(3)}_i)^2} - 1}\right) \right)
+        
+        B_i &= \sqrt{m^{(2)}_{ii} - 2 C_i^2}
+
+        A_i &=  m^{(1)}_i - C_i
+
+        \rho_{ij} &= \frac{1}{4C_iC_j} \left( \sqrt{(B_iB_j)^2 + 8C_iC_jm^{(2)}_{ij}} - B_iB_j \right)
+
+  which further modifies :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + A_i + B_i \theta_i + C_i \theta_i^2`
+  and the multivariate normal has been modified via the inverse of the correlation matrix, 
+  :math:`\mathcal{N}(\theta | 0, \rho^{-1})`. See `JHEP 04 (2019), 064 <https://doi.org/10.1007/JHEP04%282019%29064>`_
+  Sec. 2 for details.
 
 * ``'simplified_likelihoods.uncorrelated_background'``: User can use multi or single bin histograms 
   with unknown correlation structure within simplified likelihood interface. This particular 
   plug-in replaces Multivariate Normal distribution of the likelihood with a simple Normal 
   distribution to reduce the computational cost.
 
+  .. math:: 
+
+        \mathcal{L}_{\rm constraint}(\theta) = \prod_i^N \mathcal{N}(\theta_i | 0, \sigma_i)
+
 * ``'simplified_likelihoods.variable_gaussian'``: Variable Gaussian method is designed to capture 
   asymetric uncertainties on the background yields. This method converts the covariance matrix in 
-  to a function which takes upper and lower envelops of the background uncertainties, best fit 
-  values and nuisance parameters which allows the interface dynamically change the covariance 
+  to a function which takes absolute upper (:math:`\sigma^+`) and lower (:math:`\sigma^-`) envelops of the 
+  background uncertainties, best fit values (:math:`\hat\theta`) and nuisance parameters 
+  (:math:`\theta`) which allows the interface dynamically change the covariance 
   matrix with respect to given nuisance parameters. This implementation follows the method 
-  proposed in `Ref. arXiv:physics/0406120 <https://arxiv.org/abs/physics/0406120>`_.
+  proposed in `Ref. arXiv:physics/0406120 <https://arxiv.org/abs/physics/0406120>`_. This approach
+  transforms the covariance matrix from a constant input to a function of nuisance parameters.
+
+  .. math:: 
+
+      \sigma^\prime &= \sqrt{\sigma^+\sigma^-  + (\sigma^+ - \sigma^-)(\theta - \hat\theta)}
+      
+      \Sigma(\theta) &= \sigma^\prime \otimes \rho \otimes \sigma^\prime
+
+  which further modifies the multivariate normal distribution this new covariance matrix
+  :math:`\mathcal{N}(\theta | 0, \Sigma) \to \mathcal{N}(\theta | 0, \Sigma(\theta))`. 
 
 Third-party plug-ins
 ~~~~~~~~~~~~~~~~~~~~
@@ -247,3 +291,6 @@ as follows
     :alt: Likelihood distribution for multi-bin statistical model.
 
 Notice the slight difference between likelihood distributions, this is because of the use of different expectation types.
+The dots on the likelihood distribution represents the point where likelihood is maximized. Since for an 
+:obj:`~spey.ExpectationType.apriori` likelihood distribution observed and background values are the same, the likelihood
+should peak at :math:`\mu=0`.

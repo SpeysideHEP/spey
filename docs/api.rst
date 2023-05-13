@@ -9,15 +9,15 @@ Top-Level
 .. autosummary:: 
     :toctree: _generated/
 
-    spey.ExpectationType
-    spey.AvailableBackends
-    spey.get_backend
-    spey.get_backend_metadata
-    spey.get_uncorrelated_nbin_statistical_model
-    spey.get_correlated_nbin_statistical_model
-    spey.statistical_model_wrapper
-    spey.helper_functions.correlation_to_covariance
-    spey.helper_functions.covariance_to_correlation
+    ExpectationType
+    AvailableBackends
+    get_backend
+    get_backend_metadata
+    get_uncorrelated_nbin_statistical_model
+    get_correlated_nbin_statistical_model
+    statistical_model_wrapper
+    helper_functions.correlation_to_covariance
+    helper_functions.covariance_to_correlation
 
 Main Classes
 ------------
@@ -55,22 +55,24 @@ Statistical Model Combiner
 Hypothesis testing
 ------------------
 
+.. currentmodule:: spey.hypothesis_testing
+
 .. autosummary:: 
     :toctree: _generated/
 
-    spey.hypothesis_testing.test_statistics.qmu
-    spey.hypothesis_testing.test_statistics.qmu_tilde
-    spey.hypothesis_testing.test_statistics.q0
-    spey.hypothesis_testing.test_statistics.get_test_statistic
-    spey.hypothesis_testing.test_statistics.compute_teststatistics
-    spey.hypothesis_testing.upper_limits.find_poi_upper_limit
-    spey.hypothesis_testing.upper_limits.find_root_limits
-    spey.hypothesis_testing.utils.pvalues
-    spey.hypothesis_testing.utils.expected_pvalues
-    spey.hypothesis_testing.distributions.AsymptoticTestStatisticsDistribution
-    spey.hypothesis_testing.distributions.EmpricTestStatisticsDistribution
-    spey.hypothesis_testing.asymptotic_calculator.compute_asymptotic_confidence_level
-    spey.hypothesis_testing.toy_calculator.compute_toy_confidence_level
+    test_statistics.qmu
+    test_statistics.qmu_tilde
+    test_statistics.q0
+    test_statistics.get_test_statistic
+    test_statistics.compute_teststatistics
+    upper_limits.find_poi_upper_limit
+    upper_limits.find_root_limits
+    utils.pvalues
+    utils.expected_pvalues
+    distributions.AsymptoticTestStatisticsDistribution
+    distributions.EmpricTestStatisticsDistribution
+    asymptotic_calculator.compute_asymptotic_confidence_level
+    toy_calculator.compute_toy_confidence_level
 
 Default Backends
 ----------------
@@ -78,26 +80,35 @@ Default Backends
 Simplified Likelihoods
 ~~~~~~~~~~~~~~~~~~~~~~
 
+.. currentmodule:: spey.backends.simplifiedlikelihood_backend
+
 .. autosummary:: 
     :toctree: _generated/
 
-    spey.backends.simplifiedlikelihood_backend.UncorrelatedBackground
-    spey.backends.simplifiedlikelihood_backend.SimplifiedLikelihoods
-    spey.backends.simplifiedlikelihood_backend.ThirdMomentExpansion
-    spey.backends.simplifiedlikelihood_backend.VariableGaussian
-    spey.backends.simplifiedlikelihood_backend.sldata.SLData
+    UncorrelatedBackground
+    SimplifiedLikelihoods
+    ThirdMomentExpansion
+    VariableGaussian
+    sldata.SLData
+    distributions.Poisson
+    distributions.Normal
+    distributions.MultivariateNormal
+    distributions.MainModel
+    distributions.ConstraintModel
 
 Exceptions
 ----------
+
+.. currentmodule:: spey.system.exceptions
 
 .. autosummary:: 
     :toctree: _generated/
     :nosignatures:
 
-    spey.system.exceptions.AnalysisQueryError
-    spey.system.exceptions.MethodNotAvailable
-    spey.system.exceptions.NegativeExpectedYields
-    spey.system.exceptions.PluginError
-    spey.system.exceptions.UnknownCrossSection
-    spey.system.exceptions.UnknownTestStatistics
-    spey.system.exceptions.CalculatorNotAvailable
+    AnalysisQueryError
+    MethodNotAvailable
+    NegativeExpectedYields
+    PluginError
+    UnknownCrossSection
+    UnknownTestStatistics
+    CalculatorNotAvailable
