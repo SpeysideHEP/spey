@@ -12,6 +12,7 @@ Welcome to spey's documentation!
 
    quick_start
    new_plugin
+   sharp_bits
    api
    releases/changelog-dev
 
