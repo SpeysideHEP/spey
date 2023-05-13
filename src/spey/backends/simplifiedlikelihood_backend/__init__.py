@@ -476,7 +476,7 @@ class UncorrelatedBackground(SimplifiedLikelihoodBase):
 
 
 class SimplifiedLikelihoods(SimplifiedLikelihoodBase):
-    """
+    r"""
     Simplified likelihoods for correlated multi-region statistical models.
     Main simplified likelihood backend which uses a Multivariate Normal and
     a Poisson distributions to construct log-probability of the statistical
@@ -484,6 +484,18 @@ class SimplifiedLikelihoods(SimplifiedLikelihoodBase):
     of a covariance matrix provided by the user which captures the
     uncertainties and background correlations between each histogram bin.
     This statistical model has been first proposed in :xref:`1809.05548`.
+    The probability distribution of a simplified likelihood can be formed as follows;
+
+    .. math::
+
+        \mathcal{L}_{SL}(\mu,\theta) = \underbrace{\left[\prod_i^N {\rm Poiss}\left(n^i_{obs}
+        | \lambda_i(\mu, \theta)\right) \right]}_{\rm main\ model}
+        \cdot \underbrace{\mathcal{N}(\theta | 0, \Sigma)}_{\rm constraint\ model}
+
+    Here the first term is the so-called main model based on Poisson distribution centred around
+    :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + \theta + n^i_{bkg}` and the second term is the
+    multivariate normal distribution centred around zero with the standard deviation of
+    :math:`\Sigma` which, for multi-modal input, is covariance matrix.
 
     Args:
         signal_yields (``np.ndarray``): signal yields
@@ -545,8 +557,28 @@ class SimplifiedLikelihoods(SimplifiedLikelihoodBase):
 
 
 class ThirdMomentExpansion(SimplifiedLikelihoodBase):
-    """
+    r"""
     Simplified likelihood interface with third moment expansion.
+    Third moment expansion follows simplified likelihood construction
+    and modifies the :math:`\lambda` and :math:`\Sigma`. Using the expected
+    background yields, :math:`m^{(1)}_i`, diagonal elements of the third moments,
+    :math:`m^{(3)}_i` and the covariance matrix, :math:`m^{(2)}_{ij}`, one
+    can write a modified correlation matrix and :math:`\lambda` function as follows
+
+    .. math::
+
+        C_i &= -sign(m^{(3)}_i) \sqrt{2 m^{(2)}_{ii}} \cos\left( \frac{4\pi}{3} +
+        \frac{1}{3}\arctan\left(\sqrt{ \frac{8(m^{(2)}_{ii})^3}{(m^{(3)}_i)^2} - 1}\right) \right)
+
+        B_i &= \sqrt{m^{(2)}_{ii} - 2 C_i^2}
+
+        A_i &=  m^{(1)}_i - C_i
+
+        \rho_{ij} &= \frac{1}{4C_iC_j} \left( \sqrt{(B_iB_j)^2 + 8C_iC_jm^{(2)}_{ij}} - B_iB_j \right)
+
+    which further modifies :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + A_i + B_i \theta_i + C_i \theta_i^2`
+    and the multivariate normal has been modified via the inverse of the correlation matrix,
+    :math:`\mathcal{N}(\theta | 0, \rho^{-1})`. See :xref:`1809.05548` Sec. 2 for details.
 
     Args:
         signal_yields (``np.ndarray``): signal yields
@@ -626,21 +658,24 @@ class ThirdMomentExpansion(SimplifiedLikelihoodBase):
 
 class VariableGaussian(SimplifiedLikelihoodBase):
     r"""
-    Simplified likelihood interface with variable Gaussian. Simplified likelihood approach
-    relies on combination of Poissonian and Multivariate Normal distributions where correlations between
-    regions determines the behaviour of the Gaussian portion of the likelihood.
-    The variable Gaussian approach captures asymmetric uncertainties on the background yields by
-    modifying the covariance matrix, :math:`\sigma`, as follows
+    Simplified likelihood interface with variable Gaussian. Variable Gaussian method
+    is designed to capture asymetric uncertainties on the background yields. This
+    method converts the covariance matrix in to a function which takes absolute upper
+    (:math:`\sigma^+`) and lower (:math:`\sigma^-`) envelops of the background uncertainties,
+    best fit values (:math:`\hat\theta`) and nuisance parameters (:math:`\theta`) which
+    allows the interface dynamically change the covariance matrix with respect to given
+    nuisance parameters. This implementation follows the method proposed in
+    `Ref. arXiv:physics/0406120 <https://arxiv.org/abs/physics/0406120>`_. This approach
+    transforms the covariance matrix from a constant input to a function of nuisance parameters.
 
     .. math::
 
-        \Sigma(\mu) = diag\left(\sqrt{\sigma^+_i\sigma^-_i + (\sigma^+_i - \sigma^-_i)(\theta_i - \hat{\theta}_i)}\right)
+        \sigma^\prime &= \sqrt{\sigma^+\sigma^-  + (\sigma^+ - \sigma^-)(\theta - \hat\theta)}
 
-        \sigma = \Sigma(\mu)\rho\Sigma(\mu)
+        \Sigma(\theta) &= \sigma^\prime \otimes \rho \otimes \sigma^\prime
 
-    where :math:`\rho` is the correlation matrix, :math:`\theta` are the nuisance parameters and
-    :math:`\hat\theta` are the best fit parameters. :math:`\sigma^\pm` are the upper and lower absolute
-    uncertainty envelopes per bin.
+    which further modifies the multivariate normal distribution this new covariance matrix
+    :math:`\mathcal{N}(\theta | 0, \Sigma) \to \mathcal{N}(\theta | 0, \Sigma(\theta))`.
 
     Args:
         signal_yields (``np.ndarray``): signal yields
@@ -651,14 +686,6 @@ class VariableGaussian(SimplifiedLikelihoodBase):
           envelops for each background yield.
         best_fit_values (``List[float]``): bestfit values for the covariance matrix computation given
           as :math:`\hat\theta`.
-
-    .. note::
-
-        Each input should have the same dimensionality, i.e. if ``data`` has three regions,
-        ``signal_yields`` and ``background_yields`` inputs should have three regions as well.
-        Additionally ``covariance_matrix`` is expected to be square matrix, thus for a three
-        region statistical model it is expected to be 3x3 matrix. Following these,
-        ``third_moment`` should also have three inputs.
     """
 
     name: Text = "simplified_likelihoods.variable_gaussian"
