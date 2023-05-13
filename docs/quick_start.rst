@@ -48,13 +48,22 @@ Default plug-ins
 
   .. math:: 
 
-        \mathcal{L}(\mu,\theta) = \underbrace{\left[\prod_i^N {\rm Poiss}\left(n^i_{obs} | \lambda_i(\mu, \theta)\right) \right]}_{\rm main\ model}
+        \mathcal{L}_{SL}(\mu,\theta) = \underbrace{\left[\prod_i^N {\rm Poiss}\left(n^i_{obs} | \lambda_i(\mu, \theta)\right) \right]}_{\rm main\ model}
         \cdot \underbrace{\mathcal{N}(\theta | 0, \Sigma)}_{\rm constraint\ model}
 
   Here the first term is the so-called main model based on Poisson distribution centred around 
   :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + \theta + n^i_{bkg}` and the second term is the 
   multivariate normal distribution centred around zero with the standard deviation of :math:`\Sigma`
   which, for multi-modal input, is covariance matrix.
+
+* ``'simplified_likelihoods.uncorrelated_background'``: User can use multi or single bin histograms 
+  with unknown correlation structure within simplified likelihood interface. This particular 
+  plug-in replaces Multivariate Normal distribution of the likelihood with a simple Normal 
+  distribution to reduce the computational cost.
+
+  .. math:: 
+
+        \mathcal{L}_{\rm constraint}(\theta) = \prod_i^N \mathcal{N}(\theta_i | 0, \sigma_i)
 
 * ``'simplified_likelihoods.third_moment_expansion'``: Third moment expansion follows the above 
   simplified likelihood construction and modifies the :math:`\lambda` and :math:`\Sigma`. 
@@ -76,15 +85,6 @@ Default plug-ins
   and the multivariate normal has been modified via the inverse of the correlation matrix, 
   :math:`\mathcal{N}(\theta | 0, \rho^{-1})`. See `JHEP 04 (2019), 064 <https://doi.org/10.1007/JHEP04%282019%29064>`_
   Sec. 2 for details.
-
-* ``'simplified_likelihoods.uncorrelated_background'``: User can use multi or single bin histograms 
-  with unknown correlation structure within simplified likelihood interface. This particular 
-  plug-in replaces Multivariate Normal distribution of the likelihood with a simple Normal 
-  distribution to reduce the computational cost.
-
-  .. math:: 
-
-        \mathcal{L}_{\rm constraint}(\theta) = \prod_i^N \mathcal{N}(\theta_i | 0, \sigma_i)
 
 * ``'simplified_likelihoods.variable_gaussian'``: Variable Gaussian method is designed to capture 
   asymetric uncertainties on the background yields. This method converts the covariance matrix in 
