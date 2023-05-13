@@ -127,11 +127,11 @@ class SLData:
         return ModelConfig(
             poi_index=0,
             minimum_poi=minimum_poi,
-            suggested_init=[1] * (len(self) + 1),
+            suggested_init=[1.0] * (len(self) + 1),
             suggested_bounds=[
                 (minimum_poi if allow_negative_signal else 0.0, poi_upper_bound)
             ]
-            + [(-5.0, 5.0)] * len(self),
+            + [(-bkg, bkg) for bkg in self.background],
         )
 
     @property
@@ -145,7 +145,7 @@ class SLData:
     @property
     def isAlive(self) -> bool:
         """Is there any region with non-zero signal yields"""
-        return len(self.signal[self.signal > 0.0]) != 0
+        return np.any(self.signal > 0.0)
 
     @property
     def isLinear(self) -> bool:

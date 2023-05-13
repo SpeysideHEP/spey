@@ -9,9 +9,7 @@ from spey.base import BackendBase
 from spey.base import ModelConfig
 from spey.utils import ExpectationType
 from spey._version import __version__
-from .sldata import SLData, expansion_output
-from .operators import logpdf, hessian_logpdf_func, objective_wrapper
-from .sampler import sample_generator
+from .sldata import SLData
 from .distributions import MainModel, ConstraintModel
 from .third_moment import third_moment_expansion
 
@@ -63,7 +61,7 @@ class SimplifiedLikelihoodBase(BackendBase):
     arXiv: List[Text] = ["1809.05548"]
     """arXiv reference for the backend"""
 
-    __slots__ = ["_model", "_third_moment_expansion", "_main_model", "_constraint_model"]
+    __slots__ = ["_model", "_main_model", "_constraint_model"]
 
     def __init__(
         self,
@@ -92,7 +90,7 @@ class SimplifiedLikelihoodBase(BackendBase):
 
     @property
     def constraint_model(self) -> ConstraintModel:
-        """retreive constraint model"""
+        """retreive constraint model distribution"""
         if self._constraint_model is None:
             self._constraint_model = ConstraintModel(
                 "multivariatenormal",
@@ -103,7 +101,7 @@ class SimplifiedLikelihoodBase(BackendBase):
 
     @property
     def main_model(self) -> MainModel:
-        """retreive the main model"""
+        """retreive the main model distribution"""
         if self._main_model is None:
 
             def lam(pars: np.ndarray) -> np.ndarray:
