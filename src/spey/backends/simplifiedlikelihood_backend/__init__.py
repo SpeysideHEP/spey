@@ -586,24 +586,42 @@ class ThirdMomentExpansion(SimplifiedLikelihoodBase):
         third_moment: np.ndarray,
     ):
 
-        super().__init__(
-            signal_yields=signal_yields,
-            background_yields=background_yields,
-            data=data,
-            covariance_matrix=covariance_matrix,
-            third_moment=third_moment,
+        background = np.array(background_yields)
+        covariance = np.array(covariance_matrix)
+        third_moments = np.array(third_moment)
+
+        A, B, C, corr = third_moment_expansion(
+            background, covariance, third_moments, True
         )
 
-        A, B, C = third_moment_expansion(
-            self.model.background, self.model.covariance_matrix, self.model.third_moment
+        super().__init__(
+            signal_yields=signal_yields,
+            background_yields=background,
+            data=data,
+            covariance_matrix=covariance,
+            third_moment=third_moments,
         )
 
         def lam(pars: np.ndarray) -> np.ndarray:
-            """Compute lambda for Main model with third moment"""
+            """
+            Compute lambda for Main model with third moment expansion.
+            For details see above eq 2.6 in :xref:`1809.05548`
+
+            Args:
+                pars (``np.ndarray``): nuisance parameters
+
+            Returns:
+                ``np.ndarray``:
+                expectation value of the poisson distribution with respect to
+                nuisance parameters.
+            """
             nI = A + B * pars[1:] + C * np.square(pars[1:])
             return np.clip(pars[0] * self.model.signal + nI, 1e-5, None)
 
         self._main_model = MainModel(lam)
+        self._constraint_model = ConstraintModel(
+            np.zeros(corr.shape[0]), np.linalg.inv(corr)
+        )
 
 
 class VariableGaussian(SimplifiedLikelihoodBase):
