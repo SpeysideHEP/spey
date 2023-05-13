@@ -620,7 +620,7 @@ class ThirdMomentExpansion(SimplifiedLikelihoodBase):
 
         self._main_model = MainModel(lam)
         self._constraint_model = ConstraintModel(
-            np.zeros(corr.shape[0]), np.linalg.inv(corr)
+            "multivariatenormal", np.zeros(corr.shape[0]), np.linalg.inv(corr)
         )
 
 
