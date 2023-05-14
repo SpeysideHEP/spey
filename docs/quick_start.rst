@@ -42,17 +42,17 @@ Default plug-ins
   Normal and a Poisson distributions to construct log-probability of the statistical model. 
   The Multivariate Normal distribution is constructed by the help of a covariance matrix 
   provided by the user which captures the uncertainties and background correlations between 
-  each histogram bin. This statistical model has been first proposed in 
-  `JHEP 04 (2019), 064 <https://doi.org/10.1007/JHEP04%282019%29064>`_. The probability 
-  distribution of a simplified likelihood can be formed as follows;
+  each histogram bin. This statistical model has been first proposed in :cite:t:`Buckley:2018vdr`. 
+  The probability distribution of a simplified likelihood can be formed as follows;
 
   .. math:: 
 
-        \mathcal{L}_{SL}(\mu,\theta) = \underbrace{\left[\prod_i^N {\rm Poiss}\left(n^i_{obs} | \lambda_i(\mu, \theta)\right) \right]}_{\rm main\ model}
+        \mathcal{L}_{SL}(\mu,\theta) = \underbrace{\left[\prod_i^N {\rm Poiss}\left(n^i_{obs} | 
+        \lambda_i(\mu, \theta)\right) \right]}_{\rm main\ model}
         \cdot \underbrace{\mathcal{N}(\theta | 0, \Sigma)}_{\rm constraint\ model}
 
   Here the first term is the so-called main model based on Poisson distribution centred around 
-  :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + \theta + n^i_{bkg}` and the second term is the 
+  :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + \theta_i + n^i_{bkg}` and the second term is the 
   multivariate normal distribution centred around zero with the standard deviation of :math:`\Sigma`
   which, for multi-modal input, is covariance matrix.
 
@@ -73,7 +73,8 @@ Default plug-ins
 
   .. math:: 
 
-        C_i &= -sign(m^{(3)}_i) \sqrt{2 m^{(2)}_{ii}} \cos\left( \frac{4\pi}{3} + \frac{1}{3}\arctan\left(\sqrt{ \frac{8(m^{(2)}_{ii})^3}{(m^{(3)}_i)^2} - 1}\right) \right)
+        C_i &= -{\rm sign}(m^{(3)}_i) \sqrt{2 m^{(2)}_{ii}} \cos\left( \frac{4\pi}{3} + 
+        \frac{1}{3}\arctan\left(\sqrt{ \frac{8(m^{(2)}_{ii})^3}{(m^{(3)}_i)^2} - 1}\right) \right)
         
         B_i &= \sqrt{m^{(2)}_{ii} - 2 C_i^2}
 
@@ -83,8 +84,7 @@ Default plug-ins
 
   which further modifies :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + A_i + B_i \theta_i + C_i \theta_i^2`
   and the multivariate normal has been modified via the inverse of the correlation matrix, 
-  :math:`\mathcal{N}(\theta | 0, \rho^{-1})`. See `JHEP 04 (2019), 064 <https://doi.org/10.1007/JHEP04%282019%29064>`_
-  Sec. 2 for details.
+  :math:`\mathcal{N}(\theta | 0, \rho^{-1})`. See :cite:t:`Buckley:2018vdr` Sec. 2 for details.
 
 * ``'simplified_likelihoods.variable_gaussian'``: Variable Gaussian method is designed to capture 
   asymetric uncertainties on the background yields. This method converts the covariance matrix in 
@@ -92,8 +92,8 @@ Default plug-ins
   background uncertainties, best fit values (:math:`\hat\theta`) and nuisance parameters 
   (:math:`\theta`) which allows the interface dynamically change the covariance 
   matrix with respect to given nuisance parameters. This implementation follows the method 
-  proposed in `Ref. arXiv:physics/0406120 <https://arxiv.org/abs/physics/0406120>`_. This approach
-  transforms the covariance matrix from a constant input to a function of nuisance parameters.
+  proposed in ref. :cite:t:`Barlow:2004wg`. This approach transforms the covariance matrix from 
+  a constant input to a function of nuisance parameters.
 
   .. math:: 
 
@@ -294,3 +294,8 @@ Notice the slight difference between likelihood distributions, this is because o
 The dots on the likelihood distribution represents the point where likelihood is maximized. Since for an 
 :obj:`~spey.ExpectationType.apriori` likelihood distribution observed and background values are the same, the likelihood
 should peak at :math:`\mu=0`.
+
+Bibliography
+============
+
+.. bibliography:: 
