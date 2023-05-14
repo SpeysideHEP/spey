@@ -20,6 +20,7 @@ __all__ = [
     "get_uncorrelated_nbin_statistical_model",
     "get_backend",
     "get_backend_metadata",
+    "reset_backend_entries",
     "BackendBase",
 ]
 
@@ -46,6 +47,15 @@ def _get_backend_entrypoints() -> Dict:
     }
 
 
+_backend_entries: Dict = _get_backend_entrypoints()
+# ! Preinitialise backends, it might be costly to scan the system everytime
+
+
+def reset_backend_entries() -> None:
+    """Scan the system for backends and reset the entries"""
+    _backend_entries = _get_backend_entrypoints()
+
+
 def AvailableBackends() -> List[Text]:
     """
     Returns a list of available backends. The default backends are automatically installed
@@ -60,7 +70,7 @@ def AvailableBackends() -> List[Text]:
     Returns:
         ``List[Text]``: list of names of available backends.
     """
-    return [*_get_backend_entrypoints().keys()]
+    return [*_backend_entries.keys()]
 
 
 def get_backend(name: Text) -> Callable[[Any, ...], StatisticalModel]:
@@ -116,7 +126,7 @@ def get_backend(name: Text) -> Callable[[Any, ...], StatisticalModel]:
         the backend it self which is in this particular example
         :obj:`~spey.backends.simplifiedlikelihood_backend.interface.SimplifiedLikelihoodInterface`.
     """
-    backend = _get_backend_entrypoints().get(name, False)
+    backend = _backend_entries.get(name, False)
 
     if backend:
         statistical_model = backend.load()
@@ -180,7 +190,7 @@ def get_backend_metadata(name: Text) -> Dict[Text, Text]:
         ... 'doi': ['10.1007/JHEP04(2019)064'],
         ... 'arXiv': ['1809.05548']}
     """
-    backend = _get_backend_entrypoints().get(name, False)
+    backend = _backend_entries.get(name, False)
 
     if backend:
         statistical_model = backend.load()
@@ -354,7 +364,6 @@ def get_correlated_nbin_statistical_model(
         ...     data=[51.0, 48.0],
         ...     covariance_matrix=[[3.,0.5], [0.6,7.]],
         ...     backgrounds=[50.0, 52.0],
-        ...     delta_sys=0.,
         ...     third_moment=[0.2, 0.1],
         ...     xsection=0.5
         ... )
