@@ -758,7 +758,7 @@ class StatisticalModel(HypothesisTestingBase):
             ) from exc
 
         fit_opts = self.prepare_for_fit(expected=expected)
-        _ = fit_opts.pop("nll")
+        _ = fit_opts.pop("logpdf")
 
         _, fit_param = fit(
             **fit_opts,
