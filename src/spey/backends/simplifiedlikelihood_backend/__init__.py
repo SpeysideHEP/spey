@@ -12,6 +12,7 @@ from spey._version import __version__
 from .sldata import SLData
 from .distributions import MainModel, ConstraintModel
 from .third_moment import third_moment_expansion
+from spey.helper_functions import covariance_to_correlation
 
 
 def __dir__():
@@ -399,6 +400,89 @@ class SimplifiedLikelihoodBase(BackendBase):
         )
 
         return self.expected_data(fit_pars)
+
+    def compute_nuisance_bounds(
+        self,
+        poi_test: float,
+        delta: float = 5.0,
+        expected: ExpectationType = ExpectationType.observed,
+        data: Optional[np.ndarray] = None,
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
+        **kwargs,
+    ) -> List[Tuple[float, float]]:
+        r"""
+        [**Experimental**] Compute parameter bounds for nuisance parameters at fixed POI.
+
+        .. math::
+
+            \theta^\pm = \hat\theta \pm \delta \sigma_{\theta_\mu}
+
+            \sigma_{\theta_\mu} = \sqrt{ \left( \frac{\partial^2 (-\log\mathcal{L}(\mu, \theta_\mu))}{\partial\theta_i^2} \right)^{-1} }
+
+        Args:
+            poi_test (``float``): parameter of interest
+            delta (``float``, default ``5.0``): magnitude of the standard deviation
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescriotion which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescriotion which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            data (``np.ndarray``, default ``None``): input data that to fit
+            init_pars (``List[float]``, default ``None``): initialisation parameters
+            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds
+            kwargs: optimisation arguments
+
+        Returns:
+            ``List[Tuple[float, float]]``:
+            estimated bounds for the nuisance parameters.
+        """
+
+        model: SLData = (
+            self.model
+            if expected != ExpectationType.apriori
+            else self.model.expected_dataset
+        )
+
+        data = data if data is not None else model.observed
+
+        def sigma_nuisance(pars: np.ndarray) -> np.ndarray:
+            return np.sqrt(
+                np.diag(
+                    np.linalg.inv(-self.get_hessian_logpdf_func(expected, data)(pars))
+                )
+            )[1:]
+
+        _, fit_pars = fit(
+            func=self.get_objective_function(expected=expected, do_grad=True),
+            model_configuration=model.config(),
+            do_grad=True,
+            initial_parameters=init_pars,
+            bounds=par_bounds,
+            **kwargs,
+        )
+
+        _, fit_pars_fixed_poi = fit(
+            func=self.get_objective_function(expected=expected, do_grad=True),
+            model_configuration=model.config(),
+            do_grad=True,
+            initial_parameters=init_pars,
+            bounds=par_bounds,
+            fixed_poi_value=poi_test,
+            **kwargs,
+        )
+
+        return [
+            (th - delta * th_sig, th + delta * th_sig)
+            for th, th_sig in zip(fit_pars[1:], sigma_nuisance(fit_pars_fixed_poi))
+        ]
 
 
 class UncorrelatedBackground(SimplifiedLikelihoodBase):
