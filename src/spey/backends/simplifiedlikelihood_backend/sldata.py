@@ -131,7 +131,7 @@ class SLData:
             suggested_bounds=[
                 (minimum_poi if allow_negative_signal else 0.0, poi_upper_bound)
             ]
-            + [(-bkg, bkg) for bkg in self.background],
+            + [(None, None)] * len(self),
         )
 
     @property
