@@ -1,5 +1,5 @@
 """Tools for computing third moment expansion"""
-from typing import Tuple
+from typing import Tuple, Optional
 
 import autograd.numpy as np
 
@@ -9,7 +9,7 @@ import autograd.numpy as np
 def third_moment_expansion(
     expectation_value: np.ndarray,
     covariance_matrix: np.ndarray,
-    third_moment: np.ndarray,
+    third_moment: Optional[np.ndarray] = None,
     return_correlation_matrix: bool = False,
 ) -> Tuple:
     """
@@ -24,15 +24,11 @@ def third_moment_expansion(
 
     Returns:
         ``np.ndarray``:
-        A, B, C terms from :xref:`1809.05548` eqns 2.9, 2.10, 2.11. if 
+        A, B, C terms from :xref:`1809.05548` eqns 2.9, 2.10, 2.11. if
         ``return_correlation_matrix`` is ``True`` it also returns correlation matrix.
-        
     """
     cov_diag = np.diag(covariance_matrix)
 
-    assert np.all(
-        third_moment > 0.0
-    ), "Values for the diagonal term of the third moment should be greater than zero."
     assert np.all(8.0 * cov_diag**3 >= third_moment**2), (
         "Given covariance matrix and diagonal terms of the third moment does not "
         + "satisfy the condition: 8 * diag(cov)**3 >= third_moment**2."
@@ -56,16 +52,24 @@ def third_moment_expansion(
     A = expectation_value - C
 
     # arXiv:1809.05548 eq. 2.12
+    eps = 1e-5
     if return_correlation_matrix:
         corr = np.zeros((C.shape[0], C.shape[0]))
         for i in range(corr.shape[0]):
             for j in range(corr.shape[0]):
-                corr[i, j] = (
-                    np.sqrt(
-                        (B[i] * B[j]) ** 2 + 8.0 * C[i] * C[j] * covariance_matrix[i, j]
-                    )
-                    - B[i] * B[j]
-                ) / (4.0 * C[i] * C[j])
+                ci = C[i] + eps if C[i] >= 0 else C[i] - eps
+                cj = C[j] + eps if C[j] >= 0 else C[j] - eps
+                cicj = ci * cj
+                bibj = B[i] * B[j]
+
+                discr1 = bibj**2
+                discr2 = 8 * cicj * covariance_matrix[i, j]
+                discr = discr1 + discr2
+
+                corr[i, j] = (np.sqrt(abs(discr)) - bibj) / 4 / cicj
+
+                if i != j:
+                    corr[j, i] = corr[i, j]
 
         return A, B, C, corr
 
