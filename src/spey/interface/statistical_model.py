@@ -232,7 +232,7 @@ class StatisticalModel(HypothesisTestingBase):
             boolean, ``"do_grad"`` and function to compute negative log-likelihood with given
             fit parameters, ``"nll"``.
         """
-        do_grad = True
+        do_grad = kwargs.pop("do_grad", True)
         try:
             objective_and_grad = self.backend.get_objective_function(
                 expected=expected, data=data, do_grad=do_grad
@@ -377,7 +377,11 @@ class StatisticalModel(HypothesisTestingBase):
             ``List[float]``:
             Asimov data
         """
-        fit_opts = self.prepare_for_fit(expected=expected, **kwargs)
+        fit_opts = self.prepare_for_fit(
+            expected=expected,
+            allow_negative_signal=True if test_statistic in ["q", "qmu"] else False,
+            **kwargs,
+        )
 
         _, fit_pars = fit(
             **fit_opts,
