@@ -48,7 +48,7 @@ class SLData:
         cov = (
             self.covariance_matrix
             if not callable(self.covariance_matrix)
-            else self.covariance(np.random.uniform(0, 1, (len(self.background))))
+            else self.covariance_matrix(np.random.uniform(0, 1, (len(self.background))))
         )
 
         if cov is not None:
