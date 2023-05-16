@@ -2,7 +2,7 @@
 
 from typing import Optional, Text, Callable, List, Union, Tuple, Any
 from autograd import numpy as np
-from autograd import grad, hessian
+from autograd import grad, hessian, jacobian
 
 from spey.optimizer import fit
 from spey.base import BackendBase
@@ -12,7 +12,6 @@ from spey._version import __version__
 from .sldata import SLData
 from .distributions import MainModel, ConstraintModel
 from .third_moment import third_moment_expansion
-from spey.helper_functions import covariance_to_correlation
 
 
 def __dir__():
@@ -62,7 +61,7 @@ class SimplifiedLikelihoodBase(BackendBase):
     arXiv: List[Text] = ["1809.05548"]
     """arXiv reference for the backend"""
 
-    __slots__ = ["_model", "_main_model", "_constraint_model"]
+    __slots__ = ["_model", "_main_model", "_constraint_model", "constraints"]
 
     def __init__(
         self,
@@ -88,6 +87,7 @@ class SimplifiedLikelihoodBase(BackendBase):
         )
         self._main_model = None
         self._constraint_model = None
+        self.constraints = []
 
     @property
     def constraint_model(self) -> ConstraintModel:
@@ -107,12 +107,10 @@ class SimplifiedLikelihoodBase(BackendBase):
 
             def lam(pars: np.ndarray) -> np.ndarray:
                 """Compute lambda for Main model"""
-                return np.clip(
-                    self.model.background + pars[1:] + pars[0] * self.model.signal,
-                    1e-5,
-                    None,
-                )
+                return self.model.background + pars[1:] + pars[0] * self.model.signal
 
+            jac_const = jacobian(lam)
+            self.constraints = [{"type": "ineq", "fun": lam, "jac": jac_const}]
             self._main_model = MainModel(lam)
 
         return self._main_model
@@ -466,6 +464,7 @@ class SimplifiedLikelihoodBase(BackendBase):
             do_grad=True,
             initial_parameters=init_pars,
             bounds=par_bounds,
+            constraints=self.constraints,
             **kwargs,
         )
 
@@ -476,6 +475,7 @@ class SimplifiedLikelihoodBase(BackendBase):
             initial_parameters=init_pars,
             bounds=par_bounds,
             fixed_poi_value=poi_test,
+            constraints=self.constraints,
             **kwargs,
         )
 
@@ -529,11 +529,11 @@ class UncorrelatedBackground(SimplifiedLikelihoodBase):
 
     name: Text = "simplified_likelihoods.uncorrelated_background"
     """Name of the backend"""
-    version: Text = __version__
+    version: Text = SimplifiedLikelihoodBase.version
     """Version of the backend"""
     author: Text = "SpeysideHEP"
     """Author of the backend"""
-    spey_requires: Text = __version__
+    spey_requires: Text = SimplifiedLikelihoodBase.spey_requires
     """Spey version required for the backend"""
     doi: List[Text] = SimplifiedLikelihoodBase.doi
     """Citable DOI for the backend"""
@@ -614,11 +614,11 @@ class SimplifiedLikelihoods(SimplifiedLikelihoodBase):
 
     name: Text = "simplified_likelihoods"
     """Name of the backend"""
-    version: Text = __version__
+    version: Text = SimplifiedLikelihoodBase.version
     """Version of the backend"""
     author: Text = "SpeysideHEP"
     """Author of the backend"""
-    spey_requires: Text = __version__
+    spey_requires: Text = SimplifiedLikelihoodBase.spey_requires
     """Spey version required for the backend"""
     doi: List[Text] = SimplifiedLikelihoodBase.doi
     """Citable DOI for the backend"""
@@ -682,11 +682,11 @@ class ThirdMomentExpansion(SimplifiedLikelihoodBase):
 
     name: Text = "simplified_likelihoods.third_moment_expansion"
     """Name of the backend"""
-    version: Text = __version__
+    version: Text = SimplifiedLikelihoodBase.version
     """Version of the backend"""
     author: Text = "SpeysideHEP"
     """Author of the backend"""
-    spey_requires: Text = __version__
+    spey_requires: Text = SimplifiedLikelihoodBase.spey_requires
     """Spey version required for the backend"""
     doi: List[Text] = SimplifiedLikelihoodBase.doi
     """Citable DOI for the backend"""
@@ -731,12 +731,17 @@ class ThirdMomentExpansion(SimplifiedLikelihoodBase):
                 expectation value of the poisson distribution with respect to
                 nuisance parameters.
             """
-            nI = A + B * pars[1:] + C * np.square(pars[1:])
-            return np.clip(pars[0] * self.model.signal + nI, 1e-5, None)
+            nI = A + pars[1:] + C * np.square(pars[1:] / B)
+            # nI = A + B * pars[1:] + C * np.square(pars[1:])
+            return pars[0] * self.model.signal + nI
+
+        jac_lam = jacobian(lam)
+
+        self.constraints = [{"type": "ineq", "fun": lam, "jac": jac_lam}]
 
         self._main_model = MainModel(lam)
         self._constraint_model = ConstraintModel(
-            "multivariatenormal", np.zeros(corr.shape[0]), np.linalg.inv(corr)
+            "multivariatenormal", np.zeros(corr.shape[0]), covariance
         )
 
 
@@ -774,11 +779,11 @@ class VariableGaussian(SimplifiedLikelihoodBase):
 
     name: Text = "simplified_likelihoods.variable_gaussian"
     """Name of the backend"""
-    version: Text = __version__
+    version: Text = SimplifiedLikelihoodBase.version
     """Version of the backend"""
     author: Text = "SpeysideHEP"
     """Author of the backend"""
-    spey_requires: Text = __version__
+    spey_requires: Text = SimplifiedLikelihoodBase.spey_requires
     """Spey version required for the backend"""
     doi: List[Text] = SimplifiedLikelihoodBase.doi + ["10.1142/9781860948985_0013"]
     """Citable DOI for the backend"""
