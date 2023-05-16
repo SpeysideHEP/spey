@@ -4,11 +4,14 @@ from typing import Optional, Text, Callable, List, Union, Tuple, Any
 from autograd import numpy as np
 from autograd import grad, hessian, jacobian
 
+from scipy.optimize import NonlinearConstraint
+
 from spey.optimizer import fit
 from spey.base import BackendBase
 from spey.base import ModelConfig
 from spey.utils import ExpectationType
 from spey._version import __version__
+from spey.helper_functions import covariance_to_correlation
 from .sldata import SLData
 from .distributions import MainModel, ConstraintModel
 from .third_moment import third_moment_expansion
@@ -93,10 +96,9 @@ class SimplifiedLikelihoodBase(BackendBase):
     def constraint_model(self) -> ConstraintModel:
         """retreive constraint model distribution"""
         if self._constraint_model is None:
+            corr = covariance_to_correlation(self.model.covariance_matrix)
             self._constraint_model = ConstraintModel(
-                "multivariatenormal",
-                np.zeros(len(self.model.observed)),
-                self.model.covariance_matrix,
+                "multivariatenormal", np.zeros(len(self.model)), corr
             )
         return self._constraint_model
 
@@ -104,13 +106,33 @@ class SimplifiedLikelihoodBase(BackendBase):
     def main_model(self) -> MainModel:
         """retreive the main model distribution"""
         if self._main_model is None:
+            A = self.model.background
+            B = np.sqrt(np.diag(self.model.covariance_matrix))
 
             def lam(pars: np.ndarray) -> np.ndarray:
-                """Compute lambda for Main model"""
-                return self.model.background + pars[1:] + pars[0] * self.model.signal
+                """
+                Compute lambda for Main model with third moment expansion.
+                For details see above eq 2.6 in :xref:`1809.05548`
 
-            jac_const = jacobian(lam)
-            self.constraints = [{"type": "ineq", "fun": lam, "jac": jac_const}]
+                Args:
+                    pars (``np.ndarray``): nuisance parameters
+
+                Returns:
+                    ``np.ndarray``:
+                    expectation value of the poisson distribution with respect to
+                    nuisance parameters.
+                """
+                return pars[0] * self.model.signal + A + B * pars[1:]
+
+            def constraint(pars: np.ndarray) -> np.ndarray:
+                """Compute constraint term"""
+                return A + B * pars[1:]
+
+            jac_constr = jacobian(constraint)
+
+            self.constraints = [
+                NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
+            ]
             self._main_model = MainModel(lam)
 
         return self._main_model
@@ -190,18 +212,20 @@ class SimplifiedLikelihoodBase(BackendBase):
 
         data = data if data is not None else current_model.observed
 
-        def twice_nll(pars: np.ndarray) -> np.ndarray:
+        def negative_loglikelihood(pars: np.ndarray) -> np.ndarray:
             """Compute twice negative log-likelihood"""
-            return -2.0 * (
-                self.main_model.log_prob(pars, data[: len(current_model)])
-                + self.constraint_model.log_prob(pars[1:])
-            )
+            return -self.main_model.log_prob(
+                pars, data[: len(current_model)]
+            ) - self.constraint_model.log_prob(pars[1:])
 
         if do_grad:
-            grad_twice_nll = grad(twice_nll, argnum=0)
-            return lambda pars: (twice_nll(pars), grad_twice_nll(pars))
+            grad_negative_loglikelihood = grad(negative_loglikelihood, argnum=0)
+            return lambda pars: (
+                negative_loglikelihood(pars),
+                grad_negative_loglikelihood(pars),
+            )
 
-        return twice_nll
+        return negative_loglikelihood
 
     def get_logpdf_func(
         self,
@@ -553,10 +577,36 @@ class UncorrelatedBackground(SimplifiedLikelihoodBase):
             data=data,
             covariance_matrix=None,
         )
+        A = self.model.background
+        B = np.array(absolute_uncertainties)
 
         self._constraint_model: ConstraintModel = ConstraintModel(
-            "normal", np.zeros(len(self.model.observed)), absolute_uncertainties
+            "normal", np.zeros(len(self.model.observed)), B
         )
+
+        def lam(pars: np.ndarray) -> np.ndarray:
+            """
+            Compute lambda for Main model with third moment expansion.
+            For details see above eq 2.6 in :xref:`1809.05548`
+
+            Args:
+                pars (``np.ndarray``): nuisance parameters
+
+            Returns:
+                ``np.ndarray``:
+                expectation value of the poisson distribution with respect to
+                nuisance parameters.
+            """
+            return pars[0] * self.model.signal + A + B * pars[1:]
+
+        def constraint(pars: np.ndarray) -> np.ndarray:
+            """Compute the constraint term"""
+            return A + B * pars[1:]
+
+        jac_constr = jacobian(constraint)
+
+        self.constraints = [NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)]
+        self._main_model = MainModel(lam)
 
 
 class SimplifiedLikelihoods(SimplifiedLikelihoodBase):
@@ -638,6 +688,9 @@ class SimplifiedLikelihoods(SimplifiedLikelihoodBase):
             data=data,
             covariance_matrix=covariance_matrix,
         )
+
+        assert self.main_model is not None, "Unable to build the main model"
+        assert self.constraint_model is not None, "Unable to build the constraint model"
 
 
 class ThirdMomentExpansion(SimplifiedLikelihoodBase):
@@ -731,17 +784,20 @@ class ThirdMomentExpansion(SimplifiedLikelihoodBase):
                 expectation value of the poisson distribution with respect to
                 nuisance parameters.
             """
-            nI = A + pars[1:] + C * np.square(pars[1:] / B)
-            # nI = A + B * pars[1:] + C * np.square(pars[1:])
+            nI = A + B * pars[1:] + C * np.square(pars[1:])
             return pars[0] * self.model.signal + nI
 
-        jac_lam = jacobian(lam)
+        def constraint(pars: np.ndarray) -> np.ndarray:
+            """Compute constraint term"""
+            return A + B * pars[1:] + C * np.square(pars[1:])
 
-        self.constraints = [{"type": "ineq", "fun": lam, "jac": jac_lam}]
+        jac_constr = jacobian(constraint)
+
+        self.constraints = [NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)]
 
         self._main_model = MainModel(lam)
         self._constraint_model = ConstraintModel(
-            "multivariatenormal", np.zeros(corr.shape[0]), covariance
+            "multivariatenormal", np.zeros(corr.shape[0]), corr
         )
 
 
@@ -836,5 +892,26 @@ class VariableGaussian(SimplifiedLikelihoodBase):
         )
 
         self._constraint_model: ConstraintModel = ConstraintModel(
-            "multivariatenormal", np.zeros(len(self.model.observed)), covariance_matrix
+            "multivariatenormal", np.zeros(len(self.model)), correlation_matrix
         )
+
+        A = self.model.background
+
+        def effective_sigma(pars: np.ndarray) -> np.ndarray:
+            """Compute effective sigma"""
+            return np.sqrt(
+                sigma_plus * sigma_minus
+                + (sigma_plus - sigma_minus) * (pars[1:] - best_fit_values)
+            )
+
+        def lam(pars: np.ndarray) -> np.ndarray:
+            """Compute lambda for Main model"""
+            return A + effective_sigma(pars) * pars[1:] + pars[0] * self.model.signal
+
+        def constraint(pars: np.ndarray) -> np.ndarray:
+            """Compute the constraint term"""
+            return A + effective_sigma(pars) * pars[1:]
+
+        jac_constr = jacobian(constraint)
+        self.constraints = [NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)]
+        self._main_model = MainModel(lam)
