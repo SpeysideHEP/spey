@@ -204,6 +204,7 @@ class StatisticalModel(HypothesisTestingBase):
         data: Optional[Union[List[float], np.ndarray]] = None,
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: Optional[bool] = True,
+        **kwargs,
     ) -> Dict:
         r"""
         Prepare backend for the optimiser.
@@ -242,6 +243,11 @@ class StatisticalModel(HypothesisTestingBase):
                 expected=expected, data=data, do_grad=do_grad
             )
 
+        constraints = kwargs.pop("constraints", [])
+        if hasattr(self.backend, "constraints"):
+            for constraint in self.backend.constraints:
+                constraints.append(constraint)
+
         return {
             "func": objective_and_grad,
             "do_grad": do_grad,
@@ -249,6 +255,8 @@ class StatisticalModel(HypothesisTestingBase):
                 allow_negative_signal=allow_negative_signal
             ),
             "logpdf": self.backend.get_logpdf_func(expected=expected, data=data),
+            "constraints": constraints,
+            **kwargs,
         }
 
     def likelihood(
@@ -301,14 +309,13 @@ class StatisticalModel(HypothesisTestingBase):
             ... )
             >>> statistical_model.likelihood(0.5) # 2.3078367000498305
         """
-        fit_opts = self.prepare_for_fit(expected=expected, data=data)
+        fit_opts = self.prepare_for_fit(expected=expected, data=data, **kwargs)
 
         logpdf, _ = fit(
             **fit_opts,
             initial_parameters=init_pars,
             bounds=par_bounds,
             fixed_poi_value=poi_test,
-            **kwargs,
         )
 
         return -logpdf if return_nll else np.exp(logpdf)
@@ -341,7 +348,7 @@ class StatisticalModel(HypothesisTestingBase):
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
-            
+
             test_statistic (``Text``, default ``"qtilde"``): test statistics.
 
               * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
@@ -370,14 +377,13 @@ class StatisticalModel(HypothesisTestingBase):
             ``List[float]``:
             Asimov data
         """
-        fit_opts = self.prepare_for_fit(expected=expected)
+        fit_opts = self.prepare_for_fit(expected=expected, **kwargs)
 
         _, fit_pars = fit(
             **fit_opts,
             initial_parameters=init_pars,
             bounds=par_bounds,
             fixed_poi_value=1.0 if test_statistic == "q0" else 0.0,
-            **kwargs,
         )
 
         return self.backend.expected_data(fit_pars)
@@ -530,14 +536,14 @@ class StatisticalModel(HypothesisTestingBase):
             >>> # muhat: 0.000, negative log-likelihood 2.210
         """
         fit_opts = self.prepare_for_fit(
-            expected=expected, allow_negative_signal=allow_negative_signal, data=data
+            expected=expected,
+            allow_negative_signal=allow_negative_signal,
+            data=data,
+            **kwargs,
         )
 
         logpdf, fit_param = fit(
-            **fit_opts,
-            initial_parameters=init_pars,
-            bounds=par_bounds,
-            **kwargs,
+            **fit_opts, initial_parameters=init_pars, bounds=par_bounds
         )
 
         muhat = fit_param[self.backend.config().poi_index]
@@ -684,14 +690,13 @@ class StatisticalModel(HypothesisTestingBase):
             >>> bkg_sample.shape
             >>> # (10, 1)
         """
-        fit_opts = self.prepare_for_fit(expected=expected)
+        fit_opts = self.prepare_for_fit(expected=expected, **kwargs)
 
         _, fit_param = fit(
             **fit_opts,
             initial_parameters=init_pars,
             bounds=par_bounds,
             fixed_poi_value=poi_test,
-            **kwargs,
         )
 
         try:
@@ -757,7 +762,7 @@ class StatisticalModel(HypothesisTestingBase):
                 f"{self.backend_type} backend does not have Hessian definition."
             ) from exc
 
-        fit_opts = self.prepare_for_fit(expected=expected)
+        fit_opts = self.prepare_for_fit(expected=expected, **kwargs)
         _ = fit_opts.pop("logpdf")
 
         _, fit_param = fit(
@@ -766,7 +771,6 @@ class StatisticalModel(HypothesisTestingBase):
             initial_parameters=init_pars,
             bounds=par_bounds,
             fixed_poi_value=poi_test,
-            **kwargs,
         )
 
         hessian = -1.0 * hessian_func(fit_param)
