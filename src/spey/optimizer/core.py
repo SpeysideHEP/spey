@@ -1,4 +1,4 @@
-from typing import Callable, List, Tuple, Optional
+from typing import Callable, List, Tuple, Optional, Dict
 import numpy as np
 
 from spey.base.model_config import ModelConfig
@@ -14,21 +14,22 @@ def fit(
     bounds: Optional[List[Tuple[float, float]]] = None,
     fixed_poi_value: Optional[float] = None,
     logpdf: Optional[Callable[[List[float]], float]] = None,
+    constraints: Optional[List[Dict]] = None,
     **options,
 ) -> Tuple[float, np.ndarray]:
 
     init_pars = [*(initial_parameters or model_configuration.suggested_init)]
     par_bounds = [*(bounds or model_configuration.fixed_poi_bounds(fixed_poi_value))]
 
-    constraints = None
+    constraints = constraints if constraints is not None else []
     if fixed_poi_value is not None:
         init_pars[model_configuration.poi_index] = fixed_poi_value
-        constraints = [
+        constraints.append(
             {
                 "type": "eq",
                 "fun": lambda v: v[model_configuration.poi_index] - fixed_poi_value,
             }
-        ]
+        )
 
     options.update({"poi_index": model_configuration.poi_index})
 
