@@ -49,12 +49,14 @@ Default plug-ins
 
         \mathcal{L}_{SL}(\mu,\theta) = \underbrace{\left[\prod_i^N {\rm Poiss}\left(n^i_{obs} | 
         \lambda_i(\mu, \theta)\right) \right]}_{\rm main\ model}
-        \cdot \underbrace{\mathcal{N}(\theta | 0, \Sigma)}_{\rm constraint\ model}
+        \cdot \underbrace{\mathcal{N}(\theta | 0, \rho)}_{\rm constraint\ model}
 
   Here the first term is the so-called main model based on Poisson distribution centred around 
-  :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + \theta_i + n^i_{bkg}` and the second term is the 
-  multivariate normal distribution centred around zero with the standard deviation of :math:`\Sigma`
-  which, for multi-modal input, is covariance matrix.
+  :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + n^i_{bkg} + \theta_i \sqrt{\Sigma_{ii}}` and 
+  the second term is the multivariate normal distribution centred around zero with the 
+  standard deviation implemented via correlation matrix, 
+  :math:`\rho_{ij} = \frac{\Sigma_{ij}}{\sqrt{\Sigma_{ii}\Sigma_{jj}}}` and :math:`\Sigma` being 
+  the covariance matrix.
 
 * ``'simplified_likelihoods.uncorrelated_background'``: User can use multi or single bin histograms 
   with unknown correlation structure within simplified likelihood interface. This particular 
@@ -64,6 +66,8 @@ Default plug-ins
   .. math:: 
 
         \mathcal{L}_{\rm constraint}(\theta) = \prod_i^N \mathcal{N}(\theta_i | 0, \sigma_i)
+    
+  which also simplifies :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + n^i_{bkg} + \theta_i`.
 
 * ``'simplified_likelihoods.third_moment_expansion'``: Third moment expansion follows the above 
   simplified likelihood construction and modifies the :math:`\lambda` and :math:`\Sigma`. 
@@ -84,7 +88,7 @@ Default plug-ins
 
   which further modifies :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + A_i + B_i \theta_i + C_i \theta_i^2`
   and the multivariate normal has been modified via the inverse of the correlation matrix, 
-  :math:`\mathcal{N}(\theta | 0, \rho^{-1})`. See :cite:t:`Buckley:2018vdr` Sec. 2 for details.
+  :math:`\mathcal{N}(\theta | 0, \rho)`. See :cite:t:`Buckley:2018vdr` Sec. 2 for details.
 
 * ``'simplified_likelihoods.variable_gaussian'``: Variable Gaussian method is designed to capture 
   asymetric uncertainties on the background yields. This method converts the covariance matrix in 
@@ -97,12 +101,11 @@ Default plug-ins
 
   .. math:: 
 
-      \sigma^\prime &= \sqrt{\sigma^+\sigma^-  + (\sigma^+ - \sigma^-)(\theta - \hat\theta)}
-      
-      \Sigma(\theta) &= \sigma^\prime \otimes \rho \otimes \sigma^\prime
+      \sigma^\prime = \sqrt{\sigma^+\sigma^-  + (\sigma^+ - \sigma^-)(\theta - \hat\theta)}
 
-  which further modifies the multivariate normal distribution this new covariance matrix
-  :math:`\mathcal{N}(\theta | 0, \Sigma) \to \mathcal{N}(\theta | 0, \Sigma(\theta))`. 
+  In order to fit this expression into simplified likelihood construction one needs to modify effective
+  :math:`\sigma` term in Poisson distribution as 
+  :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + n^i_{bkg} + \sigma^\prime_i \theta_i`.
 
 Third-party plug-ins
 ~~~~~~~~~~~~~~~~~~~~

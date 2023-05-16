@@ -577,31 +577,18 @@ class UncorrelatedBackground(SimplifiedLikelihoodBase):
             data=data,
             covariance_matrix=None,
         )
-        A = self.model.background
-        B = np.array(absolute_uncertainties)
 
         self._constraint_model: ConstraintModel = ConstraintModel(
-            "normal", np.zeros(len(self.model.observed)), B
+            "normal", np.zeros(len(self.model.observed)), np.array(absolute_uncertainties)
         )
 
         def lam(pars: np.ndarray) -> np.ndarray:
-            """
-            Compute lambda for Main model with third moment expansion.
-            For details see above eq 2.6 in :xref:`1809.05548`
-
-            Args:
-                pars (``np.ndarray``): nuisance parameters
-
-            Returns:
-                ``np.ndarray``:
-                expectation value of the poisson distribution with respect to
-                nuisance parameters.
-            """
-            return pars[0] * self.model.signal + A + B * pars[1:]
+            """Compute lambda for Main model"""
+            return self.model.background + pars[1:] + pars[0] * self.model.signal
 
         def constraint(pars: np.ndarray) -> np.ndarray:
             """Compute the constraint term"""
-            return A + B * pars[1:]
+            return self.model.background + pars[1:]
 
         jac_constr = jacobian(constraint)
 
