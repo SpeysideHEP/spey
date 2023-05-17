@@ -56,7 +56,8 @@ def third_moment_expansion(
     if len(w) > 0:
         warnings.warn(
             "8 * diag(cov)**3 >= third_moment**2 condition is not satisfied,"
-            " setting nan values to zero."
+            " setting nan values to zero.",
+            category=RuntimeWarning,
         )
         C = np.where(np.isnan(C), 0.0, C)
 
