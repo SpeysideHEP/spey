@@ -96,6 +96,8 @@ Simplified Likelihoods
     distributions.MultivariateNormal
     distributions.MainModel
     distributions.ConstraintModel
+    third_moment.third_moment_expansion
+    third_moment.compute_third_moments
 
 Exceptions
 ----------

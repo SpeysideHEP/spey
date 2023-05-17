@@ -111,6 +111,19 @@ Default plug-ins
   :math:`\sigma` term in Poisson distribution as 
   :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + n^i_{bkg} + \sigma^\prime_i \theta_i`.
 
+.. attention:: 
+
+    All ``'simplified_likelihoods'`` backends are constrained by :math:`\lambda(0,\theta)\geq0`.
+
+.. note:: 
+
+    ``'simplified_likelihoods'``, ``'simplified_likelihoods.uncorrelated_background'`` and 
+    ``'simplified_likelihoods.third_moment_expansion'`` implementations are validated against the code
+    provided with :cite:t:`Buckley:2018vdr` which can be found in the 
+    `dedicated gitlab repository <https://gitlab.cern.ch/SimplifiedLikelihood/SLtools>`_. 
+    Additionally they are validated against the auxiliary data provided by 
+    `CMS-SUS-20-004 <https://www.hepdata.net/record/ins2009652>`_ analysis.
+
 Third-party plug-ins
 ~~~~~~~~~~~~~~~~~~~~
 
