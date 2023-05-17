@@ -1,5 +1,5 @@
 """Tools for computing third moment expansion"""
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union
 import warnings
 import autograd.numpy as np
 from scipy.stats import norm
@@ -96,7 +96,7 @@ def compute_third_moments(
     absolute_upper_uncertainties: np.ndarray,
     absolute_lower_uncertainties: np.ndarray,
     return_integration_error: bool = False,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
     r"""
     Compute third moments using Bifurcated Gaussian with asymmetric uncertainties
 
@@ -120,7 +120,7 @@ def compute_third_moments(
         return_integration_error (``bool``, default ``False``): If true returns integration error
 
     Returns:
-        ``Tuple[np.ndarray, np.ndarray]``:
+        ``Tuple[np.ndarray, np.ndarray]`` or ``np.ndarray``:
         Diagonal elements of the third moments and integration error.
     """
 
