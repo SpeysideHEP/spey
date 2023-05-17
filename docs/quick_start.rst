@@ -59,15 +59,19 @@ Default plug-ins
   the covariance matrix.
 
 * ``'simplified_likelihoods.uncorrelated_background'``: User can use multi or single bin histograms 
-  with unknown correlation structure within simplified likelihood interface. This particular 
+  for uncorrelated histograms or single yields within simplified likelihood interface. This particular 
   plug-in replaces Multivariate Normal distribution of the likelihood with a simple Normal 
   distribution to reduce the computational cost.
 
   .. math:: 
 
-        \mathcal{L}_{\rm constraint}(\theta) = \prod_i^N \mathcal{N}(\theta_i | 0, \sigma_i)
+        \mathcal{L}_{\rm constraint}(\theta) = \prod_i^N \mathcal{N}(\theta_i | 0, 1)
     
-  which also simplifies :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + n^i_{bkg} + \theta_i`.
+  which also simplifies :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + n^i_{bkg} + \theta_i\sigma_i`
+  where :math:`\sigma_i` is the absolute uncertainty per bin. Note that ``'simplified_likelihoods'`` 
+  backend reduces to ``'simplified_likelihoods.uncorrelated_background'`` if one provides correlation 
+  matrix as :math:`\sigma^2\mathbb{1}`.
+
 
 * ``'simplified_likelihoods.third_moment_expansion'``: Third moment expansion follows the above 
   simplified likelihood construction and modifies the :math:`\lambda` and :math:`\Sigma`. 

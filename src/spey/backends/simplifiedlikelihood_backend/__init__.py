@@ -578,17 +578,19 @@ class UncorrelatedBackground(SimplifiedLikelihoodBase):
             covariance_matrix=None,
         )
 
+        B = np.array(absolute_uncertainties)
+
         self._constraint_model: ConstraintModel = ConstraintModel(
-            "normal", np.zeros(len(self.model.observed)), np.array(absolute_uncertainties)
+            "normal", np.zeros(len(self.model.observed)), np.ones(len(B))
         )
 
         def lam(pars: np.ndarray) -> np.ndarray:
             """Compute lambda for Main model"""
-            return self.model.background + pars[1:] + pars[0] * self.model.signal
+            return self.model.background + pars[1:] * B + pars[0] * self.model.signal
 
         def constraint(pars: np.ndarray) -> np.ndarray:
             """Compute the constraint term"""
-            return self.model.background + pars[1:]
+            return self.model.background + pars[1:] * B
 
         jac_constr = jacobian(constraint)
 
