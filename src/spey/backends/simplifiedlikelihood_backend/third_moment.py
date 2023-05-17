@@ -1,7 +1,9 @@
 """Tools for computing third moment expansion"""
 from typing import Tuple, Optional
-
+import warnings
 import autograd.numpy as np
+from scipy.stats import norm
+from scipy import integrate
 
 # pylint: disable=E1101,E1120
 
@@ -12,13 +14,18 @@ def third_moment_expansion(
     third_moment: Optional[np.ndarray] = None,
     return_correlation_matrix: bool = False,
 ) -> Tuple:
-    """
+    r"""
     Construct the terms for third moment expansion. For details see :xref:`1809.05548`.
+
+    .. attention::
+
+        This function expects :math:`8\Sigma_{ii}^3 \geq (m^{(3)}_i)^2`. In case its not
+        satisfied, `NaN` values will be replaced with zero.
 
     Args:
         expectation_value (``np.ndarray``): expectation value of the background
         covariance_matrix (``np.ndarray``): covariance matrix
-        third_moment (``np.ndarray``): Diagonal components of the third moment
+        third_moment (``np.ndarray``): Diagonal components of the third moment, :math:`m^{(3)}`
         return_correlation_matrix (``bool``, default ``False``): If true reconstructs
           and returns correlation matrix.
 
@@ -29,21 +36,29 @@ def third_moment_expansion(
     """
     cov_diag = np.diag(covariance_matrix)
 
-    assert np.all(8.0 * cov_diag**3 >= third_moment**2), (
-        "Given covariance matrix and diagonal terms of the third moment does not "
-        + "satisfy the condition: 8 * diag(cov)**3 >= third_moment**2."
-    )
+    # ! Assertion error is removed, instead nan values will be converted to zero.
+    # assert np.all(8.0 * cov_diag**3 >= third_moment**2), (
+    #     "Given covariance matrix and diagonal terms of the third moment does not "
+    #     + "satisfy the condition: 8 * diag(cov)**3 >= third_moment**2."
+    # )
 
     # arXiv:1809.05548 eq. 2.9
-    C = (
-        -np.sign(third_moment)
-        * np.sqrt(2.0 * cov_diag)
-        * np.cos(
-            (4.0 * np.pi / 3.0)
-            + (1.0 / 3.0)
-            * np.arctan(np.sqrt(((8.0 * cov_diag**3) / third_moment**2) - 1.0))
+    with warnings.catch_warnings(record=True) as w:
+        C = (
+            -np.sign(third_moment)
+            * np.sqrt(2.0 * cov_diag)
+            * np.cos(
+                (4.0 * np.pi / 3.0)
+                + (1.0 / 3.0)
+                * np.arctan(np.sqrt(((8.0 * cov_diag**3) / third_moment**2) - 1.0))
+            )
         )
-    )
+    if len(w) > 0:
+        warnings.warn(
+            "8 * diag(cov)**3 >= third_moment**2 condition is not satisfied,"
+            " setting nan values to zero."
+        )
+        C = np.where(np.isnan(C), 0.0, C)
 
     # arXiv:1809.05548 eq. 2.10
     B = np.sqrt(cov_diag - 2 * C**2)
@@ -74,3 +89,57 @@ def third_moment_expansion(
         return A, B, C, corr
 
     return A, B, C
+
+
+def compute_third_moments(
+    absolute_upper_uncertainties: np.ndarray,
+    absolute_lower_uncertainties: np.ndarray,
+    return_integration_error: bool = False,
+) -> Tuple[np.ndarray, np.ndarray]:
+    r"""
+    Compute third moments using Bifurcated Gaussian with asymmetric uncertainties
+
+    .. math::
+
+        m^{(3)} = \frac{2}{\sigma^+ + \sigma^-} \left[ \sigma^-\int_{-\infty}^0 x^3
+        \mathcal{N}(x|0,\sigma^-)dx + \sigma^+ \int_0^{\infty} x^3
+        \mathcal{N}(x|0,\sigma^+)dx \right]
+
+    .. attention::
+
+        :func:`~spey.backends.simplifiedlikelihood_backend.third_moment.third_moment_expansion`
+        function expects :math:`8\Sigma_{ii}^3 \geq (m^{(3)}_i)^2` since this function is
+        constructed with upper and lower uncertainty envelops independent of covariance matrix,
+        it does not guarantee that the condition will be satisfied. This depends on the
+        covariance matrix.
+
+    Args:
+        absolute_upper_uncertainties (``np.ndarray``): absolute value of the upper uncertainties
+        absolute_lower_uncertainties (``np.ndarray``): absolute value of the lower uncertainties
+        return_integration_error (``bool``, default ``False``): If true returns integration error
+
+    Returns:
+        ``Tuple[np.ndarray, np.ndarray]``:
+        Diagonal elements of the third moments and integration error.
+    """
+
+    def compute_x3BifurgatedGaussian(x: float, upper: float, lower: float) -> float:
+        Norm = 2.0 / (upper + lower)
+        if x >= 0.0:
+            # integrate from 0 to inf
+            return Norm * upper * x**3 * norm.pdf(x, 0.0, upper)
+        # integrate from -inf to 0
+        return Norm * lower * x**3 * norm.pdf(x, 0.0, lower)
+
+    third_moment, error = [], []
+    for upper, lower in zip(absolute_upper_uncertainties, absolute_lower_uncertainties):
+        third_moment_tmp, error_tmp = integrate.quad(
+            compute_x3BifurgatedGaussian, -np.inf, np.inf, args=(abs(upper), abs(lower))
+        )
+        third_moment.append(third_moment_tmp)
+        error.append(error_tmp)
+
+    if return_integration_error:
+        return np.array(third_moment), np.array(error)
+
+    return np.array(third_moment)
