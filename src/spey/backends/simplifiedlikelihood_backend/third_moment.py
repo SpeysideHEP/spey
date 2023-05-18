@@ -106,6 +106,16 @@ def compute_third_moments(
         \mathcal{N}(x|0,\sigma^-)dx + \sigma^+ \int_0^{\infty} x^3
         \mathcal{N}(x|0,\sigma^+)dx \right]
 
+    .. note::
+
+        Recall that expectation value of the :math:`k` th moment of a function :math:`f(x)`
+        can be calculated as
+
+        .. math::
+
+            \mathbb{E}[(\mathbf{X} - c)^k] = \int_{-\infty}^\infty(x-c)^kf(x)dx
+
+
     .. attention::
 
         :func:`~spey.backends.simplifiedlikelihood_backend.third_moment.third_moment_expansion`
