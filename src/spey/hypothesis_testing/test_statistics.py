@@ -213,6 +213,7 @@ def compute_teststatistics(
     if teststat in ["q", "q0", "qmu"]:
         delta_teststat = sqrt_qmu - sqrt_qmuA
     else:
+        # eq. 66 in arXiv:1007.1727
         delta_teststat = (
             sqrt_qmu - sqrt_qmuA
             if sqrt_qmu <= sqrt_qmuA

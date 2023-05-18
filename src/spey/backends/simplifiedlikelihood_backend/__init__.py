@@ -796,11 +796,11 @@ class VariableGaussian(SimplifiedLikelihoodBase):
     is designed to capture asymetric uncertainties on the background yields. This
     method converts the covariance matrix in to a function which takes absolute upper
     (:math:`\sigma^+`) and lower (:math:`\sigma^-`) envelops of the background uncertainties,
-    best fit values (:math:`\hat\theta`) and nuisance parameters (:math:`\theta`) which
-    allows the interface dynamically change the covariance matrix with respect to given
-    nuisance parameters. This implementation follows the method proposed in
-    `Ref. arXiv:physics/0406120 <https://arxiv.org/abs/physics/0406120>`_. This approach
-    transforms the covariance matrix from a constant input to a function of nuisance parameters.
+    nuisance parameters (:math:`\theta`) which allows the interface dynamically change the
+    covariance matrix with respect to given nuisance parameters. This implementation follows
+    the method proposed in `Ref. arXiv:physics/0406120 <https://arxiv.org/abs/physics/0406120>`_.
+    This approach transforms the covariance matrix from a constant input to a function of
+    nuisance parameters.
 
     .. math::
 
@@ -842,7 +842,6 @@ class VariableGaussian(SimplifiedLikelihoodBase):
         data: np.ndarray,
         correlation_matrix: np.ndarray,
         absolute_uncertainty_envelops: List[Tuple[float, float]],
-        best_fit_values: List[float],
     ):
         assert len(absolute_uncertainty_envelops) == len(
             background_yields
@@ -850,34 +849,17 @@ class VariableGaussian(SimplifiedLikelihoodBase):
         assert correlation_matrix.shape[0] == len(
             background_yields
         ), "Dimensionality of the correlation matrix does not match to the number of regions."
-        assert len(best_fit_values) == len(
-            background_yields
-        ), "Dimensionality of best fit values does not match with the number of regions."
 
         sigma_plus, sigma_minus = [], []
         for upper, lower in absolute_uncertainty_envelops:
-            sigma_plus.append(upper)
-            sigma_minus.append(lower)
+            sigma_plus.append(abs(upper))
+            sigma_minus.append(abs(lower))
         sigma_plus = np.array(sigma_plus)
         sigma_minus = np.array(sigma_minus)
-        best_fit_values = np.array(best_fit_values)
         correlation_matrix = np.array(correlation_matrix)
 
-        def covariance_matrix(nuisance_parameters: np.ndarray) -> np.ndarray:
-            """Compute covariance matrix using variable gaussian formulation"""
-            sigma = np.diag(
-                np.sqrt(
-                    sigma_plus * sigma_minus
-                    + (sigma_plus - sigma_minus) * (nuisance_parameters - best_fit_values)
-                )
-            )
-            return sigma @ correlation_matrix @ sigma
-
         super().__init__(
-            signal_yields=signal_yields,
-            background_yields=background_yields,
-            data=data,
-            covariance_matrix=covariance_matrix,
+            signal_yields=signal_yields, background_yields=background_yields, data=data
         )
 
         self._constraint_model: ConstraintModel = ConstraintModel(
@@ -886,11 +868,11 @@ class VariableGaussian(SimplifiedLikelihoodBase):
 
         A = self.model.background
 
+        # arXiv:pyhsics/0406120 eq. 18-19
         def effective_sigma(pars: np.ndarray) -> np.ndarray:
             """Compute effective sigma"""
             return np.sqrt(
-                sigma_plus * sigma_minus
-                + (sigma_plus - sigma_minus) * (pars[1:] - best_fit_values)
+                sigma_plus * sigma_minus + (sigma_plus - sigma_minus) * (pars[1:] - A)
             )
 
         def lam(pars: np.ndarray) -> np.ndarray:
