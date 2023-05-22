@@ -792,6 +792,8 @@ class ThirdMomentExpansion(SimplifiedLikelihoodBase):
 
 class VariableGaussian(SimplifiedLikelihoodBase):
     r"""
+    *Experimental*
+
     Simplified likelihood interface with variable Gaussian. Variable Gaussian method
     is designed to capture asymetric uncertainties on the background yields. This
     method converts the covariance matrix in to a function which takes absolute upper
@@ -801,6 +803,7 @@ class VariableGaussian(SimplifiedLikelihoodBase):
     the method proposed in `Ref. arXiv:physics/0406120 <https://arxiv.org/abs/physics/0406120>`_.
     This approach transforms the covariance matrix from a constant input to a function of
     nuisance parameters.
+
 
     .. math::
 
