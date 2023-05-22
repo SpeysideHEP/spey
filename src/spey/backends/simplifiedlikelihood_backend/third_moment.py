@@ -98,7 +98,8 @@ def compute_third_moments(
     return_integration_error: bool = False,
 ) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
     r"""
-    Compute third moments using Bifurcated Gaussian with asymmetric uncertainties
+    Assuming that the uncertainties are modelled as Gaussian, it computes third moments
+    using Bifurcated Gaussian with asymmetric uncertainties.
 
     .. math::
 
