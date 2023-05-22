@@ -22,6 +22,13 @@ docs = [
     "myst-parser",
 ]
 
+backend_plugins = [
+    "simplified_likelihoods = spey.backends.simplifiedlikelihood_backend:SimplifiedLikelihoods",
+    "simplified_likelihoods.uncorrelated_background = spey.backends.simplifiedlikelihood_backend:UncorrelatedBackground",
+    "simplified_likelihoods.third_moment_expansion = spey.backends.simplifiedlikelihood_backend:ThirdMomentExpansion",
+    "simple_pdfs.variable_gaussian = spey.backends.simple_pdfs:VariableGaussian",
+]
+
 setup(
     name="spey",
     version=version,
@@ -38,14 +45,7 @@ setup(
     license="MIT",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
-    entry_points={
-        "spey.backend.plugins": [
-            "simplified_likelihoods = spey.backends.simplifiedlikelihood_backend:SimplifiedLikelihoods",
-            "simplified_likelihoods.uncorrelated_background = spey.backends.simplifiedlikelihood_backend:UncorrelatedBackground",
-            "simplified_likelihoods.third_moment_expansion = spey.backends.simplifiedlikelihood_backend:ThirdMomentExpansion",
-            "simplified_likelihoods.variable_gaussian = spey.backends.simplifiedlikelihood_backend:VariableGaussian",
-        ]
-    },
+    entry_points={"spey.backend.plugins": backend_plugins},
     install_requires=requirements,
     python_requires=">=3.8",
     classifiers=[
