@@ -78,6 +78,30 @@ Hypothesis testing
 Default Backends
 ----------------
 
+Distributions
+~~~~~~~~~~~~~
+
+.. currentmodule:: spey.backends.distributions
+
+.. autosummary:: 
+    :toctree: _generated/
+
+    Poisson
+    Normal
+    MultivariateNormal
+    MainModel
+    ConstraintModel
+
+Simple PDFs
+~~~~~~~~~~~
+
+.. currentmodule:: spey.backends.simple_pdfs
+
+.. autosummary:: 
+    :toctree: _generated/
+
+    VariableGaussian
+
 Simplified Likelihoods
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -91,13 +115,9 @@ Simplified Likelihoods
     ThirdMomentExpansion
     VariableGaussian
     sldata.SLData
-    distributions.Poisson
-    distributions.Normal
-    distributions.MultivariateNormal
-    distributions.MainModel
-    distributions.ConstraintModel
     third_moment.third_moment_expansion
     third_moment.compute_third_moments
+
 
 Exceptions
 ----------

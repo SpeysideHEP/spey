@@ -50,6 +50,10 @@ xref_links = {
     "HEPData": ("HEPData", "https://www.hepdata.net"),
     "1809.05548": ("[arXiv:1809.05548]", "https://doi.org/10.48550/arXiv.1809.05548"),
     "1202.3415": ("[arXiv:1202.3415]", "https://doi.org/10.48550/arXiv.1202.3415"),
+    "physics/0406120": (
+        "[arXiv:physics/0406120]",
+        "https://10.48550/arXiv.physics/0406120",
+    ),
 }
 
 source_suffix = {
