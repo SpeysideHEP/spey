@@ -39,7 +39,7 @@ def version() -> Text:
     return __version__
 
 
-def _get_backend_entrypoints() -> Dict:
+def _get_backend_entrypoints() -> Dict[Text, pkg_resources.EntryPoint]:
     """Collect plugin entries"""
     return {
         entry.name: entry
@@ -47,7 +47,7 @@ def _get_backend_entrypoints() -> Dict:
     }
 
 
-_backend_entries: Dict = _get_backend_entrypoints()
+_backend_entries: Dict[Text, pkg_resources.EntryPoint] = _get_backend_entrypoints()
 # ! Preinitialise backends, it might be costly to scan the system everytime
 
 
@@ -156,7 +156,7 @@ def get_backend(name: Text) -> Callable[[Any, ...], StatisticalModel]:
     )
 
 
-def get_backend_metadata(name: Text) -> Dict[Text, Text]:
+def get_backend_metadata(name: Text) -> Dict[Text, Any]:
     """
     Retreive metadata about the backend. This includes citation information,
     doi, author names etc. Available backend names can be found via
