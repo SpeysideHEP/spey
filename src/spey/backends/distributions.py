@@ -82,6 +82,27 @@ class Normal:
         ).astype(np.float64)
 
 
+class GeneralisedPoisson:
+    """Generalised Poisson distribution. See :xref:`physics/0406120` eq. 10a"""
+
+    def __init__(self, best_fit: np.ndarray, alpha: np.ndarray, nu: np.ndarray):
+        self.alpha = alpha
+        self.nu = nu
+        self.best_fit = best_fit
+
+    def expected_data(self) -> np.ndarray:
+        """The expectation value of the Normal distribution."""
+        return np.array(self.best_fit)
+
+    def log_prob(self, value: float) -> np.ndarray:
+        """Compute log-probability"""
+        return (
+            -self.alpha * (value - self.best_fit)
+            + self.nu
+            * (np.log(self.nu + self.alpha * (value - self.best_fit)) - np.log(self.nu))
+        ).astype(np.float64)
+
+
 class MultivariateNormal:
     """
     Multivariate normal distribution
@@ -179,26 +200,25 @@ class ConstraintModel:
 
     Args:
         distribution_type (``Text``): ``"normal"`` or ``"multivariatenormal"``
-        mean (``np.ndarray``): central values of the Gaussian distribution
-        std (``Union[np.ndarray, Callable[[np.ndarray], np.ndarray]]``): standard deviation or
-          covariance matrix which can be a numpy array or a callable function that returns a
-          numpy array.
+        args: Input arguments for the distribution
     """
 
     def __init__(
         self,
         distribution_type: Text,
-        mean: np.ndarray,
-        std: Union[np.ndarray, Callable[[np.ndarray], np.ndarray]],
+        *args,
     ):
         assert distribution_type.lower() in [
             "normal",
             "multivariatenormal",
+            "generalisedpoisson",
         ], "Unknown distribution type"
 
-        self._pdf = {"normal": Normal, "multivariatenormal": MultivariateNormal}[
-            distribution_type.lower()
-        ](mean, std)
+        self._pdf = {
+            "normal": Normal,
+            "multivariatenormal": MultivariateNormal,
+            "generalisedpoisson": GeneralisedPoisson,
+        }[distribution_type.lower()](*args)
 
     def expected_data(self) -> np.ndarray:
         """The expectation value of the constraint model."""

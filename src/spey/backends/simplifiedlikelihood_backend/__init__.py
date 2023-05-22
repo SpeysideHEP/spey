@@ -12,8 +12,8 @@ from spey.base import ModelConfig
 from spey.utils import ExpectationType
 from spey._version import __version__
 from spey.helper_functions import covariance_to_correlation
+from spey.backends.distributions import MainModel, ConstraintModel
 from .sldata import SLData
-from .distributions import MainModel, ConstraintModel
 from .third_moment import third_moment_expansion
 
 
