@@ -1,5 +1,6 @@
 from typing import Callable, Text, Tuple
 import numpy as np
+import warnings
 
 from spey.system.exceptions import UnknownTestStatistics
 
@@ -214,10 +215,10 @@ def compute_teststatistics(
         delta_teststat = sqrt_qmu - sqrt_qmuA
     else:
         # arXiv:1007.1727 eq. 66
-        delta_teststat = 0.0
         if sqrt_qmu <= sqrt_qmuA:
             delta_teststat = sqrt_qmu - sqrt_qmuA
-        elif sqrt_qmu > sqrt_qmuA > 0.0:
-            delta_teststat = np.true_divide(qmu_ - qmuA, 2.0 * sqrt_qmuA)
+        else:
+            with warnings.catch_warnings():
+                delta_teststat = np.true_divide(qmu_ - qmuA, 2.0 * sqrt_qmuA)
 
     return sqrt_qmu, sqrt_qmuA, delta_teststat
