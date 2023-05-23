@@ -91,6 +91,7 @@ class SimplifiedLikelihoodBase(BackendBase):
         self._main_model = None
         self._constraint_model = None
         self.constraints = []
+        """Constraints to be used during optimisation process"""
 
     @property
     def constraint_model(self) -> ConstraintModel:
@@ -792,27 +793,33 @@ class ThirdMomentExpansion(SimplifiedLikelihoodBase):
 
 class VariableGaussian(SimplifiedLikelihoodBase):
     r"""
-    *Experimental*
-
-    Simplified likelihood interface with variable Gaussian. Variable Gaussian method
-    is designed to capture asymetric uncertainties on the background yields. This
-    method converts the covariance matrix in to a function which takes absolute upper
-    (:math:`\sigma^+`) and lower (:math:`\sigma^-`) envelops of the background uncertainties,
-    nuisance parameters (:math:`\theta`) which allows the interface dynamically change the
-    covariance matrix with respect to given nuisance parameters. This implementation follows
-    the method proposed in `Ref. arXiv:physics/0406120 <https://arxiv.org/abs/physics/0406120>`_.
-    This approach transforms the covariance matrix from a constant input to a function of
-    nuisance parameters.
-
+    Simplified likelihood interface with variable Gaussian.
+    Variable Gaussian has been inspired by :xref:`physics/0406120` sec. 3.6. This method
+    modifies the effective :math:`B:=\sigma_{eff}` term in the Poisson distribution of the
+    simplified likelihood framework. Note that this approach does not modify the Gaussian
+    of the likelihood, the naming of the approach is purely because it is originated from
+    :xref:`physics/0406120` sec. 3.6. The effective sigma term of the Poissonian can be
+    modified using upper, :math:`\sigma^+` and lower :math:`\sigma^-` envelops of the
+    absolute background uncertainties (see eqs 18-19 in :xref:`physics/0406120`).
 
     .. math::
 
-        \sigma^\prime &= \sqrt{\sigma^+\sigma^-  + (\sigma^+ - \sigma^-)(\theta - \hat\theta)}
+        \sigma_{eff}(\theta) = \sqrt{\sigma^+\sigma^-  + (\sigma^+ - \sigma^-)(\theta - n_{bkg})}
 
-        \Sigma(\theta) &= \sigma^\prime \otimes \rho \otimes \sigma^\prime
+    where the simplified likelihoo is modified as
 
-    which further modifies the multivariate normal distribution this new covariance matrix
-    :math:`\mathcal{N}(\theta | 0, \Sigma) \to \mathcal{N}(\theta | 0, \Sigma(\theta))`.
+    .. math::
+
+        \mathcal{L}(\mu,\theta) = \left[\prod_i^N{\rm Poiss}(n^i_{obs}|\mu n^i_s + n^i_{bkg} +
+        \theta^i\sigma_{eff}^i(\theta)) \right]\cdot \mathcal{N}(\theta| 0, \rho)
+
+    .. note::
+
+        This likelihood is constrained by
+
+        .. math::
+
+            n^i_{bkg} + \theta^i\sigma_{eff}^i(\theta) \geq 0
 
     Args:
         signal_yields (``np.ndarray``): signal yields
@@ -821,8 +828,6 @@ class VariableGaussian(SimplifiedLikelihoodBase):
         correlation_matrix (``np.ndarray``): correlations between regions
         absolute_uncertainty_envelops (``List[Tuple[float, float]]``): upper and lower uncertainty
           envelops for each background yield.
-        best_fit_values (``List[float]``): bestfit values for the covariance matrix computation given
-          as :math:`\hat\theta`.
     """
 
     name: Text = "simplified_likelihoods.variable_gaussian"
