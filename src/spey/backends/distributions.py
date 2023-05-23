@@ -19,27 +19,27 @@ def __dir__():
 class Poisson:
     """Poisson distribution"""
 
-    def __init__(self, lam: np.ndarray):
-        self.lam = lam
+    def __init__(self, loc: np.ndarray):
+        self.loc = loc
 
     def expected_data(self) -> np.ndarray:
         """The expectation value of the Poisson distribution."""
-        return np.array(self.lam)
+        return np.array(self.loc)
 
     def sample(self, sample_size: int) -> np.ndarray:
         """Generate samples"""
         shape = [sample_size]
-        if isinstance(self.lam, np.ndarray):
-            shape += [len(self.lam)]
-        return poisson(self.lam).rvs(size=shape)
+        if isinstance(self.loc, np.ndarray):
+            shape += [len(self.loc)]
+        return poisson(self.loc).rvs(size=shape)
 
     def log_prob(self, value: np.ndarray) -> np.ndarray:
         """Compute log-probability"""
         # for code efficiency
         if np.array(value).dtype in [np.int32, np.int16, np.int64]:
-            return logpmf(value, self.lam).astype(np.float64)
+            return logpmf(value, self.loc).astype(np.float64)
 
-        return (value * np.log(self.lam) - self.lam - gammaln(value + 1.0)).astype(
+        return (value * np.log(self.loc) - self.loc - gammaln(value + 1.0)).astype(
             np.float64
         )
 
@@ -152,16 +152,16 @@ class MainModel:
     variable lambda.
 
     Args:
-        lam (``Callable[[np.ndarray], np.ndarray]``): callable function that represents
+        loc (``Callable[[np.ndarray], np.ndarray]``): callable function that represents
           lambda values of poisson distribution. It takes nuisance parameters as input.
     """
 
-    def __init__(self, lam: Callable[[np.ndarray], np.ndarray]):
-        self._pdf = lambda pars: Poisson(lam(pars))
+    def __init__(self, loc: Callable[[np.ndarray], np.ndarray]):
+        self._pdf = lambda pars: Poisson(loc(pars))
 
     def expected_data(self, pars: np.ndarray) -> np.ndarray:
         """The expectation value of the main model."""
-        return self._pdf(pars).lam
+        return self._pdf(pars).loc
 
     def sample(self, pars: np.ndarray, sample_size: int) -> np.ndarray:
         r"""
