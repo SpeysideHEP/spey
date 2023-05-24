@@ -771,7 +771,6 @@ class StatisticalModel(HypothesisTestingBase):
 
         _, fit_param = fit(
             **fit_opts,
-            model_configuration=self.backend.config(),
             initial_parameters=init_pars,
             bounds=par_bounds,
             fixed_poi_value=poi_test,
