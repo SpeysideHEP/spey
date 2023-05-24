@@ -218,7 +218,7 @@ def compute_teststatistics(
         if sqrt_qmu <= sqrt_qmuA:
             delta_teststat = sqrt_qmu - sqrt_qmuA
         else:
-            with warnings.catch_warnings():
+            with warnings.catch_warnings(record=True):
                 delta_teststat = np.true_divide(qmu_ - qmuA, 2.0 * sqrt_qmuA)
 
     return sqrt_qmu, sqrt_qmuA, delta_teststat
