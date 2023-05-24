@@ -101,6 +101,7 @@ Simple PDFs
     :toctree: _generated/
 
     VariableGaussian
+    GaussianUncertainties
 
 Simplified Likelihoods
 ~~~~~~~~~~~~~~~~~~~~~~
