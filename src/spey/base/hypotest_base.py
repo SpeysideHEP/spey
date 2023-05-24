@@ -496,7 +496,7 @@ class HypothesisTestingBase(ABC):
         poi_test: float = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = False,
-        method: Text = "asymptotic",
+        calculator: Text = "asymptotic",
         **kwargs,
     ) -> List[float]:
         r"""
@@ -542,7 +542,7 @@ class HypothesisTestingBase(ABC):
 
             allow_negative_signal (``bool``, default ``False``): If ``True`` :math:`\hat\mu`
               value will be allowed to be negative.
-            method (``Text``, default ``asymptotic``): Chooses the computation basis for hypothesis
+            calculator (``Text``, default ``asymptotic``): Chooses the computation basis for hypothesis
               testing
 
               * ``asymptotic``: Uses asymptotic hypothesis testing to compute p-values.
@@ -587,12 +587,12 @@ class HypothesisTestingBase(ABC):
             >>> # 1-CLs aposteriori at -2sig 0.999, -1sig 0.994, central 0.963, 1sig 0.835, 2sig 0.523
             >>> # 1-CLs : 0.973
         """
-        if not getattr(self, f"is_{method}_calculator_available", False):
-            raise CalculatorNotAvailable(f"{method} calculator is not available.")
+        if not getattr(self, f"is_{calculator}_calculator_available", False):
+            raise CalculatorNotAvailable(f"{calculator} calculator is not available.")
 
         test_stat = "q" if allow_negative_signal else "qtilde"
 
-        if method == "asymptotic":
+        if calculator == "asymptotic":
             (
                 maximum_likelihood,
                 logpdf,
@@ -617,7 +617,7 @@ class HypothesisTestingBase(ABC):
                 sqrt_qmuA, delta_teststat, test_stat
             )
 
-        elif method == "toy":
+        elif calculator == "toy":
 
             signal_samples = self.fixed_poi_sampler(
                 poi_test=poi_test, size=self.ntoys, expected=expected, **kwargs
