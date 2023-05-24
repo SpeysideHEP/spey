@@ -847,9 +847,15 @@ def statistical_model_wrapper(
             ntoys=ntoys,
         )
 
+    docstring = getattr(func, "__doc__", "no docstring available")
+    if docstring is None:
+        docstring = "Documentation is not available..."
+
     wrapper.__doc__ += (
-        "\n\n\t Current statistical model backend properties:\n"
-        + getattr(func, "__doc__", "no docstring available").replace("\n", "\n\t")
+        "\n\t"
+        + "<>" * 30
+        + "\n\n\t Current statistical model backend properties:\n"
+        + docstring.replace("\n", "\n\t")
         + "\n"
     )
 
