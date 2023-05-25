@@ -23,11 +23,25 @@ def __dir__():
 # pylint: disable=E1101,E1120
 
 
-class UnknownModelDeffinition(Exception):
-    """Unknown statistical model definition exception"""
-
-
 class SimplePDFBase(BackendBase):
+    """
+    A base class for simple pdf constructions.
+        signal_yields (``np.ndarray``): signal yields
+        background_yields (``np.ndarray``): background yields
+        data (``np.ndarray``): observations
+        covariance_matrix (``np.ndarray``): covariance matrix
+    Args:
+        signal_yields (``np.ndarray``): signal yields
+        background_yields (``np.ndarray``): background yields
+        data (``np.ndarray``): observations
+        absolute_uncertainties (``List[float]``, default ``None``): absolute value of the uncertainties
+        absolute_uncertainty_envelops (``List[Tuple[float, float]]``, default ``None``): absolute value
+          of the uncertainty envelops.
+
+          .. note::
+
+            Class only accepts either ``absolute_uncertainties`` or ``absolute_uncertainty_envelops``.
+    """
 
     name: Text = "simple_pdfs.base"
     """Name of the backend"""
@@ -38,7 +52,7 @@ class SimplePDFBase(BackendBase):
     spey_requires: Text = __version__
     """Spey version required for the backend"""
 
-    __slots__ = ["_model", "_main_model", "constraints"]
+    __slots__ = ["_model", "_main_model", "_constraint_model", "constraints", "_config"]
 
     def __init__(
         self,
@@ -94,16 +108,7 @@ class SimplePDFBase(BackendBase):
 
     @property
     def main_model(self) -> MainModel:
-        """
-        retreive the main model distribution
-
-        Raises:
-            ``UnknownModelDeffinition``: If statistical model is not defined
-
-        Returns:
-            ``MainModel``:
-            Main model distribution.
-        """
+        """retreive the main model distribution"""
         if self._main_model is None:
 
             def lam(pars: np.ndarray) -> np.ndarray:
@@ -116,13 +121,7 @@ class SimplePDFBase(BackendBase):
 
     @property
     def constraint_model(self) -> ConstraintModel:
-        """
-        retreive the constraint model distribution
-
-        Returns:
-            ``MainModel``:
-            Main model distribution.
-        """
+        """retreive the constraint model distribution"""
         return self._constraint_model
 
     @property
@@ -187,8 +186,10 @@ class SimplePDFBase(BackendBase):
             Function which takes fit parameters (:math:`\mu` and :math:`\theta`) and returns either
             objective or objective and its gradient.
         """
-
-        data = self.data if data is None else data
+        current_data = (
+            self.background_yields if expected == ExpectationType.apriori else self.data
+        )
+        data = current_data if data is None else data
 
         if self.constraint_model is None:
 
@@ -241,7 +242,10 @@ class SimplePDFBase(BackendBase):
             Function that takes fit parameters (:math:`\mu` and :math:`\theta`) and computes
             :math:`\log\mathcal{L}(\mu, \theta)`.
         """
-        data = self.data if data is None else data
+        current_data = (
+            self.background_yields if expected == ExpectationType.apriori else self.data
+        )
+        data = current_data if data is None else data
 
         if self.constraint_model is None:
             return lambda pars: self.main_model.log_prob(pars, data[: len(self.data)])
@@ -344,23 +348,26 @@ class SimplePDFBase(BackendBase):
         return data
 
 
-class GeneralisedPoisson(SimplePDFBase):
-    """
-    Experimental
+class GaussianUncertainties(SimplePDFBase):
+    r"""
+    A simple likelihood function where the constraint term is constructed
+    as multivariate normal distribution of the correlation matrix
+
+    .. math::
+
+        \mathcal{L}(\mu, \theta) = \prod {\rm Poiss}(n|\mu n_s + n_b) \mathcal{N}(\theta|n_b, \Sigma)
+
+    where :math:`n,n_s,n_b` are observed, signal and background yields and :math:`\Sigma` is
+    the covariance matrix.
 
     Args:
-        signal_yields (``List[float]``): _description_
-        background_yields (``List[float]``): _description_
-        data (``List[float]``): _description_
-        absolute_uncertainty_envelops (``List[Tuple[float, float]]``, default ``None``): _description_
-        niterations (``int``, default ``10000``): _description_
-
-    Returns:
-        ``_type_``:
-        _description_
+        signal_yields (``np.ndarray``): signal yields
+        background_yields (``np.ndarray``): background yields
+        data (``np.ndarray``): observations
+        covariance_matrix (``np.ndarray``): covariance matrix
     """
 
-    name: Text = "simple_pdfs.generalised_poisson"
+    name: Text = "simple_pdfs.gaussian_uncertainties"
     """Name of the backend"""
     version: Text = SimplePDFBase.version
     """Version of the backend"""
@@ -368,40 +375,28 @@ class GeneralisedPoisson(SimplePDFBase):
     """Author of the backend"""
     spey_requires: Text = SimplePDFBase.spey_requires
     """Spey version required for the backend"""
-    doi: List[Text] = ["10.48550/arXiv.physics/0406120"]
-    """Citable DOI for the backend"""
-    arXiv: List[Text] = ["physics/0406120"]
-    """arXiv reference for the backend"""
 
     def __init__(
         self,
-        signal_yields: List[float],
-        background_yields: List[float],
-        data: List[float],
-        absolute_uncertainty_envelops: List[Tuple[float, float]] = None,
-        niterations: int = 10000,
+        signal_yields: np.ndarray,
+        background_yields: np.ndarray,
+        data: np.ndarray,
+        covariance_matrix: np.ndarray,
     ):
         super().__init__(
-            signal_yields=signal_yields,
-            background_yields=background_yields,
-            data=data,
-            absolute_uncertainty_envelops=absolute_uncertainty_envelops,
+            signal_yields=signal_yields, background_yields=background_yields, data=data
         )
 
-        gamma = solve_bifurcation_for_gamma(
-            self.lower_envelop, self.upper_envelop, niterations
-        )
-
-        nu = 0.5 / (gamma * self.upper_envelop - np.log(1.0 + gamma * self.upper_envelop))
-        alpha = nu * gamma
+        self.covariance_matrix = np.array(covariance_matrix)
+        assert self.covariance_matrix.shape[0] == len(
+            self.background_yields
+        ), "Dimensionality of the covariance matrix does not match the background."
 
         self._constraint_model = ConstraintModel(
-            "generalisedpoisson", self.background_yields, alpha, nu
+            "multivariatenormal", self.background_yields, self.covariance_matrix
         )
 
-        self.constraints = [
-            NonlinearConstraint(lambda pars: pars[1:], self.background_yields, np.inf)
-        ]
+        assert self.main_model is not None, "Main model has not been constructed properly"
 
 
 class VariableGaussian(SimplePDFBase):
@@ -428,9 +423,9 @@ class VariableGaussian(SimplePDFBase):
 
     .. note::
 
-        :xref:`physics/0406120` presents two forms for Variable Gaussian in sections 3.5 and
-        3.6, we observed that both forms result in the same outcome. Thus this implementation
-        only includes form 1.
+        :xref:`physics/0406120` proposes another form for Variable Gaussian formulation in
+        sec 3.6. However, we found that the results were significantly unstable for correlated
+        background uncertainties. Thus we include only one form in Spey.
 
     Args:
         signal_yields (``np.ndarray``): signal yields
