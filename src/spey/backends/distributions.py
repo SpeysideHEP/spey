@@ -1,6 +1,6 @@
 """Autograd based distribution classes for simplified likelihood interface"""
 
-from typing import Callable, Text, Union
+from typing import Callable, Text
 from autograd.scipy.special import gammaln
 from autograd.scipy.stats.poisson import logpmf
 import autograd.numpy as np
