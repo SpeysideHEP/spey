@@ -1,4 +1,4 @@
-"""Simplified Likelihood Interface"""
+"""Interface for default PDF sets"""
 
 from typing import Optional, Text, Callable, List, Union, Tuple, Any
 from autograd import numpy as np
@@ -13,20 +13,14 @@ from spey.utils import ExpectationType
 from spey._version import __version__
 from spey.helper_functions import covariance_to_correlation
 from spey.backends.distributions import MainModel, ConstraintModel
-from .sldata import SLData
 from .third_moment import third_moment_expansion
-
-
-def __dir__():
-    return []
-
 
 # pylint: disable=E1101,E1120
 
 
-class SimplifiedLikelihoodBase(BackendBase):
+class DefaultPDFBase(BackendBase):
     """
-    Simplified Likelihood Interface.
+    Default PDF backend base
 
     Args:
         signal_yields (``np.ndarray``): signal yields
@@ -51,7 +45,7 @@ class SimplifiedLikelihoodBase(BackendBase):
         :func:`autograd.numpy.array` function.
     """
 
-    name: Text = "simplified_likelihoods.base"
+    name: Text = "default_pdf.base"
     """Name of the backend"""
     version: Text = __version__
     """Version of the backend"""
@@ -59,10 +53,6 @@ class SimplifiedLikelihoodBase(BackendBase):
     """Author of the backend"""
     spey_requires: Text = __version__
     """Spey version required for the backend"""
-    doi: List[Text] = ["10.1007/JHEP04(2019)064"]
-    """Citable DOI for the backend"""
-    arXiv: List[Text] = ["1809.05548"]
-    """arXiv reference for the backend"""
 
     __slots__ = ["_model", "_main_model", "_constraint_model", "constraints"]
 
@@ -74,85 +64,39 @@ class SimplifiedLikelihoodBase(BackendBase):
         covariance_matrix: Optional[
             Union[np.ndarray, Callable[[np.ndarray], np.ndarray]]
         ] = None,
-        third_moment: Optional[np.ndarray] = None,
     ):
-        self._model = SLData(
-            observed=np.array(data, dtype=np.float64),
-            signal=np.array(signal_yields, dtype=np.float64),
-            background=np.array(background_yields, dtype=np.float64),
-            covariance_matrix=np.array(covariance_matrix, dtype=np.float64)
+        self.data = np.array(data, dtype=np.float64)
+        self.signal_yields = np.array(signal_yields, dtype=np.float64)
+        self.background_yields = np.array(background_yields, dtype=np.float64)
+        self.covariance_matrix = (
+            np.array(covariance_matrix, dtype=np.float64)
             if not callable(covariance_matrix) and covariance_matrix is not None
-            else covariance_matrix,
-            third_moment=None
-            if third_moment is None
-            else np.array(third_moment, dtype=np.float64),
-            name="sl_model",
+            else covariance_matrix
         )
+
+        minimum_poi = -np.inf
+        if self.is_alive:
+            minimum_poi = -np.min(
+                self.background_yields[self.signal_yields > 0.0]
+                / self.signal_yields[self.signal_yields > 0.0]
+            )
+
         self._main_model = None
         self._constraint_model = None
         self.constraints = []
         """Constraints to be used during optimisation process"""
 
-    @property
-    def constraint_model(self) -> ConstraintModel:
-        """retreive constraint model distribution"""
-        if self._constraint_model is None:
-            corr = covariance_to_correlation(self.model.covariance_matrix)
-            self._constraint_model = ConstraintModel(
-                "multivariatenormal", np.zeros(len(self.model)), corr
-            )
-        return self._constraint_model
-
-    @property
-    def main_model(self) -> MainModel:
-        """retreive the main model distribution"""
-        if self._main_model is None:
-            A = self.model.background
-            B = np.sqrt(np.diag(self.model.covariance_matrix))
-
-            def lam(pars: np.ndarray) -> np.ndarray:
-                """
-                Compute lambda for Main model with third moment expansion.
-                For details see above eq 2.6 in :xref:`1809.05548`
-
-                Args:
-                    pars (``np.ndarray``): nuisance parameters
-
-                Returns:
-                    ``np.ndarray``:
-                    expectation value of the poisson distribution with respect to
-                    nuisance parameters.
-                """
-                return pars[0] * self.model.signal + A + B * pars[1:]
-
-            def constraint(pars: np.ndarray) -> np.ndarray:
-                """Compute constraint term"""
-                return A + B * pars[1:]
-
-            jac_constr = jacobian(constraint)
-
-            self.constraints = [
-                NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
-            ]
-            self._main_model = MainModel(lam)
-
-        return self._main_model
-
-    @property
-    def model(self) -> SLData:
-        """
-        Accessor to the model container.
-
-        Returns:
-            ~spey.backends.simplifiedlikelihood_backend.sldata.SLData:
-            Data container object that inherits :obj:`~spey.DataBase`.
-        """
-        return self._model
+        self._config = ModelConfig(
+            poi_index=0,
+            minimum_poi=minimum_poi,
+            suggested_init=[1.0] * (len(data) + 1),
+            suggested_bounds=[(minimum_poi, 10)] + [(None, None)] * len(data),
+        )
 
     @property
     def is_alive(self) -> bool:
         """Returns True if at least one bin has non-zero signal yield."""
-        return self.model.isAlive
+        return np.any(self.signal_yields > 0.0)
 
     def config(
         self, allow_negative_signal: bool = True, poi_upper_bound: float = 10.0
@@ -171,9 +115,60 @@ class SimplifiedLikelihoodBase(BackendBase):
             Model configuration. Information regarding the position of POI in
             parameter list, suggested input and bounds.
         """
-        return self.model.config(
-            allow_negative_signal=allow_negative_signal, poi_upper_bound=poi_upper_bound
+        if allow_negative_signal and poi_upper_bound == 10.0:
+            return self._config
+
+        return ModelConfig(
+            self._config.poi_index,
+            self._config.minimum_poi,
+            self._config.suggested_init,
+            [(0, poi_upper_bound)] + self._config.suggested_bounds[1:],
         )
+
+    @property
+    def constraint_model(self) -> ConstraintModel:
+        """retreive constraint model distribution"""
+        if self._constraint_model is None:
+            corr = covariance_to_correlation(self.covariance_matrix)
+            self._constraint_model = ConstraintModel(
+                "multivariatenormal", np.zeros(len(self.data)), corr
+            )
+        return self._constraint_model
+
+    @property
+    def main_model(self) -> MainModel:
+        """retreive the main model distribution"""
+        if self._main_model is None:
+            A = self.background_yields
+            B = np.sqrt(np.diag(self.covariance_matrix))
+
+            def lam(pars: np.ndarray) -> np.ndarray:
+                """
+                Compute lambda for Main model with third moment expansion.
+                For details see above eq 2.6 in :xref:`1809.05548`
+
+                Args:
+                    pars (``np.ndarray``): nuisance parameters
+
+                Returns:
+                    ``np.ndarray``:
+                    expectation value of the poisson distribution with respect to
+                    nuisance parameters.
+                """
+                return pars[0] * self.signal_yields + A + B * pars[1:]
+
+            def constraint(pars: np.ndarray) -> np.ndarray:
+                """Compute constraint term"""
+                return A + B * pars[1:]
+
+            jac_constr = jacobian(constraint)
+
+            self.constraints.append(
+                NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
+            )
+            self._main_model = MainModel(lam)
+
+        return self._main_model
 
     def get_objective_function(
         self,
@@ -205,18 +200,15 @@ class SimplifiedLikelihoodBase(BackendBase):
             Function which takes fit parameters (:math:`\mu` and :math:`\theta`) and returns either
             objective or objective and its gradient.
         """
-        current_model: SLData = (
-            self.model
-            if expected != ExpectationType.apriori
-            else self.model.expected_dataset
+        current_data = (
+            self.background_yields if expected == ExpectationType.apriori else self.data
         )
-
-        data = data if data is not None else current_model.observed
+        data = current_data if data is None else data
 
         def negative_loglikelihood(pars: np.ndarray) -> np.ndarray:
             """Compute twice negative log-likelihood"""
             return -self.main_model.log_prob(
-                pars, data[: len(current_model)]
+                pars, data[: len(self.data)]
             ) - self.constraint_model.log_prob(pars[1:])
 
         if do_grad:
@@ -256,16 +248,13 @@ class SimplifiedLikelihoodBase(BackendBase):
             Function that takes fit parameters (:math:`\mu` and :math:`\theta`) and computes
             :math:`\log\mathcal{L}(\mu, \theta)`.
         """
-        current_model: SLData = (
-            self.model
-            if expected != ExpectationType.apriori
-            else self.model.expected_dataset
+        current_data = (
+            self.background_yields if expected == ExpectationType.apriori else self.data
         )
-
-        data = data if data is not None else current_model.observed
+        data = current_data if data is None else data
 
         return lambda pars: self.main_model.log_prob(
-            pars, data[: len(current_model)]
+            pars, data[: len(self.data)]
         ) + self.constraint_model.log_prob(pars[1:])
 
     def get_hessian_logpdf_func(
@@ -297,18 +286,15 @@ class SimplifiedLikelihoodBase(BackendBase):
             Function that takes fit parameters (:math:`\mu` and :math:`\theta`) and
             returns Hessian of :math:`\log\mathcal{L}(\mu, \theta)`.
         """
-        current_model: SLData = (
-            self.model
-            if expected != ExpectationType.apriori
-            else self.model.expected_dataset
+        current_data = (
+            self.background_yields if expected == ExpectationType.apriori else self.data
         )
-
-        data = data if data is not None else current_model.observed
+        data = current_data if data is None else data
 
         def log_prob(pars: np.ndarray) -> np.ndarray:
             """Compute log-probability"""
             return self.main_model.log_prob(
-                pars, data[: len(current_model)]
+                pars, data[: len(self.data)]
             ) + self.constraint_model.log_prob(pars[1:])
 
         return hessian(log_prob, argnum=0)
@@ -373,144 +359,8 @@ class SimplifiedLikelihoodBase(BackendBase):
             data = np.hstack([data, self.constraint_model.expected_data()])
         return data
 
-    def generate_asimov_data(
-        self,
-        poi_asimov: float = 0.0,
-        expected: ExpectationType = ExpectationType.observed,
-        init_pars: Optional[List[float]] = None,
-        par_bounds: Optional[List[Tuple[float, float]]] = None,
-        **kwargs,
-    ) -> np.ndarray:
-        r"""
-        Backend specific method to generate Asimov data.
 
-        Args:
-            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
-              p-values to be computed.
-
-              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
-                (default).
-              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
-                the truth.
-              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
-                prescription which means that the SM will be assumed to be the truth.
-
-            init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
-            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
-              the optimiser.
-            kwargs: keyword arguments for the optimiser.
-
-        Returns:
-            ``np.ndarray``:
-            Asimov data.
-        """
-        model: SLData = (
-            self.model
-            if expected != ExpectationType.apriori
-            else self.model.expected_dataset
-        )
-
-        _, fit_pars = fit(
-            func=self.get_objective_function(expected=expected, do_grad=True),
-            model_configuration=model.config(),
-            do_grad=True,
-            fixed_poi_value=poi_asimov,
-            initial_parameters=init_pars,
-            bounds=par_bounds,
-            **kwargs,
-        )
-
-        return self.expected_data(fit_pars)
-
-    def compute_nuisance_bounds(
-        self,
-        poi_test: float,
-        delta: float = 5.0,
-        expected: ExpectationType = ExpectationType.observed,
-        data: Optional[np.ndarray] = None,
-        init_pars: Optional[List[float]] = None,
-        par_bounds: Optional[List[Tuple[float, float]]] = None,
-        **kwargs,
-    ) -> List[Tuple[float, float]]:
-        r"""
-        [**Experimental**] Compute parameter bounds for nuisance parameters at fixed POI.
-
-        .. math::
-
-            \theta^\pm = \hat\theta \pm \delta \sigma_{\theta_\mu}
-
-            \sigma_{\theta_\mu} = \sqrt{ \left( \frac{\partial^2 (-\log\mathcal{L}(\mu, \theta_\mu))}{\partial\theta_i^2} \right)^{-1} }
-
-        Args:
-            poi_test (``float``): parameter of interest
-            delta (``float``, default ``5.0``): magnitude of the standard deviation
-            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
-              p-values to be computed.
-
-              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
-                (default).
-              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
-                the truth.
-              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
-                prescription which means that the SM will be assumed to be the truth.
-
-            data (``np.ndarray``, default ``None``): input data that to fit
-            init_pars (``List[float]``, default ``None``): initialisation parameters
-            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds
-            kwargs: optimisation arguments
-
-        Returns:
-            ``List[Tuple[float, float]]``:
-            estimated bounds for the nuisance parameters.
-        """
-
-        model: SLData = (
-            self.model
-            if expected != ExpectationType.apriori
-            else self.model.expected_dataset
-        )
-
-        data = data if data is not None else model.observed
-
-        def sigma_nuisance(pars: np.ndarray) -> np.ndarray:
-            return np.sqrt(
-                np.diag(
-                    np.linalg.inv(-self.get_hessian_logpdf_func(expected, data)(pars))
-                )
-            )[1:]
-
-        _, fit_pars = fit(
-            func=self.get_objective_function(expected=expected, do_grad=True),
-            model_configuration=model.config(),
-            do_grad=True,
-            initial_parameters=init_pars,
-            bounds=par_bounds,
-            constraints=self.constraints,
-            **kwargs,
-        )
-
-        _, fit_pars_fixed_poi = fit(
-            func=self.get_objective_function(expected=expected, do_grad=True),
-            model_configuration=model.config(),
-            do_grad=True,
-            initial_parameters=init_pars,
-            bounds=par_bounds,
-            fixed_poi_value=poi_test,
-            constraints=self.constraints,
-            **kwargs,
-        )
-
-        return [
-            (th - delta * th_sig, th + delta * th_sig)
-            for th, th_sig in zip(fit_pars[1:], sigma_nuisance(fit_pars_fixed_poi))
-        ]
-
-
-class UncorrelatedBackground(SimplifiedLikelihoodBase):
+class UncorrelatedBackground(DefaultPDFBase):
     r"""
     Simplified likelihood interface with uncorrelated regions.
     This simple backend is designed to handle single or multi-bin statistical models
@@ -552,18 +402,14 @@ class UncorrelatedBackground(SimplifiedLikelihoodBase):
         >>> # 1-CLs : 0.702
     """
 
-    name: Text = "simplified_likelihoods.uncorrelated_background"
+    name: Text = "default_pdf.uncorrelated_background"
     """Name of the backend"""
-    version: Text = SimplifiedLikelihoodBase.version
+    version: Text = DefaultPDFBase.version
     """Version of the backend"""
     author: Text = "SpeysideHEP"
     """Author of the backend"""
-    spey_requires: Text = SimplifiedLikelihoodBase.spey_requires
+    spey_requires: Text = DefaultPDFBase.spey_requires
     """Spey version required for the backend"""
-    doi: List[Text] = SimplifiedLikelihoodBase.doi
-    """Citable DOI for the backend"""
-    arXiv: List[Text] = SimplifiedLikelihoodBase.arXiv
-    """arXiv reference for the backend"""
 
     def __init__(
         self,
@@ -582,26 +428,28 @@ class UncorrelatedBackground(SimplifiedLikelihoodBase):
         B = np.array(absolute_uncertainties)
 
         self._constraint_model: ConstraintModel = ConstraintModel(
-            "normal", np.zeros(len(self.model.observed)), np.ones(len(B))
+            "normal", np.zeros(len(self.data)), np.ones(len(B))
         )
 
         def lam(pars: np.ndarray) -> np.ndarray:
             """Compute lambda for Main model"""
-            return self.model.background + pars[1:] * B + pars[0] * self.model.signal
+            return self.background_yields + pars[1:] * B + pars[0] * self.signal_yields
 
         def constraint(pars: np.ndarray) -> np.ndarray:
             """Compute the constraint term"""
-            return self.model.background + pars[1:] * B
+            return self.background_yields + pars[1:] * B
 
         jac_constr = jacobian(constraint)
 
-        self.constraints = [NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)]
+        self.constraints.append(
+            NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
+        )
         self._main_model = MainModel(lam)
 
 
-class SimplifiedLikelihoods(SimplifiedLikelihoodBase):
+class CorrelatedBackground(DefaultPDFBase):
     r"""
-    Simplified likelihoods for correlated multi-region statistical models.
+    Correlated multi-region statistical model.
     Main simplified likelihood backend which uses a Multivariate Normal and
     a Poisson distributions to construct log-probability of the statistical
     model. The Multivariate Normal distribution is constructed by the help
@@ -652,18 +500,14 @@ class SimplifiedLikelihoods(SimplifiedLikelihoodBase):
         >>> # [0.9734448420632104]
     """
 
-    name: Text = "simplified_likelihoods"
+    name: Text = "default_pdf.correlated_background"
     """Name of the backend"""
-    version: Text = SimplifiedLikelihoodBase.version
+    version: Text = DefaultPDFBase.version
     """Version of the backend"""
     author: Text = "SpeysideHEP"
     """Author of the backend"""
-    spey_requires: Text = SimplifiedLikelihoodBase.spey_requires
+    spey_requires: Text = DefaultPDFBase.spey_requires
     """Spey version required for the backend"""
-    doi: List[Text] = SimplifiedLikelihoodBase.doi
-    """Citable DOI for the backend"""
-    arXiv: List[Text] = SimplifiedLikelihoodBase.arXiv
-    """arXiv reference for the backend"""
 
     def __init__(
         self,
@@ -683,7 +527,7 @@ class SimplifiedLikelihoods(SimplifiedLikelihoodBase):
         assert self.constraint_model is not None, "Unable to build the constraint model"
 
 
-class ThirdMomentExpansion(SimplifiedLikelihoodBase):
+class ThirdMomentExpansion(DefaultPDFBase):
     r"""
     Simplified likelihood interface with third moment expansion.
     Third moment expansion follows simplified likelihood construction
@@ -723,17 +567,17 @@ class ThirdMomentExpansion(SimplifiedLikelihoodBase):
         ``third_moment`` should also have three inputs.
     """
 
-    name: Text = "simplified_likelihoods.third_moment_expansion"
+    name: Text = "default_pdf.third_moment_expansion"
     """Name of the backend"""
-    version: Text = SimplifiedLikelihoodBase.version
+    version: Text = DefaultPDFBase.version
     """Version of the backend"""
     author: Text = "SpeysideHEP"
     """Author of the backend"""
-    spey_requires: Text = SimplifiedLikelihoodBase.spey_requires
+    spey_requires: Text = DefaultPDFBase.spey_requires
     """Spey version required for the backend"""
-    doi: List[Text] = SimplifiedLikelihoodBase.doi
+    doi: List[Text] = ["10.1007/JHEP04(2019)064"]
     """Citable DOI for the backend"""
-    arXiv: List[Text] = SimplifiedLikelihoodBase.arXiv
+    arXiv: List[Text] = ["1809.05548"]
     """arXiv reference for the backend"""
 
     def __init__(
@@ -744,21 +588,17 @@ class ThirdMomentExpansion(SimplifiedLikelihoodBase):
         covariance_matrix: np.ndarray,
         third_moment: np.ndarray,
     ):
-
-        background = np.array(background_yields)
-        covariance = np.array(covariance_matrix)
         third_moments = np.array(third_moment)
-
-        A, B, C, corr = third_moment_expansion(
-            background, covariance, third_moments, True
-        )
 
         super().__init__(
             signal_yields=signal_yields,
-            background_yields=background,
+            background_yields=background_yields,
             data=data,
-            covariance_matrix=covariance,
-            third_moment=third_moments,
+            covariance_matrix=covariance_matrix,
+        )
+
+        A, B, C, corr = third_moment_expansion(
+            self.background_yields, self.covariance_matrix, third_moments, True
         )
 
         def lam(pars: np.ndarray) -> np.ndarray:
@@ -775,7 +615,7 @@ class ThirdMomentExpansion(SimplifiedLikelihoodBase):
                 nuisance parameters.
             """
             nI = A + B * pars[1:] + C * np.square(pars[1:])
-            return pars[0] * self.model.signal + nI
+            return pars[0] * self.signal_yields + nI
 
         def constraint(pars: np.ndarray) -> np.ndarray:
             """Compute constraint term"""
@@ -783,7 +623,9 @@ class ThirdMomentExpansion(SimplifiedLikelihoodBase):
 
         jac_constr = jacobian(constraint)
 
-        self.constraints = [NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)]
+        self.constraints.append(
+            NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
+        )
 
         self._main_model = MainModel(lam)
         self._constraint_model = ConstraintModel(
@@ -791,7 +633,7 @@ class ThirdMomentExpansion(SimplifiedLikelihoodBase):
         )
 
 
-class VariableGaussian(SimplifiedLikelihoodBase):
+class EffectiveSigma(DefaultPDFBase):
     r"""
     Simplified likelihood interface with variable Gaussian.
     Variable Gaussian has been inspired by :xref:`physics/0406120` sec. 3.6. This method
@@ -830,17 +672,17 @@ class VariableGaussian(SimplifiedLikelihoodBase):
           envelops for each background yield.
     """
 
-    name: Text = "simplified_likelihoods.variable_gaussian"
+    name: Text = "default_pdf.effective_sigma"
     """Name of the backend"""
-    version: Text = SimplifiedLikelihoodBase.version
+    version: Text = DefaultPDFBase.version
     """Version of the backend"""
     author: Text = "SpeysideHEP"
     """Author of the backend"""
-    spey_requires: Text = SimplifiedLikelihoodBase.spey_requires
+    spey_requires: Text = DefaultPDFBase.spey_requires
     """Spey version required for the backend"""
-    doi: List[Text] = SimplifiedLikelihoodBase.doi + ["10.1142/9781860948985_0013"]
+    doi: List[Text] = ["10.1142/9781860948985_0013"]
     """Citable DOI for the backend"""
-    arXiv: List[Text] = SimplifiedLikelihoodBase.arXiv + ["physics/0406120"]
+    arXiv: List[Text] = ["physics/0406120"]
     """arXiv reference for the backend"""
 
     def __init__(
@@ -871,10 +713,10 @@ class VariableGaussian(SimplifiedLikelihoodBase):
         )
 
         self._constraint_model: ConstraintModel = ConstraintModel(
-            "multivariatenormal", np.zeros(len(self.model)), correlation_matrix
+            "multivariatenormal", np.zeros(len(self.data)), correlation_matrix
         )
 
-        A = self.model.background
+        A = self.background_yields
 
         # arXiv:pyhsics/0406120 eq. 18-19
         def effective_sigma(pars: np.ndarray) -> np.ndarray:
@@ -885,12 +727,14 @@ class VariableGaussian(SimplifiedLikelihoodBase):
 
         def lam(pars: np.ndarray) -> np.ndarray:
             """Compute lambda for Main model"""
-            return A + effective_sigma(pars) * pars[1:] + pars[0] * self.model.signal
+            return A + effective_sigma(pars) * pars[1:] + pars[0] * self.signal_yields
 
         def constraint(pars: np.ndarray) -> np.ndarray:
             """Compute the constraint term"""
             return A + effective_sigma(pars) * pars[1:]
 
         jac_constr = jacobian(constraint)
-        self.constraints = [NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)]
+        self.constraints.append(
+            NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
+        )
         self._main_model = MainModel(lam)
