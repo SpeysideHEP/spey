@@ -1,6 +1,6 @@
 """Autograd based distribution classes for simplified likelihood interface"""
 
-from typing import Callable, Text
+from typing import Callable, Text, Dict, Any, List
 from autograd.scipy.special import gammaln
 from autograd.scipy.stats.poisson import logpmf
 import autograd.numpy as np
@@ -53,8 +53,10 @@ class Normal:
         scale (``np.ndarray``): standard deviation.
     """
 
-    def __init__(self, loc: np.ndarray, scale: np.ndarray):
+    def __init__(self, loc: np.ndarray, scale: np.ndarray, weight: float = 1.0):
         self.loc = loc
+        self.weight = weight
+        """Weight of the distribution"""
 
         if callable(scale):
             self.scale = scale
@@ -75,7 +77,7 @@ class Normal:
 
     def log_prob(self, value: float) -> np.ndarray:
         """Compute log-probability"""
-        return (
+        return self.weight * (
             -np.log(self.scale(value))
             - 0.5 * np.log(2.0 * np.pi)
             - 0.5 * np.square(np.divide(value - self.loc, self.scale(value)))
@@ -92,11 +94,13 @@ class MultivariateNormal:
           covariance matrix of the distribution.
     """
 
-    def __init__(self, mean: np.ndarray, cov: np.ndarray):
+    def __init__(self, mean: np.ndarray, cov: np.ndarray, weight: float = 1.0):
         self.mean = mean
         """Mean of the distribution."""
         self.cov = cov if callable(cov) else lambda val: cov
         """Symmetric positive (semi)definite covariance matrix of the distribution."""
+        self.weight = weight
+        """Weight of the distribution"""
 
         if callable(cov):
             self._inv_cov = lambda val: np.linalg.inv(cov(val))
@@ -119,7 +123,7 @@ class MultivariateNormal:
     def log_prob(self, value: np.ndarray) -> np.ndarray:
         """Compute log-probability"""
         var = value - self.mean
-        return (
+        return self.weight * (
             -0.5 * (var @ self._inv_cov(value) @ var)
             - 0.5 * (len(value) * np.log(2.0 * np.pi) + np.log(self._det_cov(value)))
         ).astype(np.float64)
@@ -178,27 +182,38 @@ class ConstraintModel:
     Constraint term modelled as a Gaussian distribution.
 
     Args:
-        distribution_type (``Text``): ``"normal"`` or ``"multivariatenormal"``
-        args: Input arguments for the distribution
+        pdf_descriptions (``List[Dict[Text, Any]]``): description of the pdf component.
+            Dictionary elements should contain two keywords
+
+              * ``"distribution_type"`` (``Text``): ``"normal"`` or ``"multivariatenormal"``
+              * ``"args"``: Input arguments for the distribution
+              * ``"kwargs"``: Input keyword arguments for the distribution
     """
 
-    def __init__(
-        self,
-        distribution_type: Text,
-        *args,
-    ):
-        assert distribution_type.lower() in [
-            "normal",
-            "multivariatenormal",
-        ], "Unknown distribution type"
+    def __init__(self, pdf_descriptions: List[Dict[Text, Any]]):
+        self._pdfs = []
+        distributions = {"normal": Normal, "multivariatenormal": MultivariateNormal}
 
-        self._pdf = {"normal": Normal, "multivariatenormal": MultivariateNormal}[
-            distribution_type.lower()
-        ](*args)
+        for desc in pdf_descriptions:
+            assert desc["distribution_type"].lower() in [
+                "normal",
+                "multivariatenormal",
+            ], f"Unknown distribution type: {desc['distribution_type']}"
+            self._pdfs.append(
+                distributions[desc["distribution_type"]](
+                    *desc.get("args", []), **desc.get("kwargs", {})
+                )
+            )
+
+    def __len__(self):
+        return len(self._pdfs)
 
     def expected_data(self) -> np.ndarray:
         """The expectation value of the constraint model."""
-        return self._pdf.expected_data()
+        if len(self) > 1:
+            return np.hstack([pdf.expected_data() for pdf in self._pdfs])
+
+        return self._pdfs[0].expected_data()
 
     def sample(self, pars: np.ndarray, sample_size: int) -> np.ndarray:
         r"""
@@ -213,7 +228,10 @@ class ConstraintModel:
             ``np.ndarray``:
             sampled data
         """
-        return self._pdf.sample(pars, sample_size)
+        if len(self) > 1:
+            return np.hstack([pdf.sample(pars, sample_size) for pdf in self._pdfs])
+
+        return self._pdfs[0].sample(pars, sample_size)
 
     def log_prob(self, pars: np.ndarray) -> np.ndarray:
         r"""
@@ -228,7 +246,7 @@ class ConstraintModel:
             ``np.ndarray``:
             log-probability of the main model
         """
-        return np.sum(self._pdf.log_prob(pars))
+        return np.sum([pdf.log_prob(pars) for pdf in self._pdfs])
 
 
 class MixtureModel:

@@ -131,7 +131,12 @@ class DefaultPDFBase(BackendBase):
         if self._constraint_model is None:
             corr = covariance_to_correlation(self.covariance_matrix)
             self._constraint_model = ConstraintModel(
-                "multivariatenormal", np.zeros(len(self.data)), corr
+                [
+                    {
+                        "distribution_type": "multivariatenormal",
+                        "args": [np.zeros(len(self.data)), corr],
+                    }
+                ]
             )
         return self._constraint_model
 
@@ -428,7 +433,12 @@ class UncorrelatedBackground(DefaultPDFBase):
         B = np.array(absolute_uncertainties)
 
         self._constraint_model: ConstraintModel = ConstraintModel(
-            "normal", np.zeros(len(self.data)), np.ones(len(B))
+            [
+                {
+                    "distribution_type": "normal",
+                    "args": [np.zeros(len(self.data)), np.ones(len(B))],
+                }
+            ]
         )
 
         def lam(pars: np.ndarray) -> np.ndarray:
@@ -629,7 +639,12 @@ class ThirdMomentExpansion(DefaultPDFBase):
 
         self._main_model = MainModel(lam)
         self._constraint_model = ConstraintModel(
-            "multivariatenormal", np.zeros(corr.shape[0]), corr
+            [
+                {
+                    "distribution_type": "multivariatenormal",
+                    "args": [np.zeros(len(self.data)), corr],
+                }
+            ]
         )
 
 
@@ -713,7 +728,12 @@ class EffectiveSigma(DefaultPDFBase):
         )
 
         self._constraint_model: ConstraintModel = ConstraintModel(
-            "multivariatenormal", np.zeros(len(self.data)), correlation_matrix
+            [
+                {
+                    "distribution_type": "multivariatenormal",
+                    "args": [np.zeros(len(self.data)), correlation_matrix],
+                }
+            ]
         )
 
         A = self.background_yields
