@@ -1,6 +1,6 @@
 """Autograd based distribution classes for simplified likelihood interface"""
 
-from typing import Callable, Text, Dict, Any, List
+from typing import Callable, Text, Dict, Any, List, Union
 from autograd.scipy.special import gammaln
 from autograd.scipy.stats.poisson import logpmf
 import autograd.numpy as np
@@ -57,11 +57,11 @@ class Normal:
         self,
         loc: np.ndarray,
         scale: np.ndarray,
-        weight: float = 1.0,
+        weight: Union[Callable[[np.ndarray], float], float] = 1.0,
         domain: slice = slice(None, None),
     ):
         self.loc = loc
-        self.weight = weight
+        self.weight = weight if callable(weight) else lambda pars: weight
         """Weight of the distribution"""
         self.domain = domain
         """Which parameters should be used during the computation of the pdf"""
@@ -85,7 +85,7 @@ class Normal:
 
     def log_prob(self, value: float) -> np.ndarray:
         """Compute log-probability"""
-        return self.weight * (
+        return self.weight(value) * (
             -np.log(self.scale(value[self.domain]))
             - 0.5 * np.log(2.0 * np.pi)
             - 0.5
@@ -109,14 +109,14 @@ class MultivariateNormal:
         self,
         mean: np.ndarray,
         cov: np.ndarray,
-        weight: float = 1.0,
+        weight: Union[Callable[[np.ndarray], float], float] = 1.0,
         domain: slice = slice(None, None),
     ):
         self.mean = mean
         """Mean of the distribution."""
         self.cov = cov if callable(cov) else lambda val: cov
         """Symmetric positive (semi)definite covariance matrix of the distribution."""
-        self.weight = weight
+        self.weight = weight if callable(weight) else lambda pars: weight
         """Weight of the distribution"""
         self.domain = domain
         """Which parameters should be used during the computation of the pdf"""
@@ -144,7 +144,7 @@ class MultivariateNormal:
     def log_prob(self, value: np.ndarray) -> np.ndarray:
         """Compute log-probability"""
         var = value[self.domain] - self.mean
-        return self.weight * (
+        return self.weight(value) * (
             -0.5 * (var @ self._inv_cov(value[self.domain]) @ var)
             - 0.5
             * (
