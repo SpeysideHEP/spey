@@ -135,6 +135,7 @@ class DefaultPDFBase(BackendBase):
                     {
                         "distribution_type": "multivariatenormal",
                         "args": [np.zeros(len(self.data)), corr],
+                        "kwargs": {"domain": slice(1, None)},
                     }
                 ]
             )
@@ -214,7 +215,7 @@ class DefaultPDFBase(BackendBase):
             """Compute twice negative log-likelihood"""
             return -self.main_model.log_prob(
                 pars, data[: len(self.data)]
-            ) - self.constraint_model.log_prob(pars[1:])
+            ) - self.constraint_model.log_prob(pars)
 
         if do_grad:
             grad_negative_loglikelihood = grad(negative_loglikelihood, argnum=0)
@@ -260,7 +261,7 @@ class DefaultPDFBase(BackendBase):
 
         return lambda pars: self.main_model.log_prob(
             pars, data[: len(self.data)]
-        ) + self.constraint_model.log_prob(pars[1:])
+        ) + self.constraint_model.log_prob(pars)
 
     def get_hessian_logpdf_func(
         self,
@@ -300,7 +301,7 @@ class DefaultPDFBase(BackendBase):
             """Compute log-probability"""
             return self.main_model.log_prob(
                 pars, data[: len(self.data)]
-            ) + self.constraint_model.log_prob(pars[1:])
+            ) + self.constraint_model.log_prob(pars)
 
         return hessian(log_prob, argnum=0)
 
@@ -437,6 +438,7 @@ class UncorrelatedBackground(DefaultPDFBase):
                 {
                     "distribution_type": "normal",
                     "args": [np.zeros(len(self.data)), np.ones(len(B))],
+                    "kwargs": {"domain": slice(1, None)},
                 }
             ]
         )
@@ -643,6 +645,7 @@ class ThirdMomentExpansion(DefaultPDFBase):
                 {
                     "distribution_type": "multivariatenormal",
                     "args": [np.zeros(len(self.data)), corr],
+                    "kwargs": {"domain": slice(1, None)},
                 }
             ]
         )
@@ -732,6 +735,7 @@ class EffectiveSigma(DefaultPDFBase):
                 {
                     "distribution_type": "multivariatenormal",
                     "args": [np.zeros(len(self.data)), correlation_matrix],
+                    "kwargs": {"domain": slice(1, None)},
                 }
             ]
         )

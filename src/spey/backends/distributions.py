@@ -53,10 +53,18 @@ class Normal:
         scale (``np.ndarray``): standard deviation.
     """
 
-    def __init__(self, loc: np.ndarray, scale: np.ndarray, weight: float = 1.0):
+    def __init__(
+        self,
+        loc: np.ndarray,
+        scale: np.ndarray,
+        weight: float = 1.0,
+        domain: slice = slice(None, None),
+    ):
         self.loc = loc
         self.weight = weight
         """Weight of the distribution"""
+        self.domain = domain
+        """Which parameters should be used during the computation of the pdf"""
 
         if callable(scale):
             self.scale = scale
@@ -73,14 +81,17 @@ class Normal:
         if isinstance(self.loc, np.ndarray):
             shape += [len(self.loc)]
 
-        return norm(self.loc, self.scale(value)).rvs(size=shape)
+        return norm(self.loc, self.scale(value[self.domain])).rvs(size=shape)
 
     def log_prob(self, value: float) -> np.ndarray:
         """Compute log-probability"""
         return self.weight * (
-            -np.log(self.scale(value))
+            -np.log(self.scale(value[self.domain]))
             - 0.5 * np.log(2.0 * np.pi)
-            - 0.5 * np.square(np.divide(value - self.loc, self.scale(value)))
+            - 0.5
+            * np.square(
+                np.divide(value[self.domain] - self.loc, self.scale(value[self.domain]))
+            )
         ).astype(np.float64)
 
 
@@ -94,13 +105,21 @@ class MultivariateNormal:
           covariance matrix of the distribution.
     """
 
-    def __init__(self, mean: np.ndarray, cov: np.ndarray, weight: float = 1.0):
+    def __init__(
+        self,
+        mean: np.ndarray,
+        cov: np.ndarray,
+        weight: float = 1.0,
+        domain: slice = slice(None, None),
+    ):
         self.mean = mean
         """Mean of the distribution."""
         self.cov = cov if callable(cov) else lambda val: cov
         """Symmetric positive (semi)definite covariance matrix of the distribution."""
         self.weight = weight
         """Weight of the distribution"""
+        self.domain = domain
+        """Which parameters should be used during the computation of the pdf"""
 
         if callable(cov):
             self._inv_cov = lambda val: np.linalg.inv(cov(val))
@@ -118,14 +137,20 @@ class MultivariateNormal:
 
     def sample(self, value: np.ndarray, sample_size: int) -> np.ndarray:
         """Generate samples"""
-        return multivariate_normal(self.mean, self.cov(value)).rvs(size=(sample_size,))
+        return multivariate_normal(self.mean, self.cov(value[self.domain])).rvs(
+            size=(sample_size,)
+        )
 
     def log_prob(self, value: np.ndarray) -> np.ndarray:
         """Compute log-probability"""
-        var = value - self.mean
+        var = value[self.domain] - self.mean
         return self.weight * (
-            -0.5 * (var @ self._inv_cov(value) @ var)
-            - 0.5 * (len(value) * np.log(2.0 * np.pi) + np.log(self._det_cov(value)))
+            -0.5 * (var @ self._inv_cov(value[self.domain]) @ var)
+            - 0.5
+            * (
+                len(value[self.domain]) * np.log(2.0 * np.pi)
+                + np.log(self._det_cov(value[self.domain]))
+            )
         ).astype(np.float64)
 
 
