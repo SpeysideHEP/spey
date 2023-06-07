@@ -1,6 +1,6 @@
 """Interface for default PDF sets"""
 
-from typing import Optional, Text, Callable, List, Union, Tuple, Any
+from typing import Optional, Text, Callable, List, Union, Tuple, Any, Dict
 from autograd import numpy as np
 from autograd import grad, hessian, jacobian
 
@@ -14,6 +14,7 @@ from spey._version import __version__
 from spey.helper_functions import covariance_to_correlation
 from spey.backends.distributions import MainModel, ConstraintModel
 from .third_moment import third_moment_expansion
+from .uncertainty_synthesizer import signal_uncertainty_synthesizer
 
 # pylint: disable=E1101,E1120
 
@@ -54,7 +55,13 @@ class DefaultPDFBase(BackendBase):
     spey_requires: Text = __version__
     """Spey version required for the backend"""
 
-    __slots__ = ["_model", "_main_model", "_constraint_model", "constraints"]
+    __slots__ = [
+        "_model",
+        "_main_model",
+        "_constraint_model",
+        "constraints",
+        "signal_uncertainty_configuration",
+    ]
 
     def __init__(
         self,
@@ -64,6 +71,7 @@ class DefaultPDFBase(BackendBase):
         covariance_matrix: Optional[
             Union[np.ndarray, Callable[[np.ndarray], np.ndarray]]
         ] = None,
+        signal_uncertainty_configuration: Optional[Dict[Text, Any]] = None,
     ):
         self.data = np.array(data, dtype=np.float64)
         self.signal_yields = np.array(signal_yields, dtype=np.float64)
@@ -73,6 +81,13 @@ class DefaultPDFBase(BackendBase):
             if not callable(covariance_matrix) and covariance_matrix is not None
             else covariance_matrix
         )
+        if signal_uncertainty_configuration is None:
+            self.signal_uncertainty_configuration = {}
+        else:
+            self.signal_uncertainty_configuration = signal_uncertainty_synthesizer(
+                **signal_uncertainty_configuration,
+                domain=slice(len(background_yields) + 1, None)
+            )
 
         minimum_poi = -np.inf
         if self.is_alive:
@@ -138,6 +153,7 @@ class DefaultPDFBase(BackendBase):
                         "kwargs": {"domain": slice(1, None)},
                     }
                 ]
+                + self.signal_uncertainty_configuration.get("constraint", [])
             )
         return self._constraint_model
 
@@ -172,7 +188,18 @@ class DefaultPDFBase(BackendBase):
             self.constraints.append(
                 NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
             )
-            self._main_model = MainModel(lam)
+
+            if self.signal_uncertainty_configuration.get("lambda", None) is not None:
+                signal_lambda = self.signal_uncertainty_configuration["lambda"]
+
+                def poiss_lamb(pars: np.ndarray) -> np.ndarray:
+                    """combined lambda expression"""
+                    return lam(pars) + signal_lambda(pars)
+
+            else:
+                poiss_lamb = lam
+
+            self._main_model = MainModel(poiss_lamb)
 
         return self._main_model
 
@@ -423,12 +450,14 @@ class UncorrelatedBackground(DefaultPDFBase):
         background_yields: List[float],
         data: List[int],
         absolute_uncertainties: List[float],
+        signal_uncertainty_configuration: Optional[Dict[Text, Any]] = None,
     ):
         super().__init__(
             signal_yields=signal_yields,
             background_yields=background_yields,
             data=data,
             covariance_matrix=None,
+            signal_uncertainty_configuration=signal_uncertainty_configuration,
         )
 
         B = np.array(absolute_uncertainties)
@@ -441,6 +470,7 @@ class UncorrelatedBackground(DefaultPDFBase):
                     "kwargs": {"domain": slice(1, None)},
                 }
             ]
+            + self.signal_uncertainty_configuration.get("constraint", [])
         )
 
         def lam(pars: np.ndarray) -> np.ndarray:
@@ -456,7 +486,18 @@ class UncorrelatedBackground(DefaultPDFBase):
         self.constraints.append(
             NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
         )
-        self._main_model = MainModel(lam)
+
+        if self.signal_uncertainty_configuration.get("lambda", None) is not None:
+            signal_lambda = self.signal_uncertainty_configuration["lambda"]
+
+            def poiss_lamb(pars: np.ndarray) -> np.ndarray:
+                """combined lambda expression"""
+                return lam(pars) + signal_lambda(pars)
+
+        else:
+            poiss_lamb = lam
+
+        self._main_model = MainModel(poiss_lamb)
 
 
 class CorrelatedBackground(DefaultPDFBase):
@@ -527,12 +568,14 @@ class CorrelatedBackground(DefaultPDFBase):
         background_yields: np.ndarray,
         data: np.ndarray,
         covariance_matrix: np.ndarray,
+        signal_uncertainty_configuration: Optional[Dict[Text, Any]] = None,
     ):
         super().__init__(
             signal_yields=signal_yields,
             background_yields=background_yields,
             data=data,
             covariance_matrix=covariance_matrix,
+            signal_uncertainty_configuration=signal_uncertainty_configuration,
         )
 
         assert self.main_model is not None, "Unable to build the main model"
@@ -599,6 +642,7 @@ class ThirdMomentExpansion(DefaultPDFBase):
         data: np.ndarray,
         covariance_matrix: np.ndarray,
         third_moment: np.ndarray,
+        signal_uncertainty_configuration: Optional[Dict[Text, Any]] = None,
     ):
         third_moments = np.array(third_moment)
 
@@ -607,6 +651,7 @@ class ThirdMomentExpansion(DefaultPDFBase):
             background_yields=background_yields,
             data=data,
             covariance_matrix=covariance_matrix,
+            signal_uncertainty_configuration=signal_uncertainty_configuration,
         )
 
         A, B, C, corr = third_moment_expansion(
@@ -639,7 +684,17 @@ class ThirdMomentExpansion(DefaultPDFBase):
             NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
         )
 
-        self._main_model = MainModel(lam)
+        if self.signal_uncertainty_configuration.get("lambda", None) is not None:
+            signal_lambda = self.signal_uncertainty_configuration["lambda"]
+
+            def poiss_lamb(pars: np.ndarray) -> np.ndarray:
+                """combined lambda expression"""
+                return lam(pars) + signal_lambda(pars)
+
+        else:
+            poiss_lamb = lam
+
+        self._main_model = MainModel(poiss_lamb)
         self._constraint_model = ConstraintModel(
             [
                 {
@@ -648,6 +703,7 @@ class ThirdMomentExpansion(DefaultPDFBase):
                     "kwargs": {"domain": slice(1, None)},
                 }
             ]
+            + self.signal_uncertainty_configuration.get("constraint", [])
         )
 
 
@@ -710,6 +766,7 @@ class EffectiveSigma(DefaultPDFBase):
         data: np.ndarray,
         correlation_matrix: np.ndarray,
         absolute_uncertainty_envelops: List[Tuple[float, float]],
+        signal_uncertainty_configuration: Optional[Dict[Text, Any]] = None,
     ):
         assert len(absolute_uncertainty_envelops) == len(
             background_yields
@@ -727,7 +784,10 @@ class EffectiveSigma(DefaultPDFBase):
         correlation_matrix = np.array(correlation_matrix)
 
         super().__init__(
-            signal_yields=signal_yields, background_yields=background_yields, data=data
+            signal_yields=signal_yields,
+            background_yields=background_yields,
+            data=data,
+            signal_uncertainty_configuration=signal_uncertainty_configuration,
         )
 
         self._constraint_model: ConstraintModel = ConstraintModel(
@@ -738,6 +798,7 @@ class EffectiveSigma(DefaultPDFBase):
                     "kwargs": {"domain": slice(1, None)},
                 }
             ]
+            + self.signal_uncertainty_configuration.get("constraint", [])
         )
 
         A = self.background_yields
@@ -761,4 +822,14 @@ class EffectiveSigma(DefaultPDFBase):
         self.constraints.append(
             NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
         )
-        self._main_model = MainModel(lam)
+        if self.signal_uncertainty_configuration.get("lambda", None) is not None:
+            signal_lambda = self.signal_uncertainty_configuration["lambda"]
+
+            def poiss_lamb(pars: np.ndarray) -> np.ndarray:
+                """combined lambda expression"""
+                return lam(pars) + signal_lambda(pars)
+
+        else:
+            poiss_lamb = lam
+
+        self._main_model = MainModel(poiss_lamb)
