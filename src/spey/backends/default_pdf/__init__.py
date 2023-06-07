@@ -36,9 +36,14 @@ class DefaultPDFBase(BackendBase):
             uncertainties. In case of uncorralated bins user should provide a diagonal matrix
             with squared background uncertainties.
 
-        delta_sys (``float``, default ``0.0``): systematic uncertainty on signal.
-        third_moment (``np.ndarray``, default ``None``): third moment for skewed gaussian.
-          See eqs. 3.10, 3.11, 3.12, 3.13 in :xref:`1809.05548` for details.
+        signal_uncertainty_configuration (``Dict[Text, Any]]``, default ``None``): Configuration
+          input for signal uncertainties
+
+          * absolute_uncertainties (``List[float]``): Absolute uncertainties for the signal
+          * absolute_uncertainty_envelops (``List[Tuple[float, float]]``): upper and lower
+              uncertainty envelops
+          * correlation_matrix (``List[List[float]]``): Correlation matrix
+          * third_moments (``List[float]``): diagonal elemetns of the third moment
 
     .. note::
 
@@ -85,6 +90,7 @@ class DefaultPDFBase(BackendBase):
             self.signal_uncertainty_configuration = {}
         else:
             self.signal_uncertainty_configuration = signal_uncertainty_synthesizer(
+                signal_yields=self.signal_yields,
                 **signal_uncertainty_configuration,
                 domain=slice(len(background_yields) + 1, None)
             )
@@ -395,13 +401,13 @@ class DefaultPDFBase(BackendBase):
 
 class UncorrelatedBackground(DefaultPDFBase):
     r"""
-    Simplified likelihood interface with uncorrelated regions.
+    Interface for uncorrelated background uncertainties.
     This simple backend is designed to handle single or multi-bin statistical models
-    with uncorrelated regions. Inputs has to be given as list of ``NumPy`` array where
+    with uncorrelated uncertainties. Inputs has to be given as list of ``NumPy`` array where
     each input should include same number of regions. It assumes absolute uncertainties
     on the background sample e.g. for a background sample yield reported as
     :math:`3.1\pm0.5` the background yield is ``3.1`` and the absolute uncertainty is
-    ``0.5``. It forms a combination of normal and poisson distributions from the input
+    ``0.5``. It forms a combination of normal and poisson distributions to from the input
     data where the log-probability is computed as sum of all normal and poisson distributions.
 
     Args:
@@ -409,6 +415,14 @@ class UncorrelatedBackground(DefaultPDFBase):
         background_yields (``List[float]``): background yields
         data (``List[int]``): observations
         absolute_uncertainties (``List[float]``): absolute uncertainties on the background
+        signal_uncertainty_configuration (``Dict[Text, Any]]``, default ``None``): Configuration
+          input for signal uncertainties
+
+          * absolute_uncertainties (``List[float]``): Absolute uncertainties for the signal
+          * absolute_uncertainty_envelops (``List[Tuple[float, float]]``): upper and lower
+              uncertainty envelops
+          * correlation_matrix (``List[List[float]]``): Correlation matrix
+          * third_moments (``List[float]``): diagonal elemetns of the third moment
 
     .. note::
 
@@ -421,7 +435,7 @@ class UncorrelatedBackground(DefaultPDFBase):
     .. code:: python3
 
         >>> import spey
-        >>> stat_wrapper = spey.get_backend('simplified_likelihoods.uncorrelated_background')
+        >>> stat_wrapper = spey.get_backend('default_pdf.uncorrelated_background')
 
         >>> data = [1, 3]
         >>> signal = [0.5, 2.0]
@@ -503,30 +517,38 @@ class UncorrelatedBackground(DefaultPDFBase):
 class CorrelatedBackground(DefaultPDFBase):
     r"""
     Correlated multi-region statistical model.
-    Main simplified likelihood backend which uses a Multivariate Normal and
-    a Poisson distributions to construct log-probability of the statistical
-    model. The Multivariate Normal distribution is constructed by the help
+    The correlation between each nuisance parameter has been captured via 
+    Multivariate Normal distribution and the log-probability distribution is 
+    combination of Multivariate Normal along with Poisson distribution. 
+    The Multivariate Normal distribution is constructed by the help
     of a covariance matrix provided by the user which captures the
     uncertainties and background correlations between each histogram bin.
-    This statistical model has been first proposed in :xref:`1809.05548`.
     The probability distribution of a simplified likelihood can be formed as follows;
 
     .. math::
 
         \mathcal{L}_{SL}(\mu,\theta) = \underbrace{\left[\prod_i^N {\rm Poiss}\left(n^i_{obs}
         | \lambda_i(\mu, \theta)\right) \right]}_{\rm main\ model}
-        \cdot \underbrace{\mathcal{N}(\theta | 0, \Sigma)}_{\rm constraint\ model}
+        \cdot \underbrace{\mathcal{N}(\theta | 0, \rho)}_{\rm constraint\ model}
 
     Here the first term is the so-called main model based on Poisson distribution centred around
     :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + \theta + n^i_{bkg}` and the second term is the
-    multivariate normal distribution centred around zero with the standard deviation of
-    :math:`\Sigma` which, for multi-modal input, is covariance matrix.
+    multivariate normal distribution centred around zero with the correlation matrix
+    :math:`\rho`.
 
     Args:
         signal_yields (``np.ndarray``): signal yields
         background_yields (``np.ndarray``): background yields
         data (``np.ndarray``): observations
         covariance_matrix (``np.ndarray``): covariance matrix (square matrix)
+        signal_uncertainty_configuration (``Dict[Text, Any]]``, default ``None``): Configuration
+          input for signal uncertainties
+
+          * absolute_uncertainties (``List[float]``): Absolute uncertainties for the signal
+          * absolute_uncertainty_envelops (``List[Tuple[float, float]]``): upper and lower
+              uncertainty envelops
+          * correlation_matrix (``List[List[float]]``): Correlation matrix
+          * third_moments (``List[float]``): diagonal elemetns of the third moment
 
     .. note::
 
@@ -541,7 +563,7 @@ class CorrelatedBackground(DefaultPDFBase):
 
         >>> import spey
 
-        >>> stat_wrapper = spey.get_backend('simplified_likelihoods')
+        >>> stat_wrapper = spey.get_backend('default_pdf.correlated_background')
 
         >>> signal_yields = [12.0, 11.0]
         >>> background_yields = [50.0, 52.0]
@@ -612,6 +634,14 @@ class ThirdMomentExpansion(DefaultPDFBase):
         data (``np.ndarray``): observations
         covariance_matrix (``np.ndarray``): covariance matrix (square matrix)
         third_moment (``np.ndarray``): third moment for each region.
+        signal_uncertainty_configuration (``Dict[Text, Any]]``, default ``None``): Configuration
+          input for signal uncertainties
+
+          * absolute_uncertainties (``List[float]``): Absolute uncertainties for the signal
+          * absolute_uncertainty_envelops (``List[Tuple[float, float]]``): upper and lower
+              uncertainty envelops
+          * correlation_matrix (``List[List[float]]``): Correlation matrix
+          * third_moments (``List[float]``): diagonal elemetns of the third moment
 
     .. note::
 
@@ -744,6 +774,14 @@ class EffectiveSigma(DefaultPDFBase):
         correlation_matrix (``np.ndarray``): correlations between regions
         absolute_uncertainty_envelops (``List[Tuple[float, float]]``): upper and lower uncertainty
           envelops for each background yield.
+        signal_uncertainty_configuration (``Dict[Text, Any]]``, default ``None``): Configuration
+          input for signal uncertainties
+
+          * absolute_uncertainties (``List[float]``): Absolute uncertainties for the signal
+          * absolute_uncertainty_envelops (``List[Tuple[float, float]]``): upper and lower
+              uncertainty envelops
+          * correlation_matrix (``List[List[float]]``): Correlation matrix
+          * third_moments (``List[float]``): diagonal elemetns of the third moment
     """
 
     name: Text = "default_pdf.effective_sigma"
