@@ -94,7 +94,7 @@ class StatisticalModel(HypothesisTestingBase):
 
     @property
     def backend_type(self) -> Text:
-        """Return type of the backend e.g. ``simplified_likelihoods``"""
+        """Return type of the backend"""
         return getattr(self.backend, "name", self.backend.__class__.__name__)
 
     @property
