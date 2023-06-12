@@ -9,6 +9,7 @@ from spey.combiner import UnCorrStatisticsCombiner
 from spey.system.exceptions import PluginError
 from .utils import ExpectationType
 from ._version import __version__
+from .about import about
 
 __all__ = [
     "version",
@@ -22,6 +23,7 @@ __all__ = [
     "get_backend_metadata",
     "reset_backend_entries",
     "BackendBase",
+    "about",
 ]
 
 
