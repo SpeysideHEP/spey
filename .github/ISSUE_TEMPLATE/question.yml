@@ -14,11 +14,7 @@ body:
         If your question involves software issues, please include your system settings as shown below;
         
         **System Settings:**
-
-        - OS: [e.g. macOS v12.1]
-        - Python version (print the output of `$ python --version`)
-        - Spey version (`spey.__version__` or if you are working on a branch please report the name of the branch and last commit ID. The abbreviated commit ID can be found via `git log -n1 --format="%h"` command. To retreive the branch name please use `git rev-parse --abbrev-ref HEAD` command.)
-        - Plugin version. If you are using a specific plugin please make sure to report its version. This information can be retreived via `spey.get_backend_metadata` function.
+        Please copy and paste the output of `spey.about()` function. If you are working on a specific branch please add the name of the branch and last commit ID. The abbreviated commit ID can be found via `git log -n1 --format="%h"` command. To retreive the branch name please use `git rev-parse --abbrev-ref HEAD` command.)
   - type: textarea
     id: question
     attributes:
