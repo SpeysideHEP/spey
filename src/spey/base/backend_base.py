@@ -5,6 +5,7 @@ from typing import Text, Tuple, Callable, Union, List, Optional
 
 import numpy as np
 
+from spey.typing import StatisticalModel
 from spey.utils import ExpectationType
 from spey.base.model_config import ModelConfig
 
@@ -166,8 +167,8 @@ class BackendBase(ABC):
     @abstractmethod
     def expected_data(self, pars: List[float]) -> List[float]:
         r"""
-        Compute the expected value of the statistical model. This function is mainly used to 
-        generate Asimov data within the package, see 
+        Compute the expected value of the statistical model. This function is mainly used to
+        generate Asimov data within the package, see
         :func:`~spey.StatisticalModel.generate_asimov_data`.
 
         Args:
@@ -178,6 +179,27 @@ class BackendBase(ABC):
             ``List[float]``:
             Expected data of the statistical model
         """
+
+    def combine(self, other, **kwargs) -> StatisticalModel:
+        """
+        A routine to combine to statistical models.
+
+        .. note::
+
+            This function is only available if the backend has a specific routine
+            for combination between same or other backends.
+
+        Args:
+            other (:obj:~spey.BackendBase): Statistical model object to be combined.
+
+        Raises:
+            ``NotImplementedError``: If the backend does not have a combination scheme.
+
+        Returns:
+            :obj:~spey.StatisticalModel:
+            Create a new statistical model from combination of this and other one.
+        """
+        raise NotImplementedError("This method does not have combination implementation.")
 
     def negative_loglikelihood(
         self,

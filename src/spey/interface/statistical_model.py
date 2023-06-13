@@ -7,7 +7,11 @@ import numpy as np
 
 from spey.utils import ExpectationType
 from spey.base.backend_base import BackendBase
-from spey.system.exceptions import UnknownCrossSection, MethodNotAvailable
+from spey.system.exceptions import (
+    UnknownCrossSection,
+    MethodNotAvailable,
+    CombinerNotAvailable,
+)
 from spey.base.hypotest_base import HypothesisTestingBase
 from spey.optimizer.core import fit
 
@@ -780,6 +784,41 @@ class StatisticalModel(HypothesisTestingBase):
 
         poi_index = self.backend.config().poi_index
         return np.sqrt(np.linalg.inv(hessian)[poi_index, poi_index])
+
+    def combine(self, other, **kwargs):
+        """
+        Combination routine between two statistical models.
+
+        .. note::
+
+            This function's availability is backend dependent.
+
+        Args:
+            other (:obj:~spey.StatisticalModel): Statistical model to be combined with
+              this model
+            kwargs: backend specific arguments.
+
+        Raises:
+            :obj:~spey.system.exceptions.CombinerNotAvailable: If this statistical model
+              does not have a combination routine implementation.
+
+        Returns:
+            :obj:~spey.StatisticalModel:
+            Returns a new combined statistical model.
+        """
+        try:
+            return self.backend.combine(other.backend, **kwargs)
+        except NotImplementedError as err:
+            raise CombinerNotAvailable(
+                f"{self.backend_type} backend does not have a combination routine."
+            ) from err
+
+    def __matmul__(self, other):
+        """
+        Combination routine between two statistical models.
+        See :func:`~spey.StatisticalModel.combine` function for details.
+        """
+        return self.combine(other)
 
 
 def statistical_model_wrapper(

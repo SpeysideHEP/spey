@@ -72,3 +72,7 @@ class UnknownComputer(Exception):
 
 class CalculatorNotAvailable(Exception):
     """Unavailable calculator Exception"""
+
+
+class CombinerNotAvailable(Exception):
+    """Unavailable combination routine exception"""
