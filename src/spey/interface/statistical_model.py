@@ -801,13 +801,21 @@ class StatisticalModel(HypothesisTestingBase):
         Raises:
             :obj:~spey.system.exceptions.CombinerNotAvailable: If this statistical model
               does not have a combination routine implementation.
+            ``AssertionError``: If the combination routine in the backend does not return
+              a :obj:`~spey.BackendBase` object.
 
         Returns:
             :obj:~spey.StatisticalModel:
             Returns a new combined statistical model.
         """
         try:
-            return self.backend.combine(other.backend, **kwargs)
+            combined = self.backend.combine(other.backend, **kwargs)
+            assert isinstance(combined, BackendBase), "Invalid combination operation."
+
+            return StatisticalModel(
+                backend=combined, analysis=f"combine[{self.analysis}, {other.analysis}]"
+            )
+
         except NotImplementedError as err:
             raise CombinerNotAvailable(
                 f"{self.backend_type} backend does not have a combination routine."
