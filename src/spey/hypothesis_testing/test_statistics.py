@@ -1,43 +1,12 @@
+"""Functions for computation of test statistic"""
+
 from typing import Callable, Text, Tuple
-import numpy as np
 import warnings
+import numpy as np
 
 from spey.system.exceptions import UnknownTestStatistics
 
 __all__ = ["qmu", "qmu_tilde", "q0", "get_test_statistic", "compute_teststatistics"]
-
-
-def _tmu_tilde(
-    mu: float, muhat: float, max_logpdf: float, logpdf: Callable[[float], float]
-) -> float:
-    r"""
-    The test statistic,`\tilde{t}_{\mu}`, for establishing a two-sided
-    interval on the strength parameter,`\mu`, for models with
-    bounded POI, as defined in Equation (11) in `arXiv:1007.1727`
-
-    :param mu: Signal strength
-    :param muhat: signal strength that minimizes logpdf
-    :param max_logpdf: maximum value of logpdf
-    :param logpdf: logpdf function which takes mu as an input
-    :return: The calculated test statistic
-    """
-    return np.clip(
-        -2.0 * (logpdf(mu) - (max_logpdf if muhat >= 0.0 else logpdf(0.0))), 0.0, None
-    )
-
-
-def _tmu(mu: float, max_logpdf: float, logpdf: Callable[[float], float]) -> float:
-    r"""
-    The test statistic,`t_{\mu}`, for establishing a two-sided
-    interval on the strength parameter,`\mu`, as defined in Equation (8) in `arXiv:1007.1727`
-
-    :param mu: Signal strength
-    :param muhat: signal strength that minimizes logpdf
-    :param max_logpdf: maximum value of logpdf
-    :param logpdf: logpdf function which takes mu as an input
-    :return: The calculated test statistic
-    """
-    return np.clip(-2.0 * (logpdf(mu) - max_logpdf), 0.0, None)
 
 
 def qmu_tilde(
@@ -64,7 +33,13 @@ def qmu_tilde(
         ``float``:
         the value of :math:`\tilde{q}_{\mu}`.
     """
-    return 0.0 if muhat > mu else _tmu_tilde(mu, muhat, max_logpdf, logpdf)
+    return (
+        0.0
+        if muhat > mu
+        else np.clip(
+            -2.0 * (logpdf(mu) - (max_logpdf if muhat >= 0.0 else logpdf(0.0))), 0.0, None
+        )
+    )
 
 
 def qmu(
@@ -83,7 +58,7 @@ def qmu(
         ``float``:
         the value of :math:`q_{\mu}`.
     """
-    return 0.0 if muhat > mu else _tmu(mu, max_logpdf, logpdf)
+    return 0.0 if muhat > mu else np.clip(-2.0 * (logpdf(mu) - max_logpdf), 0.0, None)
 
 
 def q0(
@@ -109,7 +84,7 @@ def q0(
         the value of :math:`q_{0}`.
     """
     mu = 0.0
-    return 0.0 if muhat < 0.0 else _tmu(mu, max_logpdf, logpdf)
+    return 0.0 if muhat < 0.0 else np.clip(-2.0 * (logpdf(mu) - max_logpdf), 0.0, None)
 
 
 def get_test_statistic(
