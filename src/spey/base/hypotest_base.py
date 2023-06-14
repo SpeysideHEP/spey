@@ -679,6 +679,11 @@ class HypothesisTestingBase(ABC):
                 test_stat=test_stat,
             )
 
+        if expected == "all":
+            return list(map(lambda x: 1.0 - x, pvalues)), list(
+                map(lambda x: 1.0 - x, expected_pvalues)
+            )
+
         return list(
             map(
                 lambda x: 1.0 - x,
