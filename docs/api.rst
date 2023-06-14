@@ -67,6 +67,7 @@ Hypothesis testing
     test_statistics.q0
     test_statistics.get_test_statistic
     test_statistics.compute_teststatistics
+    upper_limits.ComputerWrapper
     upper_limits.find_poi_upper_limit
     upper_limits.find_root_limits
     utils.pvalues
