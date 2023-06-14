@@ -794,18 +794,18 @@ class StatisticalModel(HypothesisTestingBase):
             This function's availability is backend dependent.
 
         Args:
-            other (:obj:~spey.StatisticalModel): Statistical model to be combined with
+            other (:obj:`~spey.StatisticalModel`): Statistical model to be combined with
               this model
             kwargs: backend specific arguments.
 
         Raises:
-            :obj:~spey.system.exceptions.CombinerNotAvailable: If this statistical model
+            :obj:`~spey.system.exceptions.CombinerNotAvailable`: If this statistical model
               does not have a combination routine implementation.
             ``AssertionError``: If the combination routine in the backend does not return
               a :obj:`~spey.BackendBase` object.
 
         Returns:
-            :obj:~spey.StatisticalModel:
+            :obj:`~spey.StatisticalModel`:
             Returns a new combined statistical model.
         """
         try:

@@ -189,13 +189,13 @@ class BackendBase(ABC):
             for combination between same or other backends.
 
         Args:
-            other (:obj:~spey.BackendBase): Statistical model object to be combined.
+            other (:obj:`~spey.BackendBase`): Statistical model object to be combined.
 
         Raises:
             ``NotImplementedError``: If the backend does not have a combination scheme.
 
         Returns:
-            :obj:~spey.BackendBase:
+            :obj:`~spey.BackendBase`:
             Create a new statistical model from combination of this and other one.
         """
         raise NotImplementedError("This method does not have combination implementation.")
