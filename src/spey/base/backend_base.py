@@ -78,7 +78,6 @@ class BackendBase(ABC):
             :math:`\log\mathcal{L}(\mu, \theta)`.
         """
 
-    @abstractmethod
     def get_objective_function(
         self,
         expected: ExpectationType = ExpectationType.observed,
@@ -87,8 +86,8 @@ class BackendBase(ABC):
     ) -> Callable[[np.ndarray], Union[float, Tuple[float, np.ndarray]]]:
         r"""
         Objective function is the function to perform the optimisation on. This function is
-        expected to be twice negative log-likelihood, :math:`-2\log\mathcal{L}(\mu, \theta)`.
-        Additionally, if available it canbe bundled with the gradient of twice negative log-likelihood.
+        expected to be negative log-likelihood, :math:`-\log\mathcal{L}(\mu, \theta)`.
+        Additionally, if available it canbe bundled with the gradient of negative log-likelihood.
 
         Args:
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
@@ -111,6 +110,11 @@ class BackendBase(ABC):
             Function which takes fit parameters (:math:`\mu` and :math:`\theta`) and returns either
             objective or objective and its gradient.
         """
+        if do_grad:
+            raise NotImplementedError("Gradient is not implemented by default.")
+
+        logpdf = self.get_logpdf_func(expected=expected, data=data)
+        return lambda pars: -logpdf(pars)
 
     def get_hessian_logpdf_func(
         self,
