@@ -9,6 +9,7 @@ Top-Level
 .. autosummary:: 
     :toctree: _generated/
 
+    version
     ExpectationType
     AvailableBackends
     get_backend
@@ -92,30 +93,19 @@ Distributions
     MainModel
     ConstraintModel
 
-Simple PDFs
-~~~~~~~~~~~
+Default PDFs
+~~~~~~~~~~~~
 
-.. currentmodule:: spey.backends.simple_pdfs
-
-.. autosummary:: 
-    :toctree: _generated/
-
-    VariableGaussian
-    GaussianUncertainties
-
-Simplified Likelihoods
-~~~~~~~~~~~~~~~~~~~~~~
-
-.. currentmodule:: spey.backends.simplifiedlikelihood_backend
+.. currentmodule:: spey.backends.default_pdf
 
 .. autosummary:: 
     :toctree: _generated/
 
+    DefaultPDFBase
     UncorrelatedBackground
-    SimplifiedLikelihoods
+    CorrelatedBackground
     ThirdMomentExpansion
-    VariableGaussian
-    sldata.SLData
+    EffectiveSigma
     third_moment.third_moment_expansion
     third_moment.compute_third_moments
 
@@ -136,3 +126,6 @@ Exceptions
     UnknownCrossSection
     UnknownTestStatistics
     CalculatorNotAvailable
+    CanNotFindRoots
+    UnknownComputer
+    CombinerNotAvailable
