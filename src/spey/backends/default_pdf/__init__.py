@@ -517,9 +517,9 @@ class UncorrelatedBackground(DefaultPDFBase):
 class CorrelatedBackground(DefaultPDFBase):
     r"""
     Correlated multi-region statistical model.
-    The correlation between each nuisance parameter has been captured via 
-    Multivariate Normal distribution and the log-probability distribution is 
-    combination of Multivariate Normal along with Poisson distribution. 
+    The correlation between each nuisance parameter has been captured via
+    Multivariate Normal distribution and the log-probability distribution is
+    combination of Multivariate Normal along with Poisson distribution.
     The Multivariate Normal distribution is constructed by the help
     of a covariance matrix provided by the user which captures the
     uncertainties and background correlations between each histogram bin.
@@ -844,8 +844,15 @@ class EffectiveSigma(DefaultPDFBase):
         # arXiv:pyhsics/0406120 eq. 18-19
         def effective_sigma(pars: np.ndarray) -> np.ndarray:
             """Compute effective sigma"""
+            # clip from 1e-10 to avoid negative or zero values
+            # this allows more numeric stability
             return np.sqrt(
-                sigma_plus * sigma_minus + (sigma_plus - sigma_minus) * (pars[1:] - A)
+                np.clip(
+                    sigma_plus * sigma_minus
+                    + (sigma_plus - sigma_minus) * (pars[1:] - A),
+                    1e-10,
+                    None,
+                )
             )
 
         def lam(pars: np.ndarray) -> np.ndarray:
