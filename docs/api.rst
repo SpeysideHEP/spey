@@ -10,6 +10,7 @@ Top-Level
     :toctree: _generated/
 
     version
+    about
     ExpectationType
     AvailableBackends
     get_backend
