@@ -5,6 +5,7 @@ from autograd.scipy.special import gammaln
 from autograd.scipy.stats.poisson import logpmf
 import autograd.numpy as np
 from scipy.stats import poisson, norm, multivariate_normal
+import warnings
 
 
 # pylint: disable=E1101
@@ -121,13 +122,23 @@ class MultivariateNormal:
         self.domain = domain
         """Which parameters should be used during the computation of the pdf"""
 
+        # ! the min determinant value of the covariance matrix is artificially set
+        # ! to 1e-10 this might cause problems in the future!!!
+
         if callable(cov):
             self._inv_cov = lambda val: np.linalg.inv(cov(val))
-            self._det_cov = lambda val: np.linalg.det(cov(val))
+            self._det_cov = lambda val: np.clip(np.linalg.det(cov(val)), 1e-20, None)
         else:
             # for code efficiency
             inv = np.linalg.inv(cov)
             det = np.linalg.det(cov)
+            if det <= 0.0:
+                warnings.warn(
+                    "det(rho) <= 0, this might cause numeric problems. "
+                    "The value of the determinant will be limited to 1e-20. "
+                    "This might be due to non-positive definite correlation matrix input."
+                )
+                det = np.clip(det, 1e-20, None)
             self._inv_cov = lambda val: inv
             self._det_cov = lambda val: det
 
