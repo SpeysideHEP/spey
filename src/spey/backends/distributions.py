@@ -21,7 +21,8 @@ class Poisson:
     """Poisson distribution"""
 
     def __init__(self, loc: np.ndarray):
-        self.loc = loc
+        # ! Clip for numeric stability, poisson can not take negative values
+        self.loc = np.clip(loc, 1e-20, None)
 
     def expected_data(self) -> np.ndarray:
         """The expectation value of the Poisson distribution."""
