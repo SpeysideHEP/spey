@@ -53,6 +53,10 @@ class Normal:
     Args:
         loc (``np.ndarray``): Mean of the distribution.
         scale (``np.ndarray``): standard deviation.
+        weight (``Callable[[np.ndarray], float]`` or ``float``, default ``1.0``): weight of
+          the distribution.
+        domain (``slice``, default ``slice(None, None)``): set of parameters to be used within
+          the distribution.
     """
 
     def __init__(
@@ -105,6 +109,10 @@ class MultivariateNormal:
         mean (``np.ndarray``): Mean of the distribution.
         cov (``np.ndarray``): Symmetric positive (semi)definite
           covariance matrix of the distribution.
+        weight (``Callable[[np.ndarray], float]`` or ``float``, default ``1.0``): weight of
+          the distribution.
+        domain (``slice``, default ``slice(None, None)``): set of parameters to be used within
+          the distribution.
     """
 
     def __init__(
