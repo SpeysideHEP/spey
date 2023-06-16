@@ -1,11 +1,13 @@
-"""Autograd based distribution classes for simplified likelihood interface"""
+"""Autograd based differentiable distribution classes"""
 
 from typing import Callable, Text, Dict, Any, List, Union
+import warnings
+
 from autograd.scipy.special import gammaln
 from autograd.scipy.stats.poisson import logpmf
 import autograd.numpy as np
+
 from scipy.stats import poisson, norm, multivariate_normal
-import warnings
 
 
 # pylint: disable=E1101
