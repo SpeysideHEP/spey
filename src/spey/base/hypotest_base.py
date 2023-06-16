@@ -505,7 +505,8 @@ class HypothesisTestingBase(ABC):
         Args:
             poi_test (``float``, default ``1.0``): parameter of interest, :math:`\mu`.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
-              p-values to be computed.
+              p-values to be computed. If ``expected`` is set to ``"all"`` it will return both p-values
+              and expected p-values where the likelihood will be fitted to observations.
 
               * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
                 prescriotion which means that the experimental data will be assumed to be the truth
@@ -652,7 +653,11 @@ class HypothesisTestingBase(ABC):
                 )
 
             signal_like_test_stat, bkg_like_test_stat = [], []
-            with tqdm.tqdm(total=self.ntoys, unit="toy") as pbar:
+            with tqdm.tqdm(
+                total=self.ntoys,
+                unit="toy sample",
+                bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}",
+            ) as pbar:
                 for sig_smp, bkg_smp in zip(signal_samples, bkg_samples):
                     signal_like_test_stat.append(
                         test_stat_func(
