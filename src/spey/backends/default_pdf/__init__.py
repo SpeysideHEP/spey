@@ -809,7 +809,7 @@ class EffectiveSigma(DefaultPDFBase):
         assert len(absolute_uncertainty_envelops) == len(
             background_yields
         ), "Dimensionality of the uncertainty envelops does not match to the number of regions."
-        assert correlation_matrix.shape[0] == len(
+        assert len(correlation_matrix) == len(
             background_yields
         ), "Dimensionality of the correlation matrix does not match to the number of regions."
 
