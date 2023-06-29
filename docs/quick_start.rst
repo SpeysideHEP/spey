@@ -109,6 +109,10 @@ observed exclusion limit. Notice that the bounds on :obj:`~spey.ExpectationType.
 which is larger than the observations. :obj:`~spey.ExpectationType.apriori` is mostly used in theory 
 collaborations to estimate the difference from the Standard Model rather than the experimental observations.
 
+.. note::
+
+    For details on exclusion limit and upper limit computations see ref. :cite:`Cowan:2010js`.
+
 One can play the same game using the same backend for multi-bin histograms as follows;
 
 .. code:: python

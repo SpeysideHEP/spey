@@ -14,9 +14,8 @@ Welcome to the documentation of Spey
    plugins
    comb
    new_plugin
-   bibliography
    api
-   releases/changelog-dev
+   bibliography
 
 
 

@@ -66,8 +66,6 @@ bibtex_default_style = "unsrt"
 
 bibtex_bibfiles = ["./bib/references.bib"]
 
-# exclude_patterns = ["releases/changelog-dev.md", "figs"]
-
 # GitHub repo
 issues_github_path = "SpeysideHEP/spey"
 
@@ -76,7 +74,7 @@ autosummary_generate = True
 numpydoc_show_class_members = False
 
 templates_path = ["_templates"]
-exclude_patterns = ["introduction.rst"]
+exclude_patterns = ["introduction.rst", "releases/changelog-dev.md"]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:

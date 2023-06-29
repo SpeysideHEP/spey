@@ -135,7 +135,7 @@ as expected.
 ``'default_pdf.third_moment_expansion'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This plug-in implements the third moment expansion presented in :cite:t:`Buckley:2018vdr` which expands the 
+This plug-in implements the third moment expansion presented in :cite:`Buckley:2018vdr` which expands the 
 main model using the diagonal elements of the third moments
 
 .. math:: 
@@ -201,7 +201,7 @@ function of nuisance parameters,
 
     \sigma_{\rm eff}^i(\theta^i) = \sqrt{\sigma^+_i\sigma^-_i + (\sigma^+_i - \sigma^-_i)(\theta^i - n_b^i)}
 
-This method has been proposed in :cite:t:`Barlow:2004wg` for Gaussian models which can be 
+This method has been proposed in :cite:`Barlow:2004wg` for Gaussian models which can be 
 generalised for the Poisson distribution by modifying :math:`\lambda_i(\mu, \theta)` as follows
 
 .. math:: 
