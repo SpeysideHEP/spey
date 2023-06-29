@@ -128,12 +128,14 @@ Other available functions that can be implemented are shown in the table below.
     * - :func:`~spey.BackendBase.get_sampler` 
       - Returns a function to sample from the likelihood distribution.
 
-A simple example implementation can be found in `example-plugin repository <https://github.com/SpeysideHEP/example-plugin>`_
-which implements
+.. attention:: 
+    
+    A simple example implementation can be found in `example-plugin repository <https://github.com/SpeysideHEP/example-plugin>`_
+    which implements
 
-.. math:: 
+    .. math:: 
 
-    \mathcal{L}(\mu) = \prod_{i\in{\rm bins}}{\rm Poiss}(n^i|\mu n_s^i + n_b^i)
+        \mathcal{L}(\mu) = \prod_{i\in{\rm bins}}{\rm Poiss}(n^i|\mu n_s^i + n_b^i)
 
 
 
