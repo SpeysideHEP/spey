@@ -39,8 +39,8 @@ Finally, the name "Spey" originally comes from the Spey river, a river in mid-Hi
 | ``"default_pdf.correlated_background"``   | Constructs correlated multi-bin statistical model with Gaussian nuisances.   |
 | ``"default_pdf.third_moment_expansion"``  | Implements the skewness of the likelihood by using third moments.            |
 | ``"default_pdf.effective_sigma"``         | Implements the skewness of the likelihood by using asymmetric uncertainties. |
-| ``"pyhf.uncorrelated_background"``        | Uses uncorrelated background functionality of pyhf.                          |
-| ``"pyhf"``                                | Uses generic likelihood structure of pyhf                                    |
+| ``"pyhf.uncorrelated_background"``        | Uses uncorrelated background functionality of pyhf (see [``spey-phyf`` plugin](https://github.com/SpeysideHEP/spey-pyhf)).                          |
+| ``"pyhf"``                                | Uses generic likelihood structure of pyhf (see [``spey-phyf`` plugin](https://github.com/SpeysideHEP/spey-pyhf))                                   |
 
 For details on all the backends, see the Plug-ins section of the documentation.
 
