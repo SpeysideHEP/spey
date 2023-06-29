@@ -1,0 +1,2945 @@
+{
+    "xsec": 0.00197919,
+    "data": [
+        {
+            "region": "atlas_susy_2018_31::SRA",
+            "signal_yields": [
+                6.874933745
+            ],
+            "background_yields": [
+                17.1
+            ],
+            "data": [
+                17.0
+            ],
+            "absolute_uncertainties": [
+                2.7795863
+            ]
+        },
+        {
+            "region": "atlas_susy_2018_31::SRA_L",
+            "signal_yields": [
+                0.3356309985
+            ],
+            "background_yields": [
+                8.4
+            ],
+            "data": [
+                12.0
+            ],
+            "absolute_uncertainties": [
+                1.7
+            ]
+        },
+        {
+            "region": "atlas_susy_2018_31::SRA_M",
+            "signal_yields": [
+                1.9092456200000003
+            ],
+            "background_yields": [
+                5.7
+            ],
+            "data": [
+                3.0
+            ],
+            "absolute_uncertainties": [
+                0.8
+            ]
+        },
+        {
+            "region": "atlas_susy_2018_31::SRA_H",
+            "signal_yields": [
+                4.630057335
+            ],
+            "background_yields": [
+                3.0
+            ],
+            "data": [
+                2.0
+            ],
+            "absolute_uncertainties": [
+                1.5
+            ]
+        },
+        {
+            "region": "atlas_susy_2018_31::SRB",
+            "signal_yields": [
+                0.2255880345
+            ],
+            "background_yields": [
+                3.3
+            ],
+            "data": [
+                3.0
+            ],
+            "absolute_uncertainties": [
+                0.78032045
+            ]
+        },
+        {
+            "region": "atlas_susy_2018_31::SRC",
+            "signal_yields": [
+                15.694879199999997
+            ],
+            "background_yields": [
+                37.9
+            ],
+            "data": [
+                47.0
+            ],
+            "absolute_uncertainties": [
+                4.8241165
+            ]
+        },
+        {
+            "region": "atlas_susy_2018_31::SRC_22",
+            "signal_yields": [
+                5.075731644999999
+            ],
+            "background_yields": [
+                21.2
+            ],
+            "data": [
+                28.0
+            ],
+            "absolute_uncertainties": [
+                4.1
+            ]
+        },
+        {
+            "region": "atlas_susy_2018_31::SRC_24",
+            "signal_yields": [
+                4.130737365000001
+            ],
+            "background_yields": [
+                10.6
+            ],
+            "data": [
+                12.0
+            ],
+            "absolute_uncertainties": [
+                2.3
+            ]
+        },
+        {
+            "region": "atlas_susy_2018_31::SRC_26",
+            "signal_yields": [
+                3.1375997399999997
+            ],
+            "background_yields": [
+                3.7
+            ],
+            "data": [
+                4.0
+            ],
+            "absolute_uncertainties": [
+                0.9
+            ]
+        },
+        {
+            "region": "atlas_susy_2018_31::SRC_28",
+            "signal_yields": [
+                2.5695032650000003
+            ],
+            "background_yields": [
+                2.4
+            ],
+            "data": [
+                3.0
+            ],
+            "absolute_uncertainties": [
+                0.6
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR1_Njet23_Nb0_HT300600_MHT300350",
+            "signal_yields": [
+                0.014913192684210526
+            ],
+            "background_yields": [
+                130568.0
+            ],
+            "data": [
+                130718.0
+            ],
+            "absolute_uncertainties": [
+                1100.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR2_Njet23_Nb0_HT6001200_MHT300350",
+            "signal_yields": [
+                0.027114903
+            ],
+            "background_yields": [
+                7825.0
+            ],
+            "data": [
+                7820.0
+            ],
+            "absolute_uncertainties": [
+                110.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR3_Njet23_Nb0_HT1200_MHT300350",
+            "signal_yields": [
+                0.018980434263157892
+            ],
+            "background_yields": [
+                520.0
+            ],
+            "data": [
+                514.0
+            ],
+            "absolute_uncertainties": [
+                24.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR4_Njet23_Nb0_HT350600_MHT350600",
+            "signal_yields": [
+                0.040672350894736836
+            ],
+            "background_yields": [
+                100945.0
+            ],
+            "data": [
+                100828.0
+            ],
+            "absolute_uncertainties": [
+                760.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR5_Njet23_Nb0_HT6001200_MHT350600",
+            "signal_yields": [
+                0.14506475736842106
+            ],
+            "background_yields": [
+                19367.0
+            ],
+            "data": [
+                19319.0
+            ],
+            "absolute_uncertainties": [
+                180.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR6_Njet23_Nb0_HT1200_MHT350600",
+            "signal_yields": [
+                0.10845958315789475
+            ],
+            "background_yields": [
+                945.0
+            ],
+            "data": [
+                933.0
+            ],
+            "absolute_uncertainties": [
+                31.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR7_Njet23_Nb0_HT6001200_MHT600850",
+            "signal_yields": [
+                0.1545549636842105
+            ],
+            "background_yields": [
+                6807.0
+            ],
+            "data": [
+                6786.0
+            ],
+            "absolute_uncertainties": [
+                99.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR8_Njet23_Nb0_HT1200_MHT600850",
+            "signal_yields": [
+                0.1179497894736842
+            ],
+            "background_yields": [
+                280.0
+            ],
+            "data": [
+                277.0
+            ],
+            "absolute_uncertainties": [
+                15.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR9_Njet23_Nb0_HT8501700_MHT850",
+            "signal_yields": [
+                0.16404517000000002
+            ],
+            "background_yields": [
+                963.0
+            ],
+            "data": [
+                933.0
+            ],
+            "absolute_uncertainties": [
+                34.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR10_Njet23_Nb0_HT1700_MHT850",
+            "signal_yields": [
+                0.06100852994736842
+            ],
+            "background_yields": [
+                48.6
+            ],
+            "data": [
+                50.0
+            ],
+            "absolute_uncertainties": [
+                6.2
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR11_Njet23_Nb1_HT300600_MHT300350",
+            "signal_yields": [
+                0.0366051165263158
+            ],
+            "background_yields": [
+                15275.0
+            ],
+            "data": [
+                15272.0
+            ],
+            "absolute_uncertainties": [
+                200.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR12_Njet23_Nb1_HT6001200_MHT300350",
+            "signal_yields": [
+                0.03796086131578947
+            ],
+            "background_yields": [
+                1170.0
+            ],
+            "data": [
+                1177.0
+            ],
+            "absolute_uncertainties": [
+                50.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR13_Njet23_Nb1_HT1200_MHT300350",
+            "signal_yields": [
+                0.04880681963157894
+            ],
+            "background_yields": [
+                74.5
+            ],
+            "data": [
+                71.0
+            ],
+            "absolute_uncertainties": [
+                8.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR14_Njet23_Nb1_HT350600_MHT350600",
+            "signal_yields": [
+                0.09625793052631577
+            ],
+            "background_yields": [
+                11126.0
+            ],
+            "data": [
+                11121.0
+            ],
+            "absolute_uncertainties": [
+                140.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR15_Njet23_Nb1_HT6001200_MHT350600",
+            "signal_yields": [
+                0.3674068884210526
+            ],
+            "background_yields": [
+                2529.0
+            ],
+            "data": [
+                2530.0
+            ],
+            "absolute_uncertainties": [
+                63.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR16_Njet23_Nb1_HT1200_MHT350600",
+            "signal_yields": [
+                0.21149620157894736
+            ],
+            "background_yields": [
+                126.0
+            ],
+            "data": [
+                127.0
+            ],
+            "absolute_uncertainties": [
+                11.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR17_Njet23_Nb1_HT6001200_MHT600850",
+            "signal_yields": [
+                0.37960861315789474
+            ],
+            "background_yields": [
+                735.0
+            ],
+            "data": [
+                728.0
+            ],
+            "absolute_uncertainties": [
+                30.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR18_Njet23_Nb1_HT1200_MHT600850",
+            "signal_yields": [
+                0.22776516789473683
+            ],
+            "background_yields": [
+                31.0
+            ],
+            "data": [
+                31.0
+            ],
+            "absolute_uncertainties": [
+                4.1
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR19_Njet23_Nb1_HT8501700_MHT850",
+            "signal_yields": [
+                0.3674068884210526
+            ],
+            "background_yields": [
+                110.0
+            ],
+            "data": [
+                112.0
+            ],
+            "absolute_uncertainties": [
+                9.8
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR20_Njet23_Nb1_HT1700_MHT850",
+            "signal_yields": [
+                0.07592172263157894
+            ],
+            "background_yields": [
+                5.7
+            ],
+            "data": [
+                5.0
+            ],
+            "absolute_uncertainties": [
+                1.1
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR21_Njet23_Nb2_HT300600_MHT300350",
+            "signal_yields": [
+                0.023047668631578946
+            ],
+            "background_yields": [
+                1784.0
+            ],
+            "data": [
+                1787.0
+            ],
+            "absolute_uncertainties": [
+                74.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR22_Njet23_Nb2_HT6001200_MHT300350",
+            "signal_yields": [
+                0.02847064778947368
+            ],
+            "background_yields": [
+                156.0
+            ],
+            "data": [
+                148.0
+            ],
+            "absolute_uncertainties": [
+                13.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR23_Njet23_Nb2_HT1200_MHT300350",
+            "signal_yields": [
+                0.00949021352631579
+            ],
+            "background_yields": [
+                10.2
+            ],
+            "data": [
+                11.0
+            ],
+            "absolute_uncertainties": [
+                2.6
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR24_Njet23_Nb2_HT350600_MHT350600",
+            "signal_yields": [
+                0.07727744578947368
+            ],
+            "background_yields": [
+                1158.0
+            ],
+            "data": [
+                1159.0
+            ],
+            "absolute_uncertainties": [
+                50.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR25_Njet23_Nb2_HT6001200_MHT350600",
+            "signal_yields": [
+                0.25488006368421057
+            ],
+            "background_yields": [
+                327.0
+            ],
+            "data": [
+                322.0
+            ],
+            "absolute_uncertainties": [
+                19.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR26_Njet23_Nb2_HT1200_MHT350600",
+            "signal_yields": [
+                0.11388262
+            ],
+            "background_yields": [
+                14.8
+            ],
+            "data": [
+                13.0
+            ],
+            "absolute_uncertainties": [
+                3.4
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR27_Njet23_Nb2_HT6001200_MHT600850",
+            "signal_yields": [
+                0.24132261578947367
+            ],
+            "background_yields": [
+                57.3
+            ],
+            "data": [
+                50.0
+            ],
+            "absolute_uncertainties": [
+                7.3
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR28_Njet23_Nb2_HT1200_MHT600850",
+            "signal_yields": [
+                0.13421875578947368
+            ],
+            "background_yields": [
+                3.35
+            ],
+            "data": [
+                4.0
+            ],
+            "absolute_uncertainties": [
+                0.92
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR29_Njet23_Nb2_HT8501700_MHT850",
+            "signal_yields": [
+                0.21420772000000002
+            ],
+            "background_yields": [
+                9.4
+            ],
+            "data": [
+                9.0
+            ],
+            "absolute_uncertainties": [
+                2.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR30_Njet23_Nb2_HT1700_MHT850",
+            "signal_yields": [
+                0.03796086131578947
+            ],
+            "background_yields": [
+                0.64
+            ],
+            "data": [
+                0.0
+            ],
+            "absolute_uncertainties": [
+                0.2
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR31_Njet45_Nb0_HT300600_MHT300350",
+            "signal_yields": [
+                0.02169192384210526
+            ],
+            "background_yields": [
+                23228.0
+            ],
+            "data": [
+                23241.0
+            ],
+            "absolute_uncertainties": [
+                260.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR32_Njet45_Nb0_HT6001200_MHT300350",
+            "signal_yields": [
+                0.12879579105263156
+            ],
+            "background_yields": [
+                7279.0
+            ],
+            "data": [
+                7277.0
+            ],
+            "absolute_uncertainties": [
+                120.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR33_Njet45_Nb0_HT1200_MHT300350",
+            "signal_yields": [
+                0.12744006789473683
+            ],
+            "background_yields": [
+                727.0
+            ],
+            "data": [
+                726.0
+            ],
+            "absolute_uncertainties": [
+                31.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR34_Njet45_Nb0_HT350600_MHT350600",
+            "signal_yields": [
+                0.06372001952631579
+            ],
+            "background_yields": [
+                16697.0
+            ],
+            "data": [
+                16720.0
+            ],
+            "absolute_uncertainties": [
+                190.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR35_Njet45_Nb0_HT6001200_MHT350600",
+            "signal_yields": [
+                0.7714188789473685
+            ],
+            "background_yields": [
+                13814.0
+            ],
+            "data": [
+                13837.0
+            ],
+            "absolute_uncertainties": [
+                160.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR36_Njet45_Nb0_HT1200_MHT350600",
+            "signal_yields": [
+                0.7049874347368421
+            ],
+            "background_yields": [
+                1139.0
+            ],
+            "data": [
+                1141.0
+            ],
+            "absolute_uncertainties": [
+                42.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR37_Njet45_Nb0_HT6001200_MHT600850",
+            "signal_yields": [
+                0.5721244021052632
+            ],
+            "background_yields": [
+                2013.0
+            ],
+            "data": [
+                2028.0
+            ],
+            "absolute_uncertainties": [
+                48.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR38_Njet45_Nb0_HT1200_MHT600850",
+            "signal_yields": [
+                0.7470155736842103
+            ],
+            "background_yields": [
+                292.0
+            ],
+            "data": [
+                291.0
+            ],
+            "absolute_uncertainties": [
+                14.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR39_Njet45_Nb0_HT8501700_MHT850",
+            "signal_yields": [
+                0.6399116415789473
+            ],
+            "background_yields": [
+                366.0
+            ],
+            "data": [
+                360.0
+            ],
+            "absolute_uncertainties": [
+                20.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR40_Njet45_Nb0_HT1700_MHT850",
+            "signal_yields": [
+                0.24132261578947367
+            ],
+            "background_yields": [
+                47.9
+            ],
+            "data": [
+                51.0
+            ],
+            "absolute_uncertainties": [
+                5.2
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR41_Njet45_Nb1_HT300600_MHT300350",
+            "signal_yields": [
+                0.08270048263157895
+            ],
+            "background_yields": [
+                7159.0
+            ],
+            "data": [
+                7157.0
+            ],
+            "absolute_uncertainties": [
+                140.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR42_Njet45_Nb1_HT6001200_MHT300350",
+            "signal_yields": [
+                0.3335133047368421
+            ],
+            "background_yields": [
+                2391.0
+            ],
+            "data": [
+                2387.0
+            ],
+            "absolute_uncertainties": [
+                70.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR43_Njet45_Nb1_HT1200_MHT300350",
+            "signal_yields": [
+                0.34571495736842106
+            ],
+            "background_yields": [
+                230.0
+            ],
+            "data": [
+                229.0
+            ],
+            "absolute_uncertainties": [
+                17.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR44_Njet45_Nb1_HT350600_MHT350600",
+            "signal_yields": [
+                0.16540089315789477
+            ],
+            "background_yields": [
+                4320.0
+            ],
+            "data": [
+                4317.0
+            ],
+            "absolute_uncertainties": [
+                97.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR45_Njet45_Nb1_HT6001200_MHT350600",
+            "signal_yields": [
+                2.281719136842105
+            ],
+            "background_yields": [
+                3818.0
+            ],
+            "data": [
+                3822.0
+            ],
+            "absolute_uncertainties": [
+                82.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR46_Njet45_Nb1_HT1200_MHT350600",
+            "signal_yields": [
+                2.060732368421053
+            ],
+            "background_yields": [
+                337.0
+            ],
+            "data": [
+                350.0
+            ],
+            "absolute_uncertainties": [
+                27.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR47_Njet45_Nb1_HT6001200_MHT600850",
+            "signal_yields": [
+                1.6784122368421053
+            ],
+            "background_yields": [
+                396.0
+            ],
+            "data": [
+                388.0
+            ],
+            "absolute_uncertainties": [
+                21.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR48_Njet45_Nb1_HT1200_MHT600850",
+            "signal_yields": [
+                2.0851356736842104
+            ],
+            "background_yields": [
+                72.2
+            ],
+            "data": [
+                74.0
+            ],
+            "absolute_uncertainties": [
+                7.3
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR49_Njet45_Nb1_HT8501700_MHT850",
+            "signal_yields": [
+                1.7217965315789472
+            ],
+            "background_yields": [
+                74.4
+            ],
+            "data": [
+                73.0
+            ],
+            "absolute_uncertainties": [
+                7.8
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR50_Njet45_Nb1_HT1700_MHT850",
+            "signal_yields": [
+                0.5883933684210525
+            ],
+            "background_yields": [
+                10.8
+            ],
+            "data": [
+                14.0
+            ],
+            "absolute_uncertainties": [
+                2.1
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR51_Njet45_Nb2_HT300600_MHT300350",
+            "signal_yields": [
+                0.05016256442105262
+            ],
+            "background_yields": [
+                2471.0
+            ],
+            "data": [
+                2505.0
+            ],
+            "absolute_uncertainties": [
+                83.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR52_Njet45_Nb2_HT6001200_MHT300350",
+            "signal_yields": [
+                0.3294460631578947
+            ],
+            "background_yields": [
+                872.0
+            ],
+            "data": [
+                864.0
+            ],
+            "absolute_uncertainties": [
+                31.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR53_Njet45_Nb2_HT1200_MHT300350",
+            "signal_yields": [
+                0.30775413210526315
+            ],
+            "background_yields": [
+                69.7
+            ],
+            "data": [
+                72.0
+            ],
+            "absolute_uncertainties": [
+                9.3
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR54_Njet45_Nb2_HT350600_MHT350600",
+            "signal_yields": [
+                0.13693027421052628
+            ],
+            "background_yields": [
+                1211.0
+            ],
+            "data": [
+                1208.0
+            ],
+            "absolute_uncertainties": [
+                43.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR55_Njet45_Nb2_HT6001200_MHT350600",
+            "signal_yields": [
+                2.0580212105263156
+            ],
+            "background_yields": [
+                1170.0
+            ],
+            "data": [
+                1180.0
+            ],
+            "absolute_uncertainties": [
+                38.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR56_Njet45_Nb2_HT1200_MHT350600",
+            "signal_yields": [
+                1.815342294736842
+            ],
+            "background_yields": [
+                80.9
+            ],
+            "data": [
+                78.0
+            ],
+            "absolute_uncertainties": [
+                7.6
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR57_Njet45_Nb2_HT6001200_MHT600850",
+            "signal_yields": [
+                1.6228270105263158
+            ],
+            "background_yields": [
+                96.2
+            ],
+            "data": [
+                98.0
+            ],
+            "absolute_uncertainties": [
+                8.4
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR58_Njet45_Nb2_HT1200_MHT600850",
+            "signal_yields": [
+                1.8573710105263155
+            ],
+            "background_yields": [
+                16.3
+            ],
+            "data": [
+                15.0
+            ],
+            "absolute_uncertainties": [
+                2.9
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR59_Njet45_Nb2_HT8501700_MHT850",
+            "signal_yields": [
+                1.5347035631578947
+            ],
+            "background_yields": [
+                13.3
+            ],
+            "data": [
+                15.0
+            ],
+            "absolute_uncertainties": [
+                2.1
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR60_Njet45_Nb2_HT1700_MHT850",
+            "signal_yields": [
+                0.43654992315789476
+            ],
+            "background_yields": [
+                1.6
+            ],
+            "data": [
+                1.0
+            ],
+            "absolute_uncertainties": [
+                0.3
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR61_Njet45_Nb3_HT300600_MHT300350",
+            "signal_yields": [
+                0.013557447894736844
+            ],
+            "background_yields": [
+                211.0
+            ],
+            "data": [
+                222.0
+            ],
+            "absolute_uncertainties": [
+                18.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR62_Njet45_Nb3_HT6001200_MHT300350",
+            "signal_yields": [
+                0.12337282631578946
+            ],
+            "background_yields": [
+                94.6
+            ],
+            "data": [
+                92.0
+            ],
+            "absolute_uncertainties": [
+                8.5
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR63_Njet45_Nb3_HT1200_MHT300350",
+            "signal_yields": [
+                0.07863324105263157
+            ],
+            "background_yields": [
+                7.6
+            ],
+            "data": [
+                5.0
+            ],
+            "absolute_uncertainties": [
+                2.1
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR64_Njet45_Nb3_HT350600_MHT350600",
+            "signal_yields": [
+                0.0352493717368421
+            ],
+            "background_yields": [
+                110.0
+            ],
+            "data": [
+                111.0
+            ],
+            "absolute_uncertainties": [
+                11.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR65_Njet45_Nb3_HT6001200_MHT350600",
+            "signal_yields": [
+                0.8378501789473686
+            ],
+            "background_yields": [
+                132.0
+            ],
+            "data": [
+                138.0
+            ],
+            "absolute_uncertainties": [
+                13.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR66_Njet45_Nb3_HT1200_MHT350600",
+            "signal_yields": [
+                0.604662334736842
+            ],
+            "background_yields": [
+                7.5
+            ],
+            "data": [
+                5.0
+            ],
+            "absolute_uncertainties": [
+                1.9
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR67_Njet45_Nb3_HT6001200_MHT600850",
+            "signal_yields": [
+                0.6507576431578947
+            ],
+            "background_yields": [
+                6.0
+            ],
+            "data": [
+                5.0
+            ],
+            "absolute_uncertainties": [
+                1.8
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR68_Njet45_Nb3_HT1200_MHT600850",
+            "signal_yields": [
+                0.6521133663157895
+            ],
+            "background_yields": [
+                0.83
+            ],
+            "data": [
+                0.0
+            ],
+            "absolute_uncertainties": [
+                0.24
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR69_Njet45_Nb3_HT8501700_MHT850",
+            "signal_yields": [
+                0.6033065394736842
+            ],
+            "background_yields": [
+                1.09
+            ],
+            "data": [
+                1.0
+            ],
+            "absolute_uncertainties": [
+                0.32
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR70_Njet45_Nb3_HT1700_MHT850",
+            "signal_yields": [
+                0.12201703105263156
+            ],
+            "background_yields": [
+                0.18
+            ],
+            "data": [
+                0.0
+            ],
+            "absolute_uncertainties": [
+                0.06
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR71_Njet67_Nb0_HT300600_MHT300350",
+            "signal_yields": [
+                0.0013557447894736842
+            ],
+            "background_yields": [
+                1495.0
+            ],
+            "data": [
+                1480.0
+            ],
+            "absolute_uncertainties": [
+                49.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR72_Njet67_Nb0_HT6001200_MHT300350",
+            "signal_yields": [
+                0.13828599736842104
+            ],
+            "background_yields": [
+                2002.0
+            ],
+            "data": [
+                1993.0
+            ],
+            "absolute_uncertainties": [
+                54.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR73_Njet67_Nb0_HT1200_MHT300350",
+            "signal_yields": [
+                0.18166985947368416
+            ],
+            "background_yields": [
+                365.0
+            ],
+            "data": [
+                362.0
+            ],
+            "absolute_uncertainties": [
+                19.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR74_Njet67_Nb0_HT350600_MHT350600",
+            "signal_yields": [
+                0.014913192684210526
+            ],
+            "background_yields": [
+                861.0
+            ],
+            "data": [
+                847.0
+            ],
+            "absolute_uncertainties": [
+                32.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR75_Njet67_Nb0_HT6001200_MHT350600",
+            "signal_yields": [
+                0.8012452210526314
+            ],
+            "background_yields": [
+                2830.0
+            ],
+            "data": [
+                2842.0
+            ],
+            "absolute_uncertainties": [
+                70.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR76_Njet67_Nb0_HT1200_MHT350600",
+            "signal_yields": [
+                0.9774921157894737
+            ],
+            "background_yields": [
+                549.0
+            ],
+            "data": [
+                553.0
+            ],
+            "absolute_uncertainties": [
+                27.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR77_Njet67_Nb0_HT6001200_MHT600850",
+            "signal_yields": [
+                0.4392613694736842
+            ],
+            "background_yields": [
+                248.0
+            ],
+            "data": [
+                245.0
+            ],
+            "absolute_uncertainties": [
+                14.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR78_Njet67_Nb0_HT1200_MHT600850",
+            "signal_yields": [
+                0.9490213526315787
+            ],
+            "background_yields": [
+                109.7
+            ],
+            "data": [
+                122.0
+            ],
+            "absolute_uncertainties": [
+                8.1
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR79_Njet67_Nb0_HT8501700_MHT850",
+            "signal_yields": [
+                0.5612784726315788
+            ],
+            "background_yields": [
+                54.0
+            ],
+            "data": [
+                55.0
+            ],
+            "absolute_uncertainties": [
+                5.3
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR80_Njet67_Nb0_HT1700_MHT850",
+            "signal_yields": [
+                0.27114903
+            ],
+            "background_yields": [
+                17.9
+            ],
+            "data": [
+                20.0
+            ],
+            "absolute_uncertainties": [
+                2.9
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR81_Njet67_Nb1_HT300600_MHT300350",
+            "signal_yields": [
+                0.029826392578947366
+            ],
+            "background_yields": [
+                944.0
+            ],
+            "data": [
+                946.0
+            ],
+            "absolute_uncertainties": [
+                36.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR82_Njet67_Nb1_HT6001200_MHT300350",
+            "signal_yields": [
+                0.46637633736842105
+            ],
+            "background_yields": [
+                1293.0
+            ],
+            "data": [
+                1282.0
+            ],
+            "absolute_uncertainties": [
+                39.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR83_Njet67_Nb1_HT1200_MHT300350",
+            "signal_yields": [
+                0.547721024736842
+            ],
+            "background_yields": [
+                196.0
+            ],
+            "data": [
+                197.0
+            ],
+            "absolute_uncertainties": [
+                15.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR84_Njet67_Nb1_HT350600_MHT350600",
+            "signal_yields": [
+                0.05829704036842105
+            ],
+            "background_yields": [
+                422.0
+            ],
+            "data": [
+                425.0
+            ],
+            "absolute_uncertainties": [
+                22.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR85_Njet67_Nb1_HT6001200_MHT350600",
+            "signal_yields": [
+                2.6355685052631577
+            ],
+            "background_yields": [
+                1533.0
+            ],
+            "data": [
+                1521.0
+            ],
+            "absolute_uncertainties": [
+                48.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR86_Njet67_Nb1_HT1200_MHT350600",
+            "signal_yields": [
+                3.0300902894736836
+            ],
+            "background_yields": [
+                267.0
+            ],
+            "data": [
+                269.0
+            ],
+            "absolute_uncertainties": [
+                18.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR87_Njet67_Nb1_HT6001200_MHT600850",
+            "signal_yields": [
+                1.5685973631578947
+            ],
+            "background_yields": [
+                90.3
+            ],
+            "data": [
+                90.0
+            ],
+            "absolute_uncertainties": [
+                9.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR88_Njet67_Nb1_HT1200_MHT600850",
+            "signal_yields": [
+                3.267345447368421
+            ],
+            "background_yields": [
+                50.5
+            ],
+            "data": [
+                49.0
+            ],
+            "absolute_uncertainties": [
+                5.2
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR89_Njet67_Nb1_HT8501700_MHT850",
+            "signal_yields": [
+                1.7028155421052629
+            ],
+            "background_yields": [
+                18.6
+            ],
+            "data": [
+                17.0
+            ],
+            "absolute_uncertainties": [
+                3.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR90_Njet67_Nb1_HT1700_MHT850",
+            "signal_yields": [
+                0.8636097842105264
+            ],
+            "background_yields": [
+                6.2
+            ],
+            "data": [
+                7.0
+            ],
+            "absolute_uncertainties": [
+                1.5
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR91_Njet67_Nb2_HT300600_MHT300350",
+            "signal_yields": [
+                0.027114903
+            ],
+            "background_yields": [
+                448.0
+            ],
+            "data": [
+                450.0
+            ],
+            "absolute_uncertainties": [
+                20.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR92_Njet67_Nb2_HT6001200_MHT300350",
+            "signal_yields": [
+                0.46637633736842105
+            ],
+            "background_yields": [
+                797.0
+            ],
+            "data": [
+                797.0
+            ],
+            "absolute_uncertainties": [
+                28.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR93_Njet67_Nb2_HT1200_MHT300350",
+            "signal_yields": [
+                0.5246733705263158
+            ],
+            "background_yields": [
+                79.7
+            ],
+            "data": [
+                84.0
+            ],
+            "absolute_uncertainties": [
+                8.6
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR94_Njet67_Nb2_HT350600_MHT350600",
+            "signal_yields": [
+                0.029826392578947366
+            ],
+            "background_yields": [
+                176.0
+            ],
+            "data": [
+                188.0
+            ],
+            "absolute_uncertainties": [
+                11.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR95_Njet67_Nb2_HT6001200_MHT350600",
+            "signal_yields": [
+                2.786055794736842
+            ],
+            "background_yields": [
+                782.0
+            ],
+            "data": [
+                762.0
+            ],
+            "absolute_uncertainties": [
+                26.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR96_Njet67_Nb2_HT1200_MHT350600",
+            "signal_yields": [
+                3.336488626315789
+            ],
+            "background_yields": [
+                100.6
+            ],
+            "data": [
+                106.0
+            ],
+            "absolute_uncertainties": [
+                7.9
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR97_Njet67_Nb2_HT6001200_MHT600850",
+            "signal_yields": [
+                1.6906138894736842
+            ],
+            "background_yields": [
+                33.7
+            ],
+            "data": [
+                32.0
+            ],
+            "absolute_uncertainties": [
+                4.1
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR98_Njet67_Nb2_HT1200_MHT600850",
+            "signal_yields": [
+                3.5534079368421057
+            ],
+            "background_yields": [
+                14.7
+            ],
+            "data": [
+                14.0
+            ],
+            "absolute_uncertainties": [
+                2.6
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR99_Njet67_Nb2_HT8501700_MHT850",
+            "signal_yields": [
+                1.8207653315789472
+            ],
+            "background_yields": [
+                5.9
+            ],
+            "data": [
+                9.0
+            ],
+            "absolute_uncertainties": [
+                1.5
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR100_Njet67_Nb2_HT1700_MHT850",
+            "signal_yields": [
+                0.8148024526315789
+            ],
+            "background_yields": [
+                1.68
+            ],
+            "data": [
+                1.0
+            ],
+            "absolute_uncertainties": [
+                0.55
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR101_Njet67_Nb3_HT300600_MHT300350",
+            "signal_yields": [
+                0.01220170310526316
+            ],
+            "background_yields": [
+                81.3
+            ],
+            "data": [
+                86.0
+            ],
+            "absolute_uncertainties": [
+                7.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR102_Njet67_Nb3_HT6001200_MHT300350",
+            "signal_yields": [
+                0.33758054631578943
+            ],
+            "background_yields": [
+                158.4
+            ],
+            "data": [
+                167.0
+            ],
+            "absolute_uncertainties": [
+                9.8
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR103_Njet67_Nb3_HT1200_MHT300350",
+            "signal_yields": [
+                0.38503157789473685
+            ],
+            "background_yields": [
+                18.8
+            ],
+            "data": [
+                16.0
+            ],
+            "absolute_uncertainties": [
+                3.2
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR104_Njet67_Nb3_HT350600_MHT350600",
+            "signal_yields": [
+                0.020336179052631582
+            ],
+            "background_yields": [
+                27.2
+            ],
+            "data": [
+                28.0
+            ],
+            "absolute_uncertainties": [
+                4.3
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR105_Njet67_Nb3_HT6001200_MHT350600",
+            "signal_yields": [
+                1.934648384210526
+            ],
+            "background_yields": [
+                136.7
+            ],
+            "data": [
+                115.0
+            ],
+            "absolute_uncertainties": [
+                9.5
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR106_Njet67_Nb3_HT1200_MHT350600",
+            "signal_yields": [
+                2.197662426315789
+            ],
+            "background_yields": [
+                21.2
+            ],
+            "data": [
+                23.0
+            ],
+            "absolute_uncertainties": [
+                3.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR107_Njet67_Nb3_HT6001200_MHT600850",
+            "signal_yields": [
+                1.1713637
+            ],
+            "background_yields": [
+                6.1
+            ],
+            "data": [
+                6.0
+            ],
+            "absolute_uncertainties": [
+                1.6
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR108_Njet67_Nb3_HT1200_MHT600850",
+            "signal_yields": [
+                2.406447542105263
+            ],
+            "background_yields": [
+                2.68
+            ],
+            "data": [
+                2.0
+            ],
+            "absolute_uncertainties": [
+                0.99
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR109_Njet67_Nb3_HT8501700_MHT850",
+            "signal_yields": [
+                1.180854194736842
+            ],
+            "background_yields": [
+                0.45
+            ],
+            "data": [
+                1.0
+            ],
+            "absolute_uncertainties": [
+                0.15
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR110_Njet67_Nb3_HT1700_MHT850",
+            "signal_yields": [
+                0.40536778578947363
+            ],
+            "background_yields": [
+                0.47
+            ],
+            "data": [
+                1.0
+            ],
+            "absolute_uncertainties": [
+                0.4
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR111_Njet89_Nb0_HT6001200_MHT300350",
+            "signal_yields": [
+                0.05694129557894736
+            ],
+            "background_yields": [
+                247.0
+            ],
+            "data": [
+                245.0
+            ],
+            "absolute_uncertainties": [
+                16.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR112_Njet89_Nb0_HT1200_MHT300350",
+            "signal_yields": [
+                0.07863324105263157
+            ],
+            "background_yields": [
+                92.4
+            ],
+            "data": [
+                88.0
+            ],
+            "absolute_uncertainties": [
+                8.3
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR113_Njet89_Nb0_HT6001200_MHT350600",
+            "signal_yields": [
+                0.22369792631578944
+            ],
+            "background_yields": [
+                278.0
+            ],
+            "data": [
+                280.0
+            ],
+            "absolute_uncertainties": [
+                16.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR114_Njet89_Nb0_HT1200_MHT350600",
+            "signal_yields": [
+                0.4107907505263158
+            ],
+            "background_yields": [
+                114.1
+            ],
+            "data": [
+                104.0
+            ],
+            "absolute_uncertainties": [
+                8.8
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR115_Njet89_Nb0_HT6001200_MHT600850",
+            "signal_yields": [
+                0.09354641210526315
+            ],
+            "background_yields": [
+                22.5
+            ],
+            "data": [
+                28.0
+            ],
+            "absolute_uncertainties": [
+                3.1
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR116_Njet89_Nb0_HT1200_MHT600850",
+            "signal_yields": [
+                0.43654992315789476
+            ],
+            "background_yields": [
+                19.9
+            ],
+            "data": [
+                22.0
+            ],
+            "absolute_uncertainties": [
+                3.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR117_Njet89_Nb0_HT8501700_MHT850",
+            "signal_yields": [
+                0.15184344526315788
+            ],
+            "background_yields": [
+                4.2
+            ],
+            "data": [
+                2.0
+            ],
+            "absolute_uncertainties": [
+                1.2
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR118_Njet89_Nb0_HT1700_MHT850",
+            "signal_yields": [
+                0.10981537842105264
+            ],
+            "background_yields": [
+                2.88
+            ],
+            "data": [
+                1.0
+            ],
+            "absolute_uncertainties": [
+                0.94
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR119_Njet89_Nb1_HT6001200_MHT300350",
+            "signal_yields": [
+                0.1464204805263158
+            ],
+            "background_yields": [
+                233.0
+            ],
+            "data": [
+                229.0
+            ],
+            "absolute_uncertainties": [
+                14.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR120_Njet89_Nb1_HT1200_MHT300350",
+            "signal_yields": [
+                0.2819949594736842
+            ],
+            "background_yields": [
+                71.8
+            ],
+            "data": [
+                68.0
+            ],
+            "absolute_uncertainties": [
+                7.6
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR121_Njet89_Nb1_HT6001200_MHT350600",
+            "signal_yields": [
+                0.8337834421052631
+            ],
+            "background_yields": [
+                234.0
+            ],
+            "data": [
+                224.0
+            ],
+            "absolute_uncertainties": [
+                14.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR122_Njet89_Nb1_HT1200_MHT350600",
+            "signal_yields": [
+                1.5889332105263156
+            ],
+            "background_yields": [
+                95.9
+            ],
+            "data": [
+                90.0
+            ],
+            "absolute_uncertainties": [
+                7.4
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR123_Njet89_Nb1_HT6001200_MHT600850",
+            "signal_yields": [
+                0.41485799210526314
+            ],
+            "background_yields": [
+                10.1
+            ],
+            "data": [
+                7.0
+            ],
+            "absolute_uncertainties": [
+                2.2
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR124_Njet89_Nb1_HT1200_MHT600850",
+            "signal_yields": [
+                1.5943562473684212
+            ],
+            "background_yields": [
+                15.1
+            ],
+            "data": [
+                15.0
+            ],
+            "absolute_uncertainties": [
+                2.8
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR125_Njet89_Nb1_HT8501700_MHT850",
+            "signal_yields": [
+                0.547721024736842
+            ],
+            "background_yields": [
+                1.39
+            ],
+            "data": [
+                2.0
+            ],
+            "absolute_uncertainties": [
+                0.52
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR126_Njet89_Nb1_HT1700_MHT850",
+            "signal_yields": [
+                0.41621371526315787
+            ],
+            "background_yields": [
+                1.87
+            ],
+            "data": [
+                2.0
+            ],
+            "absolute_uncertainties": [
+                0.76
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR127_Njet89_Nb2_HT6001200_MHT300350",
+            "signal_yields": [
+                0.21827496157894738
+            ],
+            "background_yields": [
+                190.0
+            ],
+            "data": [
+                193.0
+            ],
+            "absolute_uncertainties": [
+                10.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR128_Njet89_Nb2_HT1200_MHT300350",
+            "signal_yields": [
+                0.3253788215789474
+            ],
+            "background_yields": [
+                47.6
+            ],
+            "data": [
+                53.0
+            ],
+            "absolute_uncertainties": [
+                6.7
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR129_Njet89_Nb2_HT6001200_MHT350600",
+            "signal_yields": [
+                1.020875689473684
+            ],
+            "background_yields": [
+                165.0
+            ],
+            "data": [
+                158.0
+            ],
+            "absolute_uncertainties": [
+                10.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR130_Njet89_Nb2_HT1200_MHT350600",
+            "signal_yields": [
+                1.9549842315789474
+            ],
+            "background_yields": [
+                62.4
+            ],
+            "data": [
+                74.0
+            ],
+            "absolute_uncertainties": [
+                5.7
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR131_Njet89_Nb2_HT6001200_MHT600850",
+            "signal_yields": [
+                0.48806819631578946
+            ],
+            "background_yields": [
+                6.4
+            ],
+            "data": [
+                7.0
+            ],
+            "absolute_uncertainties": [
+                1.7
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR132_Njet89_Nb2_HT1200_MHT600850",
+            "signal_yields": [
+                1.9753207999999998
+            ],
+            "background_yields": [
+                9.8
+            ],
+            "data": [
+                9.0
+            ],
+            "absolute_uncertainties": [
+                2.1
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR133_Njet89_Nb2_HT8501700_MHT850",
+            "signal_yields": [
+                0.6670265373684211
+            ],
+            "background_yields": [
+                1.15
+            ],
+            "data": [
+                0.0
+            ],
+            "absolute_uncertainties": [
+                0.57
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR134_Njet89_Nb2_HT1700_MHT850",
+            "signal_yields": [
+                0.4867124731578947
+            ],
+            "background_yields": [
+                2.4
+            ],
+            "data": [
+                2.0
+            ],
+            "absolute_uncertainties": [
+                1.4
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR135_Njet89_Nb3_HT6001200_MHT300350",
+            "signal_yields": [
+                0.15862220526315787
+            ],
+            "background_yields": [
+                55.2
+            ],
+            "data": [
+                57.0
+            ],
+            "absolute_uncertainties": [
+                5.6
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR136_Njet89_Nb3_HT1200_MHT300350",
+            "signal_yields": [
+                0.2887737194736842
+            ],
+            "background_yields": [
+                20.0
+            ],
+            "data": [
+                17.0
+            ],
+            "absolute_uncertainties": [
+                3.2
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR137_Njet89_Nb3_HT6001200_MHT350600",
+            "signal_yields": [
+                0.8961472842105263
+            ],
+            "background_yields": [
+                46.6
+            ],
+            "data": [
+                36.0
+            ],
+            "absolute_uncertainties": [
+                5.2
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR138_Njet89_Nb3_HT1200_MHT350600",
+            "signal_yields": [
+                1.8465249368421055
+            ],
+            "background_yields": [
+                20.4
+            ],
+            "data": [
+                23.0
+            ],
+            "absolute_uncertainties": [
+                3.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR139_Njet89_Nb3_HT6001200_MHT600850",
+            "signal_yields": [
+                0.4975584747368421
+            ],
+            "background_yields": [
+                1.11
+            ],
+            "data": [
+                2.0
+            ],
+            "absolute_uncertainties": [
+                0.54
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR140_Njet89_Nb3_HT1200_MHT600850",
+            "signal_yields": [
+                1.8126311368421053
+            ],
+            "background_yields": [
+                3.1
+            ],
+            "data": [
+                2.0
+            ],
+            "absolute_uncertainties": [
+                1.2
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR141_Njet89_Nb3_HT8501700_MHT850",
+            "signal_yields": [
+                0.6100852994736842
+            ],
+            "background_yields": [
+                0.65
+            ],
+            "data": [
+                0.0
+            ],
+            "absolute_uncertainties": [
+                0.49
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR142_Njet89_Nb3_HT1700_MHT850",
+            "signal_yields": [
+                0.3538494405263158
+            ],
+            "background_yields": [
+                0.13
+            ],
+            "data": [
+                0.0
+            ],
+            "absolute_uncertainties": [
+                0.07
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR143_Njet10_Nb0_HT6001200_MHT300350",
+            "signal_yields": [
+                0.005422980599999999
+            ],
+            "background_yields": [
+                16.4
+            ],
+            "data": [
+                17.0
+            ],
+            "absolute_uncertainties": [
+                3.4
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR144_Njet10_Nb0_HT1200_MHT300350",
+            "signal_yields": [
+                0.016268937473684214
+            ],
+            "background_yields": [
+                19.9
+            ],
+            "data": [
+                20.0
+            ],
+            "absolute_uncertainties": [
+                3.9
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR145_Njet10_Nb0_HT6001200_MHT350600",
+            "signal_yields": [
+                0.03118213736842105
+            ],
+            "background_yields": [
+                12.7
+            ],
+            "data": [
+                12.0
+            ],
+            "absolute_uncertainties": [
+                2.5
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR146_Njet10_Nb0_HT1200_MHT350600",
+            "signal_yields": [
+                0.09219068894736841
+            ],
+            "background_yields": [
+                22.2
+            ],
+            "data": [
+                21.0
+            ],
+            "absolute_uncertainties": [
+                3.5
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR147_Njet10_Nb0_HT6001200_MHT600850",
+            "signal_yields": [
+                0.013557447894736844
+            ],
+            "background_yields": [
+                0.85
+            ],
+            "data": [
+                2.0
+            ],
+            "absolute_uncertainties": [
+                0.46
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR148_Njet10_Nb0_HT1200_MHT600850",
+            "signal_yields": [
+                0.09625793052631577
+            ],
+            "background_yields": [
+                4.4
+            ],
+            "data": [
+                6.0
+            ],
+            "absolute_uncertainties": [
+                1.3
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR149_Njet10_Nb0_HT8501700_MHT850",
+            "signal_yields": [
+                0.02440341342105263
+            ],
+            "background_yields": [
+                0.04
+            ],
+            "data": [
+                0.0
+            ],
+            "absolute_uncertainties": [
+                0.03
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR150_Njet10_Nb0_HT1700_MHT850",
+            "signal_yields": [
+                0.0366051165263158
+            ],
+            "background_yields": [
+                0.83
+            ],
+            "data": [
+                2.0
+            ],
+            "absolute_uncertainties": [
+                0.52
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR151_Njet10_Nb1_HT6001200_MHT300350",
+            "signal_yields": [
+                0.013557447894736844
+            ],
+            "background_yields": [
+                20.5
+            ],
+            "data": [
+                22.0
+            ],
+            "absolute_uncertainties": [
+                3.4
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR152_Njet10_Nb1_HT1200_MHT300350",
+            "signal_yields": [
+                0.08676765210526317
+            ],
+            "background_yields": [
+                18.1
+            ],
+            "data": [
+                18.0
+            ],
+            "absolute_uncertainties": [
+                3.5
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR153_Njet10_Nb1_HT6001200_MHT350600",
+            "signal_yields": [
+                0.10439234157894736
+            ],
+            "background_yields": [
+                13.8
+            ],
+            "data": [
+                9.0
+            ],
+            "absolute_uncertainties": [
+                2.8
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR154_Njet10_Nb1_HT1200_MHT350600",
+            "signal_yields": [
+                0.4135022689473684
+            ],
+            "background_yields": [
+                24.0
+            ],
+            "data": [
+                32.0
+            ],
+            "absolute_uncertainties": [
+                3.2
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR155_Njet10_Nb1_HT6001200_MHT600850",
+            "signal_yields": [
+                0.03118213736842105
+            ],
+            "background_yields": [
+                0.16
+            ],
+            "data": [
+                0.0
+            ],
+            "absolute_uncertainties": [
+                0.12
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR156_Njet10_Nb1_HT1200_MHT600850",
+            "signal_yields": [
+                0.3768970947368421
+            ],
+            "background_yields": [
+                2.14
+            ],
+            "data": [
+                3.0
+            ],
+            "absolute_uncertainties": [
+                0.78
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR157_Njet10_Nb1_HT8501700_MHT850",
+            "signal_yields": [
+                0.0718544882631579
+            ],
+            "background_yields": [
+                0.04
+            ],
+            "data": [
+                0.0
+            ],
+            "absolute_uncertainties": [
+                0.03
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR158_Njet10_Nb1_HT1700_MHT850",
+            "signal_yields": [
+                0.1301515142105263
+            ],
+            "background_yields": [
+                0.93
+            ],
+            "data": [
+                1.0
+            ],
+            "absolute_uncertainties": [
+                0.6
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR159_Njet10_Nb2_HT6001200_MHT300350",
+            "signal_yields": [
+                0.02169192384210526
+            ],
+            "background_yields": [
+                15.2
+            ],
+            "data": [
+                15.0
+            ],
+            "absolute_uncertainties": [
+                2.6
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR160_Njet10_Nb2_HT1200_MHT300350",
+            "signal_yields": [
+                0.08812344736842107
+            ],
+            "background_yields": [
+                13.0
+            ],
+            "data": [
+                11.0
+            ],
+            "absolute_uncertainties": [
+                2.6
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR161_Njet10_Nb2_HT6001200_MHT350600",
+            "signal_yields": [
+                0.15591068684210527
+            ],
+            "background_yields": [
+                16.4
+            ],
+            "data": [
+                11.0
+            ],
+            "absolute_uncertainties": [
+                2.6
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR162_Njet10_Nb2_HT1200_MHT350600",
+            "signal_yields": [
+                0.5897490915789473
+            ],
+            "background_yields": [
+                14.3
+            ],
+            "data": [
+                12.0
+            ],
+            "absolute_uncertainties": [
+                2.3
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR163_Njet10_Nb2_HT6001200_MHT600850",
+            "signal_yields": [
+                0.0623642747368421
+            ],
+            "background_yields": [
+                0.94
+            ],
+            "data": [
+                0.0
+            ],
+            "absolute_uncertainties": [
+                0.79
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR164_Njet10_Nb2_HT1200_MHT600850",
+            "signal_yields": [
+                0.5151830921052633
+            ],
+            "background_yields": [
+                0.89
+            ],
+            "data": [
+                0.0
+            ],
+            "absolute_uncertainties": [
+                0.53
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR165_Njet10_Nb2_HT8501700_MHT850",
+            "signal_yields": [
+                0.09625793052631577
+            ],
+            "background_yields": [
+                0.04
+            ],
+            "data": [
+                0.0
+            ],
+            "absolute_uncertainties": [
+                0.03
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR166_Njet10_Nb2_HT1700_MHT850",
+            "signal_yields": [
+                0.16268937473684209
+            ],
+            "background_yields": [
+                0.11
+            ],
+            "data": [
+                0.0
+            ],
+            "absolute_uncertainties": [
+                0.1
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR167_Njet10_Nb3_HT6001200_MHT300350",
+            "signal_yields": [
+                0.027114903
+            ],
+            "background_yields": [
+                9.1
+            ],
+            "data": [
+                13.0
+            ],
+            "absolute_uncertainties": [
+                1.7
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR168_Njet10_Nb3_HT1200_MHT300350",
+            "signal_yields": [
+                0.11252682473684211
+            ],
+            "background_yields": [
+                5.4
+            ],
+            "data": [
+                5.0
+            ],
+            "absolute_uncertainties": [
+                1.5
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR169_Njet10_Nb3_HT6001200_MHT350600",
+            "signal_yields": [
+                0.13286303263157895
+            ],
+            "background_yields": [
+                2.46
+            ],
+            "data": [
+                3.0
+            ],
+            "absolute_uncertainties": [
+                0.98
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR170_Njet10_Nb3_HT1200_MHT350600",
+            "signal_yields": [
+                0.668382332631579
+            ],
+            "background_yields": [
+                6.7
+            ],
+            "data": [
+                9.0
+            ],
+            "absolute_uncertainties": [
+                1.7
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR171_Njet10_Nb3_HT6001200_MHT600850",
+            "signal_yields": [
+                0.06643150910526316
+            ],
+            "background_yields": [
+                0.11
+            ],
+            "data": [
+                0.0
+            ],
+            "absolute_uncertainties": [
+                0.11
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR172_Njet10_Nb3_HT1200_MHT600850",
+            "signal_yields": [
+                0.5897490915789473
+            ],
+            "background_yields": [
+                0.4
+            ],
+            "data": [
+                1.0
+            ],
+            "absolute_uncertainties": [
+                0.36
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR173_Njet10_Nb3_HT8501700_MHT850",
+            "signal_yields": [
+                0.14099751578947367
+            ],
+            "background_yields": [
+                0.04
+            ],
+            "data": [
+                0.0
+            ],
+            "absolute_uncertainties": [
+                0.03
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::SR174_Njet10_Nb3_HT1700_MHT850",
+            "signal_yields": [
+                0.1599779284210526
+            ],
+            "background_yields": [
+                0.13
+            ],
+            "data": [
+                0.0
+            ],
+            "absolute_uncertainties": [
+                0.12
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::AGGSR1_Njet2_Nb0_HT600_MHT600",
+            "signal_yields": [
+                5.881221805263158
+            ],
+            "background_yields": [
+                12320.0
+            ],
+            "data": [
+                11281.0
+            ],
+            "absolute_uncertainties": [
+                427.1
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::AGGSR2_Njet4_Nb0_HT1700_MHT850",
+            "signal_yields": [
+                0.7144776410526316
+            ],
+            "background_yields": [
+                65.8
+            ],
+            "data": [
+                74.0
+            ],
+            "absolute_uncertainties": [
+                8.3
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::AGGSR3_Njet6_Nb0_HT600_MHT_600",
+            "signal_yields": [
+                3.1832894578947366
+            ],
+            "background_yields": [
+                489.0
+            ],
+            "data": [
+                505.0
+            ],
+            "absolute_uncertainties": [
+                23.4
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::AGGSR4_Njet8_Nb01_HT600_MHT600",
+            "signal_yields": [
+                4.545812863157895
+            ],
+            "background_yields": [
+                54.3
+            ],
+            "data": [
+                63.0
+            ],
+            "absolute_uncertainties": [
+                7.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::AGGSR5_Njet10_Nb01_HT1700_MHT850",
+            "signal_yields": [
+                0.16675661631578945
+            ],
+            "background_yields": [
+                141.0
+            ],
+            "data": [
+                153.0
+            ],
+            "absolute_uncertainties": [
+                15.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::AGGSR6_Njet4_Nb2_HT300_MHT300",
+            "signal_yields": [
+                56.16851463157895
+            ],
+            "background_yields": [
+                10090.0
+            ],
+            "data": [
+                10216.0
+            ],
+            "absolute_uncertainties": [
+                351.1
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::AGGSR7_Njet2_Nb2_HT600_MHT600",
+            "signal_yields": [
+                29.83588163157895
+            ],
+            "background_yields": [
+                336.0
+            ],
+            "data": [
+                287.0
+            ],
+            "absolute_uncertainties": [
+                32.2
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::AGGSR8_Njet6_Nb2_HT350_MHT350",
+            "signal_yields": [
+                39.300339157894726
+            ],
+            "background_yields": [
+                1720.0
+            ],
+            "data": [
+                1637.0
+            ],
+            "absolute_uncertainties": [
+                58.6
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::AGGSR9_NJet4_Nb2_HT600_MHT600",
+            "signal_yields": [
+                29.208169263157895
+            ],
+            "background_yields": [
+                230.0
+            ],
+            "data": [
+                224.0
+            ],
+            "absolute_uncertainties": [
+                20.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::AGGSR10_Njet8_Nb3_HT300_MHT300",
+            "signal_yields": [
+                8.364946
+            ],
+            "background_yields": [
+                176.0
+            ],
+            "data": [
+                168.0
+            ],
+            "absolute_uncertainties": [
+                17.0
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::AGGSR11_Njet6_Nb1_HT600_MHT600",
+            "signal_yields": [
+                32.71412905263158
+            ],
+            "background_yields": [
+                304.0
+            ],
+            "data": [
+                282.0
+            ],
+            "absolute_uncertainties": [
+                22.6
+            ]
+        },
+        {
+            "region": "cms_sus_19_006::AGGSR12_Njet10_Nb3_HT850_MHT850",
+            "signal_yields": [
+                0.30097537210526315
+            ],
+            "background_yields": [
+                0.1
+            ],
+            "data": [
+                0.0
+            ],
+            "absolute_uncertainties": [
+                2.4
+            ]
+        }
+    ]
+}

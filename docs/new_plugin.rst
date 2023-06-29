@@ -39,6 +39,13 @@ inheriting it. The most basic implementation of a statistical model can be found
     >>>     author = "John Smith <john.smith@smith.com>"
     >>>     spey_requires = ">=0.1.0,<0.2.0"
 
+    >>>     def __init__(self, ...)
+    >>>         ...
+
+    >>>     @property
+    >>>     def is_alive(self):
+    >>>         ...
+
     >>>     def config(
     ...         self, allow_negative_signal: bool = True, poi_upper_bound: float = 10.0
     ...     ):
@@ -48,20 +55,10 @@ inheriting it. The most basic implementation of a statistical model can be found
     ...         self, expected = spey.ExpectationType.observed, data = None
     ...     ):
     >>>         ...
-
-    >>>     def get_objective_function(
-    ...         self,
-    ...         expected = spey.ExpectationType.observed,
-    ...         data = None,
-    ...         do_grad = True,
-    ...     ):
-    >>>         ...
     
     >>>     def expected_data(self, pars):
     >>>         ...
 
-    >>>     def get_sampler(self, pars):
-    >>>         ...
 
 :class:`~spey.BackendBase` requires certain functionality from the statistical model to be 
 implemented but let us first go through the above class structure. spey looks for certain 
@@ -75,15 +72,18 @@ it checks compatibility with current spey version to ensure that the plugin work
       * **name** (``str``): Name of the plugin.
       * **version** (``str``): Version of the plugin.
       * **author** (``str``): Author of the plugin.
-      * **spey_requires** (``str``, *required*): The minimum spey version that the 
-        plugin is built e.g. ``spey_requires="0.0.1"`` or ``spey_requires=">=0.3.3"``.
+      * **spey_requires** (``str``): The minimum spey version that the 
+        plugin needs e.g. ``spey_requires="0.0.1"`` or ``spey_requires=">=0.3.3"``.
       * **doi** (``List[str]``): Citable DOI numbers for the plugin.
       * **arXiv** (``List[str]``): arXiv numbers for the plugin.
 
-`MyStatisticalModel`_ class has three main functionalities namely :func:`~spey.BackendBase.config`, 
-:func:`~spey.BackendBase.get_logpdf_func` and :func:`~spey.BackendBase.get_objective_function` 
-(for detailed descriptions of these functions please go to the :class:`~spey.BackendBase` documentation
-by clicking on them.)
+`MyStatisticalModel`_ class has four main functionalities namely :func:`~spey.BackendBase.is_alive`, 
+:func:`~spey.BackendBase.config`, :func:`~spey.BackendBase.get_logpdf_func`,  and 
+:func:`~spey.BackendBase.expected_data`(for detailed descriptions of these functions please go to the 
+:class:`~spey.BackendBase` documentation by clicking on them.)
+
+* :func:`~spey.BackendBase.is_alive`: This function returns a boolean indicating that the statistical model 
+  has at least one signal bin with non-zero yield.
 
 * :func:`~spey.BackendBase.config`: This function returns :class:`~spey.base.model_config.ModelConfig` class
   which includes certain information about the model structure such as index of the parameter of interest 
@@ -110,50 +110,32 @@ by clicking on them.)
   prefit and postfit likelihoods. If ``data`` is provided, it is it is overwritten, this is for the case where Asimov 
   data is in use.
 
-* :func:`~spey.BackendBase.get_objective_function`: This function is crutial for the optimisation procedure. If 
-  ``do_grad=True`` it is typically a function of :math:`-\log\mathcal{L}(\mu,\theta)` and its gradient 
-  with respect to :math:`\mu` and :math:`\theta` where if ``do_grad=False`` it only returns a function of 
-  :math:`-\log\mathcal{L}(\mu,\theta)`. Note that it can also return any function of the likelihood for 
-  optimisation purposes, the likelihood is computed from :func:`~spey.BackendBase.get_logpdf_func` using the fit 
-  parameters obtained during the optimisation. Similar to :func:`~spey.BackendBase.get_logpdf_func`, the input 
-  ``expected`` defines which data to be used in the absence of ``data`` input i.e. if 
-  ``expected=spey.ExpectationType.observed`` yields of observed data should be used to compute the likelihood 
-  but if ``expected=spey.ExpectationType.apriori`` background yields should be used. This ensures the difference 
-  between prefit and postfit likelihoods. If ``data`` is provided, it is it is overwritten, this is for the case 
-  where Asimov data is in use.
-
-  .. note::
-
-    If gradient is not available, in case of ``do_grad=True`` this function should raise 
-    :obj:`NotImplementedError` so that spey can autimatically switch to ``do_grad=False`` mode.
-
 * :func:`~spey.BackendBase.expected_data`: This function is crutial for **asymptotic** hypothesis testing.
   This function is used to generate expected value of the data with the given fit parameters i.e. :math:`\theta`
-  and :math:`\mu`. This function is mainly used to generate Asimov data through 
-  :func:`~spey.StatisticalModel.generate_asimov_data` function.
+  and :math:`\mu`.
 
-* :func:`~spey.BackendBase.get_sampler` (*optional*): This function is crutial for **toy** based hypothesis testing. 
-  It takes fit parameters (nuisance, :math:`\theta`, and POI, :math:`\mu`) as input and returns a callable function 
-  which takes number of samples to be generated as an input and returns sampled data in shape ``(n_samples, nbins)``.
+Other available functions that can be implemented are shown in the table below.
 
-Beyond the basic functionality spey also allows integration of more complex likelihood computations to be held. Prior
-to calling :func:`~spey.BackendBase.get_objective_function` or :func:`~spey.BackendBase.generate_asimov_data` spey looks
-for specific implementations such as :func:`~spey.BackendBase.negative_loglikelihood` or 
-:func:`~spey.BackendBase.asimov_negative_loglikelihood`. If these functions are provided in the backend spey will directly
-use those instead. The list of these functions can be found below and interested user can check their documentation by
-clicking on the functions;
+.. list-table:: 
+    :header-rows: 1
+    
+    * - Functions and Properties
+      - Explanation
+    * - :func:`~spey.BackendBase.get_objective_function`
+      - Returns the objective function and/or its gradient.
+    * - :func:`~spey.BackendBase.get_hessian_logpdf_func` 
+      - Returns Hessian of the log-probability
+    * - :func:`~spey.BackendBase.get_sampler` 
+      - Returns a function to sample from the likelihood distribution.
 
-.. hlist:: 
-    :columns: 2
+A simple example implementation can be found in `example-plugin repository <https://github.com/SpeysideHEP/example-plugin>`_
+which implements
 
-    * :func:`~spey.BackendBase.negative_loglikelihood` (currently not used)
-    * :func:`~spey.BackendBase.asimov_negative_loglikelihood` (currently not used)
-    * :func:`~spey.BackendBase.minimize_negative_loglikelihood` (currently not used)
-    * :func:`~spey.BackendBase.minimize_asimov_negative_loglikelihood` (currently not used)
-    * :attr:`~spey.BackendBase.is_alive`
+.. math:: 
 
-Additionally, if implemented, spey can use the Hessian of :math:`\log\mathcal{L}(\mu, \theta)` to compute variance 
-on :math:`\mu` which can be implemented via :func:`~spey.BackendBase.get_hessian_logpdf_func`.
+    \mathcal{L}(\mu) = \prod_{i\in{\rm bins}}{\rm Poiss}(n^i|\mu n_s^i + n_b^i)
+
+
 
 Identifying and installing your statistical model
 -------------------------------------------------
@@ -190,7 +172,6 @@ is ``pip install -e .`` and :func:`~spey.AvailableBackends` function should incl
 .. code-block:: python3
 
     >>> import spey
-    >>> spey.AvailableBackends() # ['simplified_likelihoods', 'mystat_model']
     >>> spey.get_backend_metadata("mystat_model")
     >>> # {'name': 'my_stat_model',
     ... #  'author': 'John Smith <john.smith@smith.com>',

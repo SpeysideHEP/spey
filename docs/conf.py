@@ -64,17 +64,9 @@ source_suffix = {
 
 bibtex_default_style = "unsrt"
 
-bibtex_bibfiles = ["bib/references.bib"]
+bibtex_bibfiles = ["./bib/references.bib"]
 
 # exclude_patterns = ["releases/changelog-dev.md", "figs"]
-
-# intersphinx_mapping = {
-#     "python": ("https://docs.python.org/3", None),
-#     "numpy": ("https://numpy.org/doc/stable/", None),
-#     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
-#     "matplotlib": ("https://matplotlib.org/stable/", None),
-#     "iminuit": ("https://iminuit.readthedocs.io/en/stable/", None),
-# }
 
 # GitHub repo
 issues_github_path = "SpeysideHEP/spey"
@@ -101,30 +93,6 @@ man_pages = [(master_doc, "spey", "spey Documentation", [author], 1)]
 html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
 
-mathjax3_config = {
-    "tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]]},
-    "tex": {
-        "macros": {
-            "bm": ["\\boldsymbol{#1}", 1],  # \usepackage{bm}, see mathjax/MathJax#1219
-            "HiFa": r"\texttt{HistFactory}",
-            "Root": r"\texttt{ROOT}",
-            "RooStats": r"\texttt{RooStats}",
-            "RooFit": r"\texttt{RooFit}",
-            "pyhf": r"\texttt{pyhf}",
-            "CLs": r"\mathrm{CL}_{s}",
-            "freeset": r"\bm{\eta}",
-            "constrset": r"\bm{\chi}",
-            "singleconstr": r"\chi",
-            "channelcounts": r"\bm{n}",
-            "auxdata": r"\bm{a}",
-            "poiset": r"\bm{\psi}",
-            "nuisset": r"\bm{\theta}",
-            "fullset": r"\bm{\phi}",
-            "singlefull": r"\phi",
-            "TeV": r"\textrm{TeV}",
-        }
-    },
-}
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = "speydoc"

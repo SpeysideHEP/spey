@@ -16,7 +16,7 @@ which are all packaged during the installation with the necessary versions. Note
 versions may be restricted due to numeric stability and validation.
 
 What is Spey?
--------------
+============= 
 
 Spey is a plug-in based statistics tool which aims to collect all likelihood prescriptions 
 under one roof. This provides user the workspace to freely combine different statistical models 
@@ -25,114 +25,6 @@ with statistical model prescriptions which has been proposed in the past and wil
 future, Spey uses so-called plug-in system where developers can propose their own statistical 
 model prescription and allow spey to use them.
 
-.. _sec:plugins:
-
-Plugins
--------
-
-``spey`` works with various packages that are designed to deliver certain statistical model
-prescription. The goal of the ``spey`` interface is to collect all these prescriptions under
-the same roof and provide a toolset to combine different sources of likelihoods. List of plugins
-are as follows;
-
-Default plug-ins
-~~~~~~~~~~~~~~~~
-
-* ``'simplified_likelihoods'``: Main simplified likelihood backend which uses a Multivariate 
-  Normal and a Poisson distributions to construct log-probability of the statistical model. 
-  The Multivariate Normal distribution is constructed by the help of a covariance matrix 
-  provided by the user which captures the uncertainties and background correlations between 
-  each histogram bin. This statistical model has been first proposed in :cite:t:`Buckley:2018vdr`. 
-  The probability distribution of a simplified likelihood can be formed as follows;
-
-  .. math:: 
-
-        \mathcal{L}_{SL}(\mu,\theta) = \underbrace{\left[\prod_i^N {\rm Poiss}\left(n^i_{obs} | 
-        \lambda_i(\mu, \theta)\right) \right]}_{\rm main\ model}
-        \cdot \underbrace{\mathcal{N}(\theta | 0, \rho)}_{\rm constraint\ model}
-
-  Here the first term is the so-called main model based on Poisson distribution centred around 
-  :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + n^i_{bkg} + \theta_i \sqrt{\Sigma_{ii}}` and 
-  the second term is the multivariate normal distribution centred around zero with the 
-  standard deviation implemented via correlation matrix, 
-  :math:`\rho_{ij} = \frac{\Sigma_{ij}}{\sqrt{\Sigma_{ii}\Sigma_{jj}}}` and :math:`\Sigma` being 
-  the covariance matrix.
-
-* ``'simplified_likelihoods.uncorrelated_background'``: User can use multi or single bin histograms 
-  for uncorrelated histograms or single yields within simplified likelihood interface. This particular 
-  plug-in replaces Multivariate Normal distribution of the likelihood with a simple Normal 
-  distribution to reduce the computational cost.
-
-  .. math:: 
-
-        \mathcal{L}_{\rm constraint}(\theta) = \prod_i^N \mathcal{N}(\theta_i | 0, 1)
-    
-  which also simplifies :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + n^i_{bkg} + \theta_i\sigma_i`
-  where :math:`\sigma_i` is the absolute uncertainty per bin. Note that ``'simplified_likelihoods'`` 
-  backend reduces to ``'simplified_likelihoods.uncorrelated_background'`` if one provides correlation 
-  matrix as :math:`\sigma^2\mathbb{1}`.
-
-
-* ``'simplified_likelihoods.third_moment_expansion'``: Third moment expansion follows the above 
-  simplified likelihood construction and modifies the :math:`\lambda` and :math:`\Sigma`. 
-  Using the expected background yields, :math:`m^{(1)}_i`, diagonal elements of the third moments, 
-  :math:`m^{(3)}_i` and the covariance matrix, :math:`m^{(2)}_{ij}`, one can write a modified 
-  correlation matrix and :math:`\lambda` function as follows
-
-  .. math:: 
-
-        C_i &= -{\rm sign}(m^{(3)}_i) \sqrt{2 m^{(2)}_{ii}} \cos\left( \frac{4\pi}{3} + 
-        \frac{1}{3}\arctan\left(\sqrt{ \frac{8(m^{(2)}_{ii})^3}{(m^{(3)}_i)^2} - 1}\right) \right)
-        
-        B_i &= \sqrt{m^{(2)}_{ii} - 2 C_i^2}
-
-        A_i &=  m^{(1)}_i - C_i
-
-        \rho_{ij} &= \frac{1}{4C_iC_j} \left( \sqrt{(B_iB_j)^2 + 8C_iC_jm^{(2)}_{ij}} - B_iB_j \right)
-
-  which further modifies :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + A_i + B_i \theta_i + C_i \theta_i^2`
-  and the multivariate normal has been modified via the inverse of the correlation matrix, 
-  :math:`\mathcal{N}(\theta | 0, \rho)`. See :cite:t:`Buckley:2018vdr` Sec. 2 for details.
-
-* ``'simplified_likelihoods.variable_gaussian'``: Variable Gaussian method is designed to capture 
-  asymetric uncertainties on the background yields. This method converts the covariance matrix in 
-  to a function which takes absolute upper (:math:`\sigma^+`) and lower (:math:`\sigma^-`) envelops of the 
-  background uncertainties, best fit values (:math:`\hat\theta`) and nuisance parameters 
-  (:math:`\theta`) which allows the interface dynamically change the covariance 
-  matrix with respect to given nuisance parameters. This implementation follows the method 
-  proposed in ref. :cite:t:`Barlow:2004wg`. This approach transforms the covariance matrix from 
-  a constant input to a function of nuisance parameters.
-
-  .. math:: 
-
-      \sigma^\prime = \sqrt{\sigma^+\sigma^-  + (\sigma^+ - \sigma^-)(\theta - \hat\theta)}
-
-  In order to fit this expression into simplified likelihood construction one needs to modify effective
-  :math:`\sigma` term in Poisson distribution as 
-  :math:`\lambda_i(\mu, \theta) = \mu n^i_{sig} + n^i_{bkg} + \sigma^\prime_i \theta_i`.
-
-.. attention:: 
-
-    All ``'simplified_likelihoods'`` backends are constrained by :math:`\lambda(0,\theta)\geq0`.
-
-.. note:: 
-
-    ``'simplified_likelihoods'``, ``'simplified_likelihoods.uncorrelated_background'`` and 
-    ``'simplified_likelihoods.third_moment_expansion'`` implementations are validated against the code
-    provided with :cite:t:`Buckley:2018vdr` which can be found in the 
-    `dedicated gitlab repository <https://gitlab.cern.ch/SimplifiedLikelihood/SLtools>`_. 
-    Additionally they are validated against the auxiliary data provided by 
-    `CMS-SUS-20-004 <https://www.hepdata.net/record/ins2009652>`_ analysis.
-
-Third-party plug-ins
-~~~~~~~~~~~~~~~~~~~~
-
-* `spey-pyhf <https://github.com/SpeysideHEP/spey-pyhf>`_ : enables the usage of :xref:`pyhf` 
-  package through ``spey`` interface. For the documentation and installation please see 
-  `this link <https://github.com/SpeysideHEP/spey-pyhf>`_.
-
-* ``spey-fastprof`` : enables the usage of ``fastprof`` through ``spey`` interface. For the 
-  documentation and installation please see `this link <https://github.com/SpeysideHEP/spey-pyhf>`_.
 
 .. _sec:quick_start:
 
@@ -140,31 +32,39 @@ Quick Start
 ===========
 
 First one needs to choose which backend to work with. By default, spey is shipped with various types of 
-`simplified_likelihood` backend which can be checked via :func:`~spey.AvailableBackends` function
+likelihood prescriptions which can be checked via :func:`~spey.AvailableBackends` 
+function
 
-.. code:: python
+.. code-block:: python3
 
     >>> import spey
     >>> print(spey.AvailableBackends())
-    >>> # ['simplified_likelihoods', 
-    ... #  'simplified_likelihoods.third_moment_expansion', 
-    ... #  'simplified_likelihoods.uncorrelated_background', 
-    ... #  'simplified_likelihoods.variable_gaussian']
+    >>> # ['default_pdf.correlated_background',
+    >>> #  'default_pdf.effective_sigma',
+    >>> #  'default_pdf.third_moment_expansion',
+    >>> #  'default_pdf.uncorrelated_background']
 
-Using ``'simplified_likelihoods.uncorrelated_background'`` one can simply create single or multi-bin
+For details on all the backends, see `Plug-ins section <plugins>`_.
+
+Using ``'default_pdf.uncorrelated_background'`` one can simply create single or multi-bin
 statistical models:
 
 .. code:: python
 
-    >>> stat_wrapper = spey.get_backend('simplified_likelihoods.uncorrelated_background')
+    >>> pdf_wrapper = spey.get_backend('default_pdf.uncorrelated_background')
 
     >>> data = [1]
     >>> signal_yields = [0.5]
     >>> background_yields = [2.0]
     >>> background_unc = [1.1]
 
-    >>> stat_model = stat_wrapper(
-    ...     signal_yields, background_yields, data, background_unc, analysis="single_bin", xsection=0.123
+    >>> stat_model = pdf_wrapper(
+    ...     signal_yields=signal_yields,
+    ...     background_yields=background_yields,
+    ...     data=data,
+    ...     absolute_uncertainties=background_unc,
+    ...     analysis="single_bin", 
+    ...     xsection=0.123,
     ... )
 
 where ``data`` indicates the observed events, ``signal_yields`` and ``background_yields`` represents
@@ -197,31 +97,36 @@ To compute the observed exclusion limit for the above example one can type
 
     >>> for expectation in spey.ExpectationType:
     >>>     print(f"1-CLs ({expectation}): {stat_model.exclusion_confidence_level(expected=expectation)}")
-    >>> # 1-CLs (apriori): [0.48980408984423207, 0.35671028499361224, 0.21275777462774292, 0.17543303294266588, 0.17543303294266588]
+    >>> # 1-CLs (apriori): [0.49026742260475775, 0.3571003642744075, 0.21302512037071475, 0.1756147641077802, 0.1756147641077802]
     >>> # 1-CLs (aposteriori): [0.6959976874809755, 0.5466491036450178, 0.3556261845401908, 0.2623335168616665, 0.2623335168616665]
     >>> # 1-CLs (observed): [0.40145846656558726]
 
 Note that :obj:`~spey.ExpectationType.apriori` and :obj:`~spey.ExpectationType.aposteriori` expectation types 
-resulted in a list of 5 elements which indicates :math:`-2\sigma,\ -1\sigma,\ 0,\ +1\sigma,\ +2\sigma` standard deviations.
-:obj:`~spey.ExpectationType.observed` on the other hand resulted in single value which is observed exclusion limit.
-Notice that the bounds on :obj:`~spey.ExpectationType.aposteriori` are slightly stronger than :obj:`~spey.ExpectationType.apriori`
-this is due to the data value has been replaced with background yields, which is larger than the observations. 
-:obj:`~spey.ExpectationType.apriori` is mostly used in theory collaborations to estimate the difference from the Standard Model
-rather than the experimental observations.
+resulted in a list of 5 elements which indicates :math:`-2\sigma,\ -1\sigma,\ 0,\ +1\sigma,\ +2\sigma` standard deviations
+from the background hypothesis. :obj:`~spey.ExpectationType.observed` on the other hand resulted in single value which is 
+observed exclusion limit. Notice that the bounds on :obj:`~spey.ExpectationType.aposteriori` are slightly stronger than 
+:obj:`~spey.ExpectationType.apriori` this is due to the data value has been replaced with background yields, 
+which is larger than the observations. :obj:`~spey.ExpectationType.apriori` is mostly used in theory 
+collaborations to estimate the difference from the Standard Model rather than the experimental observations.
 
 One can play the same game using the same backend for multi-bin histograms as follows;
 
 .. code:: python
 
-    >>> stat_wrapper = spey.get_backend('simplified_likelihoods.uncorrelated_background')
+    >>> pdf_wrapper = spey.get_backend('default_pdf.uncorrelated_background')
 
-    >>> data = [1, 3]
-    >>> signal = [0.5, 2.0]
-    >>> background = [2.0, 2.8]
-    >>> background_unc = [1.1, 0.8]
+    >>> data = [36, 33]
+    >>> signal = [12.0, 15.0]
+    >>> background = [50.0,48.0]
+    >>> background_unc = [12.0,16.0]
 
-    >>> stat_model = stat_wrapper(
-    ...     signal, background, data, background_unc, analysis="multi-bin", xsection=0.123
+    >>> stat_model = pdf_wrapper(
+    ...     signal_yields=signal_yields,
+    ...     background_yields=background_yields,
+    ...     data=data,
+    ...     absolute_uncertainties=background_unc,
+    ...     analysis="multi_bin", 
+    ...     xsection=0.123,
     ... )
 
 Note that our statistical model still represents individual bins of the histograms independently however it sums up the 
@@ -232,9 +137,9 @@ for each :obj:`~spey.ExpectationType` will yield
 
     >>> for expectation in spey.ExpectationType:
     >>>     print(f"1-CLs ({expectation}): {stat_model.exclusion_confidence_level(expected=expectation)}")
-    >>> # 1-CLs (apriori): [0.9357315808495567, 0.8480953812080605, 0.6707336318388715, 0.40146054347432814, 0.40146054347432814]
-    >>> # 1-CLs (aposteriori): [0.945840731123488, 0.8657740143137352, 0.6959070047129498, 0.41884413918205454, 0.41034502645428916]
-    >>> # 1-CLs (observed): [0.7016751631249967]
+    >>> # 1-CLs (apriori): [0.971099302028661, 0.9151646569018123, 0.7747509673901924, 0.5058089246145081, 0.4365406649302913]
+    >>> # 1-CLs (aposteriori): [0.9989818194986659, 0.9933308419577298, 0.9618669253593897, 0.8317680908087413, 0.5183060229282643]
+    >>> # 1-CLs (observed): [0.9701795436411219]
 
 It is also possible to compute :math:`1-CL_s` value with respect to the parameter of interest, :math:`\mu`.
 This can be achieved by including a value for ``poi_test`` argument
@@ -242,16 +147,20 @@ This can be achieved by including a value for ``poi_test`` argument
 .. code:: python
     :linenos:
 
-    >>> poiUL = np.array([stat_model.exclusion_confidence_level(poi_test=p, expected=spey.ExpectationType.aposteriori) for p in np.linspace(1,5,20)])
-    >>> plt.plot(np.linspace(1,5,20), poiUL[:,2], color="tab:red")
-    >>> plt.fill_between(np.linspace(1,5,20), poiUL[:,1], poiUL[:,3], alpha=0.8, color="green", lw=0)
-    >>> plt.fill_between(np.linspace(1,5,20), poiUL[:,0], poiUL[:,4], alpha=0.5, color="yellow", lw=0)
-    >>> plt.plot([1,5], [.95,.95], color="k", ls="dashed")
-    >>> plt.xlabel("$\mu$")
+    >>> import matplotlib.pyplot as plt
+    >>> import numpy as np
+
+    >>> poi = np.linspace(0,10,20)
+    >>> poiUL = np.array([stat_model.exclusion_confidence_level(poi_test=p, expected=spey.ExpectationType.aposteriori) for p in poi])
+    >>> plt.plot(poi, poiUL[:,2], color="tab:red")
+    >>> plt.fill_between(poi, poiUL[:,1], poiUL[:,3], alpha=0.8, color="green", lw=0)
+    >>> plt.fill_between(poi, poiUL[:,0], poiUL[:,4], alpha=0.5, color="yellow", lw=0)
+    >>> plt.plot([0,10], [.95,.95], color="k", ls="dashed")
+    >>> plt.xlabel(r"${\rm signal\ strength}\ (\mu)$")
     >>> plt.ylabel("$1-CL_s$")
-    >>> plt.xlim([1,5])
-    >>> plt.ylim([.4,1.01])
-    >>> plt.text(4,0.9, r"$95\%\ {\rm CL}$")
+    >>> plt.xlim([0,10])
+    >>> plt.ylim([0.6,1.01])
+    >>> plt.text(0.5,0.96, r"$95\%\ {\rm CL}$")
     >>> plt.show()
 
 Here in the first line we extract :math:`1-CL_s` values per POI for :obj:`~spey.ExpectationType.aposteriori` 
@@ -267,7 +176,7 @@ The excluded value of POI can also be retreived by :func:`~spey.StatisticalModel
 .. code:: python
 
     >>> print("POI UL: %.3f" % stat_model.poi_upper_limit(expected=spey.ExpectationType.aposteriori))
-    >>> # POI UL: 2.201
+    >>> # POI UL:  0.920
 
 which is exact point where red-curve and black dashed line meets. The upper limit for the :math:`\pm1\sigma`
 or :math:`\pm2\sigma` bands can be extracted by setting ``expected_pvalue`` to ``"1sigma"`` or ``"2sigma"`` 
@@ -276,7 +185,7 @@ respectively, e.g.
 .. code:: python
 
     >>> stat_model.poi_upper_limit(expected=spey.ExpectationType.aposteriori, expected_pvalue="1sigma")
-    >>> # [1.4633382034219111, 2.2009296966966683, 3.3921192489003325]
+    >>> # [0.5507713378348318, 0.9195052042538805, 1.4812721449679866]
 
 At a more lower level, one can extract the likelihood information for the statistical model by calling 
 :func:`~spey.StatisticalModel.likelihood` and :func:`~spey.StatisticalModel.maximize_likelihood` functions.
@@ -289,7 +198,7 @@ argument.
     >>> muhat_obs, maxllhd_obs = stat_model.maximize_likelihood(return_nll=False, )
     >>> muhat_apri, maxllhd_apri = stat_model.maximize_likelihood(return_nll=False, expected=spey.ExpectationType.apriori)
 
-    >>> poi = np.linspace(-1.4,2.2,15)
+    >>> poi = np.linspace(-3,4,60)
 
     >>> llhd_obs = np.array([stat_model.likelihood(p, return_nll=False) for p in poi])
     >>> llhd_apri = np.array([stat_model.likelihood(p, expected=spey.ExpectationType.apriori, return_nll=False) for p in poi])
@@ -300,10 +209,16 @@ as follows
 
 .. code:: python
 
-    >>> plt.plot(poi, llhd_obs, label=r"${\rm observed}$")
-    >>> plt.plot(poi, llhd_apri, label=r"${\rm apriori}$")
-    >>> plt.scatter(muhat_obs, maxllhd_obs)
-    >>> plt.scatter(muhat_apri, maxllhd_apri)
+    >>> plt.plot(poi, llhd_obs/maxllhd_obs, label=r"${\rm observed\ or\ aposteriori}$")
+    >>> plt.plot(poi, llhd_apri/maxllhd_apri, label=r"${\rm apriori}$")
+    >>> plt.scatter(muhat_obs, 1)
+    >>> plt.scatter(muhat_apri, 1)
+    >>> plt.legend(loc="upper right")
+    >>> plt.ylabel(r"$\mathcal{L}(\mu,\theta_\mu)/\mathcal{L}(\hat\mu,\hat\theta)$")
+    >>> plt.xlabel(r"${\rm signal\ strength}\ (\mu)$")
+    >>> plt.ylim([0,1.3])
+    >>> plt.xlim([-3,4])
+    >>> plt.show()
 
 .. image:: ./figs/multi_bin_llhd.png
     :align: center
@@ -314,8 +229,3 @@ Notice the slight difference between likelihood distributions, this is because o
 The dots on the likelihood distribution represents the point where likelihood is maximized. Since for an 
 :obj:`~spey.ExpectationType.apriori` likelihood distribution observed and background values are the same, the likelihood
 should peak at :math:`\mu=0`.
-
-Bibliography
-============
-
-.. bibliography:: 
