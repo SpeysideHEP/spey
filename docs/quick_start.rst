@@ -120,8 +120,8 @@ One can play the same game using the same backend for multi-bin histograms as fo
     >>> pdf_wrapper = spey.get_backend('default_pdf.uncorrelated_background')
 
     >>> data = [36, 33]
-    >>> signal = [12.0, 15.0]
-    >>> background = [50.0,48.0]
+    >>> signal_yields = [12.0, 15.0]
+    >>> background_yields = [50.0,48.0]
     >>> background_unc = [12.0,16.0]
 
     >>> stat_model = pdf_wrapper(
