@@ -88,5 +88,5 @@ class EmpricTestStatisticsDistribution:
             expected value of test statistic.
         """
         return np.percentile(
-            self.samples, multivariate_normal.cdf(nsigma) * 100.0, interpolation="linear"
+            self.samples, multivariate_normal.cdf(nsigma) * 100.0, method="linear"
         )
