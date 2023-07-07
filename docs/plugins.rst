@@ -1,4 +1,4 @@
-.. _plugins:
+.. _sec:plugins:
 
 Plug-ins
 ========

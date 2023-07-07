@@ -44,7 +44,7 @@ function
     >>> #  'default_pdf.third_moment_expansion',
     >>> #  'default_pdf.uncorrelated_background']
 
-For details on all the backends, see `Plug-ins section <plugins>`_.
+For details on all the backends, see `Plug-ins section <plugins.html>`_.
 
 Using ``'default_pdf.uncorrelated_background'`` one can simply create single or multi-bin
 statistical models:
