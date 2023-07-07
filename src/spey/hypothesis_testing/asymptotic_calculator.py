@@ -8,6 +8,10 @@ from .utils import pvalues, expected_pvalues
 __all__ = ["compute_asymptotic_confidence_level"]
 
 
+def __dir__():
+    return __all__
+
+
 def compute_asymptotic_confidence_level(
     sqrt_qmuA: float, delta_test_statistic: float, test_stat: Text = "qtilde"
 ) -> Tuple[List[float], List[float]]:
