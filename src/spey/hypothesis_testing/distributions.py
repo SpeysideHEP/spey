@@ -1,9 +1,17 @@
-"""Test statistic distributions"""
+"""
+Test statistic distributions
+
+Similar implementation can be found in https://github.com/scikit-hep/pyhf/blob/main/src/pyhf/infer/calculators.py
+"""
 
 from scipy.stats import multivariate_normal
 import numpy as np
 
 __all__ = ["AsymptoticTestStatisticsDistribution", "EmpricTestStatisticsDistribution"]
+
+
+def __dir__():
+    return __all__
 
 
 class AsymptoticTestStatisticsDistribution:

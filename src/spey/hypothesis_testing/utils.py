@@ -1,3 +1,9 @@
+"""
+Routines for computing pvalues
+
+Similar implementation can be found in https://github.com/scikit-hep/pyhf/blob/main/src/pyhf/infer/calculators.py
+"""
+
 from typing import Tuple, List, Union
 import warnings
 import numpy as np
@@ -8,6 +14,10 @@ from .distributions import (
 )
 
 __all__ = ["pvalues", "expected_pvalues"]
+
+
+def __dir__():
+    return __all__
 
 
 def pvalues(
