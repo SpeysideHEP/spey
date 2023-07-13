@@ -17,8 +17,6 @@ __all__ = [
     "UnCorrStatisticsCombiner",
     "ExpectationType",
     "AvailableBackends",
-    "get_correlated_nbin_statistical_model",
-    "get_uncorrelated_nbin_statistical_model",
     "get_backend",
     "get_backend_metadata",
     "reset_backend_entries",
@@ -103,12 +101,12 @@ def get_backend(name: Text) -> Callable[[Any, ...], StatisticalModel]:
         :linenos:
 
         >>> import spey; import numpy as np
-        >>> stat_wrapper = spey.get_backend("simplified_likelihoods")
+        >>> stat_wrapper = spey.get_backend("default_pdf.uncorrelated_background")
 
         >>> data = np.array([1])
         >>> signal = np.array([0.5])
         >>> background = np.array([2.])
-        >>> background_unc = np.array([[1.1]])
+        >>> background_unc = np.array([1.1])
 
         >>> stat_model = stat_wrapper(
         ...     signal_yields=signal,
@@ -179,13 +177,13 @@ def get_backend_metadata(name: Text) -> Dict[Text, Any]:
 
     .. code-block:: python3
 
-        >>> spey.get_backend_metadata("simplified_likelihoods")
+        >>> spey.get_backend_metadata("default_pdf.third_moment_expansion")
 
     will return the following
 
     .. code-block:: python3
 
-        >>> {'name': 'simplified_likelihoods',
+        >>> {'name': 'default_pdf.third_moment_expansion',
         ... 'author': 'SpeysideHEP',
         ... 'version': '0.0.1',
         ... 'spey_requires': '0.0.1',
@@ -209,213 +207,4 @@ def get_backend_metadata(name: Text) -> Dict[Text, Any]:
         f"The backend {name} is unavailable. Available backends are "
         + ", ".join(AvailableBackends())
         + "."
-    )
-
-
-def get_uncorrelated_nbin_statistical_model(
-    data: Union[float, int, np.ndarray, List[float]],
-    backgrounds: Union[float, np.ndarray, List[float]],
-    background_uncertainty: Union[float, np.ndarray, List[float]],
-    signal_yields: Union[float, np.ndarray, List[float]],
-    xsection: Union[float, np.ndarray, List[float]],
-    analysis: Text,
-    backend: Text,
-) -> StatisticalModel:
-    """
-    Create a statistical model from uncorrelated bins.
-
-    Args:
-        data (``float, int, np.ndarray, List[float]``): data yields
-        backgrounds (``float, np.ndarray, List[float]``): background yields
-        background_uncertainty (``float, np.ndarray, List[float]``): absolute background uncertainty
-        signal_yields (``float, np.ndarray, List[float]``): signal yields
-        xsection (``float, np.ndarray, List[float]``): cross section value, unit determined by the user.
-        analysis (``Text``): unique analysis name for the statistical model.
-        backend (``Text``): statistical model backend. Currently available backend names can be
-          retreived via :func:`~spey.AvailableBackends` function.
-
-    Raises:
-        `NotImplementedError`: If the backend is not implemented.
-
-    Returns:
-        :class:`~spey.StatisticalModel`:
-        Statistical model object.
-
-    Example:
-
-    A single bin example can be initiated via
-
-    .. code-block:: python3
-
-        >>> import spey
-        >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
-        ...     1, 2.0, 1.1, 0.5, 0.123, "simple_sl", "simplified_likelihoods"
-        ... )
-        >>> statistical_model.exclusion_confidence_level() # [0.4014584422111511]
-
-    And a multi-bin structure can be embeded via simple :obj:`List[float]` inputs
-
-    .. code-block:: python3
-
-        >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
-        ...     [1, 3], [2.0, 2.8], [1.1, 0.8], [0.5, 2.0], 0.123, "simple_sl", "simplified_likelihoods"
-        ... )
-        >>> statistical_model.exclusion_confidence_level() # [0.7016751766204834]
-    """
-    if backend == "simplified_likelihoods":
-        backend = "simplified_likelihoods.uncorrelated_background"
-    if backend == "pyhf":
-        backend = "pyhf.uncorrelated_background"
-
-    statistical_model = get_backend(backend)
-
-    if backend == "pyhf.uncorrelated_background":
-        return statistical_model(
-            signal_yields=signal_yields,
-            background_yields=backgrounds,
-            data=data,
-            absolute_uncertainties=background_uncertainty,
-            xsection=xsection,
-            analysis=analysis,
-        )
-
-    if backend == "simplified_likelihoods.uncorrelated_background":
-        # Convert everything to numpy array
-        background_uncertainty = (
-            np.array(background_uncertainty).reshape(-1)
-            if isinstance(background_uncertainty, (list, float))
-            else background_uncertainty
-        )
-        signal_yields = (
-            np.array(signal_yields).reshape(-1)
-            if isinstance(signal_yields, (list, float))
-            else signal_yields
-        )
-        nobs = (
-            np.array(data).reshape(-1) if isinstance(data, (list, float, int)) else data
-        )
-        nb = (
-            np.array(backgrounds).reshape(-1)
-            if isinstance(backgrounds, (list, float))
-            else backgrounds
-        )
-
-        return statistical_model(
-            signal_yields=signal_yields,
-            background_yields=nb,
-            data=nobs,
-            absolute_uncertainties=background_uncertainty,
-            xsection=xsection,
-            analysis=analysis,
-        )
-
-    raise NotImplementedError(
-        "Requested backend has not been implemented to this helper function."
-    )
-
-
-def get_correlated_nbin_statistical_model(
-    data: Union[np.ndarray, Dict[Text, List], List[float]],
-    signal_yields: Union[np.ndarray, List[Dict[Text, List]], List[float]],
-    covariance_matrix: Optional[Union[np.ndarray, List[List[float]]]] = None,
-    backgrounds: Optional[Union[np.ndarray, List[float]]] = None,
-    xsection: float = np.nan,
-    analysis: Text = "__unknown_analysis__",
-) -> StatisticalModel:
-    """
-    Create a statistical model from a correlated multi-bin data structure.
-
-    Args:
-        data (``Union[np.ndarray, Dict[Text, List], List[float]]``): data yields. In order to activate
-          :xref:`pyhf` plugin ``JSON`` type of input should be used. For details about the dictionary
-          structure please refer to :xref:`pyhf` documentation `in this link <https://pyhf.readthedocs.io/>`_.
-          Additionally analysis specific, **background only** ``JSON`` files can be found through
-          :xref:`HEPData`.
-        signal_yields (``Union[np.ndarray, List[Dict[Text, List]], List[float]]``): signal yields. To
-          activate :xref:`pyhf` plugin input needs to have a ``JSONPATCH`` structure consistent with
-          the input data.
-        covariance_matrix (``Optional[Union[np.ndarray, List[List[float]]]]``, default ``None``):
-          Simplified likelihoods are constructed via covariance matrices. Input should have a matrix structure
-          with each axis have the same dimensionality as number of reqions included in data input.
-          This input is only used for ``"simplified_likelihoods"`` backend.
-        backgrounds (``Optional[Union[np.ndarray, List[float]]]``, default ``None``): The SM backgrounds
-          for simplified likelihood backend. These are combined background only yields and the size of the input
-          vector should be the same as data input. This input is only used for ``"simplified_likelihoods"`` backend.
-        xsection (``float``, default ``np.nan``): cross section value. unit is determined by the user.
-        analysis (``Text``, default ``"__unknown_analysis__"``): unique analysis identifier.
-
-    Raises:
-        `NotImplementedError`: If the plugin does not exist or the inputs are not consistently matching
-          to a particular plugin.
-
-    Returns:
-        :class:`~spey.StatisticalModel`:
-        Model formed with correlated multi-bin structure.
-
-    Example:
-
-    ``"simplified_likelihoods"`` backend can be invoked via the following input structure
-
-    .. code-block:: python3
-        :linenos:
-
-        >>> import spey
-        >>> statistical_model = spey.get_correlated_nbin_statistical_model(
-        ...     analysis="simple_sl_test",
-        ...     signal_yields=[12.0, 11.0],
-        ...     data=[51.0, 48.0],
-        ...     covariance_matrix=[[3.,0.5], [0.6,7.]],
-        ...     backgrounds=[50.0, 52.0],
-        ...     third_moment=[0.2, 0.1],
-        ...     xsection=0.5
-        ... )
-        >>> statistical_model.exclusion_confidence_level() # [0.9733284916728735]
-        >>> statistical_model.backend_type # 'simplified_likelihoods'
-    """
-
-    if (
-        isinstance(signal_yields, list)
-        and isinstance(signal_yields[0], dict)
-        and isinstance(data, dict)
-    ):
-        PyhfInterface = get_backend("pyhf")
-        return PyhfInterface(
-            signal_patch=signal_yields,
-            background_only_model=data,
-            xsection=xsection,
-            analysis=analysis,
-        )
-
-    if (
-        covariance_matrix is not None
-        and isinstance(signal_yields, (list, np.ndarray))
-        and isinstance(data, (list, np.ndarray))
-    ):
-        SimplifiedLikelihoodInterface = get_backend("simplified_likelihoods")
-
-        # Convert everything to numpy array
-        covariance_matrix = (
-            np.array(covariance_matrix)
-            if isinstance(covariance_matrix, list)
-            else covariance_matrix
-        )
-        signal_yields = (
-            np.array(signal_yields) if isinstance(signal_yields, list) else signal_yields
-        )
-        data = np.array(data) if isinstance(data, list) else data
-        backgrounds = (
-            np.array(backgrounds) if isinstance(backgrounds, list) else backgrounds
-        )
-
-        return SimplifiedLikelihoodInterface(
-            signal_yields=signal_yields,
-            background_yields=backgrounds,
-            data=data,
-            covariance_matrix=covariance_matrix,
-            xsection=xsection,
-            analysis=analysis,
-        )
-
-    raise NotImplementedError(
-        "Requested backend has not been implemented to this helper function."
     )
