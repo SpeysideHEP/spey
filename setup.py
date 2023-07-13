@@ -32,14 +32,14 @@ backend_plugins = [
 setup(
     name="spey",
     version=version,
-    description=("Smooth statistics combination for reinterpretation studies"),
+    description=("Smooth inference for reinterpretation studies"),
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/SpeysideHEP/spey",
     project_urls={
         "Bug Tracker": "https://github.com/SpeysideHEP/spey/issues",
     },
-    # download_url=f"https://github.com/SpeysideHEP/spey/archive/refs/tags/v{version}.tar.gz",
+    download_url=f"https://github.com/SpeysideHEP/spey/archive/refs/tags/v{version}.tar.gz",
     author="Jack Y. Araz",
     author_email=("jack.araz@durham.ac.uk"),
     license="MIT",
