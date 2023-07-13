@@ -116,7 +116,7 @@ def get_backend(name: Text) -> Callable[[Any, ...], StatisticalModel]:
         ...     analysis="simple_sl",
         ...     xsection=0.123
         ... )
-        >>> stat_model.exclusion_confidence_level() # [0.4022058844566345]
+        >>> stat_model.exclusion_confidence_level()
 
     .. note::
 

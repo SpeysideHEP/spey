@@ -446,7 +446,6 @@ class UncorrelatedBackground(DefaultPDFBase):
         ...     signal, background, data, background_unc, analysis="multi-bin", xsection=0.123
         ... )
         >>> print("1-CLs : %.3f" % tuple(stat_model.exclusion_confidence_level()))
-        >>> # 1-CLs : 0.702
     """
 
     name: Text = "default_pdf.uncorrelated_background"
@@ -572,7 +571,6 @@ class CorrelatedBackground(DefaultPDFBase):
 
         >>> statistical_model = stat_wrapper(signal_yields,background_yields,data,covariance_matrix)
         >>> print(statistical_model.exclusion_confidence_level())
-        >>> # [0.9734448420632104]
     """
 
     name: Text = "default_pdf.correlated_background"
