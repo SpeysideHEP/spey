@@ -238,10 +238,10 @@ External Plug-ins
 
     * ``spey-pyhf`` plugin allows pyhf's likelihood prescription to be used within ``spey``.
       for details see the `dedicated documentation <https://github.com/SpeysideHEP/spey-pyhf>`_ 
-      :cite:t:`pyhf_joss`.
+      :cite:`pyhf_joss`.
         
         * `pyhf documentation <https://pyhf.readthedocs.io>`_.
     
-    * ``spey-fastprof``: TBA :cite:t:`Berger:2023bat`.
+    * ``spey-fastprof``: TBA :cite:`Berger:2023bat`.
 
         * `fastprof documentation <https://fastprof.web.cern.ch/fastprof/>`_.

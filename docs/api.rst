@@ -16,8 +16,6 @@ Top-Level
     get_backend
     get_backend_metadata
     reset_backend_entries
-    get_uncorrelated_nbin_statistical_model
-    get_correlated_nbin_statistical_model
     statistical_model_wrapper
     helper_functions.correlation_to_covariance
     helper_functions.covariance_to_correlation
