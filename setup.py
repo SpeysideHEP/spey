@@ -3,12 +3,16 @@ from setuptools import setup, find_packages
 with open("README.md", mode="r", encoding="utf-8") as f:
     long_description = f.read()
 
-with open("requirements.txt", mode="r", encoding="UTF-8") as f:
-    requirements = f.read()
-requirements = [x for x in requirements.split("\n") if x != ""]
-
 with open("src/spey/_version.py", mode="r", encoding="UTF-8") as f:
     version = f.readlines()[-1].split()[-1].strip("\"'")
+
+requirements = [
+    "numpy>=1.21.6",
+    "scipy==1.10.0",
+    "autograd==1.5",
+    "semantic_version~=2.10",
+    "tqdm>=4.64.0",
+]
 
 docs = [
     "sphinx>=6.1.3",

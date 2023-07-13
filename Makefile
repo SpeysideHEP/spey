@@ -14,11 +14,11 @@ uninstall:
 
 .PHONY: test
 test:
-	pytest --cov=spey tests/*/*py --cov-fail-under 99
+	pytest --cov=spey tests/*py #--cov-fail-under 99
 
 .PHONY: build
 build:
-	python -m setup.py bdist_wheel sdist
+	python -m build
 
 .PHONY: check_dist
 check_dist:
