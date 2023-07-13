@@ -1,4 +1,4 @@
-# Spey: smooth combination of statistical models for reinterpretation studies
+# Spey: smooth inference for reinterpretation studies
 
 A universal statistics package for reinterpretation studies. See the [documentation]() for details.
 
