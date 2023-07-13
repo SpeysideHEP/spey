@@ -4,7 +4,7 @@
 [![DOI](https://img.shields.io/static/v1?style=plastic&label=DOI&message=TBA&color=blue)]()
 [![zenodoo](https://img.shields.io/static/v1?style=plastic&label=zenodo&message=TBA&color=blue)]()
 
-A universal statistics package for reinterpretation studies. See the [documentation]() for details.
+A universal statistics package for reinterpretation studies. See the [documentation](https://speysidehep.github.io/spey/) for details.
 
 ## Outline
 
