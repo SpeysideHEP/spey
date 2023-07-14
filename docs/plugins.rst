@@ -3,11 +3,12 @@
 Plug-ins
 ========
 
-``spey`` works with various packages that are designed to deliver certain statistical model
-prescription. The goal of the ``spey`` interface is to collect all these prescriptions under
-the same roof and provide a toolset to combine different sources of likelihoods. 
-In this section we will summarise currently available plugins 
-which are accessible throghy `spey` interface. The string based accessors
+Spey seamlessly integrates with diverse packages that offer specific 
+statistical model prescriptions. Its primary objective is to centralize
+these prescriptions within a unified interface, facilitating the 
+combination of different likelihood sources. In this section, we 
+will provide an overview of the currently available plugins accessible 
+through the Spey interface. The string based accessors
 to the available plugins can be seen using the following command:
 
 .. code-block:: python3
