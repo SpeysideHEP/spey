@@ -154,23 +154,6 @@ class StatisticalModel(HypothesisTestingBase):
             ``float``:
             Returns the upper limit at 95% CL on cross section value where the unit is defined
             by the user.
-
-        Example:
-
-        .. code-block:: python3
-
-            >>> import spey
-            >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
-            ...     1, 2.0, 1.1, 0.5, 0.123, "simple_sl", "simplified_likelihoods"
-            ... )
-            >>> for expectation in spey.ExpectationType:
-            >>>     print(
-            ...         f"Excluded cross section with {expectation}: ",
-            ...         statistical_model.excluded_cross_section(expected=expectation)
-            ...     )
-            >>> # Excluded cross section with apriori: 1.126437181831991
-            >>> # Excluded cross section with aposteriori: 0.9600107752838337
-            >>> # Excluded cross section with observed: 0.828274776848163
         """
         if np.isnan(self.xsection):
             raise UnknownCrossSection("Cross-section value has not been initialised.")
@@ -302,16 +285,6 @@ class StatisticalModel(HypothesisTestingBase):
         Returns:
             ``float``:
             Likelihood of the statistical model at a fixed signal strength.
-
-        Example:
-
-        .. code-block:: python3
-
-            >>> import spey
-            >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
-            ...     1, 2.0, 1.1, 0.5, 0.123, "simple_sl", "simplified_likelihoods"
-            ... )
-            >>> statistical_model.likelihood(0.5) # 2.3078367000498305
         """
         fit_opts = self.prepare_for_fit(expected=expected, data=data, **kwargs)
 
@@ -455,23 +428,6 @@ class StatisticalModel(HypothesisTestingBase):
         Returns:
             ``float``:
             likelihood computed for asimov data
-
-        Example:
-
-        .. code-block:: python3
-
-            >>> import spey
-            >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
-            ...     1, 2.0, 1.1, 0.5, 0.123, "simple_sl", "simplified_likelihoods"
-            ... )
-            >>> for test_stat in ["q", "qtilde", "q0"]:
-            >>>     print(
-            ...         f"L_A with {test_stat}: ",
-            ...         statistical_model.asimov_likelihood(0.5, test_statistics=test_stat)
-            ...     )
-            >>> # L_A with q:  2.2866167339701358
-            >>> # L_A with qtilde:  2.2866167339701358
-            >>> # L_A with q0:  2.2829074109879595
         """
         return self.likelihood(
             poi_test=poi_test,
@@ -529,19 +485,6 @@ class StatisticalModel(HypothesisTestingBase):
         Returns:
             ``Tuple[float, float]``:
             :math:`\hat\mu` value and maximum value of the likelihood.
-
-        Examples:
-
-        .. code-block:: python3
-
-            >>> import spey
-            >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
-            ...     1, 2.0, 1.1, 0.5, 0.123, "simple_sl", "simplified_likelihoods"
-            ... )
-            >>> print("muhat: %.3f, negative log-likelihood %.3f" % statistical_model.maximize_likelihood())
-            >>> # muhat: -2.001, negative log-likelihood 2.014
-            >>> print("muhat: %.3f, negative log-likelihood %.3f" % statistical_model.maximize_likelihood(allow_negative_signal=False))
-            >>> # muhat: 0.000, negative log-likelihood 2.210
         """
         fit_opts = self.prepare_for_fit(
             expected=expected,
@@ -611,21 +554,6 @@ class StatisticalModel(HypothesisTestingBase):
         Returns:
             ``Tuple[float, float]``:
             :math:`\hat\mu` value and maximum value of the likelihood.
-
-        Example:
-
-        .. code-block:: python3
-
-            >>> import spey
-            >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
-            ...     1, 2.0, 1.1, 0.5, 0.123, "simple_sl", "simplified_likelihoods"
-            ... )
-            >>> print("muhat: %.3f, negative log-likelihood %.3f" % statistical_model.maximize_asimov_likelihood(test_statistics="q"))
-            >>> # muhat: -0.871, negative log-likelihood 2.209
-            >>> print("muhat: %.3f, negative log-likelihood %.3f" % statistical_model.maximize_asimov_likelihood(test_statistics="qtilde"))
-            >>> # muhat: 0.000, negative log-likelihood 2.242
-            >>> print("muhat: %.3f, negative log-likelihood %.3f" % statistical_model.maximize_asimov_likelihood(test_statistics="q0"))
-            >>> # muhat: 0.000, negative log-likelihood 2.225
         """
         allow_negative_signal: bool = True if test_statistics in ["q", "qmu"] else False
 
@@ -685,18 +613,6 @@ class StatisticalModel(HypothesisTestingBase):
             ``Union[np.ndarray, Callable[[int], np.ndarray]]``:
             Sampled data with shape of ``(size, number of bins)`` or callable function to sample from
             directly.
-
-        Example:
-
-        .. code-block:: python3
-
-            >>> import spey
-            >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
-            ...     1, 2.0, 1.1, 0.5, 0.123, "simple_sl", "simplified_likelihoods"
-            ... )
-            >>> bkg_sample = statistical_model.fixed_poi_sampler(0., 10)
-            >>> bkg_sample.shape
-            >>> # (10, 1)
         """
         fit_opts = self.prepare_for_fit(expected=expected, **kwargs)
 
@@ -751,17 +667,6 @@ class StatisticalModel(HypothesisTestingBase):
         Returns:
             ``float``:
             variance on parameter of interest.
-
-        Example:
-
-        .. code-block:: python3
-
-            >>> import spey
-            >>> statistical_model = spey.get_uncorrelated_nbin_statistical_model(
-            ...     1, 2.0, 1.1, 0.5, 0.123, "simple_sl", "simplified_likelihoods"
-            ... )
-            >>> statistical_model.sigma_mu_from_hessian(0.3)
-            >>> # 3.993148035554591
         """
         try:
             hessian_func = self.backend.get_hessian_logpdf_func(expected=expected)
