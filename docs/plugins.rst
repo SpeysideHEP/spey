@@ -218,7 +218,7 @@ reduced the exclusion limit.
    For absolute uncertainty :math:`\sigma_b`; :math:`\sigma_b = \sqrt{{\rm diag}(\Sigma)}`. Covariance matrix should be a square matrix
    and both dimensions should match number of ``background_yields`` given as input.
  * ``third_moment``: Diagonal elements of the third moments. These can be computed using 
-   :func:`~spey.backends.default_pdf.third_moment.compute_third_moments` function; however this function applies computes third moments using
+   :func:`~spey.backends.default_pdf.third_moment.compute_third_moments` function; however this function computes third moments using
    Bifurcated Gaussian which may not be suitable for every case.
  * ``analysis`` (optional): Unique identifier for the analysis.
  * ``xsection`` (optional): Cross section value for the signal hypothesis. Units determined by the user.
