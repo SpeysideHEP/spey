@@ -12,6 +12,12 @@ on:
   # Enables manual action execution.
   workflow_dispatch:
 
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+
 jobs:
   linter_name:
     name: runner / black
