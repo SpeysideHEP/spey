@@ -24,7 +24,7 @@ workspace, Spey empowers them to seamlessly integrate different statistical mode
 their properties through a unified interface. To ensure compatibility with existing and future 
 statistical model prescriptions, Spey adopts a versatile plug-in system. This approach enables 
 developers to propose and integrate their own statistical model prescriptions, thereby expanding
- the capabilities and applicability of Spey.
+the capabilities and applicability of Spey.
 
 
 .. _sec:quick_start:
