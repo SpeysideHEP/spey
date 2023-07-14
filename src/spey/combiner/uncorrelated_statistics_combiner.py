@@ -27,7 +27,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
     .. warning::
 
         :obj:`~spey.UnCorrStatisticsCombiner` assumes that all input are uncorrelated and
-        non of the statistical models posesses the same set of nuisance parameters. Thus 
+        non of the statistical models posesses the same set of nuisance parameters. Thus
         each statistical model is optimised independently.
 
     Args:
@@ -225,7 +225,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
 
               .. code-block:: python3
 
-                >>> statistical_model_options = {"simplified_likelihoods" : {"init_pars" : [1., 3., 4.]}}
+                >>> statistical_model_options = {"default_pdf.uncorrelated_background" : {"init_pars" : [1., 3., 4.]}}
 
             kwargs: keyword arguments for the optimiser.
 
@@ -316,7 +316,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
 
               .. code-block:: python3
 
-                >>> statistical_model_options = {"simplified_likelihoods" : {"init_pars" : [1., 3., 4.]}}
+                >>> statistical_model_options = {"default_pdf.uncorrelated_background" : {"init_pars" : [1., 3., 4.]}}
 
             kwargs: keyword arguments for the optimiser.
 
@@ -400,7 +400,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
 
               .. code-block:: python3
 
-                >>> statistical_model_options = {"simplified_likelihoods" : {"init_pars" : [1., 3., 4.]}}
+                >>> statistical_model_options = {"default_pdf.uncorrelated_background" : {"init_pars" : [1., 3., 4.]}}
 
             kwargs: keyword arguments for the optimiser.
 
@@ -474,7 +474,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
 
               .. code-block:: python3
 
-                >>> statistical_model_options = {"simplified_likelihoods" : {"init_pars" : [1., 3., 4.]}}
+                >>> statistical_model_options = {"default_pdf.uncorrelated_background" : {"init_pars" : [1., 3., 4.]}}
 
             kwargs: keyword arguments for the optimiser.
 
@@ -600,7 +600,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
 
               .. code-block:: python3
 
-                >>> statistical_model_options = {"simplified_likelihoods" : {"init_pars" : [1., 3., 4.]}}
+                >>> statistical_model_options = {"default_pdf.uncorrelated_background" : {"init_pars" : [1., 3., 4.]}}
 
             kwargs: keyword arguments for the optimiser.
 
