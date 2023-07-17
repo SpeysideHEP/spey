@@ -6,6 +6,11 @@
 Welcome to the documentation of Spey
 ====================================
 
+.. image:: ./img/logo.png
+    :align: center
+    :scale: 30
+    :alt: spey logo
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
