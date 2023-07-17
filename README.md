@@ -16,7 +16,7 @@
 
 ## Installation
 
-If you are using a specific branch you can either use `make install` or `pip install -e .`. **Note that `main` branch is not the stable version.** Stable version can either be downloaded from releases section or via pypi using the following command
+If you are using a specific branch you can either use `make install` or `pip install -e .`. **Note that `main` branch is not the stable version.** Stable version can either be downloaded from the [releases](https://github.com/SpeysideHEP/spey/releases) section or via pypi using the following command
 
 ```bash
 pip install spey
