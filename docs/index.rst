@@ -15,6 +15,7 @@ Welcome to the documentation of Spey
    comb
    new_plugin
    api
+   citations
    contributing
    known_issues
    bibliography
