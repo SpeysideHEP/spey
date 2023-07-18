@@ -3,7 +3,7 @@
 Installation
 ============
 
-``spey`` is available at `pypi <https://pypi.org>`_ , so it can be installed by running:
+``spey`` is available at `pypi <https://pypi.org/project/spey/>`_ , so it can be installed by running:
 
 .. code-block:: bash
 
