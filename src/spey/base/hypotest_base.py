@@ -561,32 +561,6 @@ class HypothesisTestingBase(ABC):
         Returns:
             ``List[float]``:
             Exclusion confidence level i.e. :math:`1-CL_s`.
-
-        Example:
-
-        .. code-block:: python3
-
-            >>> import spey
-            >>> statistical_model = spey.get_correlated_nbin_statistical_model(
-            ...     analysis="simple_sl_test",
-            ...     signal_yields=[12.0, 11.0],
-            ...     data=[51.0, 48.0],
-            ...     covariance_matrix=[[3.,0.5], [0.6,7.]],
-            ...     backgrounds=[50.0, 52.0],
-            ...     delta_sys=0.,
-            ...     third_moment=[0.2, 0.1],
-            ...     xsection=0.5
-            ... )
-            >>> for expectation in spey.ExpectationType:
-            >>>     if expectation == spey.ExpectationType.observed:
-            >>>         print("1-CLs : %.3f" % tuple(statistical_model.exclusion_confidence_level(expected=expectation)))
-            >>>     else:
-            >>>         print(
-            ...             "1-CLs %s at -2sig %.3f, -1sig %.3f, central %.3f, 1sig %.3f, 2sig %.3f" % tuple([expectation] + statistical_model.exclusion_confidence_level(expected=expectation))
-            ...         )
-            >>> # 1-CLs apriori at -2sig 0.999, -1sig 0.993, central 0.959, 1sig 0.825, 2sig 0.507
-            >>> # 1-CLs aposteriori at -2sig 0.999, -1sig 0.994, central 0.963, 1sig 0.835, 2sig 0.523
-            >>> # 1-CLs : 0.973
         """
         if not getattr(self, f"is_{calculator}_calculator_available", False):
             raise CalculatorNotAvailable(f"{calculator} calculator is not available.")
@@ -824,26 +798,6 @@ class HypothesisTestingBase(ABC):
             multiple upper limit values for fluctuations as well as the central value. The
             output order is :math:`-2\sigma` value, :math:`-1\sigma` value, central value,
             :math:`1\sigma` and :math:`2\sigma` value.
-
-        Example:
-
-        .. code-block:: python3
-
-            >>> import spey
-            >>> statistical_model = spey.get_correlated_nbin_statistical_model(
-            ...     analysis="simple_sl_test",
-            ...     signal_yields=[12.0, 11.0],
-            ...     data=[51.0, 48.0],
-            ...     covariance_matrix=[[3.,0.5], [0.6,7.]],
-            ...     backgrounds=[50.0, 52.0],
-            ...     delta_sys=0.,
-            ...     third_moment=[0.2, 0.1],
-            ...     xsection=0.5
-            ... )
-            >>> statistical_model.poi_upper_limit(
-            ...     expected=spey.ExpectationType.apriori, expected_pvalue="1sigma"
-            ... )
-            >>> # [0.6776948439956527, 0.9552928963772295, 1.3583327313197415]
         """
         assert (
             0.0 <= confidence_level <= 1.0
