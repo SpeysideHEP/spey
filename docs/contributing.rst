@@ -30,3 +30,43 @@ Here are the steps to follow to make a pull request:
 5. Pull the main branch to make sure that there is no conflict with the current developments of the code.
 6. Make sure that you modified appropriate section of  ``docs/releases/changelog-dev.md``.
 7. Once you are done, request one of the maintainers to review your PR.
+
+Docstring style
+~~~~~~~~~~~~~~~
+
+Throughout the code following documentation style has been employed
+
+.. code-block::
+
+    {{! One-line RST Docstring Template }}
+    {{summaryPlaceholder}}
+
+    {{extendedSummaryPlaceholder}}
+
+    {{#parametersExist}}
+    Args:
+    {{/parametersExist}}
+    {{#args}}
+        {{var}} (``{{typePlaceholder}}``): {{descriptionPlaceholder}}
+    {{/args}}
+    {{#kwargs}}
+        {{var}} (``{{typePlaceholder}}``, default ``{{&default}}``): {{descriptionPlaceholder}}
+    {{/kwargs}}
+
+    {{#exceptionsExist}}
+    Raises:
+    {{/exceptionsExist}}
+    {{#exceptions}}
+        ``{{type}}``: {{descriptionPlaceholder}}
+    {{/exceptions}}
+
+    {{#returnsExist}}
+    Returns:
+    {{/returnsExist}}
+    {{#returns}}
+        ``{{typePlaceholder}}``:
+        {{descriptionPlaceholder}}
+    {{/returns}}
+
+This code can directly be imported into ``custom.mustache`` file and used within 
+vscode as an auto docstring generator.
