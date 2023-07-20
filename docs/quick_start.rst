@@ -18,7 +18,7 @@ versions may be restricted due to numeric stability and validation.
 What is Spey?
 ============= 
 
-Spey is an innovative plug-in-based statistics tool designed to consolidate a wide range of 
+Spey is a plug-in-based statistics tool designed to consolidate a wide range of 
 likelihood prescriptions in a single, comprehensive platform. By offering users a flexible 
 workspace, Spey empowers them to seamlessly integrate different statistical models and explore 
 their properties through a unified interface. To ensure compatibility with existing and future 

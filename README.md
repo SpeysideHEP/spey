@@ -13,6 +13,7 @@
 * [Installation](#installation)
 * [What is Spey?](#what-is-spey)
 * [Quick start](#quick-start)
+* [Developer's Guide: How to contribute to Spey](./CONTRIBUTING.md)
 
 ## Installation
 
