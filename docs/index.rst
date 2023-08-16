@@ -23,6 +23,7 @@ Welcome to the documentation of Spey
    citations
    contributing
    known_issues
+   outreach
    bibliography
 
 
