@@ -55,7 +55,7 @@ background only statistical models given as
 
 .. math:: 
 
-    {\rm llhr} = -\frac{\mathcal{L}(1,\theta_1)}{\mathcal{L}(0,\theta_0)}\ .
+    {\rm llhr} = -\log\frac{\mathcal{L}(1,\theta_1)}{\mathcal{L}(0,\theta_0)}\ .
 
 Finally the dictionary called ``models`` is just a container to collect all the models. In the next let us 
 construct Binnary exaptance matrix and compute the best possible paths
