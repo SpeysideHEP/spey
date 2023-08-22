@@ -64,7 +64,7 @@ construct Binnary exaptance matrix and compute the best possible paths
     :linenos:
 
     >>> overlap_matrix = pd.read_csv("overlap_matrix.csv", index_col=0)
-    >>> weights = [models[reg]["llhr"] for reg in list(overlap_matrix.columns)]
+    >>> weights = [-models[reg]["llhr"] for reg in list(overlap_matrix.columns)]
     >>> bam = pf.BinaryAcceptance(overlap_matrix.to_numpy(), weights=weights, threshold=0.01)
 
     >>> whdfs = pf.WHDFS(bam, top=5)
