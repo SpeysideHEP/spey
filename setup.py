@@ -15,7 +15,7 @@ requirements = [
 ]
 
 docs = [
-    "sphinx>=6.1.3",
+    "sphinx==6.2.1",
     "sphinxcontrib-bibtex~=2.1",
     "sphinx-click",
     "sphinx_rtd_theme",
