@@ -736,7 +736,7 @@ class StatisticalModel(HypothesisTestingBase):
 
 def statistical_model_wrapper(
     func: BackendBase,
-) -> Callable[[Any, ...], StatisticalModel]:
+) -> Callable[[Any], StatisticalModel]:
     """
     Backend wrapper for :class:`~spey.StatisticalModel`. This function allows a universal
     integration of each backend to the :obj:`spey` environment. :func:`~spey.get_backend` function
@@ -750,7 +750,7 @@ def statistical_model_wrapper(
         :obj:`AssertionError`: If the input function does not inherit :obj:`~spey.BackendBase`
 
     Returns:
-        ``Callable[[Any, ...], StatisticalModel]``:
+        ``Callable[[Any], StatisticalModel]``:
         Wrapper that takes the following inputs
 
         * **args**: Backend specific arguments.
