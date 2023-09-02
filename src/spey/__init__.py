@@ -73,7 +73,7 @@ def AvailableBackends() -> List[Text]:
     return [*_backend_entries.keys()]
 
 
-def get_backend(name: Text) -> Callable[[Any, ...], StatisticalModel]:
+def get_backend(name: Text) -> Callable[[Any], StatisticalModel]:
     """
     Statistical model backend retreiver. Available backend names can be found via
     :func:`~spey.AvailableBackends` function.
