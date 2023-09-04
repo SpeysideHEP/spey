@@ -1,4 +1,4 @@
-name: black-action
+name: Lint
 
 on:
   push:
@@ -14,30 +14,30 @@ on:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
-    contents: read
+    contents: write
     pages: write
     id-token: write
 
 jobs:
-  linter_name:
+  lint:
     name: runner / black
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Check files using the black formatter
-        uses: rickstaa/action-black@v1
+      - uses: actions/checkout@v3
+      - uses: psf/black@stable
         id: action_black
         with:
-          black_args: "-l 100 ./src/*"
-      - name: Create Pull Request
-        if: steps.action_black.outputs.is_formatted == 'true'
-        uses: peter-evans/create-pull-request@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          title: "Format Python code with psf/black push"
-          commit-message: ":art: Format Python code with psf/black"
-          body: |
-            There appear to be some python formatting errors in ${{ github.sha }}. This pull request
-            uses the [psf/black](https://github.com/psf/black) formatter to fix these issues.
-          base: ${{ github.head_ref }} # Creates pull request onto pull request or commit branch
-          branch: actions/black
+          options: "-l 100"
+          src: "./src"
+    #   - name: Create Pull Request
+    #     if: steps.action_black.outputs.is_formatted == 'true'
+    #     uses: peter-evans/create-pull-request@v3
+    #     with:
+    #       token: ${{ secrets.GITHUB_TOKEN }}
+    #       title: "Format Python code with psf/black push"
+    #       commit-message: ":art: Format Python code with psf/black"
+    #       body: |
+    #         There appear to be some python formatting errors in ${{ github.sha }}. This pull request
+    #         uses the [psf/black](https://github.com/psf/black) formatter to fix these issues.
+    #       base: ${{ github.head_ref }} # Creates pull request onto pull request or commit branch
+    #       branch: actions/black
