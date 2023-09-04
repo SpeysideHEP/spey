@@ -2,6 +2,10 @@
 
 ## New features since last release
 
+* Exclusion limit calculator has been extended to include p-value computation
+  from chi-square.
+  ([#17](https://github.com/SpeysideHEP/spey/pull/17))
+
 ## Improvements
 
 * Backend inspection has been added for the models that act like intermediate functions.
