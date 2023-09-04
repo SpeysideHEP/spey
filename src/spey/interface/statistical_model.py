@@ -115,11 +115,17 @@ class StatisticalModel(HypothesisTestingBase):
         return _module_check(self.backend, "get_sampler")
 
     @property
+    def is_chi_square_calculator_available(self) -> bool:
+        """Check if chi-square calculator is available for the backend"""
+        return True
+
+    @property
     def available_calculators(self) -> List[Text]:
         """Retruns available calculator names i.e. ``toy`` and/or ``asymptotic``."""
         calc = (
             "toy " * self.is_toy_calculator_available
-            + "asymptotic" * self.is_asymptotic_calculator_available
+            + "asymptotic " * self.is_asymptotic_calculator_available
+            + "chi_square" * self.is_chi_square_calculator_available
         )
         return calc.split()
 

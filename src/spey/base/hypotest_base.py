@@ -6,8 +6,9 @@ tools to compute exclusion limits and POI upper limits
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple, Callable, List, Text, Union, Dict, Any
 from functools import partial
-import tqdm
+import tqdm, warnings
 import numpy as np
+from scipy.stats import chi2
 
 from spey.hypothesis_testing.upper_limits import find_poi_upper_limit
 from spey.hypothesis_testing.asymptotic_calculator import (
@@ -60,6 +61,12 @@ class HypothesisTestingBase(ABC):
     @abstractmethod
     def is_toy_calculator_available(self) -> bool:
         """Check if Toy calculator is available for the backend"""
+        # This method has to be a property
+
+    @property
+    @abstractmethod
+    def is_chi_square_calculator_available(self) -> bool:
+        """Check if chi-square calculator is available for the backend"""
         # This method has to be a property
 
     @abstractmethod
@@ -497,6 +504,7 @@ class HypothesisTestingBase(ABC):
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = False,
         calculator: Text = "asymptotic",
+        dof: int = 1,
         **kwargs,
     ) -> List[float]:
         r"""
@@ -548,7 +556,10 @@ class HypothesisTestingBase(ABC):
 
               * ``asymptotic``: Uses asymptotic hypothesis testing to compute p-values.
               * ``toy``: Uses generated toy samples to compute p-values.
+              * ``chi_square``: Computes p-values via chi-square;
+                :math:`\chi^2=-2\log\frac{\mathcal{L}(1,\theta_1)}{\mathcal{L}(\hat\mu,\hat\theta)}`.
 
+            dof (``int``, default ``1``): degrees of freedom, only used when ``calculator="chi-square"``.
             kwargs: keyword arguments for the optimiser.
 
               * **init_pars** (``List[float]``, default ``None``): initial parameters for the optimiser
@@ -657,6 +668,25 @@ class HypothesisTestingBase(ABC):
                 test_statistic=poi_test,
                 test_stat=test_stat,
             )
+
+        elif calculator == "chi_square":
+            chi_square = self.chi2(
+                poi_test=1.0,
+                expected=expected,
+                allow_negative_signal=allow_negative_signal,
+                **kwargs,
+            )
+
+            pvalues = [1.0 - chi2.cdf(chi_square, dof)]
+            expected_pvalues = pvalues
+
+            if expected in [ExpectationType.aposteriori, ExpectationType.apriori]:
+                fit = "post" if expected == ExpectationType.aposteriori else "pre"
+                warnings.warn(
+                    message="chi-square calculator does not support expected p-values."
+                    + f" Only one p-value for {fit}fit will be returned.",
+                    category=RuntimeWarning,
+                )
 
         if expected == "all":
             return list(map(lambda x: 1.0 - x, pvalues)), list(
