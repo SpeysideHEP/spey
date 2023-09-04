@@ -52,6 +52,11 @@ class ModelConfig:
     parameter_names: Optional[List[Text]] = None
     """Names of the parameters"""
 
+    @property
+    def npar(self) -> int:
+        """Number of parameters"""
+        return len(self.suggested_init)
+
     def fixed_poi_bounds(
         self, poi_value: Optional[float] = None
     ) -> List[Tuple[float, float]]:
