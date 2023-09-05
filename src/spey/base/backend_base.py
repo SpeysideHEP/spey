@@ -167,7 +167,6 @@ class BackendBase(ABC):
         """
         raise NotImplementedError("This method has not been implemented")
 
-    @abstractmethod
     def expected_data(self, pars: List[float]) -> List[float]:
         r"""
         Compute the expected value of the statistical model. This function is mainly used to
@@ -182,6 +181,7 @@ class BackendBase(ABC):
             ``List[float]``:
             Expected data of the statistical model
         """
+        raise NotImplementedError("This method has not been implemented")
 
     def combine(self, other, **kwargs):
         """
