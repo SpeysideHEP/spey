@@ -296,17 +296,31 @@ class HypothesisTestingBase(ABC):
     def chi2(
         self,
         poi_test: float = 1.0,
+        poi_test_denominator: Optional[float] = None,
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = False,
         **kwargs,
     ) -> float:
         r"""
+        If ``poi_test_denominator=None`` computes
+
         .. math::
 
             \chi^2 = -2\log\left(\frac{\mathcal{L}(\mu,\theta_\mu)}{\mathcal{L}(\hat\mu,\hat\theta)}\right)
 
+        else
+
+        .. math::
+
+            \chi^2 = -2\log\left(\frac{\mathcal{L}(\mu,\theta_\mu)}{\mathcal{L}(\mu_{\rm denom},\theta_{\mu_{\rm denom}})}\right)
+
+        where :math:`\mu_{\rm denom}` is ``poi_test_denominator`` which is typically zero to compare signal
+        model with the background only model.
+
         Args:
-            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest, :math:`\mu`.
+            poi_test (``float``, default ``1.0``): parameter of interest, :math:`\mu`.
+            poi_test_denominator (``float``, default ``None``): parameter of interest for the denominator, :math:`\mu`.
+                If ``None`` maximum likelihood will be computed.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
 
@@ -319,19 +333,25 @@ class HypothesisTestingBase(ABC):
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
 
-            allow_negative_signal (:obj:`bool`, default :obj:`True`): If :obj:`True` :math:`\hat\mu`
-              value will be allowed to be negative.
+            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
+              value will be allowed to be negative. Only valid when ``poi_test_denominator=None``.
             kwargs: keyword arguments for the optimiser.
 
         Returns:
-            :obj:`float`:
+            ``float``:
             value of the :math:`\chi^2`.
         """
-        return 2.0 * (
-            self.likelihood(poi_test=poi_test, expected=expected, **kwargs)
-            - self.maximize_likelihood(
+        if poi_test_denominator is None:
+            denominator = self.maximize_likelihood(
                 expected=expected, allow_negative_signal=allow_negative_signal, **kwargs
             )[-1]
+        else:
+            denominator = self.likelihood(
+                poi_test=poi_test_denominator, expected=expected, **kwargs
+            )
+
+        return 2.0 * (
+            self.likelihood(poi_test=poi_test, expected=expected, **kwargs) - denominator
         )
 
     def _prepare_for_hypotest(
@@ -672,6 +692,7 @@ class HypothesisTestingBase(ABC):
         elif calculator == "chi_square":
             chi_square = self.chi2(
                 poi_test=1.0,
+                poi_test_denominator=0.0,
                 expected=expected,
                 allow_negative_signal=allow_negative_signal,
                 **kwargs,
