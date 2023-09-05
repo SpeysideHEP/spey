@@ -296,7 +296,7 @@ class StatisticalModel(HypothesisTestingBase):
         fit_opts = self.prepare_for_fit(expected=expected, data=data, **kwargs)
 
         if (
-            fit_opts["model_configuration"].npars == 1
+            fit_opts["model_configuration"].npar == 1
             and fit_opts["model_configuration"].poi_index is not None
         ):
             logpdf = fit_opts["logpdf"](poi_test)
@@ -630,7 +630,7 @@ class StatisticalModel(HypothesisTestingBase):
         fit_opts = self.prepare_for_fit(expected=expected, **kwargs)
 
         if (
-            fit_opts["model_configuration"].npars == 1
+            fit_opts["model_configuration"].npar == 1
             and fit_opts["model_configuration"].poi_index is not None
         ):
             fit_param = np.array(list(poi_test))
