@@ -51,6 +51,8 @@ class ModelConfig:
     """Suggested upper and lower bounds for parameters"""
     parameter_names: Optional[List[Text]] = None
     """Names of the parameters"""
+    suggested_fixed: Optional[List[bool]] = None
+    """Suggested fixed values"""
 
     @property
     def npar(self) -> int:
