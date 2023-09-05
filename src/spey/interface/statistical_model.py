@@ -121,13 +121,14 @@ class StatisticalModel(HypothesisTestingBase):
 
     @property
     def available_calculators(self) -> List[Text]:
-        """Retruns available calculator names i.e. ``toy`` and/or ``asymptotic``."""
-        calc = (
-            "toy " * self.is_toy_calculator_available
-            + "asymptotic " * self.is_asymptotic_calculator_available
-            + "chi_square" * self.is_chi_square_calculator_available
-        )
-        return calc.split()
+        """
+        Retruns available calculator names i.e. ``'toy'``,
+        ``'asymptotic'`` and ``'chi_square'``.
+        """
+        calc = ["toy"] * self.is_toy_calculator_available
+        calc += ["asymptotic"] * self.is_asymptotic_calculator_available
+        calc += ["chi_square"] * self.is_chi_square_calculator_available
+        return calc
 
     @property
     def is_alive(self) -> bool:
@@ -294,12 +295,18 @@ class StatisticalModel(HypothesisTestingBase):
         """
         fit_opts = self.prepare_for_fit(expected=expected, data=data, **kwargs)
 
-        logpdf, _ = fit(
-            **fit_opts,
-            initial_parameters=init_pars,
-            bounds=par_bounds,
-            fixed_poi_value=poi_test,
-        )
+        if (
+            fit_opts["model_configuration"].npars == 1
+            and fit_opts["model_configuration"].poi_index is not None
+        ):
+            logpdf = fit_opts["logpdf"](poi_test)
+        else:
+            logpdf, _ = fit(
+                **fit_opts,
+                initial_parameters=init_pars,
+                bounds=par_bounds,
+                fixed_poi_value=poi_test,
+            )
 
         return -logpdf if return_nll else np.exp(logpdf)
 
@@ -622,12 +629,18 @@ class StatisticalModel(HypothesisTestingBase):
         """
         fit_opts = self.prepare_for_fit(expected=expected, **kwargs)
 
-        _, fit_param = fit(
-            **fit_opts,
-            initial_parameters=init_pars,
-            bounds=par_bounds,
-            fixed_poi_value=poi_test,
-        )
+        if (
+            fit_opts["model_configuration"].npars == 1
+            and fit_opts["model_configuration"].poi_index is not None
+        ):
+            fit_param = np.array(list(poi_test))
+        else:
+            _, fit_param = fit(
+                **fit_opts,
+                initial_parameters=init_pars,
+                bounds=par_bounds,
+                fixed_poi_value=poi_test,
+            )
 
         try:
             sampler = self.backend.get_sampler(fit_param)
