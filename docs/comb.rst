@@ -44,7 +44,9 @@ Let us first import all the necessary packages and construct the data (please ad
     ...         xsection=example_data["xsec"],
     ...     )
     
-    >>>     llhr = stat_model.likelihood(0) - stat_model.likelihood(1)
+    >>>     llhr = stat_model.chi2(
+    ...         poi_test=1.0, poi_test_denominator=0.0, expected=spey.ExpectationType.apriori
+    ...     ) / 2.0
     
     >>>     models.update({data["region"]: {"stat_model": stat_model, "llhr": llhr}})
 
