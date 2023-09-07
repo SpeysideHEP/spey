@@ -169,7 +169,14 @@ where
 * ``my_subfolder.mystat_model`` is the path to your statistical model class, `MyStatisticalModel`_.
 
 Note that ``stat_model_list`` can include as many implementation as desired. After this step is complete all one needs to do
-is ``pip install -e .`` and :func:`~spey.AvailableBackends` function should include ``mystat_model`` as well;
+is ``pip install -e .`` and :func:`~spey.AvailableBackends` function will include ``mystat_model`` as well.
+
+Citing Plug-ins
+---------------
+
+Since plug-ins can be built by other users, they are given a metadata accessor to extract proper information
+to cite them. :func:`~spey.get_backend_metadata` function allow user to extract name, author, version, DOI and
+arXiv number to be used in academic publications. This information can be accessed as follows
 
 .. code-block:: python3
 
