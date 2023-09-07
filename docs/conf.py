@@ -41,7 +41,11 @@ extensions = [
     "sphinx_togglebutton",
     "xref",
     "myst_parser",
+    "sphinx_rtd_size",
 ]
+
+# set the width of the page
+sphinx_rtd_size_width = "75%"
 
 # external links
 xref_links = {
