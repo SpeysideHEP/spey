@@ -24,13 +24,8 @@ Welcome to the documentation of Spey
    contributing
    known_issues
    outreach
+   releases/changelog-dev
    bibliography
 
 
-
-Indices and tables
-==================
-
 * :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

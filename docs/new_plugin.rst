@@ -110,9 +110,10 @@ it checks compatibility with current spey version to ensure that the plugin work
   prefit and postfit likelihoods. If ``data`` is provided, it is it is overwritten, this is for the case where Asimov 
   data is in use.
 
-* :func:`~spey.BackendBase.expected_data`: This function is crutial for **asymptotic** hypothesis testing.
+* :func:`~spey.BackendBase.expected_data` (optional): This function is crutial for **asymptotic** hypothesis testing.
   This function is used to generate expected value of the data with the given fit parameters i.e. :math:`\theta`
-  and :math:`\mu`.
+  and :math:`\mu`. If this function does not exist, exclusion limits can still be computed using ``chi_square`` calculator.
+  see :func:`~spey.base.hypotest_base.HypothesisTestingBase.exclusion_confidence_level`.
 
 Other available functions that can be implemented are shown in the table below.
 

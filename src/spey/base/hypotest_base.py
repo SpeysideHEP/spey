@@ -577,7 +577,7 @@ class HypothesisTestingBase(ABC):
               * ``asymptotic``: Uses asymptotic hypothesis testing to compute p-values.
               * ``toy``: Uses generated toy samples to compute p-values.
               * ``chi_square``: Computes p-values via chi-square;
-                :math:`\chi^2=-2\log\frac{\mathcal{L}(1,\theta_1)}{\mathcal{L}(\hat\mu,\hat\theta)}`.
+                :math:`\chi^2=-2\log\frac{\mathcal{L}(1,\theta_1)}{\mathcal{L}(0,\theta_0)}`.
 
             dof (``int``, default ``1``): degrees of freedom, only used when ``calculator="chi-square"``.
             kwargs: keyword arguments for the optimiser.
