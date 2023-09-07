@@ -16,6 +16,7 @@ Welcome to the documentation of Spey
    :caption: Contents:
 
    quick_start
+   exclusion
    plugins
    comb
    new_plugin

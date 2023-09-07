@@ -1,4 +1,4 @@
-.. _sec:new_plugin:
+.. _sec_new_plugin:
 
 Building a plugin
 =================
