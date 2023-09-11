@@ -3,27 +3,27 @@
 Building a plugin
 =================
 
-``spey`` package has been designed to be epandable. It only needs to know certain aspects of the 
+``spey`` package has been designed to be expandable. It only needs to know certain aspects of the 
 data structure that is presented and a prescription to form a likelihood function.
 
 What a plugin provides
 ----------------------
 
-A quick intro on terminology of spey plugins in this section:
+A quick intro on the terminology of spey plugins in this section:
 
   * A plugin is an external Python package that provides additional statistical model 
     prescriptions to spey.
-  * Each plugin may provide one (or more) statistical model prescription, that are 
-    accessible directly through spey.
+  * Each plugin may provide one (or more) statistical model prescriptions  
+    accessible directly through Spey.
   * Depending on the scope of the plugin, you may wish to provide additional (custom) 
     operations and differentiability through various autodif packages such as ``autograd``
-    or ``jax``. As long as they are implemented through set of predefined function names
-    spey can automatically detect and use them within the interface. 
+    or ``jax``. As long as they are implemented through predefined function names,
+    Spey can automatically detect and use them within the interface. 
 
-Creating your statistical model prescription
+Creating your Statistical Model Prescription
 --------------------------------------------
 
-The first step in creating your own spey plugin is to create your statistical model interface. 
+The first step in creating your Spey plugin is to create your statistical model interface. 
 This is as simple as importing abstract base class :class:`~spey.BackendBase` from spey and 
 inheriting it. The most basic implementation of a statistical model can be found below;
 
@@ -61,19 +61,19 @@ inheriting it. The most basic implementation of a statistical model can be found
 
 
 :class:`~spey.BackendBase` requires certain functionality from the statistical model to be 
-implemented but let us first go through the above class structure. spey looks for certain 
-metadata in order to track the version, author and name of the implementation. Additionally 
-it checks compatibility with current spey version to ensure that the plugin works as it should.
+implemented, but let us first go through the above class structure. Spey looks for specific 
+metadata to track the version, author and name of the implementation. Additionally, 
+it checks compatibility with the current Spey version to ensure that the plugin works as it should.
 
 .. note:: 
 
-    The list of metadata that spey is looking for:
+    The list of metadata that Spey is looking for:
 
       * **name** (``str``): Name of the plugin.
       * **version** (``str``): Version of the plugin.
       * **author** (``str``): Author of the plugin.
       * **spey_requires** (``str``): The minimum spey version that the 
-        plugin needs e.g. ``spey_requires="0.0.1"`` or ``spey_requires=">=0.3.3"``.
+        plugin needs, e.g. ``spey_requires="0.0.1"`` or ``spey_requires=">=0.3.3"``.
       * **doi** (``List[str]``): Citable DOI numbers for the plugin.
       * **arXiv** (``List[str]``): arXiv numbers for the plugin.
 
@@ -83,35 +83,35 @@ it checks compatibility with current spey version to ensure that the plugin work
 :class:`~spey.BackendBase` documentation by clicking on them.)
 
 * :func:`~spey.BackendBase.is_alive`: This function returns a boolean indicating that the statistical model 
-  has at least one signal bin with non-zero yield.
+  has at least one signal bin with a non-zero yield.
 
 * :func:`~spey.BackendBase.config`: This function returns :class:`~spey.base.model_config.ModelConfig` class
-  which includes certain information about the model structure such as index of the parameter of interest 
+  which includes certain information about the model structure, such as the index of the parameter of interest 
   within the parameter list (:attr:`~spey.base.model_config.ModelConfig.poi_index`), minimum value parameter 
   of interest can take (:attr:`~spey.base.model_config.ModelConfig.minimum_poi`), suggested initialisation
   parameters for the optimiser (:attr:`~spey.base.model_config.ModelConfig.suggested_init`) and suggested 
   bounds for the parameters (:attr:`~spey.base.model_config.ModelConfig.suggested_bounds`). If 
-  ``allow_negative_signal=True`` the lower bound of POI is expected to be zero, if ``False`` 
+  ``allow_negative_signal=True`` the lower bound of POI is expected to be zero; if ``False`` 
   :attr:`~spey.base.model_config.ModelConfig.minimum_poi`. ``poi_upper_bound`` is used to enforce an upper 
   bound on POI.
 
   .. note:: 
 
-    suggested bounds and initialisation values should return a list with a length of number of nuissance 
-    parameters and parameter of interest. Initialisation values should be a type of ``List[float, ...]`` 
+    Suggested bounds and initialisation values should return a list with a length of the number of nuisance 
+    parameters and parameters of interest. Initialisation values should be a type of ``List[float, ...]`` 
     and bounds should have the type of ``List[Tuple[float, float], ...]``.
 
 * :func:`~spey.BackendBase.get_logpdf_func`: This function returns a function that takes a NumPy array 
   as an input which indicates the fit parameters (nuisance, :math:`\theta`, and POI, :math:`\mu`) and returns the
-  value of natural logarithm of the likelihood function, :math:`\log\mathcal{L}(\mu, \theta)`. The input 
-  ``expected`` defines which data to be used in the absence of ``data`` input i.e. if 
-  ``expected=spey.ExpectationType.observed`` yields of observed data should be used to compute the likelihood but 
+  value of the natural logarithm of the likelihood function, :math:`\log\mathcal{L}(\mu, \theta)`. The input 
+  ``expected`` defines which data to be used in the absence of ``data`` input, i.e. if 
+  ``expected=spey.ExpectationType.observed`` yields of observed data should be used to compute the likelihood, but 
   if ``expected=spey.ExpectationType.apriori`` background yields should be used. This ensures the difference between 
-  prefit and postfit likelihoods. If ``data`` is provided, it is it is overwritten, this is for the case where Asimov 
+  prefit and postfit likelihoods. If ``data`` is provided, it is overwritten; this is for the case where Asimov 
   data is in use.
 
 * :func:`~spey.BackendBase.expected_data` (optional): This function is crutial for **asymptotic** hypothesis testing.
-  This function is used to generate expected value of the data with the given fit parameters i.e. :math:`\theta`
+  This function is used to generate the expected value of the data with the given fit parameters, i.e. :math:`\theta`
   and :math:`\mu`. If this function does not exist, exclusion limits can still be computed using ``chi_square`` calculator.
   see :func:`~spey.base.hypotest_base.HypothesisTestingBase.exclusion_confidence_level`.
 
@@ -131,7 +131,7 @@ Other available functions that can be implemented are shown in the table below.
 
 .. attention:: 
     
-    A simple example implementation can be found in `example-plugin repository <https://github.com/SpeysideHEP/example-plugin>`_
+    A simple example implementation can be found in the `example-plugin repository <https://github.com/SpeysideHEP/example-plugin>`_
     which implements
 
     .. math:: 
@@ -143,8 +143,8 @@ Other available functions that can be implemented are shown in the table below.
 Identifying and installing your statistical model
 -------------------------------------------------
 
-In order to add your brand new statistical model to the spey interface all you need to do is to create a ``setup.py`` file
-which will create an entry point for the statistical model class. So lets assume that you have the following folder structure
+In order to add your brand new statistical model to the spey interface, all you need to do is to create a ``setup.py`` file
+which will create an entry point for the statistical model class. So let's assume that you have the following folder structure
 
 .. code-block:: bash
 
@@ -154,7 +154,7 @@ which will create an entry point for the statistical model class. So lets assume
     │   └── mystat_model.py # this includes class MyStatisticalModel
     └── setup.py
 
-``setup.py`` file should include the following
+The ``setup.py`` file should include the following
 
 .. code-block:: python3
 
@@ -164,19 +164,19 @@ which will create an entry point for the statistical model class. So lets assume
 
 where
 
-* ``stat_model_list`` is a list of statistical model s you would like to register.
-* ``my_stat_model`` is the short name for statistical model. This should be the same as ``name`` attribute
+* ``stat_model_list`` is a list of statistical models you would like to register.
+* ``my_stat_model`` is the short name for a statistical model. This should be the same as the ``name`` attribute
   of the class. Spey will identify the backend with this name.
 * ``my_subfolder.mystat_model`` is the path to your statistical model class, `MyStatisticalModel`_.
 
-Note that ``stat_model_list`` can include as many implementation as desired. After this step is complete all one needs to do
+Note that ``stat_model_list`` can include as many implementations as desired. After this step is complete, all one needs to do
 is ``pip install -e .`` and :func:`~spey.AvailableBackends` function will include ``mystat_model`` as well.
 
 Citing Plug-ins
 ---------------
 
-Since plug-ins can be built by other users, they are given a metadata accessor to extract proper information
-to cite them. :func:`~spey.get_backend_metadata` function allow user to extract name, author, version, DOI and
+Since other users can build plug-ins, they are given a metadata accessor to extract proper information
+to cite them. :func:`~spey.get_backend_metadata` function allows the user to extract name, author, version, DOI and
 arXiv number to be used in academic publications. This information can be accessed as follows
 
 .. code-block:: python3
