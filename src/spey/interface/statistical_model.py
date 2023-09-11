@@ -1,19 +1,19 @@
 """Statistical Model wrapper class"""
 
-from typing import Optional, Text, Tuple, List, Callable, Union, Any, Dict
 import inspect
+from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
 
 import numpy as np
 
-from spey.utils import ExpectationType
 from spey.base.backend_base import BackendBase
-from spey.system.exceptions import (
-    UnknownCrossSection,
-    MethodNotAvailable,
-    CombinerNotAvailable,
-)
 from spey.base.hypotest_base import HypothesisTestingBase
 from spey.optimizer.core import fit
+from spey.system.exceptions import (
+    CombinerNotAvailable,
+    MethodNotAvailable,
+    UnknownCrossSection,
+)
+from spey.utils import ExpectationType
 
 __all__ = ["StatisticalModel", "statistical_model_wrapper"]
 

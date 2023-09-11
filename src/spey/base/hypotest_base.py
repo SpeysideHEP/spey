@@ -3,23 +3,26 @@ Abstract class for Hypothesis base structure. This class contains necessary
 tools to compute exclusion limits and POI upper limits
 """
 
+import warnings
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple, Callable, List, Text, Union, Dict, Any
 from functools import partial
-import tqdm, warnings
+from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
+
 import numpy as np
+import tqdm
 from scipy.stats import chi2
 
-from spey.hypothesis_testing.upper_limits import find_poi_upper_limit
 from spey.hypothesis_testing.asymptotic_calculator import (
     compute_asymptotic_confidence_level,
 )
+from spey.hypothesis_testing.test_statistics import (
+    compute_teststatistics,
+    get_test_statistic,
+)
 from spey.hypothesis_testing.toy_calculator import compute_toy_confidence_level
-from spey.hypothesis_testing.test_statistics import compute_teststatistics
-from spey.hypothesis_testing.test_statistics import get_test_statistic
-from spey.utils import ExpectationType
+from spey.hypothesis_testing.upper_limits import find_poi_upper_limit
 from spey.system.exceptions import CalculatorNotAvailable
-
+from spey.utils import ExpectationType
 
 __all__ = ["HypothesisTestingBase"]
 
@@ -524,7 +527,7 @@ class HypothesisTestingBase(ABC):
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = False,
         calculator: Text = "asymptotic",
-        dof: int = 1,
+        poi_test_denominator: Optional[float] = None,
         **kwargs,
     ) -> List[float]:
         r"""
@@ -579,7 +582,10 @@ class HypothesisTestingBase(ABC):
               * ``chi_square``: Computes p-values via chi-square;
                 :math:`\chi^2=-2\log\frac{\mathcal{L}(1,\theta_1)}{\mathcal{L}(0,\theta_0)}`.
 
-            dof (``int``, default ``1``): degrees of freedom, only used when ``calculator="chi-square"``.
+            poi_test_denominator (``float``, default ``None``): Set the POI value for the null hypothesis.
+                if ``None``, signal hypothesis will be compared against maximum likelihood otherwise
+                with respect to the hypothesis determined with the POI value provided with this input.
+                Only used when ``calculator="chi-square"``.
             kwargs: keyword arguments for the optimiser.
 
               * **init_pars** (``List[float]``, default ``None``): initial parameters for the optimiser
@@ -692,13 +698,18 @@ class HypothesisTestingBase(ABC):
         elif calculator == "chi_square":
             chi_square = self.chi2(
                 poi_test=1.0,
-                poi_test_denominator=0.0,
+                poi_test_denominator=poi_test_denominator,
                 expected=expected,
                 allow_negative_signal=allow_negative_signal,
                 **kwargs,
             )
 
-            pvalues = [1.0 - chi2.cdf(chi_square, dof)]
+            pvalues = [
+                1.0
+                - chi2.cdf(
+                    chi_square, 1 if isinstance(poi_test, (float, int)) else len(poi_test)
+                )
+            ]
             expected_pvalues = pvalues
 
             if expected in [ExpectationType.aposteriori, ExpectationType.apriori]:
