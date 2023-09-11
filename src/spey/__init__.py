@@ -1,15 +1,17 @@
-from typing import Text, Union, List, Dict, Optional, Tuple, Callable, Any
-import pkg_resources
-import numpy as np
-from semantic_version import Version, SimpleSpec
+from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
 
-from spey.interface.statistical_model import StatisticalModel, statistical_model_wrapper
+import numpy as np
+import pkg_resources
+from semantic_version import SimpleSpec, Version
+
 from spey.base import BackendBase, ConverterBase
 from spey.combiner import UnCorrStatisticsCombiner
+from spey.interface.statistical_model import StatisticalModel, statistical_model_wrapper
 from spey.system.exceptions import PluginError
-from .utils import ExpectationType
+
 from ._version import __version__
 from .about import about
+from .utils import ExpectationType
 
 __all__ = [
     "version",
