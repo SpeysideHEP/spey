@@ -4,8 +4,9 @@ Routines for computing pvalues
 Similar implementation can be found in https://github.com/scikit-hep/pyhf/blob/main/src/pyhf/infer/calculators.py
 """
 
-from typing import Tuple, List, Union
 import warnings
+from typing import List, Tuple, Union
+
 import numpy as np
 
 from .distributions import (

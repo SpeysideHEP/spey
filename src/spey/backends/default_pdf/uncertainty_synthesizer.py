@@ -1,8 +1,10 @@
-from typing import List, Tuple, Dict, Text, Any
+from typing import Any, Dict, List, Text, Tuple
 
 import autograd.numpy as np
-from .third_moment import third_moment_expansion
+
 from spey.helper_functions import correlation_to_covariance
+
+from .third_moment import third_moment_expansion
 
 # pylint: disable=E1101,E1120
 

@@ -1,13 +1,12 @@
 """Abstract Methods for backend objects"""
 
 from abc import ABC, abstractmethod
-from typing import Text, Tuple, Callable, Union, List, Optional
+from typing import Callable, List, Optional, Text, Tuple, Union
 
 import numpy as np
 
-from spey.utils import ExpectationType
 from spey.base.model_config import ModelConfig
-
+from spey.utils import ExpectationType
 
 __all__ = ["BackendBase"]
 

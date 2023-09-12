@@ -1,8 +1,8 @@
 """Configuration class for Statistical Models"""
 
-from dataclasses import dataclass
-from typing import List, Tuple, Optional, Text
 import copy
+from dataclasses import dataclass
+from typing import List, Optional, Text, Tuple
 
 
 @dataclass

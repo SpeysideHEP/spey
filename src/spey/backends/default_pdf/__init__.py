@@ -1,18 +1,18 @@
 """Interface for default PDF sets"""
 
-from typing import Optional, Text, Callable, List, Union, Tuple, Any, Dict
-from autograd import numpy as np
-from autograd import grad, hessian, jacobian
+from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
 
+from autograd import grad, hessian, jacobian
+from autograd import numpy as np
 from scipy.optimize import NonlinearConstraint
 
-from spey.optimizer import fit
-from spey.base import BackendBase
-from spey.base import ModelConfig
-from spey.utils import ExpectationType
 from spey._version import __version__
+from spey.backends.distributions import ConstraintModel, MainModel
+from spey.base import BackendBase, ModelConfig
 from spey.helper_functions import covariance_to_correlation
-from spey.backends.distributions import MainModel, ConstraintModel
+from spey.optimizer import fit
+from spey.utils import ExpectationType
+
 from .third_moment import third_moment_expansion
 from .uncertainty_synthesizer import signal_uncertainty_synthesizer
 

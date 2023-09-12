@@ -3,16 +3,17 @@ Statistical Model combiner class: this class combines likelihoods
 of different statistical models for hypothesis testing
 """
 
-from typing import List, Text, Iterator, Tuple, Union, Dict, Optional
 import warnings
+from typing import Dict, Iterator, List, Optional, Text, Tuple, Union
+
 import numpy as np
 
-from spey.interface.statistical_model import StatisticalModel
-from spey.utils import ExpectationType
-from spey.system.exceptions import AnalysisQueryError, NegativeExpectedYields
 from spey.base.hypotest_base import HypothesisTestingBase
-from spey.optimizer.core import fit
 from spey.base.model_config import ModelConfig
+from spey.interface.statistical_model import StatisticalModel
+from spey.optimizer.core import fit
+from spey.system.exceptions import AnalysisQueryError, NegativeExpectedYields
+from spey.utils import ExpectationType
 
 __all__ = ["UnCorrStatisticsCombiner"]
 

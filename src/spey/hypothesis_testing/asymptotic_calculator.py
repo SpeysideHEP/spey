@@ -1,9 +1,9 @@
 """Tools for computing confidence level and pvalues at the asymptotic limit"""
 
-from typing import Tuple, Text, List
+from typing import List, Text, Tuple
 
 from .distributions import AsymptoticTestStatisticsDistribution
-from .utils import pvalues, expected_pvalues
+from .utils import expected_pvalues, pvalues
 
 __all__ = ["compute_asymptotic_confidence_level"]
 

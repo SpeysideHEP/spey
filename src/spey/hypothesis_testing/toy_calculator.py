@@ -1,9 +1,9 @@
-from typing import Text, List, Tuple
+from typing import List, Text, Tuple
 
 import numpy as np
 
 from .distributions import EmpricTestStatisticsDistribution
-from .utils import pvalues, expected_pvalues
+from .utils import expected_pvalues, pvalues
 
 __all__ = ["compute_toy_confidence_level"]
 
