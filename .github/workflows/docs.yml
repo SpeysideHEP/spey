@@ -3,7 +3,7 @@ name: Build Documentation
 on:
   push:
     branches: ["main"]
-    paths: ["**.rst"]
+    paths: ["docs/**.rst"]
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
