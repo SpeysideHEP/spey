@@ -1,7 +1,8 @@
 """Functions for computation of test statistic"""
 
-from typing import Callable, Text, Tuple
 import warnings
+from typing import Callable, Text, Tuple
+
 import numpy as np
 
 from spey.system.exceptions import UnknownTestStatistics

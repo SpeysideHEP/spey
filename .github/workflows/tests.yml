@@ -2,7 +2,12 @@ name: Tests
 
 on:
   pull_request:
-    branches: [ "main" ]
+    branches: ["main", "releases/**"]
+    types: [review_requested, opened]
+    paths: ["**.py"]
+  push:
+    branches: ["main", "releases/**"]
+    paths: ["**.py"]
   workflow_dispatch:
 
 jobs:

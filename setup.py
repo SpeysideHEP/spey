@@ -24,6 +24,7 @@ docs = [
     "sphinx-copybutton>=0.3.2",
     "sphinx-togglebutton>=0.3.0",
     "myst-parser",
+    "sphinx-rtd-size",
 ]
 
 backend_plugins = [

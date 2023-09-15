@@ -3,22 +3,26 @@ Abstract class for Hypothesis base structure. This class contains necessary
 tools to compute exclusion limits and POI upper limits
 """
 
+import warnings
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple, Callable, List, Text, Union, Dict, Any
 from functools import partial
-import tqdm
-import numpy as np
+from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
 
-from spey.hypothesis_testing.upper_limits import find_poi_upper_limit
+import numpy as np
+import tqdm
+from scipy.stats import chi2
+
 from spey.hypothesis_testing.asymptotic_calculator import (
     compute_asymptotic_confidence_level,
 )
+from spey.hypothesis_testing.test_statistics import (
+    compute_teststatistics,
+    get_test_statistic,
+)
 from spey.hypothesis_testing.toy_calculator import compute_toy_confidence_level
-from spey.hypothesis_testing.test_statistics import compute_teststatistics
-from spey.hypothesis_testing.test_statistics import get_test_statistic
-from spey.utils import ExpectationType
+from spey.hypothesis_testing.upper_limits import find_poi_upper_limit
 from spey.system.exceptions import CalculatorNotAvailable
-
+from spey.utils import ExpectationType
 
 __all__ = ["HypothesisTestingBase"]
 
@@ -60,6 +64,12 @@ class HypothesisTestingBase(ABC):
     @abstractmethod
     def is_toy_calculator_available(self) -> bool:
         """Check if Toy calculator is available for the backend"""
+        # This method has to be a property
+
+    @property
+    @abstractmethod
+    def is_chi_square_calculator_available(self) -> bool:
+        """Check if chi-square calculator is available for the backend"""
         # This method has to be a property
 
     @abstractmethod
@@ -289,17 +299,31 @@ class HypothesisTestingBase(ABC):
     def chi2(
         self,
         poi_test: float = 1.0,
+        poi_test_denominator: Optional[float] = None,
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = False,
         **kwargs,
     ) -> float:
         r"""
+        If ``poi_test_denominator=None`` computes
+
         .. math::
 
             \chi^2 = -2\log\left(\frac{\mathcal{L}(\mu,\theta_\mu)}{\mathcal{L}(\hat\mu,\hat\theta)}\right)
 
+        else
+
+        .. math::
+
+            \chi^2 = -2\log\left(\frac{\mathcal{L}(\mu,\theta_\mu)}{\mathcal{L}(\mu_{\rm denom},\theta_{\mu_{\rm denom}})}\right)
+
+        where :math:`\mu_{\rm denom}` is ``poi_test_denominator`` which is typically zero to compare signal
+        model with the background only model.
+
         Args:
-            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest, :math:`\mu`.
+            poi_test (``float``, default ``1.0``): parameter of interest, :math:`\mu`.
+            poi_test_denominator (``float``, default ``None``): parameter of interest for the denominator, :math:`\mu`.
+                If ``None`` maximum likelihood will be computed.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
 
@@ -312,19 +336,25 @@ class HypothesisTestingBase(ABC):
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
 
-            allow_negative_signal (:obj:`bool`, default :obj:`True`): If :obj:`True` :math:`\hat\mu`
-              value will be allowed to be negative.
+            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
+              value will be allowed to be negative. Only valid when ``poi_test_denominator=None``.
             kwargs: keyword arguments for the optimiser.
 
         Returns:
-            :obj:`float`:
+            ``float``:
             value of the :math:`\chi^2`.
         """
-        return 2.0 * (
-            self.likelihood(poi_test=poi_test, expected=expected, **kwargs)
-            - self.maximize_likelihood(
+        if poi_test_denominator is None:
+            denominator = self.maximize_likelihood(
                 expected=expected, allow_negative_signal=allow_negative_signal, **kwargs
             )[-1]
+        else:
+            denominator = self.likelihood(
+                poi_test=poi_test_denominator, expected=expected, **kwargs
+            )
+
+        return 2.0 * (
+            self.likelihood(poi_test=poi_test, expected=expected, **kwargs) - denominator
         )
 
     def _prepare_for_hypotest(
@@ -497,6 +527,7 @@ class HypothesisTestingBase(ABC):
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = False,
         calculator: Text = "asymptotic",
+        poi_test_denominator: Optional[float] = None,
         **kwargs,
     ) -> List[float]:
         r"""
@@ -548,7 +579,13 @@ class HypothesisTestingBase(ABC):
 
               * ``asymptotic``: Uses asymptotic hypothesis testing to compute p-values.
               * ``toy``: Uses generated toy samples to compute p-values.
+              * ``chi_square``: Computes p-values via chi-square;
+                :math:`\chi^2=-2\log\frac{\mathcal{L}(1,\theta_1)}{\mathcal{L}(0,\theta_0)}`.
 
+            poi_test_denominator (``float``, default ``None``): Set the POI value for the null hypothesis.
+                if ``None``, signal hypothesis will be compared against maximum likelihood otherwise
+                with respect to the hypothesis determined with the POI value provided with this input.
+                Only used when ``calculator="chi-square"``.
             kwargs: keyword arguments for the optimiser.
 
               * **init_pars** (``List[float]``, default ``None``): initial parameters for the optimiser
@@ -657,6 +694,31 @@ class HypothesisTestingBase(ABC):
                 test_statistic=poi_test,
                 test_stat=test_stat,
             )
+
+        elif calculator == "chi_square":
+            chi_square = self.chi2(
+                poi_test=1.0,
+                poi_test_denominator=poi_test_denominator,
+                expected=expected,
+                allow_negative_signal=allow_negative_signal,
+                **kwargs,
+            )
+
+            pvalues = [
+                1.0
+                - chi2.cdf(
+                    chi_square, 1 if isinstance(poi_test, (float, int)) else len(poi_test)
+                )
+            ]
+            expected_pvalues = pvalues
+
+            if expected in [ExpectationType.aposteriori, ExpectationType.apriori]:
+                fit = "post" if expected == ExpectationType.aposteriori else "pre"
+                warnings.warn(
+                    message="chi-square calculator does not support expected p-values."
+                    + f" Only one p-value for {fit}fit will be returned.",
+                    category=RuntimeWarning,
+                )
 
         if expected == "all":
             return list(map(lambda x: 1.0 - x, pvalues)), list(

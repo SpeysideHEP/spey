@@ -1,8 +1,8 @@
 """Configuration class for Statistical Models"""
 
-from dataclasses import dataclass
-from typing import List, Tuple, Optional, Text
 import copy
+from dataclasses import dataclass
+from typing import List, Optional, Text, Tuple
 
 
 @dataclass
@@ -51,6 +51,13 @@ class ModelConfig:
     """Suggested upper and lower bounds for parameters"""
     parameter_names: Optional[List[Text]] = None
     """Names of the parameters"""
+    suggested_fixed: Optional[List[bool]] = None
+    """Suggested fixed values"""
+
+    @property
+    def npar(self) -> int:
+        """Number of parameters"""
+        return len(self.suggested_init)
 
     def fixed_poi_bounds(
         self, poi_value: Optional[float] = None

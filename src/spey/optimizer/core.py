@@ -21,15 +21,31 @@ def fit(
     init_pars = [*(initial_parameters or model_configuration.suggested_init)]
     par_bounds = [*(bounds or model_configuration.fixed_poi_bounds(fixed_poi_value))]
 
-    constraints = constraints if constraints is not None else []
+    def make_constraint(index: int, value: float) -> Callable[[np.ndarray], float]:
+        def func(vector: np.ndarray) -> float:
+            return vector[index] - value
+
+        return func
+
+    constraints = [] if constraints is None else constraints
     if fixed_poi_value is not None:
         init_pars[model_configuration.poi_index] = fixed_poi_value
         constraints.append(
             {
                 "type": "eq",
-                "fun": lambda v: v[model_configuration.poi_index] - fixed_poi_value,
+                "fun": make_constraint(model_configuration.poi_index, fixed_poi_value),
             }
         )
+
+    if model_configuration.suggested_fixed is not None:
+        for idx, isfixed in enumerate(model_configuration.suggested_fixed):
+            if isfixed:
+                constraints.append(
+                    {
+                        "type": "eq",
+                        "fun": make_constraint(idx, init_pars[idx]),
+                    }
+                )
 
     options.update({"poi_index": model_configuration.poi_index})
 

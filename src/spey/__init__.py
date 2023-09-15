@@ -1,15 +1,17 @@
-from typing import Text, Union, List, Dict, Optional, Tuple, Callable, Any
-import pkg_resources, inspect
-import numpy as np
-from semantic_version import Version, SimpleSpec
+from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
 
-from spey.interface.statistical_model import StatisticalModel, statistical_model_wrapper
-from spey.base import BackendBase
+import numpy as np
+import pkg_resources
+from semantic_version import SimpleSpec, Version
+
+from spey.base import BackendBase, ConverterBase
 from spey.combiner import UnCorrStatisticsCombiner
+from spey.interface.statistical_model import StatisticalModel, statistical_model_wrapper
 from spey.system.exceptions import PluginError
-from .utils import ExpectationType
+
 from ._version import __version__
 from .about import about
+from .utils import ExpectationType
 
 __all__ = [
     "version",
@@ -21,6 +23,7 @@ __all__ = [
     "get_backend_metadata",
     "reset_backend_entries",
     "BackendBase",
+    "ConverterBase",
     "about",
 ]
 
@@ -148,10 +151,8 @@ def get_backend(name: Text) -> Callable[[Any], StatisticalModel]:
                 f"However the current spey version is {__version__}."
             )
 
-        # For classes without __init__ function this will allow initialisation but then the class
-        # can be called through __call__ function to return a statistical model
-        spec = inspect.getfullargspec(statistical_model)
-        if len(spec.args) == 0 or spec.args == ["self"]:
+        # Initialise converter base models
+        if ConverterBase in statistical_model.mro():
             statistical_model = statistical_model()
 
         return statistical_model_wrapper(statistical_model)

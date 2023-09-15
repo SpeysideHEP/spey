@@ -1,21 +1,21 @@
 Combining Statistical Models
 ============================
 
-In this section we will provide a simple statistical model combination example using 
+In this section, we will provide a simple statistical model combination example using 
 `Path Finder algorithm <https://github.com/J-Yellen/PathFinder>`_ 
-(for details see :cite:`Araz:2022vtr`).
+(For details, see :cite:`Araz:2022vtr`).
 
-The data necessary to complete this excercise has been provided under ``data/path_finder`` folder of
-`spey's GitHub repository <https://github.com/SpeysideHEP/spey>`_. Here one will find ``example_data.json``
+The data necessary to complete this exercise has been provided under the ``data/path_finder`` folder of
+`spey's GitHub repository <https://github.com/SpeysideHEP/spey>`_. Here, one will find ``example_data.json``
 and ``overlap_matrix.csv`` files. Both files are generated using MadAnalysis 5 recast of ATLAS-SUSY-2018-31 
 :cite:`ATLAS:2019gdh, DVN/IHALED_2020, Araz:2020stn` 
 and CMS-SUS-19-006 :cite:`CMS:2019zmd, Mrowietz:2020ztq` analyses.
 
-* ``example_data.json``: Includes cross section and signal, background, and observed yields information
+* ``example_data.json``: Includes cross section and signal, background, and observed yield information
   for this example.
-* ``overlap_matrix.csv``: Includes overlap matrix that PathFinder algorithm needs to find the best combination.
+* ``overlap_matrix.csv``: Includes overlap matrix that the PathFinder algorithm needs to find the best combination.
 
-Let us first import all the necessary packages and construct the data (please add the path finder path to 
+Let us first import all the necessary packages and construct the data (please add the pathfinder path to 
 ``sys.path`` list if needed)
 
 .. code-block:: python3
@@ -31,7 +31,7 @@ Let us first import all the necessary packages and construct the data (please ad
 
     
     >>> models = {}
-    >>> # loop over all data
+    >>> # loop overall data
     >>> for data in example_data["data"]:
     >>>     pdf_wrapper = spey.get_backend("default_pdf.uncorrelated_background")
     
@@ -44,21 +44,23 @@ Let us first import all the necessary packages and construct the data (please ad
     ...         xsection=example_data["xsec"],
     ...     )
     
-    >>>     llhr = stat_model.likelihood(0) - stat_model.likelihood(1)
+    >>>     llhr = stat_model.chi2(
+    ...         poi_test=1.0, poi_test_denominator=0.0, expected=spey.ExpectationType.apriori
+    ...     ) / 2.0
     
     >>>     models.update({data["region"]: {"stat_model": stat_model, "llhr": llhr}})
 
 ``example_data`` has two main section which are ``"data"`` including all the information about regions 
 and ``"xsec"`` including cross section value in pb. Using the information provided for each region we construct
-an uncorrelated background based statistical model. ``llhr`` is the log-likelihood ratio of signal+background and
-background only statistical models given as
+an uncorrelated background-based statistical model. ``llhr`` is the log-likelihood ratio of signal+background and
+background-only statistical models given as
 
 .. math:: 
 
     {\rm llhr} = -\log\frac{\mathcal{L}(1,\theta_1)}{\mathcal{L}(0,\theta_0)}\ .
 
-Finally the dictionary called ``models`` is just a container to collect all the models. In the next let us 
-construct Binnary exaptance matrix and compute the best possible paths
+Finally, the dictionary called ``models`` is just a container to collect all the models. In the next, let us 
+construct a Binary acceptance matrix and compute the best possible paths
 
 .. code-block:: python3
     :linenos:
@@ -71,19 +73,19 @@ construct Binnary exaptance matrix and compute the best possible paths
     >>> whdfs.find_paths(runs=len(weights), verbose=False)
     >>> plot_results.plot(bam, whdfs)
 
-In the first three lines we read the overlap matrix extract the corresponding weights (``llhr``) and fed these
-into ``pf.BinaryAcceptance`` function. We use ``WHDFS`` algorithm to compute top 5 combinations and plot the 
-resulting binnary acceptance matrix with the paths.
+In the first three lines, we read the overlap matrix, extracted the corresponding weights (``llhr``), and fed these
+into the ``pf.BinaryAcceptance`` function. We use the ``WHDFS`` algorithm to compute the top 5 combinations and plot the 
+resulting binary acceptance matrix with the paths.
 
 .. image:: ./figs/bam.png
     :align: center
     :scale: 20
-    :alt: Binnary Acceptance Matrix
+    :alt: Binary Acceptance Matrix
 
-Here each column and row corresponds to ``overlap_matrix.columns`` and the coloured lines are the chosen paths
+Each column and row corresponds to ``overlap_matrix.columns``, and the colored lines are the chosen paths
 where the best path can be seen via ``whdfs.best.path``. In this case we find ``"atlas_susy_2018_31::SRA_H"``,
 ``"cms_sus_19_006::SR25_Njet23_Nb2_HT6001200_MHT350600"`` and ``'cms_sus_19_006::AGGSR7_Njet2_Nb2_HT600_MHT600'`` 
-regions as best regions to be combined. For the combination we will simply use :obj:`~spey.UnCorrStatisticsCombiner` 
+regions as best regions to be combined. For the combination, we will use :obj:`~spey.UnCorrStatisticsCombiner` 
 and feed the statistical models as input.
 
 .. code-block:: 
@@ -99,19 +101,19 @@ and feed the statistical models as input.
 
 .. note:: 
 
-    :obj:`~spey.UnCorrStatisticsCombiner` can be used for any backend retreived via :func:`spey.get_backend`
-    function which wraps the likelihood prescription with :obj:`~spey.StatisticalModel`.
+    :obj:`~spey.UnCorrStatisticsCombiner` can be used for any backend retrieved via :func:`spey.get_backend`
+    function, which wraps the likelihood prescription with :obj:`~spey.StatisticalModel`.
 
 :obj:`~spey.UnCorrStatisticsCombiner` has exact same structure as :obj:`~spey.StatisticalModel` hence one
-can use the same functionalities. Further mode we can compare it with the most sensitive signal region within
-the stack which can be find via
+can use the same functionalities. Further mode, we can compare it with the most sensitive signal region within
+the stack, which can be found via
 
 .. code-block:: python3
 
     >>> poiUL = np.array([models[reg]["stat_model"].poi_upper_limit(expected=spey.ExpectationType.aposteriori) for reg in models.keys()])
     
 
-In our case the minimum value that we found was from ``"atlas_susy_2018_31::SRA_H"`` where the expected exclusion
+In our case, the minimum value that we found was from ``"atlas_susy_2018_31::SRA_H"`` where the expected exclusion
 limit can be computed via
 
 .. code-block:: python3
@@ -119,7 +121,7 @@ limit can be computed via
     >>> models["atlas_susy_2018_31::SRA_H"]["stat_model"].exclusion_confidence_level(expected=spey.ExpectationType.aposteriori)[2]
     >>> # 0.9445409288935508
 
-Finally we can compare the likelihood distribution of the two 
+Finally, we can compare the likelihood distribution of the two 
 
 .. code-block:: python3
     :linenos:
@@ -144,9 +146,9 @@ which gives us the following result:
 .. image:: ./figs/llhd_pf.png
     :align: center
     :scale: 20
-    :alt: Binnary Acceptance Matrix
+    :alt: Binary Acceptance Matrix
 
 .. attention:: 
 
     The results can vary between scipy versions and the versions of its compilers due to their effect on
-    optimisation algorithm.
+    optimization algorithm.
