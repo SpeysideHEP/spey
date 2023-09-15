@@ -30,7 +30,7 @@ testpypi:
 
 .PHONY: pypi
 pypi:
-	twine upload dist/*
+	twine --repository spey upload dist/*
 
 
 

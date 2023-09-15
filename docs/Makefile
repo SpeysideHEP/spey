@@ -50,7 +50,6 @@ help:
 clean:
 	rm -rf $(BUILDDIR)
 	rm -rf $(GENERATEDDIR)
-	rm -rf $(STATICDIR)
 
 
 .PHONY: html

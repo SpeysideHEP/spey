@@ -94,7 +94,10 @@ man_pages = [(master_doc, "spey", "spey Documentation", [author], 1)]
 
 html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
+html_css_files = ["css/custom.css"]
 
+html_logo = "img/logo.png"
+logo_only = True
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = "speydoc"
