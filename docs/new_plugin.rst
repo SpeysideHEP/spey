@@ -62,7 +62,7 @@ inheriting it. The most basic implementation of a statistical model can be found
 
 :class:`~spey.BackendBase` requires certain functionality from the statistical model to be 
 implemented, but let us first go through the above class structure. Spey looks for specific 
-metadata to track the version, author and name of the implementation. Additionally, 
+metadata to track the implementation's version, author and name. Additionally, 
 it checks compatibility with the current Spey version to ensure that the plugin works as it should.
 
 .. note:: 
@@ -143,8 +143,8 @@ Other available functions that can be implemented are shown in the table below.
 Identifying and installing your statistical model
 -------------------------------------------------
 
-In order to add your brand new statistical model to the spey interface, all you need to do is to create a ``setup.py`` file
-which will create an entry point for the statistical model class. So let's assume that you have the following folder structure
+In order to add your brand new statistical model to the spey interface, all you need to do is to create a ``setup.py`` file, 
+which will create an entry point for the statistical model class. So let us assume that you have the following folder structure
 
 .. code-block:: bash
 

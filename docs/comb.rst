@@ -5,7 +5,7 @@ In this section, we will provide a simple statistical model combination example 
 `Path Finder algorithm <https://github.com/J-Yellen/PathFinder>`_ 
 (For details, see :cite:`Araz:2022vtr`).
 
-The data necessary to complete this exercise has been provided under the ``data/path_finder`` folder of
+The data, necessary to complete this exercise, has been provided under the ``data/path_finder`` folder of
 `spey's GitHub repository <https://github.com/SpeysideHEP/spey>`_. Here, one will find ``example_data.json``
 and ``overlap_matrix.csv`` files. Both files are generated using MadAnalysis 5 recast of ATLAS-SUSY-2018-31 
 :cite:`ATLAS:2019gdh, DVN/IHALED_2020, Araz:2020stn` 
@@ -15,7 +15,7 @@ and CMS-SUS-19-006 :cite:`CMS:2019zmd, Mrowietz:2020ztq` analyses.
   for this example.
 * ``overlap_matrix.csv``: Includes overlap matrix that the PathFinder algorithm needs to find the best combination.
 
-Let us first import all the necessary packages and construct the data (please add the pathfinder path to 
+Let us first import all the necessary packages and construct the data (please add the Pathfinder path to 
 ``sys.path`` list if needed)
 
 .. code-block:: python3
@@ -82,7 +82,7 @@ resulting binary acceptance matrix with the paths.
     :scale: 20
     :alt: Binary Acceptance Matrix
 
-Each column and row corresponds to ``overlap_matrix.columns``, and the colored lines are the chosen paths
+Each column and row corresponds to ``overlap_matrix.columns``, and the coloured lines are the chosen paths
 where the best path can be seen via ``whdfs.best.path``. In this case we find ``"atlas_susy_2018_31::SRA_H"``,
 ``"cms_sus_19_006::SR25_Njet23_Nb2_HT6001200_MHT350600"`` and ``'cms_sus_19_006::AGGSR7_Njet2_Nb2_HT600_MHT600'`` 
 regions as best regions to be combined. For the combination, we will use :obj:`~spey.UnCorrStatisticsCombiner` 
@@ -151,4 +151,4 @@ which gives us the following result:
 .. attention:: 
 
     The results can vary between scipy versions and the versions of its compilers due to their effect on
-    optimization algorithm.
+    optimisation algorithm.

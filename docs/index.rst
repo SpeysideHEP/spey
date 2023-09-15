@@ -25,7 +25,7 @@ Welcome to the documentation of Spey
    contributing
    known_issues
    outreach
-   releases/changelog-dev
+   releases/changelog-v0.1.1
    bibliography
 
 

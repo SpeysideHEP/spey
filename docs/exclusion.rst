@@ -1,11 +1,11 @@
 Exclusion limits
 ================
 
-Any statistical model in Spey comes with the possibility of computing the exclusion confidence level
-using three different options. Depending on the available functions in likelihood construction 
+Any Spey statistical model can compute the exclusion confidence level
+using three options. Depending on the available functions in likelihood construction 
 (see :ref:`this section <sec_new_plugin>` for details), one or more of these options will be 
-available for the user. To see which calculators are available, one can use 
-:func:`~spey.StatisticalModel.available_calculators` function.
+available for the user. One can use 
+:func:`~spey.StatisticalModel.available_calculators` function to see which calculators are available.
 
 :func:`~spey.StatisticalModel.exclusion_confidence_level` function uses ``calculator`` keyword
 to choose in between ``"asymptotic"``, ``"toy"`` and ``"chi_square"`` calculators.
@@ -29,14 +29,14 @@ to choose in between ``"asymptotic"``, ``"toy"`` and ``"chi_square"`` calculator
   default ``None``. If ``poi_test_denominator=None`` the null hypothesis will be determined by the 
   maximum likelihood, if anything else, it will be computed according to that POI value.
 
-The ``expected`` keyword allows the user to choose between observed and expected exclusion limit 
+The ``expected`` keyword lets users choose between observed and expected exclusion limit 
 computations. Additionally, it allows one to choose prefit expected exclusion limit as well; 
 this can be enabled by choosing ``expected=spey.ExpectationType.apriori``. This option will 
 disregard the experimental observations and compute the expected exclusion limit with respect to
 the expected background yields, i.e. simulated SM. :attr:`~spey.ExpectationType.observed` 
 (:attr:`~spey.ExpectationType.aposteriori`) performs post-fit and computes observed (expected) 
 exclusion confidence limits. Expected exclusion limits, for both cases, are returned with 
-:math:`\pm1\sigma` and :math:`\pm2\sigma` fluctuations around the background model. Hence while 
+:math:`\pm1\sigma` and :math:`\pm2\sigma` fluctuations around the background model. Hence, while 
 the observed expectation limit returns one value, the expected exclusion limit returns five values; 
 :math:`[-2\sigma, -1\sigma, 0, 1\sigma, 2\sigma]`, respectively. However, since this is not possible
 for the ``"chi_square"`` calculator, that option only returns one value for both.
