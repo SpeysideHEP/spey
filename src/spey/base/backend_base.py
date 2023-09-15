@@ -1,13 +1,12 @@
 """Abstract Methods for backend objects"""
 
 from abc import ABC, abstractmethod
-from typing import Text, Tuple, Callable, Union, List, Optional
+from typing import Callable, List, Optional, Text, Tuple, Union
 
 import numpy as np
 
-from spey.utils import ExpectationType
 from spey.base.model_config import ModelConfig
-
+from spey.utils import ExpectationType
 
 __all__ = ["BackendBase"]
 
@@ -167,7 +166,6 @@ class BackendBase(ABC):
         """
         raise NotImplementedError("This method has not been implemented")
 
-    @abstractmethod
     def expected_data(self, pars: List[float]) -> List[float]:
         r"""
         Compute the expected value of the statistical model. This function is mainly used to
@@ -182,6 +180,7 @@ class BackendBase(ABC):
             ``List[float]``:
             Expected data of the statistical model
         """
+        raise NotImplementedError("This method has not been implemented")
 
     def combine(self, other, **kwargs):
         """
@@ -409,3 +408,45 @@ class BackendBase(ABC):
             value of negative log-likelihood and fit parameters (:math:`\mu` and :math:`\theta`).
         """
         raise NotImplementedError("This method has not been implemented")
+
+
+class ConverterBase(ABC):
+    """
+    An abstract class construction to enforce certain behaviour on statistical model backend.
+    This base class is used to act as a midle function where the function can act as a converter
+    between two statistical models. It has to have a call function which needs to return a
+    :obj:`~spey.BackendBase` object.
+
+    .. note::
+
+        ``ConverterBase`` object is not expected to have an ``__init__`` method that expect
+        arguments or keyword arguments. This function should have a ``__call__`` method that
+        returns :obj:`~spey.BackendBase` object.
+
+    Example:
+
+    .. code:: python3
+
+        >>> class MyStatConverter(ConverterBase):
+        >>>     name= "example.converter"
+        >>>     version="0.0.1"
+        >>>     author="Tom Bombadil"
+        >>>     spey_requires=">0.1.0"
+
+        >>>     def __call__(self, stat_model: spey.StatisticalModel) -> BackendBase:
+        >>>         # do something
+        >>>         return UncorrelatedBackground(...)
+    """
+
+    def __call__(self, *args, **kwargs) -> BackendBase:
+        """
+        Function that compiles the :obj:`~spey.BackendBase` object.
+
+        Raises:
+            ``NotImplementedError``: If ``__call__`` function is not implemented for the class.
+
+        Returns:
+            :obj:`~spey.BackendBase`:
+            This function should return any :obj:`~spey.BackendBase` object.
+        """
+        raise NotImplementedError("Invalid implementation of ConverterBase object")

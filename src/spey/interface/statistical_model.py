@@ -1,19 +1,19 @@
 """Statistical Model wrapper class"""
 
-from typing import Optional, Text, Tuple, List, Callable, Union, Any, Dict
 import inspect
+from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
 
 import numpy as np
 
-from spey.utils import ExpectationType
 from spey.base.backend_base import BackendBase
-from spey.system.exceptions import (
-    UnknownCrossSection,
-    MethodNotAvailable,
-    CombinerNotAvailable,
-)
 from spey.base.hypotest_base import HypothesisTestingBase
 from spey.optimizer.core import fit
+from spey.system.exceptions import (
+    CombinerNotAvailable,
+    MethodNotAvailable,
+    UnknownCrossSection,
+)
+from spey.utils import ExpectationType
 
 __all__ = ["StatisticalModel", "statistical_model_wrapper"]
 
@@ -115,13 +115,20 @@ class StatisticalModel(HypothesisTestingBase):
         return _module_check(self.backend, "get_sampler")
 
     @property
+    def is_chi_square_calculator_available(self) -> bool:
+        """Check if chi-square calculator is available for the backend"""
+        return True
+
+    @property
     def available_calculators(self) -> List[Text]:
-        """Retruns available calculator names i.e. ``toy`` and/or ``asymptotic``."""
-        calc = (
-            "toy " * self.is_toy_calculator_available
-            + "asymptotic" * self.is_asymptotic_calculator_available
-        )
-        return calc.split()
+        """
+        Retruns available calculator names i.e. ``'toy'``,
+        ``'asymptotic'`` and ``'chi_square'``.
+        """
+        calc = ["toy"] * self.is_toy_calculator_available
+        calc += ["asymptotic"] * self.is_asymptotic_calculator_available
+        calc += ["chi_square"] * self.is_chi_square_calculator_available
+        return calc
 
     @property
     def is_alive(self) -> bool:
@@ -288,12 +295,18 @@ class StatisticalModel(HypothesisTestingBase):
         """
         fit_opts = self.prepare_for_fit(expected=expected, data=data, **kwargs)
 
-        logpdf, _ = fit(
-            **fit_opts,
-            initial_parameters=init_pars,
-            bounds=par_bounds,
-            fixed_poi_value=poi_test,
-        )
+        if (
+            fit_opts["model_configuration"].npar == 1
+            and fit_opts["model_configuration"].poi_index is not None
+        ):
+            logpdf = fit_opts["logpdf"](poi_test)
+        else:
+            logpdf, _ = fit(
+                **fit_opts,
+                initial_parameters=init_pars,
+                bounds=par_bounds,
+                fixed_poi_value=poi_test,
+            )
 
         return -logpdf if return_nll else np.exp(logpdf)
 
@@ -616,12 +629,18 @@ class StatisticalModel(HypothesisTestingBase):
         """
         fit_opts = self.prepare_for_fit(expected=expected, **kwargs)
 
-        _, fit_param = fit(
-            **fit_opts,
-            initial_parameters=init_pars,
-            bounds=par_bounds,
-            fixed_poi_value=poi_test,
-        )
+        if (
+            fit_opts["model_configuration"].npar == 1
+            and fit_opts["model_configuration"].poi_index is not None
+        ):
+            fit_param = np.array(list(poi_test))
+        else:
+            _, fit_param = fit(
+                **fit_opts,
+                initial_parameters=init_pars,
+                bounds=par_bounds,
+                fixed_poi_value=poi_test,
+            )
 
         try:
             sampler = self.backend.get_sampler(fit_param)
@@ -736,7 +755,7 @@ class StatisticalModel(HypothesisTestingBase):
 
 def statistical_model_wrapper(
     func: BackendBase,
-) -> Callable[[Any, ...], StatisticalModel]:
+) -> Callable[[Any], StatisticalModel]:
     """
     Backend wrapper for :class:`~spey.StatisticalModel`. This function allows a universal
     integration of each backend to the :obj:`spey` environment. :func:`~spey.get_backend` function
@@ -750,7 +769,7 @@ def statistical_model_wrapper(
         :obj:`AssertionError`: If the input function does not inherit :obj:`~spey.BackendBase`
 
     Returns:
-        ``Callable[[Any, ...], StatisticalModel]``:
+        ``Callable[[Any], StatisticalModel]``:
         Wrapper that takes the following inputs
 
         * **args**: Backend specific arguments.

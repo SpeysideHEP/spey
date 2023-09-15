@@ -16,6 +16,7 @@ Welcome to the documentation of Spey
    :caption: Contents:
 
    quick_start
+   exclusion
    plugins
    comb
    new_plugin
@@ -24,13 +25,8 @@ Welcome to the documentation of Spey
    contributing
    known_issues
    outreach
+   releases/changelog-v0.1.1
    bibliography
 
 
-
-Indices and tables
-==================
-
 * :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

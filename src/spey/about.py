@@ -1,7 +1,13 @@
 """Function to display details about the spey installation"""
 
+import platform
+import sys
 from subprocess import check_output
-import platform, sys, numpy, scipy, semantic_version, tqdm
+
+import numpy
+import scipy
+import semantic_version
+import tqdm
 from pkg_resources import iter_entry_points
 
 

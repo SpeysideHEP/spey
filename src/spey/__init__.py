@@ -1,15 +1,17 @@
-from typing import Text, Union, List, Dict, Optional, Tuple, Callable, Any
+from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
+
 import numpy as np
 import pkg_resources
-from semantic_version import Version, SimpleSpec
+from semantic_version import SimpleSpec, Version
 
-from spey.interface.statistical_model import StatisticalModel, statistical_model_wrapper
-from spey.base import BackendBase
+from spey.base import BackendBase, ConverterBase
 from spey.combiner import UnCorrStatisticsCombiner
+from spey.interface.statistical_model import StatisticalModel, statistical_model_wrapper
 from spey.system.exceptions import PluginError
-from .utils import ExpectationType
+
 from ._version import __version__
 from .about import about
+from .utils import ExpectationType
 
 __all__ = [
     "version",
@@ -21,6 +23,7 @@ __all__ = [
     "get_backend_metadata",
     "reset_backend_entries",
     "BackendBase",
+    "ConverterBase",
     "about",
 ]
 
@@ -73,7 +76,7 @@ def AvailableBackends() -> List[Text]:
     return [*_backend_entries.keys()]
 
 
-def get_backend(name: Text) -> Callable[[Any, ...], StatisticalModel]:
+def get_backend(name: Text) -> Callable[[Any], StatisticalModel]:
     """
     Statistical model backend retreiver. Available backend names can be found via
     :func:`~spey.AvailableBackends` function.
@@ -147,6 +150,11 @@ def get_backend(name: Text) -> Callable[[Any, ...], StatisticalModel]:
                 f"The backend {name}, requires spey version {statistical_model.spey_requires}. "
                 f"However the current spey version is {__version__}."
             )
+
+        # Initialise converter base models
+        if ConverterBase in statistical_model.mro():
+            statistical_model = statistical_model()
+
         return statistical_model_wrapper(statistical_model)
 
     raise PluginError(

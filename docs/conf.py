@@ -41,7 +41,11 @@ extensions = [
     "sphinx_togglebutton",
     "xref",
     "myst_parser",
+    "sphinx_rtd_size",
 ]
+
+# set the width of the page
+sphinx_rtd_size_width = "75%"
 
 # external links
 xref_links = {
@@ -74,7 +78,7 @@ autosummary_generate = True
 numpydoc_show_class_members = False
 
 templates_path = ["_templates"]
-exclude_patterns = ["introduction.rst", "releases/changelog-dev.md"]
+exclude_patterns = ["introduction.rst"]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
