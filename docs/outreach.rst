@@ -4,4 +4,12 @@ Outreach
 Talks
 -----
 
-* August 30th, 2023: `8th workshop on (Re)interpretation of the LHC results for new physics <https://conference.ippp.dur.ac.uk/event/1178/contributions/6436/>`_
+.. list-table::
+   :header-rows: 1
+
+   * - Date
+     - Event
+   * - October 12, 2023
+     - `PyHEP 2023 - "Python in HEP" Users Workshop <https://indico.cern.ch/event/1252095/contributions/5592415/>`_
+   * - August 30, 2023
+     - `8th workshop on (Re)interpretation of the LHC results for new physics <https://conference.ippp.dur.ac.uk/event/1178/contributions/6436/>`_
