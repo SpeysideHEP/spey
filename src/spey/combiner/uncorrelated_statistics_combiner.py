@@ -143,6 +143,11 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
         """Check if Toy calculator is available for the backend"""
         return False
 
+    @property
+    def is_chi_square_calculator_available(self) -> bool:
+        r"""Check if :math:`\chi^2` calculator is available for the backend"""
+        return all(model.is_chi_square_calculator_available for model in self)
+
     def __getitem__(self, item: Union[Text, int]) -> StatisticalModel:
         """Retrieve a statistical model"""
         if isinstance(item, int):
