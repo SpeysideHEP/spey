@@ -286,12 +286,14 @@ Once again, the exclusion limit can be computed as
 External Plug-ins
 -----------------
 
-    * ``spey-pyhf`` plugin allows pyhf's likelihood prescription to be used within ``spey``.
-      for details, see the `dedicated GitHub Repository <https://github.com/SpeysideHEP/spey-pyhf>`_ and
-      `spey-pyhf documentation <https://speysidehep.github.io/spey-pyhf/>`_ :cite:`pyhf_joss`.
-        
-        * `pyhf documentation <https://pyhf.readthedocs.io>`_.
-    
-    * ``spey-fastprof``: TBA :cite:`Berger:2023bat`.
+.. toctree::
 
-        * `fastprof documentation <https://fastprof.web.cern.ch/fastprof/>`_.
+   Spey-pyhf plug-in documentation <https://speysidehep.github.io/spey-pyhf/>
+   Spey-fastprof: TBA <https://speysidehep.github.io/spey/>
+
+**Useful links:**
+
+* `pyhf documentation <https://pyhf.readthedocs.io>`_ :cite:`pyhf_joss`.
+* `Spey-pyhf plug-in GitHub Repository <https://github.com/SpeysideHEP/spey-pyhf>`_
+* ``spey-fastprof``: TBA :cite:`Berger:2023bat`.
+* `fastprof documentation <https://fastprof.web.cern.ch/fastprof/>`_.
