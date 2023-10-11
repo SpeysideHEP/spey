@@ -20,7 +20,7 @@ Welcome to the documentation of Spey
    contributing
    known_issues
    outreach
-   releases/changelog-v0.1
+   release_notes
    bibliography
 
 
