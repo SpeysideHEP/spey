@@ -1,4 +1,4 @@
-# Release notes v0.1.1
+# Release notes v0.1.2
 
 ## New features since last release
 
@@ -16,6 +16,12 @@
 
 * Backend inspection has been converted to inheritance property via ``ConverterBase``.
   ([#17](https://github.com/SpeysideHEP/spey/pull/17))
+
+## Bug Fixes
+
+* In accordance to the latest updates ```UnCorrStatisticsCombiner``` has been updated with
+  chi-square computer. See issue [#19](https://github.com/SpeysideHEP/spey/issues/19).
+  ([#20](https://github.com/SpeysideHEP/spey/pull/20))
 
 ## Contributors
 
