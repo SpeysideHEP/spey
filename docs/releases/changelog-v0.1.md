@@ -20,7 +20,7 @@
 ## Bug Fixes
 
 * In accordance to the latest updates ```UnCorrStatisticsCombiner``` has been updated with
-  chi-square computer.
+  chi-square computer. See issue [#19](https://github.com/SpeysideHEP/spey/issues/19).
   ([#20](https://github.com/SpeysideHEP/spey/pull/20))
 
 ## Contributors
