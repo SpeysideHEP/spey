@@ -20,6 +20,5 @@ formats: all
 
 # python -m pip install .[docs]
 python:
-  version: 3.11
   install:
     - requirements: docs/requirements.txt
