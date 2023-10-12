@@ -23,7 +23,7 @@ docs = [
     "sphinx-issues",
     "sphinx-copybutton>=0.3.2",
     "sphinx-togglebutton>=0.3.0",
-    # "myst-parser",
+    "myst-parser",
     "sphinx-rtd-size",
 ]
 
