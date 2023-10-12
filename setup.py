@@ -15,15 +15,15 @@ requirements = [
 ]
 
 docs = [
-    "sphinx==6.2.1",
+    "sphinx>=7.0.0",
     "sphinxcontrib-bibtex~=2.1",
     "sphinx-click",
-    "sphinx_rtd_theme",
+    "sphinx-rtd-theme>=1.3.0",
     "nbsphinx!=0.8.8",
     "sphinx-issues",
     "sphinx-copybutton>=0.3.2",
     "sphinx-togglebutton>=0.3.0",
-    "myst-parser",
+    # "myst-parser",
     "sphinx-rtd-size",
 ]
 
