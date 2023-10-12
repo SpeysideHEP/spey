@@ -15,6 +15,7 @@ Welcome to the documentation of Spey
    plugins
    comb
    new_plugin
+   tutorials
    api
    citations
    contributing
