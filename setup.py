@@ -14,19 +14,6 @@ requirements = [
     "tqdm>=4.64.0",
 ]
 
-docs = [
-    "sphinx>=7.0.0",
-    "sphinxcontrib-bibtex~=2.1",
-    "sphinx-click",
-    "sphinx-rtd-theme>=1.3.0",
-    "nbsphinx!=0.8.8",
-    "sphinx-issues",
-    "sphinx-copybutton>=0.3.2",
-    "sphinx-togglebutton>=0.3.0",
-    "myst-parser",
-    "sphinx-rtd-size",
-]
-
 backend_plugins = [
     "default_pdf.uncorrelated_background = spey.backends.default_pdf:UncorrelatedBackground",
     "default_pdf.correlated_background = spey.backends.default_pdf:CorrelatedBackground",
@@ -62,6 +49,5 @@ setup(
     ],
     extras_require={
         "dev": ["pytest>=7.1.2", "pytest-cov>=3.0.0", "twine>=3.7.1", "wheel>=0.37.1"],
-        "doc": docs,
     },
 )
