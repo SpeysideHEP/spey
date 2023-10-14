@@ -1,12 +1,13 @@
 # Spey: smooth inference for reinterpretation studies
 
-[![arxiv](https://img.shields.io/static/v1?style=plastic&label=arXiv&message=2307.06996%20%20[hep-ph]&color=brightgreen)](https://arxiv.org/abs/2307.06996)
+[![arxiv](https://img.shields.io/static/v1?style=plastic&label=arXiv&message=2307.06996&color=brightgreen)](https://arxiv.org/abs/2307.06996)
 [![DOI](https://img.shields.io/static/v1?style=plastic&label=DOI&message=TBA&color=blue)]()
 [![zenodoo](https://img.shields.io/static/v1?style=plastic&label=zenodo&message=TBA&color=blue)]()
-[![doc](https://img.shields.io/static/v1?style=plastic&label&message=Online%20%20Documentation&logo=gitbook&logoColor=white&color=gray)](https://speysidehep.github.io/spey/)
+[![doc](https://img.shields.io/static/v1?style=plastic&label&message=Documentation&logo=gitbook&logoColor=white&color=gray)](https://speysidehep.github.io/spey/)
 
 [![github](https://img.shields.io/static/v1?style=plastic&label&message=GitHub&logo=github&logoColor=black&color=white)](https://github.com/SpeysideHEP/spey)
 [![pypi](https://img.shields.io/static/v1?style=plastic&label&message=pypi%20%20package&logo=python&logoColor=yellow&color=blue)](https://pypi.org/project/spey/)
+[![Documentation Status](https://readthedocs.org/projects/spey/badge/?style=plastic&version=main)](https://spey.readthedocs.io/en/main/)
 
 ## Outline
 
@@ -29,7 +30,7 @@ If you like to use a specific branch you can either use `make install` or `pip i
 python -m pip install --upgrade "git+https://github.com/SpeysideHEP/spey"
 ```
 
-**Note that `main` branch is not the stable version.**
+**Note that `main` branch may not be the stable version.**
 
 ## What is Spey?
 
