@@ -17,6 +17,7 @@ body:
       label: System Settings
       description: |
         Please copy and paste the output of `spey.about()` function. If you are working on a specific branch please add the name of the branch and last commit ID. The abbreviated commit ID can be found via `git log -n1 --format="%h"` command. To retreive the branch name please use `git rev-parse --abbrev-ref HEAD` command.)
+      render: shell
     validations:
       required: true
   - type: textarea
@@ -28,15 +29,21 @@ body:
     validations:
       required: true
   - type: textarea
-    id: reproduce
+    id: sourcecode
     attributes:
-      label: To Reproduce
+      label: Source code
       description: |
         Steps to reproduce the behaviour:
-          - Please provide a **simplified** and clean code example.
-          - If necessary, please provide example data. Note that if GitHub does not accept the data format, it can be uploaded by converting it to `.txt` file.
+          - Please provide a minimal non-working example, or any other code related to the issue, here. This will be automatically formatted into code, so no need for backticks.
+      render: python
     validations:
       required: true
+  - type: textarea
+    id: tracebacks
+    attributes:
+      label:  Tracebacks
+      description: Please include the error tracebacks related to the issue here. This will be automatically formatted into code, so no need for backticks.
+      render: shell
   - type: textarea
     id: expectation
     attributes:
@@ -49,4 +56,10 @@ body:
       label: Additional information
       description: |
         Add any other context about the problem here.
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Existing GitHub issues
+      - label: I have searched existing GitHub issues to make sure the issue does not already exist.
+        required: true
 
