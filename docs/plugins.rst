@@ -288,8 +288,8 @@ External Plug-ins
 
 .. toctree::
 
-   Spey-pyhf plug-in documentation <https://speysidehep.github.io/spey-pyhf/>
-   Spey-fastprof: TBA <https://speysidehep.github.io/spey/>
+   Spey-pyhf plug-in documentation <https://spey-pyhf.readthedocs.io>
+   Spey-fastprof: TBA <https://spey.readthedocs.io>
 
 **Useful links:**
 
