@@ -283,6 +283,38 @@ Once again, the exclusion limit can be computed as
  * ``analysis`` (optional): Unique identifier for the analysis.
  * ``xsection`` (optional): Cross-section value for the signal hypothesis. Units determined by the user.
 
+``'default_pdf.poisson'``
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Simple Poisson implementation without uncertainties which can be described as follows;
+
+.. math::
+
+    \mathcal{L}(\mu) = \prod_{i\in{\rm bins}}{\rm Poiss}(n^i|\mu n_s^i + n_b^i)
+
+It can take any number of yields.
+
+.. code-block:: python3
+    :linenos:
+
+    >>> pdf_wrapper = spey.get_backend("default_pdf.poisson")
+    >>> statistical_model = pdf_wrapper(
+    ...     signal_yields=[12.0, 15.0],
+    ...     background_yields=[50.0,48.0],
+    ...     data=[36, 33],
+    ...     analysis="example",
+    ...     xsection=0.123,
+    ... )
+
+**Arguments:**
+
+ * ``signal_yields``: keyword for signal yields. It can take one or more values as a list or NumPy array.
+ * ``background_yields``: keyword for background-only expectations. It can take one or more values as a list or NumPy array.
+ * ``data``: keyword for observations. It can take one or more values as a list or NumPy array.
+ * ``analysis`` (optional): Unique identifier for the analysis.
+ * ``xsection`` (optional): Cross-section value for the signal hypothesis. Units determined by the user.
+
+
 External Plug-ins
 -----------------
 
