@@ -345,16 +345,17 @@ class HypothesisTestingBase(ABC):
             value of the :math:`\chi^2`.
         """
         if poi_test_denominator is None:
-            denominator = self.maximize_likelihood(
+            _, denominator = self.maximize_likelihood(
                 expected=expected, allow_negative_signal=allow_negative_signal, **kwargs
-            )[-1]
+            )
         else:
             denominator = self.likelihood(
                 poi_test=poi_test_denominator, expected=expected, **kwargs
             )
 
         return 2.0 * (
-            self.likelihood(poi_test=poi_test, expected=expected, **kwargs) - denominator
+            self.likelihood(poi_test=poi_test, expected=expected, **kwargs)
+            - denominator
         )
 
     def _prepare_for_hypotest(
@@ -630,7 +631,6 @@ class HypothesisTestingBase(ABC):
             )
 
         elif calculator == "toy":
-
             signal_samples = self.fixed_poi_sampler(
                 poi_test=poi_test, size=self.ntoys, expected=expected, **kwargs
             )
@@ -707,7 +707,8 @@ class HypothesisTestingBase(ABC):
             pvalues = [
                 1.0
                 - chi2.cdf(
-                    chi_square, 1 if isinstance(poi_test, (float, int)) else len(poi_test)
+                    chi_square,
+                    1 if isinstance(poi_test, (float, int)) else len(poi_test),
                 )
             ]
             expected_pvalues = pvalues
@@ -769,7 +770,9 @@ class HypothesisTestingBase(ABC):
             logpdf,
             maximum_asimov_likelihood,
             logpdf_asimov,
-        ) = self._prepare_for_hypotest(expected=expected, test_statistics="q0", **kwargs)
+        ) = self._prepare_for_hypotest(
+            expected=expected, test_statistics="q0", **kwargs
+        )
 
         sqrt_q0, sqrt_q0A, delta_teststat = compute_teststatistics(
             0.0,
