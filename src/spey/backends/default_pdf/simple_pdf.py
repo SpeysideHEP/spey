@@ -10,7 +10,7 @@ from spey.backends.distributions import MainModel
 from spey.base import BackendBase, ModelConfig
 from spey.utils import ExpectationType
 
-# pylint: disable=E1101,E1120
+# pylint: disable=E1101,E1120,W0613
 
 
 class Poisson(BackendBase):
@@ -21,10 +21,12 @@ class Poisson(BackendBase):
 
         \mathcal{L}(\mu) = \prod_{i\in{\rm bins}}{\rm Poiss}(n^i|\mu n_s^i + n_b^i)
 
+    where :math:`n_{s,b}` are signal and background yields and :math:`n` are the observations.
+
     Args:
-        signal_yields (``np.ndarray``): signal yields
-        background_yields (``np.ndarray``): background yields
-        data (``np.ndarray``): data
+        signal_yields (``List[float]``): signal yields
+        background_yields (``List[float]``): background yields
+        data (``List[int]``): data
     """
 
     name: Text = "default_pdf.poisson"
@@ -39,7 +41,10 @@ class Poisson(BackendBase):
     __slots__ = ["_model", "_main_model"]
 
     def __init__(
-        self, signal_yields: np.ndarray, background_yields: np.ndarray, data: np.ndarray
+        self,
+        signal_yields: List[float],
+        background_yields: List[float],
+        data: List[int],
     ):
         self.data = np.array(data, dtype=np.float64)
         self.signal_yields = np.array(signal_yields, dtype=np.float64)
