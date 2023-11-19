@@ -19,6 +19,7 @@ backend_plugins = [
     "default_pdf.correlated_background = spey.backends.default_pdf:CorrelatedBackground",
     "default_pdf.third_moment_expansion = spey.backends.default_pdf:ThirdMomentExpansion",
     "default_pdf.effective_sigma = spey.backends.default_pdf:EffectiveSigma",
+    "default_pdf.poisson = spey.backends.default_pdf.simple_pdf:Poisson",
 ]
 
 setup(

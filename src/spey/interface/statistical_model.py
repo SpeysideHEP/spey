@@ -166,7 +166,8 @@ class StatisticalModel(HypothesisTestingBase):
             raise UnknownCrossSection("Cross-section value has not been initialised.")
 
         return (
-            self.poi_upper_limit(expected=expected, confidence_level=0.95) * self.xsection
+            self.poi_upper_limit(expected=expected, confidence_level=0.95)
+            * self.xsection
         )
 
     @property
@@ -299,7 +300,7 @@ class StatisticalModel(HypothesisTestingBase):
             fit_opts["model_configuration"].npar == 1
             and fit_opts["model_configuration"].poi_index is not None
         ):
-            logpdf = fit_opts["logpdf"](poi_test)
+            logpdf = fit_opts["logpdf"]([poi_test])
         else:
             logpdf, _ = fit(
                 **fit_opts,

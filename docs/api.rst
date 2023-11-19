@@ -109,6 +109,14 @@ Default PDFs
     third_moment.third_moment_expansion
     third_moment.compute_third_moments
 
+Simple PDFs
+~~~~~~~~~~~
+
+.. autosummary:: 
+    :toctree: _generated/
+
+    simple_pdf.Poisson
+
 
 Exceptions
 ----------
