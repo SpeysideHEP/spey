@@ -21,6 +21,10 @@
 * Backend inspection has been converted to inheritance property via ``ConverterBase``.
   ([#17](https://github.com/SpeysideHEP/spey/pull/17))
 
+* During POI upper limit computation, `sigma_mu` will be computed from Hessian, if available
+  before approximating through $q_{\mu,A}$.
+  [#25](https://github.com/SpeysideHEP/spey/pull/25)
+
 ## Bug Fixes
 
 * In accordance to the latest updates ```UnCorrStatisticsCombiner``` has been updated with
