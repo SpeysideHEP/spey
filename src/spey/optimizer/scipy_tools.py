@@ -1,9 +1,10 @@
 """Optimisation tools based on scipy"""
 
-from typing import Callable, List, Tuple, Dict
+import warnings
+from typing import Callable, Dict, List, Tuple
 
-import warnings, scipy
 import numpy as np
+import scipy
 
 
 def minimize(

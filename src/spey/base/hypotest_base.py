@@ -892,7 +892,11 @@ class HypothesisTestingBase(ABC):
 
         if None in [low_init, hig_init]:
             muhat = maximum_likelihood[0] if maximum_likelihood[0] > 0.0 else 0.0
-            sigma_mu = self.sigma_mu(muhat, expected=expected) if muhat != 0.0 else 1.0
+            sigma_mu = (
+                self.sigma_mu(muhat, expected=expected)
+                if not np.isclose(muhat, 0.0)
+                else 1.0
+            )
             low_init = low_init or muhat + 1.5 * sigma_mu
             hig_init = hig_init or muhat + 2.5 * sigma_mu
 
