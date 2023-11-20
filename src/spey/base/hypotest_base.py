@@ -21,7 +21,7 @@ from spey.hypothesis_testing.test_statistics import (
 )
 from spey.hypothesis_testing.toy_calculator import compute_toy_confidence_level
 from spey.hypothesis_testing.upper_limits import find_poi_upper_limit
-from spey.system.exceptions import CalculatorNotAvailable
+from spey.system.exceptions import CalculatorNotAvailable, MethodNotAvailable
 from spey.utils import ExpectationType
 
 __all__ = ["HypothesisTestingBase"]
@@ -453,7 +453,9 @@ class HypothesisTestingBase(ABC):
         **kwargs,
     ) -> float:
         r"""
-        Estimate variance on :math:`\mu` via :math:`q_{\mu,A}`
+        If available, :math:`\sigma_\mu` will be computed through Hessian of negative log-likelihood
+        see :func:`spey.StatisticalModel.sigma_mu_from_hessian` for details.
+        However, if not available it will be estimated via :math:`q_{\mu,A}`
 
         .. math::
 
@@ -504,6 +506,16 @@ class HypothesisTestingBase(ABC):
             :obj:`float`:
             value of the variance on :math:`\mu`.
         """
+        if hasattr(self, "sigma_mu_from_hessian"):
+            try:
+                return self.sigma_mu_from_hessian(
+                    poi_test=poi_test, expected=expected, **kwargs
+                )
+            except MethodNotAvailable:
+                warnings.warm(
+                    "Hessian implementation is not available for this backend, "
+                    "continuing with the approximate method."
+                )
         teststat_func = get_test_statistic(test_statistics)
 
         muhatA, min_nllA = self.maximize_asimov_likelihood(
