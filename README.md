@@ -7,7 +7,7 @@
 
 [![github](https://img.shields.io/static/v1?style=plastic&label&message=GitHub&logo=github&logoColor=black&color=white)](https://github.com/SpeysideHEP/spey)
 [![pypi](https://img.shields.io/static/v1?style=plastic&label&message=pypi&logo=python&logoColor=yellow&color=blue)](https://pypi.org/project/spey/)
-[![Documentation Status](https://readthedocs.org/projects/spey/badge/?style=plastic&version=latest)](https://spey.readthedocs.io/)
+[![Documentation Status](https://readthedocs.org/projects/spey/badge/?style=plastic&version=main)](https://spey.readthedocs.io/)
 
 ## Outline
 

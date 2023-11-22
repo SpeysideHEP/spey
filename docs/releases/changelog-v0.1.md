@@ -1,4 +1,4 @@
-# Release notes v0.1.3
+# Release notes v0.1.4
 
 ## New features since last release
 
@@ -21,6 +21,10 @@
 * Backend inspection has been converted to inheritance property via ``ConverterBase``.
   ([#17](https://github.com/SpeysideHEP/spey/pull/17))
 
+* During POI upper limit computation, `sigma_mu` will be computed from Hessian, if available
+  before approximating through $q_{\mu,A}$.
+  [#25](https://github.com/SpeysideHEP/spey/pull/25)
+
 ## Bug Fixes
 
 * In accordance to the latest updates ```UnCorrStatisticsCombiner``` has been updated with
@@ -30,6 +34,10 @@
 * Execution error fix during likelihood computation for models with single nuisance parameter.
   ([#22](https://github.com/SpeysideHEP/spey/pull/22))
 
+* Numeric problem rising from `==` which has been updated to `np.isclose`
+  see issue [#23](https://github.com/SpeysideHEP/spey/issues/23).
+  [#25](https://github.com/SpeysideHEP/spey/pull/25)
+  
 ## Contributors
 
 This release contains contributions from (in alphabetical order):
