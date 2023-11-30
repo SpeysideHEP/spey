@@ -33,4 +33,7 @@ The BibTeX entry for citing ``spey`` including latest zenodo archive:
 Use in Publications
 -------------------
 
-* Diyar Agin, Benjamin Fuks, Mark D. Goodsell and Taylor Murphy; Monojets reveal overlapping excesses for light compressed higgsinos, `arXiv:2311.17149 [hep-ph] <https://arxiv.org/abs/2311.17149>`_.
+A more up-to-date list can be found on `Inspire-HEP <https://inspirehep.net/literature/2677291>`_.
+
+
+* D.Agin, B.Fuks, M.D.Goodsell and T.Murphy, Monojets reveal overlapping excesses for light compressed higgsinos, `arXiv:2311.17149 [hep-ph] <https://arxiv.org/abs/2311.17149>`_.
