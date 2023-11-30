@@ -1,7 +1,10 @@
-Citation
-========
+Use & Citations
+===============
 
-The BibTeX entry for citing ``spey`` is
+Citation
+--------
+
+The BibTeX entry for citing ``spey`` including latest zenodo archive:
 
 .. code-block:: BibTeX
 
@@ -16,3 +19,18 @@ The BibTeX entry for citing ``spey`` is
         year = "2023"
     }
 
+    @software{spey_zenodo,
+        author    = {Jack Y. Araz},
+        title     = {SpeysideHEP/spey: v0.1.3},
+        month     = nov,
+        year      = 2023,
+        publisher = {Zenodo},
+        version   = {v0.1.3},
+        doi       = {10.5281/zenodo.10156354},
+        url       = {https://doi.org/10.5281/zenodo.10156354}
+    }
+
+Use in Publications
+-------------------
+
+* Diyar Agin, Benjamin Fuks, Mark D. Goodsell and Taylor Murphy; Monojets reveal overlapping excesses for light compressed higgsinos, `arXiv:2311.17149 [hep-ph] <https://arxiv.org/abs/2311.17149>`_.
