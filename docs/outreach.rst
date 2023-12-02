@@ -9,6 +9,8 @@ Talks
 
    * - Date
      - Event
+   * - December 5, 2023
+     - `pyhf Users and Developers Workshop 2023 <https://indico.cern.ch/event/1294577/contributions/5685097/>`_
    * - October 12, 2023
      - `PyHEP 2023 - "Python in HEP" Users Workshop <https://indico.cern.ch/event/1252095/contributions/5592415/>`_
    * - August 30, 2023
