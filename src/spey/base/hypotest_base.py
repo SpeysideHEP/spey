@@ -750,6 +750,7 @@ class HypothesisTestingBase(ABC):
     ) -> Tuple[float, float, List[float], List[float]]:
         r"""
         Compute the discovery of a positive signal. See :xref:`1007.1727` eq. (53).
+        and sec. 5.1.
 
         Args:
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
