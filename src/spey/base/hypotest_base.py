@@ -749,7 +749,7 @@ class HypothesisTestingBase(ABC):
         self, expected: ExpectationType = ExpectationType.observed, **kwargs
     ) -> Tuple[float, float, List[float], List[float]]:
         r"""
-        Compute the discovery of a positive signal.
+        Compute the discovery of a positive signal. See :xref:`1007.1727` eq. (53).
 
         Args:
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
