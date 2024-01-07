@@ -13,11 +13,13 @@ from pkg_resources import get_distribution
 sys.path.insert(0, str(Path("./ext").resolve()))
 
 project = "spey"
-copyright = "2023, Jack Y. Araz"
+copyright = "2024, Jack Y. Araz"
 author = "Jack Y. Araz"
 release = get_distribution("spey").version
 version = ".".join(release.split(".")[:3])
 language = "en"
+
+html_title = f'Spey <span id="release">v{release}</span>'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -45,7 +47,7 @@ extensions = [
 ]
 
 # set the width of the page
-sphinx_rtd_size_width = "75%"
+sphinx_rtd_size_width = "100%"
 
 # external links
 xref_links = {
@@ -92,7 +94,7 @@ man_pages = [(master_doc, "spey", "spey Documentation", [author], 1)]
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "sphinx_rtd_theme"
+html_theme = "furo"
 html_static_path = ["_static"]
 html_css_files = ["css/custom.css"]
 
