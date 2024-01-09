@@ -6,9 +6,6 @@
 Welcome to the documentation of Spey
 ====================================
 
-.. image:: https://img.shields.io/static/v1?style=plastic&label=arXiv&message=2307.06996&color=brightgreen
-    :target: https://arxiv.org/abs/2307.06996
-
 .. image:: https://img.shields.io/static/v1?style=plastic&label&message=GitHub&logo=github&logoColor=black&color=white
     :target: https://github.com/SpeysideHEP/spey
 

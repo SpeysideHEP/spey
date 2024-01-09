@@ -47,7 +47,7 @@ extensions = [
 ]
 
 # set the width of the page
-sphinx_rtd_size_width = "100%"
+# sphinx_rtd_size_width = "100%"
 
 # external links
 xref_links = {
@@ -95,10 +95,39 @@ man_pages = [(master_doc, "spey", "spey Documentation", [author], 1)]
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "sphinx_book_theme"
+
+html_theme_options = {
+    "repository_provider": "github",
+    "repository_url": "https://github.com/SpeysideHEP/spey",
+    "use_repository_button": True,  # add a 'link to repository' button
+    "use_issues_button": False,  # add an 'Open an Issue' button
+    "path_to_docs": "docs",
+    "use_edit_page_button": True,
+    "use_fullscreen_button": True,
+    # "launch_buttons": {
+    #     "colab_url": "https://colab.research.google.com/",
+    # },
+    "show_navbar_depth": 1,
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/SpeysideHEP/spey",
+            "icon": "fa-brands fa-github",
+        },
+        {
+            "name": "arXiv",
+            "url": "https://arxiv.org/abs/2307.06996",
+            "icon": "https://img.shields.io/static/v1?style=plastic&label=arXiv&message=2307.06996&color=brightgreen",
+            "type": "url",
+        },
+    ],
+}
+
 html_static_path = ["_static"]
 html_css_files = ["css/custom.css"]
 
 html_logo = "img/logo.png"
+html_favicon = "img/logo.png"
 logo_only = True
 
 # Output file base name for HTML help builder.
@@ -108,6 +137,7 @@ htmlhelp_basename = "speydoc"
 copybutton_prompt_text = r">>> |\.\.\. |\$ "
 copybutton_prompt_is_regexp = True
 copybutton_here_doc_delimiter = "EOF"
+
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
