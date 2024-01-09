@@ -19,7 +19,7 @@ release = get_distribution("spey").version
 version = ".".join(release.split(".")[:3])
 language = "en"
 
-html_title = f'Spey <span id="release">v{release}</span>'
+# html_title = f'Spey <span id="release">v{release}</span>'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
