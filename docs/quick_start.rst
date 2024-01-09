@@ -1,7 +1,10 @@
 .. _sec:installation:
 
+Quick Start
+===========
+
 Installation
-============
+------------
 
 ``spey`` is available at `pypi <https://pypi.org/project/spey/>`_ , so it can be installed by running:
 
@@ -16,7 +19,7 @@ which are all packaged during the installation with the necessary versions. Note
 versions may be restricted due to numeric stability and validation.
 
 What is Spey?
-============= 
+-------------
 
 Spey is a plug-in-based statistics tool designed to consolidate a wide range of 
 likelihood prescriptions in a comprehensive platform. Spey empowers users to integrate 
@@ -28,10 +31,10 @@ developers to propose and integrate their statistical model prescriptions, there
 the capabilities and applicability of Spey.
 
 
-.. _sec:quick_start:
+.. _sec:first_steps:
 
-Quick Start
-===========
+First Steps
+-----------
 
 First, one needs to choose which backend to work with. By default, Spey is shipped with various types of 
 likelihood prescriptions which can be checked via :func:`~spey.AvailableBackends` 
