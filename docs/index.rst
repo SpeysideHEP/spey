@@ -6,8 +6,9 @@
 Welcome to the documentation of Spey
 ====================================
 
-.. image:: https://img.shields.io/static/v1?style=plastic&label&message=GitHub&logo=github&logoColor=black&color=white
-    :target: https://github.com/SpeysideHEP/spey
+.. image:: https://img.shields.io/github/issues/SpeysideHEP/spey?style=plastic
+   :alt: GitHub issues
+   :target: https://github.com/SpeysideHEP/spey/issues
 
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.10470536.svg
     :target: https://doi.org/10.5281/zenodo.10470536

@@ -136,7 +136,7 @@ html_theme_options = {
         {
             "name": "PyPI",
             "url": "https://pypi.org/project/spey/",
-            "icon": "https://img.shields.io/pypi/dw/spey?style=plastic",
+            "icon": "https://img.shields.io/pypi/dm/spey?style=plastic&link=https%3A%2F%2Fpypi.org%2Fproject%2Fspey%2F",
             "type": "url",
         },
     ],
