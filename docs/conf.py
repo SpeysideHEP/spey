@@ -42,9 +42,11 @@ extensions = [
     "sphinx_copybutton",
     "sphinx_togglebutton",
     "xref",
-    "myst_parser",
+    # "myst_parser",
     "sphinx_rtd_size",
+    "myst_nb",
 ]
+nb_execution_mode = "off"
 
 # set the width of the page
 # sphinx_rtd_size_width = "100%"
@@ -66,7 +68,18 @@ source_suffix = {
     ".rst": "restructuredtext",
     ".txt": "restructuredtext",
     ".md": "markdown",
+    ".ipynb": "myst-nb",
+    ".myst": "myst-nb",
 }
+
+myst_enable_extensions = [
+    "amsmath",
+    "colon_fence",
+    "deflist",
+    "dollarmath",
+    "html_image",
+]
+myst_url_schemes = ("http", "https", "mailto")
 
 bibtex_default_style = "unsrt"
 
