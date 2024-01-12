@@ -6,8 +6,8 @@
 [![doc](https://img.shields.io/static/v1?style=plastic&label&message=Documentation&logo=gitbook&logoColor=white&color=gray)](https://spey.readthedocs.io)
 
 [![github](https://img.shields.io/static/v1?style=plastic&label&message=GitHub&logo=github&logoColor=black&color=white)](https://github.com/SpeysideHEP/spey)
-![PyPI - Version](https://img.shields.io/pypi/v/spey?style=plastic&link=https%3A%2F%2Fpypi.org%2Fproject%2Fspey%2F)
-![PyPI - Downloads](https://img.shields.io/pypi/dm/spey?style=plastic&link=https%3A%2F%2Fpypi.org%2Fproject%2Fspey%2F)
+[![PyPI - Version](https://img.shields.io/pypi/v/spey?style=plastic&link=https%3A%2F%2Fpypi.org%2Fproject%2Fspey%2F)](https://pypi.org/project/spey/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/spey?style=plastic&link=https%3A%2F%2Fpypi.org%2Fproject%2Fspey%2F)](https://pypi.org/project/spey/)
 [![Documentation Status](https://readthedocs.org/projects/spey/badge/?style=plastic&version=main)](https://spey.readthedocs.io/)
 [![GitHub License](https://img.shields.io/github/license/SpeysideHEP/spey?style=plastic)](https://github.com/SpeysideHEP/spey/blob/main/LICENSE)
 
