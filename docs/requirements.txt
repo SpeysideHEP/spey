@@ -9,3 +9,4 @@ sphinx-togglebutton>=0.3.0
 myst-parser
 sphinx-rtd-size
 sphinx-book-theme
+myst-nb
