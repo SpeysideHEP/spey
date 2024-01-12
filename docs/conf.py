@@ -120,6 +120,12 @@ html_theme_options = {
             "icon": "https://img.shields.io/static/v1?style=plastic&label=arXiv&message=2307.06996&color=brightgreen",
             "type": "url",
         },
+        {
+            "name": "PyPI",
+            "url": "https://pypi.org/project/spey/",
+            "icon": "https://img.shields.io/pypi/dw/spey?style=plastic",
+            "type": "url",
+        },
     ],
 }
 
