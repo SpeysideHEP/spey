@@ -86,11 +86,11 @@ bibtex_default_style = "unsrt"
 bibtex_bibfiles = ["./bib/references.bib", "./bib/cited.bib"]
 
 # GitHub repo
-issues_github_path = "SpeysideHEP/spey"
+issues_github_path = "https://github.com/SpeysideHEP/spey/issues"
 
 # Generate the API documentation when building
 autosummary_generate = True
-numpydoc_show_class_members = False
+numpydoc_show_class_members = True
 
 templates_path = ["_templates"]
 exclude_patterns = ["introduction.rst", "requirements.txt"]
