@@ -83,7 +83,7 @@ myst_url_schemes = ("http", "https", "mailto")
 
 bibtex_default_style = "unsrt"
 
-bibtex_bibfiles = ["./bib/references.bib"]
+bibtex_bibfiles = ["./bib/references.bib", "./bib/cited.bib"]
 
 # GitHub repo
 issues_github_path = "SpeysideHEP/spey"
