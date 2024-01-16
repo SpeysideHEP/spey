@@ -17,6 +17,34 @@ def fit(
     constraints: Optional[List[Dict]] = None,
     **options,
 ) -> Tuple[float, np.ndarray]:
+    """
+    Operating the fitting of the given function.
+
+    Args:
+        func (``Callable[[np.ndarray], np.ndarray]``): Function to be optimised. If `do_grad=True`,
+            function is expected to return `Tuple[np.ndarray, np.ndarray]` where first is the value
+            of the function and the second is gradients with respect to the nuisance parameters.
+        model_configuration (``~spey.base.model_config.ModelConfig``): Model configuration.
+        do_grad (``bool``, default ``False``): boolean to set gradient on or off.
+        hessian (``Optional[Callable[[np.ndarray], np.ndarray]]``, default ``None``): hessian of the function
+            with respect to variational parameters. Currently not used.
+        initial_parameters (``Optional[np.ndarray]``, default ``None``): Initial guess for the variational
+            parameters.
+        bounds (``Optional[List[Tuple[float, float]]]``, default ``None``): Bounds for the variational parameters
+            each item has to have a lower and upper bound definition `(<lower>, <upper>)` in case of open boundary
+            input can be `None`. Number of boundaries has to match with the number of parameters. They will match
+            with respect to the index within the list.
+        fixed_poi_value (``Optional[float]``, default ``None``): If `float` the poi index will be fixed.
+        logpdf (``Optional[Callable[[List[float]], float]]``, default ``None``): If provided, log-probability
+            distribution will be computed once the parameters are fitted. If not,  the result of the ``func`` input
+            will be returned.
+        constraints (``Optional[List[Dict]]``, default ``None``): Constraints of the model. see scipy for details.
+        options (``Dict``): extra options for the optimiser. see scipy minimiser for details.
+
+    Returns:
+        ``Tuple[float, np.ndarray]``:
+        value and the parameters. log-probability value will be returned if `logpdf` argument is provided.
+    """
 
     init_pars = [*(initial_parameters or model_configuration.suggested_init)]
     par_bounds = [*(bounds or model_configuration.fixed_poi_bounds(fixed_poi_value))]

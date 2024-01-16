@@ -19,6 +19,7 @@ Top-Level
     statistical_model_wrapper
     helper_functions.correlation_to_covariance
     helper_functions.covariance_to_correlation
+    optimizer.core.fit
 
 Main Classes
 ------------
