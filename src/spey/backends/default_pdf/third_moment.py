@@ -120,7 +120,7 @@ def compute_third_moments(
 
     .. attention::
 
-        :func:`~spey.backends.simplifiedlikelihood_backend.third_moment.third_moment_expansion`
+        :func:`~spey.backends.default_pdf.third_moment.third_moment_expansion`
         function expects :math:`8\Sigma_{ii}^3 \geq (m^{(3)}_i)^2` since this function is
         constructed with upper and lower uncertainty envelops independent of covariance matrix,
         it does not guarantee that the condition will be satisfied. This depends on the
