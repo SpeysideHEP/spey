@@ -136,7 +136,13 @@ html_theme_options = {
         {
             "name": "PyPI",
             "url": "https://pypi.org/project/spey/",
-            "icon": "https://img.shields.io/pypi/dm/spey?style=plastic&link=https%3A%2F%2Fpypi.org%2Fproject%2Fspey%2F",
+            "icon": "https://img.shields.io/pypi/v/spey?style=plastic",
+            "type": "url",
+        },
+        {
+            "name": "PyPI",
+            "url": "https://pypi.org/project/spey/",
+            "icon": "https://img.shields.io/pypi/dm/spey?style=plastic",
             "type": "url",
         },
     ],
@@ -145,8 +151,8 @@ html_theme_options = {
 html_static_path = ["_static"]
 html_css_files = ["css/custom.css"]
 
-html_logo = "img/logo.png"
-html_favicon = "img/logo.png"
+html_logo = "img/spey-logo.png"
+html_favicon = "img/spey-logo.png"
 logo_only = True
 
 # Output file base name for HTML help builder.
