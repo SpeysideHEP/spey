@@ -1,5 +1,7 @@
 # Spey: smooth inference for reinterpretation studies
 
+<img src="./docs/img/spey-logo.png" alt="Spey logo" style="float: right; margin-right: 20px" align="right" width=250px href="https://spey.readthedocs.io"/>
+
 [![arxiv](https://img.shields.io/static/v1?style=plastic&label=arXiv&message=2307.06996&color=brightgreen)](https://arxiv.org/abs/2307.06996)
 [![DOI](https://img.shields.io/static/v1?style=plastic&label=DOI&message=TBA&color=blue)]()
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10470536.svg)](https://doi.org/10.5281/zenodo.10470536)
@@ -10,8 +12,6 @@
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/spey?style=plastic&link=https%3A%2F%2Fpypi.org%2Fproject%2Fspey%2F)](https://pypi.org/project/spey/)
 [![Documentation Status](https://readthedocs.org/projects/spey/badge/?style=plastic&version=main)](https://spey.readthedocs.io/)
 [![GitHub License](https://img.shields.io/github/license/SpeysideHEP/spey?style=plastic)](https://github.com/SpeysideHEP/spey/blob/main/LICENSE)
-
-<img src="./docs/img/spey-logo.png" alt="Spey logo" style="float: right; margin-right: 10px;" width=200px/>
 
 ## Outline
 
