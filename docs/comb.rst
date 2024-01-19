@@ -1,6 +1,10 @@
 Combining Statistical Models
 ============================
 
+.. meta::
+    :property=og:title: Combining Statistical Models
+    :property=og:image: https://spey.readthedocs.io/en/main/_static/spey-logo.png
+
 In this section, we will provide a simple statistical model combination example using 
 `Path Finder algorithm <https://github.com/J-Yellen/PathFinder>`_ 
 (For details, see :cite:`Araz:2022vtr`).

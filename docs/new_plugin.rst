@@ -3,6 +3,10 @@
 Building a plugin
 =================
 
+.. meta::
+    :property=og:title: Building a plugin
+    :property=og:image: https://spey.readthedocs.io/en/main/_static/spey-logo.png
+
 ``spey`` package has been designed to be expandable. It only needs to know certain aspects of the 
 data structure that is presented and a prescription to form a likelihood function.
 

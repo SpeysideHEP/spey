@@ -6,6 +6,12 @@
 Welcome to the documentation of Spey
 ====================================
 
+.. meta::
+    :property=og:title: Spey
+    :property=og:description: smooth inference for reinterpretation studies
+    :property=og:image: https://spey.readthedocs.io/en/main/_static/spey-logo.png
+    :property=og:url: https://spey.readthedocs.io/en/main/
+
 .. image:: https://img.shields.io/github/issues/SpeysideHEP/spey?style=plastic&logo=github
    :alt: GitHub issues
    :target: https://github.com/SpeysideHEP/spey/issues

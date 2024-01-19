@@ -1,6 +1,10 @@
 Exclusion limits
 ================
 
+.. meta::
+    :property=og:title: Exclusion limits
+    :property=og:image: https://spey.readthedocs.io/en/main/_static/spey-logo.png
+
 Any Spey statistical model can compute the exclusion confidence level
 using three options. Depending on the available functions in likelihood construction 
 (see :ref:`this section <sec_new_plugin>` for details), one or more of these options will be 

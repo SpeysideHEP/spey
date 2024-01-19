@@ -3,6 +3,10 @@
 Quick Start
 ===========
 
+.. meta::
+    :property=og:title: Quick Start
+    :property=og:image: https://spey.readthedocs.io/en/main/_static/spey-logo.png
+
 Installation
 ------------
 

@@ -3,6 +3,10 @@
 Plug-ins
 ========
 
+.. meta::
+    :property=og:title: Plug-ins
+    :property=og:image: https://spey.readthedocs.io/en/main/_static/spey-logo.png
+
 Spey seamlessly integrates with diverse packages that offer specific 
 statistical model prescriptions. Its primary objective is to centralise
 these prescriptions within a unified interface, facilitating the 
