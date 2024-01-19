@@ -3,7 +3,9 @@ Combining Statistical Models
 
 .. meta::
     :property=og:title: Combining Statistical Models
+    :property=og:description: Any likelihood definition under Spey can be combined.
     :property=og:image: https://spey.readthedocs.io/en/main/_static/spey-logo.png
+    :property=og:url: https://spey.readthedocs.io/en/main/comb.html
 
 In this section, we will provide a simple statistical model combination example using 
 `Path Finder algorithm <https://github.com/J-Yellen/PathFinder>`_ 

@@ -5,7 +5,9 @@ Building a plugin
 
 .. meta::
     :property=og:title: Building a plugin
+    :property=og:description: A Spey plug-in allows the usage of custom likelihood prescriptions for inference.
     :property=og:image: https://spey.readthedocs.io/en/main/_static/spey-logo.png
+    :property=og:url: https://spey.readthedocs.io/en/main/new_plugin.html
 
 ``spey`` package has been designed to be expandable. It only needs to know certain aspects of the 
 data structure that is presented and a prescription to form a likelihood function.

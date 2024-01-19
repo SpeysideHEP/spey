@@ -5,7 +5,9 @@ Plug-ins
 
 .. meta::
     :property=og:title: Plug-ins
+    :property=og:description: Currently supported likelihood prescriptions.
     :property=og:image: https://spey.readthedocs.io/en/main/_static/spey-logo.png
+    :property=og:url: https://spey.readthedocs.io/en/main/plugins.html
 
 Spey seamlessly integrates with diverse packages that offer specific 
 statistical model prescriptions. Its primary objective is to centralise

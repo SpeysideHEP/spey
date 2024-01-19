@@ -4,6 +4,7 @@ Description of all functions and classes
 .. meta::
     :property=og:title: Description of all functions and classes
     :property=og:image: https://spey.readthedocs.io/en/main/_static/spey-logo.png
+    :property=og:url: https://spey.readthedocs.io/en/main/api.html
 
 Top-Level
 ---------
