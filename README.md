@@ -38,7 +38,7 @@ python -m pip install --upgrade "git+https://github.com/SpeysideHEP/spey"
 
 ## What is Spey?
 
-Spey is a plug-in-based statistics tool that aims to collect all likelihood prescriptions under one roof. This provides users the workspace to freely combine different statistical models and study them through a single interface. In order to achieve a module that can be used both with statistical model prescriptions which has been proposed in the past and will be used in the future, Spey uses a so-called plug-in system where developers can propose their statistical model prescriptions and allow spey to use them.
+Spey is a plug-in-based statistics tool that aims to collect all likelihood prescriptions under one roof. This provides users with the workspace to freely combine different statistical models and study them through a single interface. In order to achieve a module that can be used both with statistical model prescriptions which has been proposed in the past and will be used in the future, Spey uses a so-called plug-in system where developers can propose their statistical model prescriptions and allow spey to use them.
 
 ### What a plugin provides
 
@@ -137,7 +137,7 @@ for expectation in spey.ExpectationType:
 Note that ``spey.ExpectationType.apriori`` and ``spey.ExpectationType.aposteriori`` expectation types
 resulted in a list of 5 elements which indicates $-2\sigma,\ -1\sigma,\ 0,\ +1\sigma,\ +2\sigma$ standard deviations
 from the background hypothesis. ``spey.ExpectationType.observed`` on the other hand resulted in single value which is
-observed exclusion limit. Notice that the bounds on ``spey.ExpectationType.aposteriori`` are slightly stronger than
+the observed exclusion limit. Notice that the bounds on ``spey.ExpectationType.aposteriori`` are slightly stronger than
 ``spey.ExpectationType.apriori`` this is due to the data value has been replaced with background yields, 
 which are larger than the observations. ``spey.ExpectationType.apriori`` is mostly used in theory
 collaborations to estimate the difference from the Standard Model rather than the experimental observations.
@@ -196,7 +196,7 @@ plt.show()
 ```
 
 Here in the first line, we extract $1-CL_s$ values per POI for ``spey.ExpectationType.aposteriori``
-expectation type and we plot specific standard deviations which provide following plot:
+expectation type and we plot specific standard deviations which provide the following plot:
 
 ![Brazilian plot](./docs/figs/brazilian_plot.png)
 
