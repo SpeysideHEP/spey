@@ -1,6 +1,6 @@
 # Spey: smooth inference for reinterpretation studies
 
-<img src="./docs/img/spey-logo.png" alt="Spey logo" style="float: right; margin-right: 20px" align="right" width=250px href="https://spey.readthedocs.io"/>
+<img src="https://raw.githubusercontent.com/SpeysideHEP/spey/main/docs/img/spey-logo.png" alt="Spey logo" style="float: right; margin-right: 20px" align="right" width=250px/>
 
 [![arxiv](https://img.shields.io/static/v1?style=plastic&label=arXiv&message=2307.06996&color=brightgreen)](https://arxiv.org/abs/2307.06996)
 [![DOI](https://img.shields.io/static/v1?style=plastic&label=DOI&message=TBA&color=blue)]()
@@ -17,7 +17,7 @@
 
 * [Installation](#installation)
 * [What is Spey?](#what-is-spey)
-* [Quick start](#quick-start)
+* [Quick Start](#quick-start)
 * [Developer's Guide: How to contribute to Spey](./CONTRIBUTING.md)
 
 ## Installation
@@ -28,7 +28,7 @@ Spey can be found in [PyPi library](https://pypi.org/project/spey/) and can be d
 pip install spey
 ```
 
-If you like to use a specific branch you can either use `make install` or `pip install -e .` after cloning the repository or use the following command
+If you like to use a specific branch, you can either use `make install` or `pip install -e .` after cloning the repository or use the following command:
 
 ```bash
 python -m pip install --upgrade "git+https://github.com/SpeysideHEP/spey"
@@ -38,14 +38,14 @@ python -m pip install --upgrade "git+https://github.com/SpeysideHEP/spey"
 
 ## What is Spey?
 
-Spey is a plug-in-based statistics tool that aims to collect all likelihood prescriptions under one roof. This provides users with the workspace to freely combine different statistical models and study them through a single interface. In order to achieve a module that can be used both with statistical model prescriptions which has been proposed in the past and will be used in the future, Spey uses a so-called plug-in system where developers can propose their statistical model prescriptions and allow spey to use them.
+Spey is a plug-in-based statistics tool that aims to collect all likelihood prescriptions under one roof. This provides users with the workspace to freely combine different statistical models and study them through a single interface. In order to achieve a module that can be used both with statistical model prescriptions, which has been proposed in the past and will be used in the future, Spey uses a so-called plug-in system where developers can propose their statistical model prescriptions and allow Spey to use them.
 
 ### What a plugin provides
 
 A quick intro on the terminology of spey plugins in this section:
 
 * A plugin is an external Python package that provides additional statistical model prescriptions to spey.
-* Each plugin may provide one (or more) statistical model prescriptions, that are accessible directly through spey.
+* Each plugin may provide one (or more) statistical model prescriptions that are accessible directly through Spey.
 * Depending on the scope of the plugin, you may wish to provide additional (custom) operations and differentiability through various autodif packages such as ``autograd``
   or ``jax``. As long as they are implemented through a set of predefined function names spey can automatically detect and use them within the interface.
 
@@ -104,7 +104,7 @@ where ``data`` indicates the observed events, ``signal_yields`` and ``background
 yields for signal and background samples and ``background_unc`` shows the absolute uncertainties on
 the background events i.e. :math:`2.0\pm1.1` in this particular case. Note that we also introduced
 ``analysis`` and ``xsection`` information which are optional where the ``analysis`` indicates a unique
-identifier for the statistical model and ``xsection`` is the cross-section value of the signal which is
+identifier for the statistical model, and ``xsection`` is the cross-section value of the signal, which is
 only used for the computation of the excluded cross-section value.
 
 During the computation of any probability distribution, Spey relies on the so-called "expectation type".
@@ -120,11 +120,11 @@ This can be set via ``spey.ExpectationType`` which includes three different expe
   the statistical model on the background and checking :math:`\pm1\sigma` and :math:`\pm2\sigma` fluctuations.
 
 * ``spey.ExpectationType.apriori``: Indicates that the observation has never taken place and the theoretical
-  SM computation is the absolute truth. Thus it replaces observed values in the statistical model with the
-  background values and computes the log-probability accordingly. Similar to ``spey.ExpectationType.aposteriori``
+  SM computation is the absolute truth. Thus, it replaces observed values in the statistical model with the
+  background values and computes the log probability accordingly. Similar to ``spey.ExpectationType.aposteriori``
   exclusion limit computation will return expected limits.
 
-To compute the observed exclusion limit for the above example one can type
+To compute the observed exclusion limit for the above example, one can type
 
 ```python
 for expectation in spey.ExpectationType:
@@ -164,7 +164,7 @@ stat_model = pdf_wrapper(
 
 Note that our statistical model still represents individual bins of the histograms independently however it sums up the
 log-likelihood of each bin. Hence all bins are completely uncorrelated from each other. Computing the exclusion limits
-for each ``spey.ExpectationType`` will yield
+for each ``spey.ExpectationType`` will yield.
 
 ```python
 for expectation in spey.ExpectationType:
@@ -175,7 +175,9 @@ for expectation in spey.ExpectationType:
 ```
 
 It is also possible to compute $1-CL_s$ value with respect to the parameter of interest, $\mu$.
-This can be achieved by including a value for ``poi_test`` argument
+This can be achieved by including a value for ``poi_test`` argument.
+
+<img src="https://raw.githubusercontent.com/SpeysideHEP/spey/main/docs/figs/brazilian_plot.png" alt="Brazilian plot" style="float: right; margin-right: 20px" align="right" width=500px/>
 
 ```python
 import matplotlib.pyplot as plt
@@ -194,14 +196,10 @@ plt.ylim([0.6,1.01])
 plt.text(0.5,0.96, r"$95\%\ {\rm CL}$")
 plt.show()
 ```
-
 Here in the first line, we extract $1-CL_s$ values per POI for ``spey.ExpectationType.aposteriori``
-expectation type and we plot specific standard deviations which provide the following plot:
+expectation type, and we plot specific standard deviations, which provide the following plot:
 
-![Brazilian plot](./docs/figs/brazilian_plot.png)
-
-The excluded value of POI can also be retrieved by `spey`.StatisticalModel.poi_upper_limit`` function
-which is the exact point where the red-curve and black dashed line meet. The upper limit for the 
+The excluded value of POI can also be retrieved by `spey`.StatisticalModel.poi_upper_limit`` function, which is the exact point where the red-curve and black dashed line meet. The upper limit for the 
 $\pm1\sigma$ or $\pm2\sigma$ bands can be extracted by setting ``expected_pvalue`` to ``"1sigma"`` 
 or ``"2sigma"`` respectively, e.g.
 
@@ -210,9 +208,9 @@ stat_model.poi_upper_limit(expected=spey.ExpectationType.aposteriori, expected_p
 # [0.5507713378348318, 0.9195052042538805, 1.4812721449679866]
 ```
 
-At a more lower level, one can extract the likelihood information for the statistical model by calling
+At a lower level, one can extract the likelihood information for the statistical model by calling
 ``spey.StatisticalModel.likelihood`` and ``spey.StatisticalModel.maximize_likelihood`` functions.
-By default, these will return negative log-likelihood values but this can be changed via ``return_nll=False``
+By default, these will return negative log-likelihood values, but this can be changed via ``return_nll=False``
 argument.
 
 ```python
@@ -225,7 +223,9 @@ llhd_obs = np.array([stat_model.likelihood(p, return_nll=False) for p in poi])
 llhd_apri = np.array([stat_model.likelihood(p, expected=spey.ExpectationType.apriori, return_nll=False) for p in poi])
 ```
 
-Here in the first two lines, we extracted the maximum likelihood and the POI value that maximizes the likelihood for two different expectation types. In the following, we computed likelihood distribution for various POI values which then can be plotted as follows
+Here, in the first two lines, we extracted the maximum likelihood and the POI value that maximizes the likelihood for two different expectation types. In the following, we computed likelihood distribution for various POI values, which then can be plotted as follows
+
+<img src="https://raw.githubusercontent.com/SpeysideHEP/spey/main/docs/figs/multi_bin_llhd.png" alt="Brazilian plot" style="float: left; margin-right: 20px" align="left" width=500px/>
 
 ```python
 plt.plot(poi, llhd_obs/maxllhd_obs, label=r"${\rm observed\ or\ aposteriori}$")
@@ -240,9 +240,7 @@ plt.xlim([-3,4])
 plt.show()
 ```
 
-![Brazilian plot](./docs/figs/multi_bin_llhd.png)
-
-Notice the slight difference between likelihood distributions, this is because of the use of different expectation types.
+Notice the slight difference between likelihood distributions; this is because of the use of different expectation types.
 The dots on the likelihood distribution represent the point where the likelihood is maximized. Since for a
 ``spey.ExpectationType.apriori`` likelihood distribution observed and background values are the same, the likelihood
 should peak at $\mu=0$.
