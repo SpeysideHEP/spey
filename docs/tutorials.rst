@@ -1,5 +1,5 @@
-Tutorials
-=========
+Kitchen Sink
+============
 
 .. toctree::
    :maxdepth: 2

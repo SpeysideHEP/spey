@@ -1,4 +1,4 @@
-# Release notes v0.1.4
+# Release notes v0.1
 
 ## New features since last release
 
@@ -39,8 +39,11 @@
 
 * Numeric problem rising from `==` which has been updated to `np.isclose`
   see issue [#23](https://github.com/SpeysideHEP/spey/issues/23).
-  [#25](https://github.com/SpeysideHEP/spey/pull/25)
-  
+  ([#25](https://github.com/SpeysideHEP/spey/pull/25))
+
+* Typofix during computation of $\sigma_\mu$.
+  ([#29](https://github.com/SpeysideHEP/spey/pull/29))
+
 ## Contributors
 
 This release contains contributions from (in alphabetical order):
