@@ -6,7 +6,7 @@ tools to compute exclusion limits and POI upper limits
 import warnings
 from abc import ABC, abstractmethod
 from functools import partial
-from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union, Literal
+from typing import Any, Callable, Dict, List, Literal, Optional, Text, Tuple, Union
 
 import numpy as np
 import tqdm
@@ -153,7 +153,7 @@ class HypothesisTestingBase(ABC):
         poi_test: float = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
-        test_statistics: Text = "qtilde",
+        test_statistics: Literal["qtilde", "q", "q0"] = "qtilde",
         **kwargs,
     ) -> float:
         r"""
@@ -173,9 +173,9 @@ class HypothesisTestingBase(ABC):
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
 
-            return_nll (:obj:`bool`, default :obj:`True`): If ``True`` returns negative log-likelihood,
+            return_nll (`bool`, default `True`): If ``True`` returns negative log-likelihood,
               else likelihood value.
-            test_statistics (:obj:`Text`, default :obj:`"qtilde"`): test statistics.
+            test_statistics (`Text`, default `"qtilde"`): test statistics.
 
               * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
                 :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
@@ -206,7 +206,7 @@ class HypothesisTestingBase(ABC):
         self,
         return_nll: bool = True,
         expected: ExpectationType = ExpectationType.observed,
-        test_statistics: Text = "qtilde",
+        test_statistics: Literal["qtilde", "q", "q0"] = "qtilde",
         **kwargs,
     ) -> Tuple[float, float]:
         r"""
@@ -227,7 +227,7 @@ class HypothesisTestingBase(ABC):
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
 
-            test_statistics (:obj:`Text`, default :obj:`"qtilde"`): test statistics.
+            test_statistics (`Text`, default `"qtilde"`): test statistics.
 
               * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
                 :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
@@ -235,10 +235,10 @@ class HypothesisTestingBase(ABC):
 
                 .. warning::
 
-                    Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
-                    assumed to be :obj:`False`. If this function has been executed by user, :obj:`spey`
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence `allow_negative_signal`
+                    assumed to be `False`. If this function has been executed by user, `spey`
                     assumes that this is taken care of throughout the external code consistently.
-                    Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+                    Whilst computing p-values or upper limit on :math:`\mu` through `spey` this
                     is taken care of automatically in the backend.
 
               * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
@@ -360,7 +360,7 @@ class HypothesisTestingBase(ABC):
     def _prepare_for_hypotest(
         self,
         expected: ExpectationType = ExpectationType.observed,
-        test_statistics: Text = "qtilde",
+        test_statistics: Literal["qtilde", "q", "q0"] = "qtilde",
         **kwargs,
     ) -> Tuple[
         Tuple[float, float],
@@ -384,7 +384,7 @@ class HypothesisTestingBase(ABC):
                 * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
 
-            test_statistics (:obj:`Text`, default :obj:`"qtilde"`): test statistics.
+            test_statistics (`Text`, default `"qtilde"`): test statistics.
 
                 * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
                 :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
@@ -392,10 +392,10 @@ class HypothesisTestingBase(ABC):
 
                 .. warning::
 
-                    Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
-                    assumed to be :obj:`False`. If this function has been executed by user, :obj:`spey`
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence `allow_negative_signal`
+                    assumed to be `False`. If this function has been executed by user, :obj:`spey`
                     assumes that this is taken care of throughout the external code consistently.
-                    Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+                    Whilst computing p-values or upper limit on :math:`\mu` through `spey` this
                     is taken care of automatically in the backend.
 
                 * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
@@ -448,7 +448,7 @@ class HypothesisTestingBase(ABC):
         self,
         poi_test: float,
         expected: ExpectationType = ExpectationType.observed,
-        test_statistics: Text = "qtilde",
+        test_statistics: Literal["qtilde", "q", "q0"] = "qtilde",
         **kwargs,
     ) -> float:
         r"""
@@ -476,7 +476,7 @@ class HypothesisTestingBase(ABC):
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
 
-            test_statistics (:obj:`Text`, default :obj:`"qtilde"`): test statistics.
+            test_statistics (`Text`, default `"qtilde"`): test statistics.
 
               * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
                 :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
@@ -484,10 +484,10 @@ class HypothesisTestingBase(ABC):
 
                 .. warning::
 
-                    Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
-                    assumed to be :obj:`False`. If this function has been executed by user, :obj:`spey`
+                    Note that this assumes that :math:`\hat\mu\geq0`, hence `allow_negative_signal`
+                    assumed to be `False`. If this function has been executed by user, `spey`
                     assumes that this is taken care of throughout the external code consistently.
-                    Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
+                    Whilst computing p-values or upper limit on :math:`\mu` through `spey` this
                     is taken care of automatically in the backend.
 
               * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
@@ -847,8 +847,8 @@ class HypothesisTestingBase(ABC):
                 :math:`\sigma_{\hat\mu}` is determined via
                 :func:`~spey.base.hypotest_base.HypothesisTestingBase.sigma_mu` function.
 
-            expected_pvalue (``Literal["nominal", "1sigma", "2sigma"]``, default ``"nominal"``): 
-              In case of :obj:`~spey.ExpectationType.aposteriori` and :obj:`~spey.ExpectationType.apriori` 
+            expected_pvalue (``Literal["nominal", "1sigma", "2sigma"]``, default ``"nominal"``):
+              In case of :obj:`~spey.ExpectationType.aposteriori` and :obj:`~spey.ExpectationType.apriori`
               expectation, gives the choice to find excluded upper limit for statistical deviations as well.
 
               * ``"nominal"``: only find the upper limit for the central p-value. Returns a single value.
