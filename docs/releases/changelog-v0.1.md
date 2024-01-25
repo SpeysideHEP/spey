@@ -25,6 +25,9 @@
   before approximating through $q_{\mu,A}$.
   [#25](https://github.com/SpeysideHEP/spey/pull/25)
 
+* Update clarification on text based keyword arguments.
+  ([#30](https://github.com/SpeysideHEP/spey/pull/30))
+
 ## Bug Fixes
 
 * In accordance to the latest updates ```UnCorrStatisticsCombiner``` has been updated with
