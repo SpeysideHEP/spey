@@ -512,7 +512,7 @@ class HypothesisTestingBase(ABC):
                     poi_test=poi_test, expected=expected, **kwargs
                 )
             except MethodNotAvailable:
-                warnings.warm(
+                warnings.warn(
                     "Hessian implementation is not available for this backend, "
                     "continuing with the approximate method."
                 )
