@@ -354,8 +354,7 @@ class HypothesisTestingBase(ABC):
             )
 
         return 2.0 * (
-            self.likelihood(poi_test=poi_test, expected=expected, **kwargs)
-            - denominator
+            self.likelihood(poi_test=poi_test, expected=expected, **kwargs) - denominator
         )
 
     def _prepare_for_hypotest(
@@ -783,9 +782,7 @@ class HypothesisTestingBase(ABC):
             logpdf,
             maximum_asimov_likelihood,
             logpdf_asimov,
-        ) = self._prepare_for_hypotest(
-            expected=expected, test_statistics="q0", **kwargs
-        )
+        ) = self._prepare_for_hypotest(expected=expected, test_statistics="q0", **kwargs)
 
         sqrt_q0, sqrt_q0A, delta_teststat = compute_teststatistics(
             0.0,
@@ -805,8 +802,8 @@ class HypothesisTestingBase(ABC):
         self,
         expected: ExpectationType = ExpectationType.observed,
         confidence_level: float = 0.95,
-        low_init: Optional[float] = None,
-        hig_init: Optional[float] = None,
+        low_init: Optional[float] = 1.0,
+        hig_init: Optional[float] = 1.0,
         expected_pvalue: Text = "nominal",
         maxiter: int = 10000,
         optimiser_arguments: Optional[Dict[Text, Any]] = None,
@@ -834,7 +831,7 @@ class HypothesisTestingBase(ABC):
 
             confidence_level (``float``, default ``0.95``): Determines the confidence level of the upper
               limit i.e. the value of :math:`1-CL_s`. It needs to be between ``[0,1]``.
-            low_init (``Optional[float]``, default ``None``): Lower limit for the search algorithm to start
+            low_init (``Optional[float]``, default ``1.0``): Lower limit for the search algorithm to start
               If ``None`` it the lower limit will be determined by :math:`\hat\mu + 1.5\sigma_{\hat\mu}`.
 
               .. note::
@@ -842,7 +839,7 @@ class HypothesisTestingBase(ABC):
                 :math:`\sigma_{\hat\mu}` is determined via
                 :func:`~spey.base.hypotest_base.HypothesisTestingBase.sigma_mu` function.
 
-            hig_init (``Optional[float]``, default ``None``): Upper limit for the search algorithm to start
+            hig_init (``Optional[float]``, default ``1.0``): Upper limit for the search algorithm to start
               If ``None`` it the upper limit will be determined by :math:`\hat\mu + 2.5\sigma_{\hat\mu}`.
 
               .. note::
