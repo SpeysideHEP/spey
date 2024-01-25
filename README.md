@@ -1,11 +1,12 @@
 # Spey: smooth inference for reinterpretation studies
 
-<img src="https://raw.githubusercontent.com/SpeysideHEP/spey/main/docs/img/spey-logo.png" alt="Spey logo" style="float: right; margin-right: 20px" align="right" width=250px/>
 
 [![arxiv](https://img.shields.io/static/v1?style=plastic&label=arXiv&message=2307.06996&color=brightgreen)](https://arxiv.org/abs/2307.06996)
 [![DOI](https://img.shields.io/static/v1?style=plastic&label=DOI&message=TBA&color=blue)]()
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10470536.svg)](https://doi.org/10.5281/zenodo.10470536)
+[![DOI](https://zenodo.org/badge/549515208.svg)](https://zenodo.org/badge/latestdoi/549515208)
 [![doc](https://img.shields.io/static/v1?style=plastic&label&message=Documentation&logo=gitbook&logoColor=white&color=gray)](https://spey.readthedocs.io)
+
+<img src="https://raw.githubusercontent.com/SpeysideHEP/spey/main/docs/img/spey-logo.png" alt="Spey logo" style="float: right; margin-right: 20px" align="right" width=250px/>
 
 [![github](https://img.shields.io/static/v1?style=plastic&label&message=GitHub&logo=github&logoColor=black&color=white)](https://github.com/SpeysideHEP/spey)
 [![PyPI - Version](https://img.shields.io/pypi/v/spey?style=plastic&link=https%3A%2F%2Fpypi.org%2Fproject%2Fspey%2F)](https://pypi.org/project/spey/)

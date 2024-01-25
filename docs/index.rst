@@ -16,9 +16,9 @@ Welcome to the documentation of Spey
    :alt: GitHub issues
    :target: https://github.com/SpeysideHEP/spey/issues
 
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.10470536.svg
+.. image:: https://zenodo.org/badge/549515208.svg
     :alt: Zenodo DOI
-    :target: https://doi.org/10.5281/zenodo.10470536
+    :target: https://zenodo.org/badge/latestdoi/549515208
 
 .. toctree::
    :maxdepth: 2
