@@ -1,8 +1,7 @@
 # Spey: smooth inference for reinterpretation studies
 
-
 [![arxiv](https://img.shields.io/static/v1?style=plastic&label=arXiv&message=2307.06996&color=brightgreen)](https://arxiv.org/abs/2307.06996)
-[![DOI](https://img.shields.io/static/v1?style=plastic&label=DOI&message=TBA&color=blue)]()
+[![DOI](https://img.shields.io/static/v1?style=plastic&label=DOI&message=10.21468/SciPostPhys.16.1.032&color=blue)](https://scipost.org/10.21468/SciPostPhys.16.1.032)
 [![DOI](https://zenodo.org/badge/549515208.svg)](https://zenodo.org/badge/latestdoi/549515208)
 [![doc](https://img.shields.io/static/v1?style=plastic&label&message=Documentation&logo=gitbook&logoColor=white&color=gray)](https://spey.readthedocs.io)
 
@@ -112,12 +111,12 @@ During the computation of any probability distribution, Spey relies on the so-ca
 This can be set via ``spey.ExpectationType`` which includes three different expectation modes.
 
 * ``spey.ExpectationType.observed``: Indicates that the computation of the log-probability will be
-  achieved by fitting the statistical model on the experimental data. For the exclusion limit computation, 
+  achieved by fitting the statistical model on the experimental data. For the exclusion limit computation,
   this will tell the package to compute observed :math:`1-CL_s` values. ``spey.ExpectationType.observed``
   has been set as default throughout the package.
 
 * ``spey.ExpectationType.aposteriori``: This command will result in the same log-probability computation
-  as ``spey.ExpectationType.observed``. However, the expected exclusion limit will be computed by centralizing 
+  as ``spey.ExpectationType.observed``. However, the expected exclusion limit will be computed by centralizing
   the statistical model on the background and checking :math:`\pm1\sigma` and :math:`\pm2\sigma` fluctuations.
 
 * ``spey.ExpectationType.apriori``: Indicates that the observation has never taken place and the theoretical
@@ -139,7 +138,7 @@ Note that ``spey.ExpectationType.apriori`` and ``spey.ExpectationType.aposterior
 resulted in a list of 5 elements which indicates $-2\sigma,\ -1\sigma,\ 0,\ +1\sigma,\ +2\sigma$ standard deviations
 from the background hypothesis. ``spey.ExpectationType.observed`` on the other hand resulted in single value which is
 the observed exclusion limit. Notice that the bounds on ``spey.ExpectationType.aposteriori`` are slightly stronger than
-``spey.ExpectationType.apriori`` this is due to the data value has been replaced with background yields, 
+``spey.ExpectationType.apriori`` this is due to the data value has been replaced with background yields,
 which are larger than the observations. ``spey.ExpectationType.apriori`` is mostly used in theory
 collaborations to estimate the difference from the Standard Model rather than the experimental observations.
 
@@ -197,11 +196,12 @@ plt.ylim([0.6,1.01])
 plt.text(0.5,0.96, r"$95\%\ {\rm CL}$")
 plt.show()
 ```
+
 Here in the first line, we extract $1-CL_s$ values per POI for ``spey.ExpectationType.aposteriori``
 expectation type, and we plot specific standard deviations, which provide the following plot:
 
-The excluded value of POI can also be retrieved by `spey`.StatisticalModel.poi_upper_limit`` function, which is the exact point where the red-curve and black dashed line meet. The upper limit for the 
-$\pm1\sigma$ or $\pm2\sigma$ bands can be extracted by setting ``expected_pvalue`` to ``"1sigma"`` 
+The excluded value of POI can also be retrieved by `spey`.StatisticalModel.poi_upper_limit`` function, which is the exact point where the red-curve and black dashed line meet. The upper limit for the
+$\pm1\sigma$ or $\pm2\sigma$ bands can be extracted by setting ``expected_pvalue`` to ``"1sigma"``
 or ``"2sigma"`` respectively, e.g.
 
 ```python

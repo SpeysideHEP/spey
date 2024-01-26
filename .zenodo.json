@@ -22,6 +22,12 @@
     ],
     "related_identifiers": [
         {
+            "scheme": "doi",
+            "identifier": "10.21468/SciPostPhys.16.1.032",
+            "relation": "isDocumentedBy",
+            "resource_type": "publication-article"
+        },
+        {
             "scheme": "url",
             "identifier": "https://github.com/SpeysideHEP/spey/tree/v0.1.5",
             "relation": "isSupplementTo"
@@ -30,12 +36,6 @@
             "scheme": "url",
             "identifier": "https://spey.readthedocs.io/",
             "relation": "isDocumentedBy"
-        },
-        {
-            "scheme": "doi",
-            "identifier": "10.48550/arXiv.2307.06996",
-            "relation": "isDocumentedBy",
-            "resource_type": "publication-article"
         }
     ]
 }

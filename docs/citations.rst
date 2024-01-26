@@ -8,15 +8,18 @@ The BibTeX entry for citing ``spey`` including latest zenodo archive:
 
 .. code-block:: bibtex
 
-    @article{Araz:2023bwx,
-        author = "Araz, Jack Y.",
-        title = "{Spey: smooth inference for reinterpretation studies}",
-        eprint = "2307.06996",
-        archivePrefix = "arXiv",
-        primaryClass = "hep-ph",
-        reportNumber = "IPPP/23/34",
-        month = "7",
-        year = "2023"
+    @article{10.21468/SciPostPhys.16.1.032,
+        author     = {Jack Y. Araz},
+        doi        = {10.21468/SciPostPhys.16.1.032},
+        journal    = {SciPost Phys.},
+        pages      = {032},
+        publisher  = {SciPost},
+        title      = {{Spey: Smooth inference for reinterpretation studies}},
+        url        = {https://scipost.org/10.21468/SciPostPhys.16.1.032},
+        volume     = {16},
+        year       = {2024},
+        bdsk-url-1 = {https://scipost.org/10.21468/SciPostPhys.16.1.032},
+        bdsk-url-2 = {https://doi.org/10.21468/SciPostPhys.16.1.032}
     }
 
 .. include:: ZENODO.rst
