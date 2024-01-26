@@ -9,6 +9,8 @@ Talks
 
    * - Date
      - Event
+   * - February 15, 2024
+     - `Electroweak and Beyond the Standard Model Physics at the EIC <https://www.int.washington.edu/program/schedule/24-87W>`_
    * - December 5, 2023
      - `pyhf Users and Developers Workshop 2023 <https://indico.cern.ch/event/1294577/contributions/5685097/>`_
    * - October 12, 2023

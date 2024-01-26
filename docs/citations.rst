@@ -6,7 +6,7 @@ Citation
 
 The BibTeX entry for citing ``spey`` including latest zenodo archive:
 
-.. code-block:: BibTeX
+.. code-block:: bibtex
 
     @article{Araz:2023bwx,
         author = "Araz, Jack Y.",
@@ -19,16 +19,7 @@ The BibTeX entry for citing ``spey`` including latest zenodo archive:
         year = "2023"
     }
 
-    @software{spey_zenodo,
-        author    = {Jack Y. Araz},
-        title     = {SpeysideHEP/spey: v0.1.5},
-        month     = jan,
-        year      = 2024,
-        publisher = {Zenodo},
-        version   = {v0.1.5},
-        doi       = {10.5281/zenodo.10569099},
-        url       = {https://doi.org/10.5281/zenodo.10569099}
-    }
+.. include:: ZENODO.rst
 
 Use in Publications
 -------------------

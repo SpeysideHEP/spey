@@ -6,8 +6,11 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-from pathlib import Path
+import re
 import sys
+import warnings
+from pathlib import Path
+
 from pkg_resources import get_distribution
 
 sys.path.insert(0, str(Path("./ext").resolve()))
@@ -43,7 +46,7 @@ extensions = [
     "sphinx_togglebutton",
     "xref",
     # "myst_parser",
-    "sphinx_rtd_size",
+    # "sphinx_rtd_size",
     "myst_nb",
 ]
 nb_execution_mode = "off"
@@ -176,3 +179,30 @@ latex_documents = [
         "manual",
     )
 ]
+
+# adapted from https://astrodata.nyc/posts/2021-04-23-zenodo-sphinx/
+zenodo_path = Path("ZENODO.rst")
+if not zenodo_path.exists():
+    import textwrap
+
+    try:
+        import requests
+
+        headers = {"accept": "application/x-bibtex"}
+        response = requests.get(
+            "https://zenodo.org/api/records/10156353", headers=headers, timeout=5
+        )
+        response.encoding = "utf-8"
+
+        txt = response.text
+        linker = re.search("@software{(.+?),\n", txt).group(1)
+        txt = txt.replace(linker, "spey_zenodo")
+        zenodo_record = ".. code-block:: bibtex\n\n" + textwrap.indent(txt, " " * 4)
+    except Exception as e:
+        warnings.warn("Failed to retrieve Zenodo record for Spey: " f"{str(e)}")
+        zenodo_record = (
+            "`Retrieve the Zenodo record here. <https://zenodo.org/record/10156353>`_"
+        )
+
+    with open(zenodo_path, "w", encoding="utf-8") as f:
+        f.write(zenodo_record)
