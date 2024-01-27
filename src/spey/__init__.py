@@ -1,3 +1,4 @@
+import os
 from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
 
 import numpy as np
@@ -25,6 +26,9 @@ __all__ = [
     "BackendBase",
     "ConverterBase",
     "about",
+    "check_updates",
+    "get_backend_bibtex",
+    "cite",
 ]
 
 
@@ -59,7 +63,7 @@ def reset_backend_entries() -> None:
     _backend_entries = _get_backend_entrypoints()
 
 
-def AvailableBackends() -> List[Text]:
+def AvailableBackends() -> List[Text]:  # pylint: disable=C0103
     """
     Returns a list of available backends. The default backends are automatically installed
     with ``spey`` package. To enable other backends, please see the relevant section
@@ -216,3 +220,108 @@ def get_backend_metadata(name: Text) -> Dict[Text, Any]:
         + ", ".join(AvailableBackends())
         + "."
     )
+
+
+def get_backend_bibtex(name: Text) -> List[Text]:
+    """
+    Retreive BibTex entry for backend plug-in if available.
+
+    The bibtext entries are retreived both from Inspire HEP and doi.org.
+    If the arXiv number matches the DOI the output will include two versions
+    of the same reference. If backend does not include an arXiv or DOI number
+    it will return an empty list.
+
+    Args:
+        name (``Text``): backend identifier. This backend refers to different packages
+          that prescribes likelihood function.
+
+    Returns:
+        ``List[Text]``:
+        BibTex entries for the backend.
+    """
+    # pylint: disable=import-outside-toplevel
+    txt = []
+    if name is None:
+        meta = {"arXiv": ["2307.06996"], "doi": ["10.5281/zenodo.10569099"]}
+    else:
+        meta = get_backend_metadata(name)
+
+    import warnings
+
+    try:
+        import textwrap
+
+        import requests
+
+        # check arXiv
+        for arxiv_id in meta.get("arXiv", []):
+            response = requests.get(
+                f"https://inspirehep.net/api/arxiv/{arxiv_id}",
+                headers={"accept": "application/x-bibtex"},
+                timeout=5,
+            )
+            response.encoding = "utf-8"
+            txt.append(textwrap.indent(response.text, " " * 4))
+        for doi in meta.get("doi", []):
+            page = f"https://doi.org/{doi}" if "https://doi.org/" not in doi else doi
+            response = requests.get(
+                page, headers={"accept": "application/x-bibtex"}, timeout=5
+            )
+            response.encoding = "utf-8"
+            current_bibtex = response.text
+            if current_bibtex not in txt:
+                txt.append(current_bibtex)
+    except Exception:  # pylint: disable=W0718
+        warnings.warn("Unable to retreive bibtex information.", category=UserWarning)
+
+    return txt
+
+
+def cite() -> List[Text]:
+    """Retreive BibTex information for Spey"""
+    return get_backend_bibtex(None)
+
+
+def check_updates() -> None:
+    """
+    Check Spey Updates.
+
+    Spey always checks updates when initialised. To disable this set the following
+
+    Option if using terminal:
+
+    .. code-block:: bash
+
+        export SPEY_CHECKUPDATE=OFF
+
+    Option if using python interface:
+
+    .. code-block:: python
+
+        import os
+        os.environ["SPEY_CHECKUPDATE"]="OFF"
+
+    """
+    # pylint: disable=import-outside-toplevel
+    try:
+        import warnings
+
+        import requests
+
+        response = requests.get("https://pypi.org/pypi/spey/json", timeout=1)
+        response.encoding = "utf-8"
+        pypi_info = response.json()
+        pypi_version = pypi_info.get("info", {}).get("version", False)
+        if pypi_version:
+            if Version(version()) < Version(pypi_version):
+                warnings.warn(
+                    f"An update is available. Current version of spey is {version()}, "
+                    f"available version is {pypi_version}."
+                )
+    except Exception:  # pylint: disable=W0718
+        # Can not retreive updates
+        pass
+
+
+if os.environ.get("SPEY_CHECKUPDATE", "ON").upper() != "OFF":
+    check_updates()
