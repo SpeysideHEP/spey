@@ -97,6 +97,7 @@ def check_updates() -> None:
         pypi_version = pypi_info.get("info", {}).get("version", False)
         version = get_distribution("spey").version
         if pypi_version:
+            log.debug(f"Curernt version {version}, latest version {pypi_version}.")
             if Version(version) < Version(pypi_version):
                 log.warning(
                     f"An update is available. Current version of spey is {version}, "
