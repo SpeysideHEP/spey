@@ -260,7 +260,7 @@ def get_backend_bibtex(name: Text) -> List[Text]:
     """
     Retreive BibTex entry for backend plug-in if available.
 
-    The bibtext entries are retreived both from Inspire HEP and doi.org.
+    The bibtext entries are retreived both from Inspire HEP, doi.org and zenodo.
     If the arXiv number matches the DOI the output will include two versions
     of the same reference. If backend does not include an arXiv or DOI number
     it will return an empty list.
