@@ -28,6 +28,7 @@ Top-Level
     helper_functions.correlation_to_covariance
     helper_functions.covariance_to_correlation
     optimizer.core.fit
+    set_log_level
 
 Main Classes
 ------------

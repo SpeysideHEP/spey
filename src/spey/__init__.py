@@ -1,4 +1,6 @@
+import logging
 import os
+import sys
 from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
 
 import numpy as np
@@ -8,6 +10,7 @@ from semantic_version import SimpleSpec, Version
 from spey.base import BackendBase, ConverterBase
 from spey.combiner import UnCorrStatisticsCombiner
 from spey.interface.statistical_model import StatisticalModel, statistical_model_wrapper
+from spey.system import logger
 from spey.system.exceptions import PluginError
 
 from ._version import __version__
@@ -29,11 +32,40 @@ __all__ = [
     "check_updates",
     "get_backend_bibtex",
     "cite",
+    "set_log_level",
 ]
 
 
 def __dir__():
     return __all__
+
+
+logger.init(LoggerStream=sys.stdout)
+log = logging.getLogger("Spey")
+
+
+def set_log_level(level: int) -> None:
+    """
+    Set log level for spey
+
+    Args:
+        level (``int``): log level
+
+            * 0: error
+            * 1: warning
+            * 2: info
+            * 3: debug
+    """
+    log_dict = {
+        0: logging.ERROR,
+        1: logging.WARNING,
+        2: logging.INFO,
+        3: logging.DEBUG,
+    }
+    log.setLevel(log_dict[level])
+
+
+set_log_level(2)
 
 
 def version() -> Text:
@@ -246,8 +278,6 @@ def get_backend_bibtex(name: Text) -> List[Text]:
     else:
         meta = get_backend_metadata(name)
 
-    import warnings
-
     try:
         import textwrap
 
@@ -271,8 +301,9 @@ def get_backend_bibtex(name: Text) -> List[Text]:
             current_bibtex = response.text
             if current_bibtex not in txt:
                 txt.append(current_bibtex)
-    except Exception:  # pylint: disable=W0718
-        warnings.warn("Unable to retreive bibtex information.", category=UserWarning)
+    except Exception as err:  # pylint: disable=W0718
+        log.warning("Unable to retreive bibtex information.")
+        log.debug(str(err))
 
     return txt
 
@@ -302,10 +333,8 @@ def check_updates() -> None:
         os.environ["SPEY_CHECKUPDATE"]="OFF"
 
     """
-    # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel, W1203
     try:
-        import warnings
-
         import requests
 
         response = requests.get("https://pypi.org/pypi/spey/json", timeout=1)
@@ -314,13 +343,13 @@ def check_updates() -> None:
         pypi_version = pypi_info.get("info", {}).get("version", False)
         if pypi_version:
             if Version(version()) < Version(pypi_version):
-                warnings.warn(
+                log.warning(
                     f"An update is available. Current version of spey is {version()}, "
                     f"available version is {pypi_version}."
                 )
-    except Exception:  # pylint: disable=W0718
+    except Exception as err:  # pylint: disable=W0718
         # Can not retreive updates
-        pass
+        log.debug(str(err))
 
 
 if os.environ.get("SPEY_CHECKUPDATE", "ON").upper() != "OFF":
