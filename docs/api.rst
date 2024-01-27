@@ -16,10 +16,13 @@ Top-Level
 
     version
     about
+    check_updates
     ExpectationType
     AvailableBackends
     get_backend
     get_backend_metadata
+    get_backend_bibtex
+    cite
     reset_backend_entries
     statistical_model_wrapper
     helper_functions.correlation_to_covariance
