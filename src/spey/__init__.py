@@ -1,7 +1,9 @@
 import logging
 import os
+import re
 import sys
-from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
+import textwrap
+from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union, Literal
 
 import numpy as np
 import pkg_resources
@@ -12,6 +14,7 @@ from spey.combiner import UnCorrStatisticsCombiner
 from spey.interface.statistical_model import StatisticalModel, statistical_model_wrapper
 from spey.system import logger
 from spey.system.exceptions import PluginError
+from spey.system.webutils import get_bibtex, check_updates
 
 from ._version import __version__
 from .about import about
@@ -42,9 +45,10 @@ def __dir__():
 
 logger.init(LoggerStream=sys.stdout)
 log = logging.getLogger("Spey")
+log.setLevel(logging.INFO)
 
 
-def set_log_level(level: int) -> None:
+def set_log_level(level: Literal[0, 1, 2, 3]) -> None:
     """
     Set log level for spey
 
@@ -63,9 +67,6 @@ def set_log_level(level: int) -> None:
         3: logging.DEBUG,
     }
     log.setLevel(log_dict[level])
-
-
-set_log_level(2)
 
 
 def version() -> Text:
@@ -245,6 +246,7 @@ def get_backend_metadata(name: Text) -> Dict[Text, Any]:
             "spey_requires": statistical_model.spey_requires,
             "doi": list(getattr(statistical_model, "doi", [])),
             "arXiv": list(getattr(statistical_model, "arXiv", [])),
+            "zenodo": list(getattr(statistical_model, "zenodo", [])),
         }
 
     raise PluginError(
@@ -271,85 +273,44 @@ def get_backend_bibtex(name: Text) -> List[Text]:
         ``List[Text]``:
         BibTex entries for the backend.
     """
-    # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel, W1203
     txt = []
-    if name is None:
-        meta = {"arXiv": ["2307.06996"], "doi": ["10.5281/zenodo.10569099"]}
-    else:
-        meta = get_backend_metadata(name)
+    meta = get_backend_metadata(name)
 
-    try:
-        import textwrap
-
-        import requests
-
-        # check arXiv
-        for arxiv_id in meta.get("arXiv", []):
-            response = requests.get(
-                f"https://inspirehep.net/api/arxiv/{arxiv_id}",
-                headers={"accept": "application/x-bibtex"},
-                timeout=5,
-            )
-            response.encoding = "utf-8"
-            txt.append(textwrap.indent(response.text, " " * 4))
-        for doi in meta.get("doi", []):
-            page = f"https://doi.org/{doi}" if "https://doi.org/" not in doi else doi
-            response = requests.get(
-                page, headers={"accept": "application/x-bibtex"}, timeout=5
-            )
-            response.encoding = "utf-8"
-            current_bibtex = response.text
-            if current_bibtex not in txt:
-                txt.append(current_bibtex)
-    except Exception as err:  # pylint: disable=W0718
-        log.warning("Unable to retreive bibtex information.")
-        log.debug(str(err))
+    for arxiv_id in meta.get("arXiv", []):
+        tmp = get_bibtex("inspire/arxiv", arxiv_id)
+        if tmp != "":
+            txt.append(textwrap.indent(tmp, " " * 4))
+        else:
+            log.debug(f"Can not find {arxiv_id} in Inspire")
+    for doi in meta.get("doi", []):
+        tmp = get_bibtex("inspire/doi", doi)
+        if tmp == "":
+            log.debug(f"Can not find {doi} in Inspire, looking at doi.org")
+            tmp = get_bibtex("doi", doi)
+            if tmp != "":
+                txt.append(tmp)
+            else:
+                log.debug(f"Can not find {doi} in doi.org")
+        else:
+            txt.append(textwrap.indent(tmp, " " * 4))
+    for zenodo_id in meta.get("zenodo", []):
+        tmp = get_bibtex("zenodo", zenodo_id)
+        if tmp != "":
+            txt.append(textwrap.indent(tmp, " " * 4))
+        else:
+            log.debug(f"{zenodo_id} is not a valid zenodo identifier")
 
     return txt
 
 
 def cite() -> List[Text]:
     """Retreive BibTex information for Spey"""
-    return get_backend_bibtex(None)
-
-
-def check_updates() -> None:
-    """
-    Check Spey Updates.
-
-    Spey always checks updates when initialised. To disable this set the following
-
-    Option if using terminal:
-
-    .. code-block:: bash
-
-        export SPEY_CHECKUPDATE=OFF
-
-    Option if using python interface:
-
-    .. code-block:: python
-
-        import os
-        os.environ["SPEY_CHECKUPDATE"]="OFF"
-
-    """
-    # pylint: disable=import-outside-toplevel, W1203
-    try:
-        import requests
-
-        response = requests.get("https://pypi.org/pypi/spey/json", timeout=1)
-        response.encoding = "utf-8"
-        pypi_info = response.json()
-        pypi_version = pypi_info.get("info", {}).get("version", False)
-        if pypi_version:
-            if Version(version()) < Version(pypi_version):
-                log.warning(
-                    f"An update is available. Current version of spey is {version()}, "
-                    f"available version is {pypi_version}."
-                )
-    except Exception as err:  # pylint: disable=W0718
-        # Can not retreive updates
-        log.debug(str(err))
+    arxiv = textwrap.indent(get_bibtex("inspire/arxiv", "2307.06996"), " " * 4)
+    zenodo = get_bibtex("zenodo", "10156353")
+    linker = re.search("@software{(.+?),\n", zenodo).group(1)
+    zenodo = textwrap.indent(zenodo.replace(linker, "spey_zenodo"), " " * 4)
+    return arxiv + "\n\n" + zenodo
 
 
 if os.environ.get("SPEY_CHECKUPDATE", "ON").upper() != "OFF":
