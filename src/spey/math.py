@@ -1,6 +1,6 @@
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, Tuple, List
 
-from autograd import numpy
+from autograd import numpy as np
 
 from .interface.statistical_model import StatisticalModel
 from .utils import ExpectationType
@@ -17,8 +17,8 @@ def __dir__():
 def value_and_grad(
     statistical_model: StatisticalModel,
     expected: ExpectationType = ExpectationType.observed,
-    data: Optional[numpy.ndarray] = None,
-) -> Callable[[numpy.ndarray], Tuple[numpy.ndarray, numpy.ndarray]]:
+    data: Optional[List[float]] = None,
+) -> Callable[[np.ndarray], Tuple[np.ndarray, np.ndarray]]:
     """
     Retreive function to compute negative log-likelihood and its gradient.
 
@@ -36,24 +36,24 @@ def value_and_grad(
           * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
             prescription which means that the SM will be assumed to be the truth.
 
-        data (``numpy.ndarray``, default ``None``): input data that to fit. If `None` observed
+        data (``np.ndarray``, default ``None``): input data that to fit. If `None` observed
           data will be used.
 
     Returns:
-        ``Callable[[numpy.ndarray], numpy.ndarray, numpy.ndarray]``:
+        ``Callable[[np.ndarray], np.ndarray, np.ndarray]``:
         negative log-likelihood and its gradient with respect to nuisance parameters
     """
     val_and_grad = statistical_model.backend.get_objective_function(
-        expected=expected, data=data, do_grad=True
+        expected=expected, data=None if data is None else np.array(data), do_grad=True
     )
-    return lambda pars: val_and_grad(numpy.array(pars))
+    return lambda pars: val_and_grad(np.array(pars))
 
 
 def hessian(
     statistical_model: StatisticalModel,
     expected: ExpectationType = ExpectationType.observed,
-    data: Optional[numpy.ndarray] = None,
-) -> Callable[[numpy.ndarray], numpy.ndarray]:
+    data: Optional[List[float]] = None,
+) -> Callable[[np.ndarray], np.ndarray]:
     r"""
     Retreive the function to compute Hessian of negative log-likelihood
 
@@ -75,12 +75,14 @@ def hessian(
           * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
             prescription which means that the SM will be assumed to be the truth.
 
-        data (``numpy.ndarray``, default ``None``): input data that to fit. If `None` observed
+        data (``np.ndarray``, default ``None``): input data that to fit. If `None` observed
           data will be used.
 
     Returns:
-        ``Callable[[numpy.ndarray], numpy.ndarray]``:
+        ``Callable[[np.ndarray], np.ndarray]``:
         function to compute hessian of negative log-likelihood
     """
-    hess = statistical_model.backend.get_hessian_logpdf_func(expected=expected, data=data)
-    return lambda pars: -1.0 * hess(numpy.array(pars))
+    hess = statistical_model.backend.get_hessian_logpdf_func(
+        expected=expected, data=None if data is None else np.array(data)
+    )
+    return lambda pars: -1.0 * hess(np.array(pars))
