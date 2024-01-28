@@ -4,7 +4,6 @@ tools to compute exclusion limits and POI upper limits
 """
 
 import logging
-import warnings
 from abc import ABC, abstractmethod
 from functools import partial
 from typing import Any, Callable, Dict, List, Literal, Optional, Text, Tuple, Union
