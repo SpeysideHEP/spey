@@ -2,6 +2,8 @@ from enum import Enum, auto
 
 __all__ = ["ExpectationType"]
 
+# pylint: disable=C0103
+
 
 class ExpectationType(Enum):
     """

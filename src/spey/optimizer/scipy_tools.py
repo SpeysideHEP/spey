@@ -1,10 +1,15 @@
 """Optimisation tools based on scipy"""
 
+import logging
 import warnings
 from typing import Callable, Dict, List, Tuple
 
 import numpy as np
 import scipy
+
+# pylint: disable=W1201, W1203, R0913
+
+log = logging.getLogger("Spey")
 
 
 def minimize(
@@ -66,10 +71,8 @@ def minimize(
             # Note that it is important to respect the lower bounds especially since there might
             # be bounds that lead to negative yields in the statistical model, e.g. Asimov data,
             # background + mu * signal etc.
-            warnings.warn(
-                message=opt.message + "\nspey::Expanding the bounds.",
-                category=RuntimeWarning,
-            )
+            log.warning("Optimiser has not been able to satisfy all the conditions:")
+            log.warning(opt.message + " Expanding the bounds...")
             init_pars = opt.x
             for bdx, bound in enumerate(bounds):
                 if bdx == poi_index and constraints is None:
@@ -80,6 +83,11 @@ def minimize(
             break
 
     if not opt.success:
-        warnings.warn(message=opt.message, category=RuntimeWarning)
+        log.warning("Optimiser has not been able to satisfy all the conditions:")
+        log.warning(opt.message)
+        log.debug(f"func: {opt.fun}")
+        log.debug(f"parameters: {opt.x}")
+        if do_grad:
+            log.debug(f"gradients: {func(opt.x)[-1]}")
 
     return opt.fun, opt.x
