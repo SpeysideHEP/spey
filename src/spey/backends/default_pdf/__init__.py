@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
 
-from autograd import grad, hessian, jacobian
+from autograd import value_and_grad, hessian, jacobian
 from autograd import numpy as np
 from scipy.optimize import NonlinearConstraint
 
@@ -257,11 +257,7 @@ class DefaultPDFBase(BackendBase):
             ) - self.constraint_model.log_prob(pars)
 
         if do_grad:
-            grad_negative_loglikelihood = grad(negative_loglikelihood, argnum=0)
-            return lambda pars: (
-                negative_loglikelihood(pars),
-                grad_negative_loglikelihood(pars),
-            )
+            return value_and_grad(negative_loglikelihood, argnum=0)
 
         return negative_loglikelihood
 

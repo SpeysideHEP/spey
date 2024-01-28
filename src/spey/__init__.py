@@ -32,6 +32,7 @@ __all__ = [
     "BackendBase",
     "ConverterBase",
     "about",
+    "math",
     "check_updates",
     "get_backend_bibtex",
     "cite",
