@@ -1,15 +1,14 @@
 # Release notes v0.1
 
-## New features since last release
+## New features since the last release
 
-* Exclusion limit calculator has been extended to include p-value computation
-  from chi-square.
+* The exclusion limit calculator has been extended to include p-value computation from chi-square.
   ([#17](https://github.com/SpeysideHEP/spey/pull/17))
 
 * $\chi^2$ function has been extended to compute background + signal vs background only model.
   ([#17](https://github.com/SpeysideHEP/spey/pull/17))
 
-* Poisson based likelihood constructor without uncertainties has been added
+* A Poisson-based likelihood constructor without uncertainties has been added
   (Request by Veronica Sanz for EFT studies).
   ([#22](https://github.com/SpeysideHEP/spey/pull/22))
 
@@ -25,16 +24,16 @@
   before approximating through $q_{\mu,A}$.
   [#25](https://github.com/SpeysideHEP/spey/pull/25)
 
-* Update clarification on text based keyword arguments.
+* Update clarification on text-based keyword arguments.
   ([#30](https://github.com/SpeysideHEP/spey/pull/30))
 
-* Adding logging across the software and implement tools to scilence them.
+* Adding logging across the software and implementing tools to silence them.
   ([#32](https://github.com/SpeysideHEP/spey/pull/32))
 
 * Spey will automatically look for updates during initiation.
   ([#32](https://github.com/SpeysideHEP/spey/pull/32))
 
-* Utilities to retreive bibtex information for third-party plug-ins.
+* Utilities to retrieve BibTeX information for third-party plug-ins.
   ([#32](https://github.com/SpeysideHEP/spey/pull/32))
 
 * Add math utilities for users to extract gradient and hessian of negative log-likelihood
@@ -45,14 +44,14 @@
 
 ## Bug Fixes
 
-* In accordance to the latest updates ```UnCorrStatisticsCombiner``` has been updated with
-  chi-square computer. See issue [#19](https://github.com/SpeysideHEP/spey/issues/19).
+* In accordance with the latest updates, `UnCorrStatisticsCombiner` has been updated with
+  a chi-square computer. See issue [#19](https://github.com/SpeysideHEP/spey/issues/19).
   ([#20](https://github.com/SpeysideHEP/spey/pull/20))
 
 * Execution error fix during likelihood computation for models with single nuisance parameter.
   ([#22](https://github.com/SpeysideHEP/spey/pull/22))
 
-* Numeric problem rising from `==` which has been updated to `np.isclose`
+* The numeric problem rising from `==` which has been updated to `np.isclose`
   see issue [#23](https://github.com/SpeysideHEP/spey/issues/23).
   ([#25](https://github.com/SpeysideHEP/spey/pull/25))
 
