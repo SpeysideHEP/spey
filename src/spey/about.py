@@ -8,7 +8,7 @@ import numpy
 import scipy
 import semantic_version
 import tqdm
-from pkg_resources import iter_entry_points
+from pkg_resources import get_distribution, iter_entry_points
 
 
 def about() -> None:
@@ -21,13 +21,7 @@ def about() -> None:
     )
     print(f"Numpy version:            {numpy.__version__}")
     print(f"Scipy version:            {scipy.__version__}")
-    print(
-        "Autograd version:         %s"
-        % check_output([sys.executable, "-m", "pip", "show", "autograd"])
-        .decode()
-        .split("\n")[1]
-        .split(":")[1][1:]
-    )
+    print(f"Autograd version:         {get_distribution('autograd').version}")
     print(f"tqdm version:             {tqdm.__version__}")
     print(f"semantic_version version: {semantic_version.__version__}")
 

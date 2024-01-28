@@ -1,4 +1,9 @@
-from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
+import logging
+import os
+import re
+import sys
+import textwrap
+from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union, Literal
 
 import numpy as np
 import pkg_resources
@@ -7,7 +12,9 @@ from semantic_version import SimpleSpec, Version
 from spey.base import BackendBase, ConverterBase
 from spey.combiner import UnCorrStatisticsCombiner
 from spey.interface.statistical_model import StatisticalModel, statistical_model_wrapper
+from spey.system import logger
 from spey.system.exceptions import PluginError
+from spey.system.webutils import get_bibtex, check_updates
 
 from ._version import __version__
 from .about import about
@@ -25,11 +32,41 @@ __all__ = [
     "BackendBase",
     "ConverterBase",
     "about",
+    "check_updates",
+    "get_backend_bibtex",
+    "cite",
+    "set_log_level",
 ]
 
 
 def __dir__():
     return __all__
+
+
+logger.init(LoggerStream=sys.stdout)
+log = logging.getLogger("Spey")
+log.setLevel(logging.INFO)
+
+
+def set_log_level(level: Literal[0, 1, 2, 3]) -> None:
+    """
+    Set log level for spey
+
+    Args:
+        level (``int``): log level
+
+            * 0: error
+            * 1: warning
+            * 2: info
+            * 3: debug
+    """
+    log_dict = {
+        0: logging.ERROR,
+        1: logging.WARNING,
+        2: logging.INFO,
+        3: logging.DEBUG,
+    }
+    log.setLevel(log_dict[level])
 
 
 def version() -> Text:
@@ -59,7 +96,7 @@ def reset_backend_entries() -> None:
     _backend_entries = _get_backend_entrypoints()
 
 
-def AvailableBackends() -> List[Text]:
+def AvailableBackends() -> List[Text]:  # pylint: disable=C0103
     """
     Returns a list of available backends. The default backends are automatically installed
     with ``spey`` package. To enable other backends, please see the relevant section
@@ -209,6 +246,7 @@ def get_backend_metadata(name: Text) -> Dict[Text, Any]:
             "spey_requires": statistical_model.spey_requires,
             "doi": list(getattr(statistical_model, "doi", [])),
             "arXiv": list(getattr(statistical_model, "arXiv", [])),
+            "zenodo": list(getattr(statistical_model, "zenodo", [])),
         }
 
     raise PluginError(
@@ -216,3 +254,64 @@ def get_backend_metadata(name: Text) -> Dict[Text, Any]:
         + ", ".join(AvailableBackends())
         + "."
     )
+
+
+def get_backend_bibtex(name: Text) -> List[Text]:
+    """
+    Retreive BibTex entry for backend plug-in if available.
+
+    The bibtext entries are retreived both from Inspire HEP, doi.org and zenodo.
+    If the arXiv number matches the DOI the output will include two versions
+    of the same reference. If backend does not include an arXiv or DOI number
+    it will return an empty list.
+
+    Args:
+        name (``Text``): backend identifier. This backend refers to different packages
+          that prescribes likelihood function.
+
+    Returns:
+        ``List[Text]``:
+        BibTex entries for the backend.
+    """
+    # pylint: disable=import-outside-toplevel, W1203
+    txt = []
+    meta = get_backend_metadata(name)
+
+    for arxiv_id in meta.get("arXiv", []):
+        tmp = get_bibtex("inspire/arxiv", arxiv_id)
+        if tmp != "":
+            txt.append(textwrap.indent(tmp, " " * 4))
+        else:
+            log.debug(f"Can not find {arxiv_id} in Inspire")
+    for doi in meta.get("doi", []):
+        tmp = get_bibtex("inspire/doi", doi)
+        if tmp == "":
+            log.debug(f"Can not find {doi} in Inspire, looking at doi.org")
+            tmp = get_bibtex("doi", doi)
+            if tmp != "":
+                txt.append(tmp)
+            else:
+                log.debug(f"Can not find {doi} in doi.org")
+        else:
+            txt.append(textwrap.indent(tmp, " " * 4))
+    for zenodo_id in meta.get("zenodo", []):
+        tmp = get_bibtex("zenodo", zenodo_id)
+        if tmp != "":
+            txt.append(textwrap.indent(tmp, " " * 4))
+        else:
+            log.debug(f"{zenodo_id} is not a valid zenodo identifier")
+
+    return txt
+
+
+def cite() -> List[Text]:
+    """Retreive BibTex information for Spey"""
+    arxiv = textwrap.indent(get_bibtex("inspire/arxiv", "2307.06996"), " " * 4)
+    zenodo = get_bibtex("zenodo", "10156353")
+    linker = re.search("@software{(.+?),\n", zenodo).group(1)
+    zenodo = textwrap.indent(zenodo.replace(linker, "spey_zenodo"), " " * 4)
+    return arxiv + "\n\n" + zenodo
+
+
+if os.environ.get("SPEY_CHECKUPDATE", "ON").upper() != "OFF":
+    check_updates()

@@ -1,8 +1,15 @@
-from typing import Callable, List, Tuple, Optional, Dict
+import logging
+from typing import Callable, Dict, List, Optional, Tuple
+
 import numpy as np
 
 from spey.base.model_config import ModelConfig
+
 from .scipy_tools import minimize
+
+# pylint: disable=W1203
+
+log = logging.getLogger("Spey")
 
 
 def fit(
@@ -58,6 +65,9 @@ def fit(
     constraints = [] if constraints is None else constraints
     if fixed_poi_value is not None:
         init_pars[model_configuration.poi_index] = fixed_poi_value
+        log.debug(
+            f"Fixing POI index at: {model_configuration.poi_index} to value {fixed_poi_value}"
+        )
         constraints.append(
             {
                 "type": "eq",
@@ -68,6 +78,7 @@ def fit(
     if model_configuration.suggested_fixed is not None:
         for idx, isfixed in enumerate(model_configuration.suggested_fixed):
             if isfixed:
+                log.debug(f"Constraining {idx} to value {init_pars[idx]}")
                 constraints.append(
                     {
                         "type": "eq",

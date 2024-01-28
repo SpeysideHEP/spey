@@ -46,6 +46,9 @@ def test_correlated_background():
     assert np.isclose(
         statistical_model.exclusion_confidence_level()[0], 0.9635100547173434
     ), "CLs is wrong"
+    assert np.isclose(
+        statistical_model.sigma_mu(1.0), 0.8456469932844632
+    ), "Sigma mu is wrong"
 
 
 def test_third_moment():
@@ -68,6 +71,9 @@ def test_third_moment():
     assert np.isclose(
         statistical_model.poi_upper_limit(), 0.9221339770245336
     ), "POI is wrong"
+    assert np.isclose(
+        statistical_model.sigma_mu(1.0), 0.854551194250324
+    ), "Sigma mu is wrong"
 
 
 def test_effective_sigma():
@@ -90,3 +96,30 @@ def test_effective_sigma():
     assert np.isclose(
         statistical_model.poi_upper_limit(), 1.5298573610113775
     ), "POI is wrong."
+    assert np.isclose(
+        statistical_model.sigma_mu(1.0), 1.2152765953701747
+    ), "Sigma mu is wrong"
+
+
+def test_poisson():
+    """tester for uncorrelated background model"""
+
+    pdf_wrapper = spey.get_backend("default_pdf.poisson")
+
+    data = [36, 33]
+    signal_yields = [12.0, 15.0]
+    background_yields = [50.0, 48.0]
+
+    stat_model = pdf_wrapper(
+        signal_yields=signal_yields,
+        background_yields=background_yields,
+        data=data,
+        analysis="multi_bin",
+        xsection=0.123,
+    )
+
+    assert np.isclose(stat_model.poi_upper_limit(), 0.3140867496931846), "POI is wrong."
+    assert np.isclose(
+        stat_model.exclusion_confidence_level()[0], 0.9999807105228611
+    ), "CLs is wrong"
+    assert np.isclose(stat_model.sigma_mu(1.0), 0.5573350296644078), "Sigma mu is wrong"
