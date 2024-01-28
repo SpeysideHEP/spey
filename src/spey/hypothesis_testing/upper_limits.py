@@ -1,8 +1,9 @@
 """Tools for computing upper limit on parameter of interest"""
 
+import logging
 import warnings
 from functools import partial
-from typing import Callable, List, Text, Tuple, Union
+from typing import Callable, List, Tuple, Union, Literal
 
 import numpy as np
 import scipy
@@ -17,6 +18,11 @@ __all__ = ["find_poi_upper_limit", "find_root_limits"]
 
 def __dir__():
     return __all__
+
+
+log = logging.getLogger("Spey")
+
+# pylint: disable=W1203,C0103
 
 
 class ComputerWrapper:
@@ -86,12 +92,14 @@ def find_root_limits(
         low *= 0.5
         if low < low_bound:
             break
+    log.debug(f"Low results: {low_computer._results}")
 
     hig_computer = ComputerWrapper(computer)
     while hig_computer(hig) < loc:
         hig *= 2.0
         if hig > hig_bound:
             break
+    log.debug(f"High results: {hig_computer._results}")
 
     return low_computer, hig_computer
 
@@ -106,7 +114,7 @@ def find_poi_upper_limit(
     allow_negative_signal: bool = True,
     low_init: float = 1.0,
     hig_init: float = 1.0,
-    expected_pvalue: Text = "nominal",
+    expected_pvalue: Literal["nominal", "1sigma", "2sigma"] = "nominal",
     maxiter: int = 10000,
 ) -> Union[float, List[float]]:
     r"""
@@ -198,27 +206,28 @@ def find_poi_upper_limit(
         "2sigma": range(0, 5),
     }
     for pvalue_idx in index_range[expected_pvalue]:
+        log.debug(f"Running for p-value idx: {pvalue_idx}")
         comp = partial(computer, pvalue_idx=pvalue_idx)
         # Set an upper bound for the computation
         hig_bound = 1e5
         low, hig = find_root_limits(
             comp, loc=0.0, low_ini=low_init, hig_ini=hig_init, hig_bound=hig_bound
         )
+        log.debug(f"low: {low[-1]}, hig: {hig[-1]}")
 
         # Check if its possible to find roots
         if np.sign(low[-1]) * np.sign(hig[-1]) > 0.0:
-            warnings.warn(
-                message="Can not find the roots of the function, returning `inf`"
+            log.warning(
+                "Can not find the roots of the function, returning `inf`"
                 + f"\n hig, low must bracket a root f({low.get_value(-1):.5e})={low[-1]:.5e}, "
                 + f"f({hig.get_value(-1):.5e})={hig[-1]:.5e}. "
                 + "This is likely due to low number of signal yields."
                 * (hig.get_value(-1) >= hig_bound),
-                category=RuntimeWarning,
             )
             result.append(np.inf)
             continue
 
-        with warnings.catch_warnings(record=True):
+        with warnings.catch_warnings(record=True) as w:
             x0, r = scipy.optimize.toms748(
                 comp,
                 low.get_value(-1),
@@ -229,7 +238,14 @@ def find_poi_upper_limit(
                 full_output=True,
                 maxiter=maxiter,
             )
+
+        log.debug("Warnings:")
+        if log.level == logging.DEBUG:
+            for warning in w:
+                log.debug(f"\t{warning.message}")
+            log.debug("<><>" * 10)
+
         if not r.converged:
-            warnings.warn(f"Optimiser did not converge.\n{r}", category=RuntimeWarning)
+            log.warning(f"Optimiser did not converge.\n{r}")
         result.append(x0)
     return result if len(result) > 1 else result[0]
