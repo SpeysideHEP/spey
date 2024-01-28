@@ -82,6 +82,17 @@ Hypothesis testing
     asymptotic_calculator.compute_asymptotic_confidence_level
     toy_calculator.compute_toy_confidence_level
 
+Gradient Tools
+--------------
+
+.. currentmodule:: spey.math
+
+.. autosummary:: 
+    :toctree: _generated/
+
+    value_and_grad
+    hessian
+
 Default Backends
 ----------------
 
