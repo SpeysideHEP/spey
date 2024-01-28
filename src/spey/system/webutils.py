@@ -42,10 +42,6 @@ def get_bibtex(
     """
     # pylint: disable=W1203
 
-    if requests is None:
-        log.error("Unable to retreive information. Please install `requests`.")
-        return ""
-
     home_loc = {
         "inspire/arxiv": "https://inspirehep.net/api/arxiv/%s",
         "inspire/doi": "https://inspirehep.net/api/doi/%s",
