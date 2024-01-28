@@ -36,11 +36,11 @@ def value_and_grad(
           * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
             prescription which means that the SM will be assumed to be the truth.
 
-        data (``np.ndarray``, default ``None``): input data that to fit. If `None` observed
+        data (``List[float]``, default ``None``): input data that to fit. If `None` observed
           data will be used.
 
     Returns:
-        ``Callable[[np.ndarray], np.ndarray, np.ndarray]``:
+        ``Callable[[np.ndarray], Tuple[np.ndarray, np.ndarray]]``:
         negative log-likelihood and its gradient with respect to nuisance parameters
     """
     val_and_grad = statistical_model.backend.get_objective_function(
@@ -75,7 +75,7 @@ def hessian(
           * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
             prescription which means that the SM will be assumed to be the truth.
 
-        data (``np.ndarray``, default ``None``): input data that to fit. If `None` observed
+        data (``List[float]``, default ``None``): input data that to fit. If `None` observed
           data will be used.
 
     Returns:
