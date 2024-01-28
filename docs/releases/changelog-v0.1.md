@@ -37,6 +37,12 @@
 * Utilities to retreive bibtex information for third-party plug-ins.
   ([#32](https://github.com/SpeysideHEP/spey/pull/32))
 
+* Add math utilities for users to extract gradient and hessian of negative log-likelihood
+  ([#31](https://github.com/SpeysideHEP/spey/pull/31))
+
+* Improve gradient execution for `default_pdf`.
+  ([#31](https://github.com/SpeysideHEP/spey/pull/31))
+
 ## Bug Fixes
 
 * In accordance to the latest updates ```UnCorrStatisticsCombiner``` has been updated with
