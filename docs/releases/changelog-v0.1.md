@@ -28,6 +28,15 @@
 * Update clarification on text based keyword arguments.
   ([#30](https://github.com/SpeysideHEP/spey/pull/30))
 
+* Adding logging across the software and implement tools to scilence them.
+  ([#32](https://github.com/SpeysideHEP/spey/pull/32))
+
+* Spey will automatically look for updates during initiation.
+  ([#32](https://github.com/SpeysideHEP/spey/pull/32))
+
+* Utilities to retreive bibtex information for third-party plug-ins.
+  ([#32](https://github.com/SpeysideHEP/spey/pull/32))
+
 ## Bug Fixes
 
 * In accordance to the latest updates ```UnCorrStatisticsCombiner``` has been updated with
