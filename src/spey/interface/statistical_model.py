@@ -1,6 +1,5 @@
 """Statistical Model wrapper class"""
-
-import inspect
+import logging
 from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
 
 import numpy as np
@@ -22,13 +21,9 @@ def __dir__():
     return __all__
 
 
-def _module_check(backend: BackendBase, func_name: Union[Text, List[Text]]) -> bool:
-    """Check if the member function is implemented in backend or in plugin"""
-    func_name = [func_name] if isinstance(func_name, str) else func_name
-    return all(
-        ("spey/base/backend_base.py" not in inspect.getfile(getattr(backend, fn)))
-        for fn in func_name
-    )
+log = logging.getLogger("Spey")
+
+# pylint: disable=W1203
 
 
 class StatisticalModel(HypothesisTestingBase):
@@ -104,15 +99,17 @@ class StatisticalModel(HypothesisTestingBase):
     @property
     def is_asymptotic_calculator_available(self) -> bool:
         """Check if Asymptotic calculator is available for the backend"""
-        return _module_check(self.backend, "expected_data") or _module_check(
-            self.backend,
-            ["asimov_negative_loglikelihood", "minimize_asimov_negative_loglikelihood"],
+        return self.backend.expected_data != BackendBase.expected_data or (
+            self.backend.asimov_negative_loglikelihood
+            != BackendBase.asimov_negative_loglikelihood
+            and self.backend.minimize_asimov_negative_loglikelihood
+            != BackendBase.minimize_asimov_negative_loglikelihood
         )
 
     @property
     def is_toy_calculator_available(self) -> bool:
         """Check if Toy calculator is available for the backend"""
-        return _module_check(self.backend, "get_sampler")
+        return self.backend.get_sampler != BackendBase.get_sampler
 
     @property
     def is_chi_square_calculator_available(self) -> bool:
@@ -166,8 +163,7 @@ class StatisticalModel(HypothesisTestingBase):
             raise UnknownCrossSection("Cross-section value has not been initialised.")
 
         return (
-            self.poi_upper_limit(expected=expected, confidence_level=0.95)
-            * self.xsection
+            self.poi_upper_limit(expected=expected, confidence_level=0.95) * self.xsection
         )
 
     @property
@@ -233,6 +229,7 @@ class StatisticalModel(HypothesisTestingBase):
                 expected=expected, data=data, do_grad=do_grad
             )
         except NotImplementedError:
+            log.debug("Gradient is not available, will not be included in computation.")
             do_grad = False
             objective_and_grad = self.backend.get_objective_function(
                 expected=expected, data=data, do_grad=do_grad
@@ -370,7 +367,7 @@ class StatisticalModel(HypothesisTestingBase):
         """
         fit_opts = self.prepare_for_fit(
             expected=expected,
-            allow_negative_signal=True if test_statistic in ["q", "qmu"] else False,
+            allow_negative_signal=test_statistic in ["q", "qmu"],
             **kwargs,
         )
 
@@ -380,6 +377,7 @@ class StatisticalModel(HypothesisTestingBase):
             bounds=par_bounds,
             fixed_poi_value=1.0 if test_statistic == "q0" else 0.0,
         )
+        log.debug(f"fit parameters: {fit_pars}")
 
         return self.backend.expected_data(fit_pars)
 
@@ -510,6 +508,7 @@ class StatisticalModel(HypothesisTestingBase):
         logpdf, fit_param = fit(
             **fit_opts, initial_parameters=init_pars, bounds=par_bounds
         )
+        log.debug(f"fit parameters: {fit_param}")
 
         muhat = fit_param[self.backend.config().poi_index]
         return muhat, -logpdf if return_nll else np.exp(logpdf)
@@ -643,6 +642,7 @@ class StatisticalModel(HypothesisTestingBase):
                 fixed_poi_value=poi_test,
             )
 
+        log.debug(f"fit parameters: {fit_param}")
         try:
             sampler = self.backend.get_sampler(fit_param)
         except NotImplementedError as exc:
@@ -704,8 +704,10 @@ class StatisticalModel(HypothesisTestingBase):
             bounds=par_bounds,
             fixed_poi_value=poi_test,
         )
+        log.debug(f"fit parameters: {fit_param}")
 
         hessian = -1.0 * hessian_func(fit_param)
+        log.debug(f"full hessian: {hessian}")
 
         poi_index = self.backend.config().poi_index
         return np.sqrt(np.linalg.inv(hessian)[poi_index, poi_index])
