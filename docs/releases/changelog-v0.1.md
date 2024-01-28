@@ -42,6 +42,9 @@
 * Improve gradient execution for `default_pdf`.
   ([#31](https://github.com/SpeysideHEP/spey/pull/31))
 
+* Add more tests for code coverage.
+  ([#33](https://github.com/SpeysideHEP/spey/pull/33))
+
 ## Bug Fixes
 
 * In accordance with the latest updates, `UnCorrStatisticsCombiner` has been updated with
