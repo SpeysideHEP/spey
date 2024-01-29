@@ -89,7 +89,3 @@ hess(nui)
 array([[2.81233272, 2.91913211],
        [2.91913211, 5.03305146]])
 ```
-
-```{attention}
-This functionality is only available for the statistical models that defined as differentiable.
-```
