@@ -1,8 +1,9 @@
 """Interface for default PDF sets"""
 
+import logging
 from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
 
-from autograd import grad, hessian, jacobian
+from autograd import value_and_grad, hessian, jacobian
 from autograd import numpy as np
 from scipy.optimize import NonlinearConstraint
 
@@ -17,6 +18,9 @@ from .third_moment import third_moment_expansion
 from .uncertainty_synthesizer import signal_uncertainty_synthesizer
 
 # pylint: disable=E1101,E1120
+log = logging.getLogger("Spey")
+
+# pylint: disable=W1203
 
 
 class DefaultPDFBase(BackendBase):
@@ -92,7 +96,7 @@ class DefaultPDFBase(BackendBase):
             self.signal_uncertainty_configuration = signal_uncertainty_synthesizer(
                 signal_yields=self.signal_yields,
                 **signal_uncertainty_configuration,
-                domain=slice(len(background_yields) + 1, None)
+                domain=slice(len(background_yields) + 1, None),
             )
 
         minimum_poi = -np.inf
@@ -101,6 +105,7 @@ class DefaultPDFBase(BackendBase):
                 self.background_yields[self.signal_yields > 0.0]
                 / self.signal_yields[self.signal_yields > 0.0]
             )
+        log.debug(f"Min POI set to : {minimum_poi}")
 
         self._main_model = None
         self._constraint_model = None
@@ -243,6 +248,7 @@ class DefaultPDFBase(BackendBase):
             self.background_yields if expected == ExpectationType.apriori else self.data
         )
         data = current_data if data is None else data
+        log.debug(f"Data: {data}")
 
         def negative_loglikelihood(pars: np.ndarray) -> np.ndarray:
             """Compute twice negative log-likelihood"""
@@ -251,11 +257,7 @@ class DefaultPDFBase(BackendBase):
             ) - self.constraint_model.log_prob(pars)
 
         if do_grad:
-            grad_negative_loglikelihood = grad(negative_loglikelihood, argnum=0)
-            return lambda pars: (
-                negative_loglikelihood(pars),
-                grad_negative_loglikelihood(pars),
-            )
+            return value_and_grad(negative_loglikelihood, argnum=0)
 
         return negative_loglikelihood
 
@@ -291,6 +293,7 @@ class DefaultPDFBase(BackendBase):
             self.background_yields if expected == ExpectationType.apriori else self.data
         )
         data = current_data if data is None else data
+        log.debug(f"Data: {data}")
 
         return lambda pars: self.main_model.log_prob(
             pars, data[: len(self.data)]
@@ -329,6 +332,7 @@ class DefaultPDFBase(BackendBase):
             self.background_yields if expected == ExpectationType.apriori else self.data
         )
         data = current_data if data is None else data
+        log.debug(f"Data: {data}")
 
         def log_prob(pars: np.ndarray) -> np.ndarray:
             """Compute log-probability"""

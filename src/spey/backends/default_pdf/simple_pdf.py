@@ -2,7 +2,7 @@
 
 from typing import Callable, List, Optional, Text, Tuple, Union
 
-from autograd import grad, hessian
+from autograd import value_and_grad, hessian
 from autograd import numpy as np
 
 from spey._version import __version__
@@ -162,11 +162,7 @@ class Poisson(BackendBase):
             return -self.main_model.log_prob(pars, data)
 
         if do_grad:
-            grad_negative_loglikelihood = grad(negative_loglikelihood, argnum=0)
-            return lambda pars: (
-                negative_loglikelihood(pars),
-                grad_negative_loglikelihood(pars),
-            )
+            return value_and_grad(negative_loglikelihood, argnum=0)
 
         return negative_loglikelihood
 

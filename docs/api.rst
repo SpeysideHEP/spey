@@ -16,15 +16,19 @@ Top-Level
 
     version
     about
+    check_updates
     ExpectationType
     AvailableBackends
     get_backend
     get_backend_metadata
+    get_backend_bibtex
+    cite
     reset_backend_entries
     statistical_model_wrapper
     helper_functions.correlation_to_covariance
     helper_functions.covariance_to_correlation
     optimizer.core.fit
+    set_log_level
 
 Main Classes
 ------------
@@ -81,6 +85,17 @@ Hypothesis testing
     distributions.EmpricTestStatisticsDistribution
     asymptotic_calculator.compute_asymptotic_confidence_level
     toy_calculator.compute_toy_confidence_level
+
+Gradient Tools
+--------------
+
+.. currentmodule:: spey.math
+
+.. autosummary:: 
+    :toctree: _generated/
+
+    value_and_grad
+    hessian
 
 Default Backends
 ----------------

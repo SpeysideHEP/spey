@@ -12,6 +12,7 @@ requirements = [
     "autograd==1.5",
     "semantic_version~=2.10",
     "tqdm>=4.64.0",
+    "requests>=2.31.0",
 ]
 
 backend_plugins = [

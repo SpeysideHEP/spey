@@ -1,12 +1,13 @@
 """Tools for computing third moment expansion"""
 import warnings
 from typing import Optional, Tuple, Union
-
+import logging
 import autograd.numpy as np
 from scipy import integrate
 from scipy.stats import norm
 
-# pylint: disable=E1101,E1120
+# pylint: disable=E1101,E1120,W1203
+log = logging.getLogger("Spey")
 
 
 def third_moment_expansion(
@@ -37,11 +38,11 @@ def third_moment_expansion(
     """
     cov_diag = np.diag(covariance_matrix)
 
-    # ! Assertion error is removed, instead nan values will be converted to zero.
-    # assert np.all(8.0 * cov_diag**3 >= third_moment**2), (
-    #     "Given covariance matrix and diagonal terms of the third moment does not "
-    #     + "satisfy the condition: 8 * diag(cov)**3 >= third_moment**2."
-    # )
+    if not np.all(8.0 * cov_diag**3 >= third_moment**2):
+        log.warning(
+            r"Third moments does not satisfy the following condition: $8\Sigma_{ii}^3 \geq (m^{(3)}_i)^2$"
+        )
+        log.warning("The values that do not satisfy this condition will be set to zero.")
 
     # arXiv:1809.05548 eq. 2.9
     with warnings.catch_warnings(record=True) as w:
@@ -61,12 +62,15 @@ def third_moment_expansion(
             category=RuntimeWarning,
         )
         C = np.where(np.isnan(C), 0.0, C)
+    log.debug(f"C: {C}")
 
     # arXiv:1809.05548 eq. 2.10
     B = np.sqrt(cov_diag - 2 * C**2)
+    log.debug(f"B: {B}")
 
     # arXiv:1809.05548 eq. 2.11
     A = expectation_value - C
+    log.debug(f"A: {A}")
 
     # arXiv:1809.05548 eq. 2.12
     eps = 1e-5
@@ -88,6 +92,7 @@ def third_moment_expansion(
                 if i != j:
                     corr[j, i] = corr[i, j]
 
+        log.debug(f"rho: {corr}")
         return A, B, C, corr
 
     return A, B, C
@@ -154,5 +159,6 @@ def compute_third_moments(
 
     if return_integration_error:
         return np.array(third_moment), np.array(error)
+    log.debug(f"Error: {error}")
 
     return np.array(third_moment)

@@ -3,7 +3,7 @@ Abstract class for Hypothesis base structure. This class contains necessary
 tools to compute exclusion limits and POI upper limits
 """
 
-import warnings
+import logging
 from abc import ABC, abstractmethod
 from functools import partial
 from typing import Any, Callable, Dict, List, Literal, Optional, Text, Tuple, Union
@@ -29,6 +29,11 @@ __all__ = ["HypothesisTestingBase"]
 
 def __dir__():
     return __all__
+
+
+log = logging.getLogger("Spey")
+
+# pylint: disable=W1203,C0103
 
 
 class HypothesisTestingBase(ABC):
@@ -352,6 +357,7 @@ class HypothesisTestingBase(ABC):
             denominator = self.likelihood(
                 poi_test=poi_test_denominator, expected=expected, **kwargs
             )
+        log.debug(f"denominator: {denominator}")
 
         return 2.0 * (
             self.likelihood(poi_test=poi_test, expected=expected, **kwargs) - denominator
@@ -421,11 +427,13 @@ class HypothesisTestingBase(ABC):
             allow_negative_signal=allow_negative_signal,
             **kwargs,
         )
+        log.debug(f"muhat: {muhat}, nll: {nll}")
         muhatA, nllA = self.maximize_asimov_likelihood(
             expected=expected,
             test_statistics=test_statistics,
             **kwargs,
         )
+        log.debug(f"muhatA: {muhatA}, nllA: {nllA}")
 
         def logpdf(mu: Union[float, np.ndarray]) -> float:
             return -self.likelihood(
@@ -511,7 +519,7 @@ class HypothesisTestingBase(ABC):
                     poi_test=poi_test, expected=expected, **kwargs
                 )
             except MethodNotAvailable:
-                warnings.warn(
+                log.warning(
                     "Hessian implementation is not available for this backend, "
                     "continuing with the approximate method."
                 )
@@ -520,6 +528,7 @@ class HypothesisTestingBase(ABC):
         muhatA, min_nllA = self.maximize_asimov_likelihood(
             expected=expected, test_statistics=test_statistics, **kwargs
         )
+        log.debug(f"muhatA: {muhatA}, min_nllA: {min_nllA}")
 
         def logpdf_asimov(mu: Union[float, np.ndarray]) -> float:
             return -self.asimov_likelihood(
@@ -726,10 +735,9 @@ class HypothesisTestingBase(ABC):
 
             if expected in [ExpectationType.aposteriori, ExpectationType.apriori]:
                 fit = "post" if expected == ExpectationType.aposteriori else "pre"
-                warnings.warn(
-                    message="chi-square calculator does not support expected p-values."
-                    + f" Only one p-value for {fit}fit will be returned.",
-                    category=RuntimeWarning,
+                log.warning(
+                    "chi-square calculator does not support expected p-values."
+                    f" Only one p-value for {fit}fit will be returned."
                 )
 
         if expected == "all":
@@ -909,6 +917,7 @@ class HypothesisTestingBase(ABC):
             )
             low_init = low_init or muhat + 1.5 * sigma_mu
             hig_init = hig_init or muhat + 2.5 * sigma_mu
+            log.debug(f"new low_init = {low_init}, new hig_init = {hig_init}")
 
         return find_poi_upper_limit(
             maximum_likelihood=maximum_likelihood,
