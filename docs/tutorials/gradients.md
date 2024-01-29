@@ -70,15 +70,15 @@ neg_logprob = value_and_grad(stat_model)
 Notice that this function constructs a negative log-probability for the observed statistical model using the default data that we provided earlier. This can be changed using ``expected`` and ``data`` keywords. Now we can choose nuisance parameters and execute the function:
 
 ```{code-cell} ipython3
-nui = np.random.uniform(0,1,(2,))
+nui = np.random.uniform(0,1,(3,))
 neg_logprob(nui)
 ```
 
 ```python
-(26.928732030439747, array([13.12818756, 15.18979232]))
+(27.81902589793928, array([13.29067478,  6.17223275,  9.28814191]))
 ```
 
-For this particular model, we have only two nuisance parameters due to the structure of the statistical model. For Hessian, we can use the same formulation:
+For this particular model, we have only two nuisance parameters, $\theta_i$, and signal strength, $\mu$, due to the structure of the statistical model. For Hessian, we can use the same formulation:
 
 ```{code-cell} ipython3
 hess = hessian(stat_model)
@@ -86,6 +86,7 @@ hess(nui)
 ```
 
 ```python
-array([[2.81233272, 2.91913211],
-       [2.91913211, 5.03305146]])
+array([[ 2.74153126,  1.21034187,  1.63326868],
+       [ 1.21034187,  2.21034187, -0.        ],
+       [ 1.63326868, -0.        ,  2.74215326]])
 ```
