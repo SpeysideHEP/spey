@@ -1,5 +1,7 @@
 # Release notes v0.1
 
+Specific upgrades for the latest release can be found [here](https://github.com/SpeysideHEP/spey/releases/latest).
+
 ## New features since the last release
 
 * The exclusion limit calculator has been extended to include p-value computation from chi-square.
