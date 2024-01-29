@@ -266,6 +266,8 @@ def get_backend_bibtex(name: Text) -> List[Text]:
     of the same reference. If backend does not include an arXiv or DOI number
     it will return an empty list.
 
+    .. versionadded:: 0.1.6
+
     Args:
         name (``Text``): backend identifier. This backend refers to different packages
           that prescribes likelihood function.

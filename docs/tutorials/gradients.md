@@ -20,6 +20,9 @@ kernelspec:
 # Gradient of a Statistical Model
 
 ````{margin}
+```{versionadded} 0.1.6
+```
+
 ```{note}
 In previous versions gradient and Hessian was limited to internal computations only.
 ```

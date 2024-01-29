@@ -69,6 +69,8 @@ def check_updates() -> None:
     """
     Check Spey Updates.
 
+    .. versionadded:: 0.1.6
+
     Spey always checks updates when initialised. To disable this set the following
 
     Option if using terminal:

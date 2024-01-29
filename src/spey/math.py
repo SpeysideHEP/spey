@@ -22,6 +22,8 @@ def value_and_grad(
     """
     Retreive function to compute negative log-likelihood and its gradient.
 
+    .. versionadded:: 0.1.6
+
     Args:
         statistical_model (~spey.StatisticalModel): statistical model to be used.
         expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
@@ -60,6 +62,8 @@ def hessian(
     .. math::
 
         {\rm Hessian} = -\frac{\partial^2\mathcal{L}(\theta)}{\partial\theta_i\partial\theta_j}
+
+    .. versionadded:: 0.1.6
 
     Args:
         statistical_model (~spey.StatisticalModel): statistical model to be used.
