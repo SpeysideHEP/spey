@@ -6,6 +6,14 @@ Citation
 
 The BibTeX entry for citing ``spey`` including latest zenodo archive:
 
+.. margin::
+
+    .. note::
+
+        To retrieve the latest BibTeX information one can also use :func:`~spey.cite` function.
+        This function pulls the publication information from Inspire-HEP and uses the repository 
+        identification to pull the latest Zenodo archive information. 
+
 .. code-block:: bibtex
 
     @article{Araz:2023bwx,
