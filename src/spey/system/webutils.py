@@ -7,11 +7,15 @@ from semantic_version import Version
 
 log = logging.getLogger("Spey")
 
-__all__ = ["get_bibtex", "check_updates"]
+__all__ = ["get_bibtex", "check_updates", "ConnectionError"]
 
 
 def __dir__():
     return __all__
+
+
+class ConnectionError(Exception):
+    """No internet connection"""
 
 
 def get_bibtex(
@@ -60,6 +64,10 @@ def get_bibtex(
             return ""
         response.encoding = "utf-8"
         return response.text
+    except (requests.ConnectionError, requests.ConnectTimeout) as err:
+        raise ConnectionError(
+            "Can not retreive BibTeX information: No internet connection."
+        ) from err
     except Exception as err:  # pylint: disable=W0718
         log.debug(str(err))
         return ""
@@ -98,12 +106,12 @@ def check_updates() -> None:
             log.debug(f"Curernt version {version}, latest version {pypi_version}.")
             if Version(version) < Version(pypi_version):
                 log.warning(
-                    f"An update is available. Current version of spey is {version}, "
-                    f"available version is {pypi_version}."
+                    f"A newer version ({pypi_version}) of Spey is available. "
+                    f"Current version is {version}."
                 )
             elif Version(version) > Version(pypi_version):
                 log.warning(
-                    f"An unstable version of spey ({version}) is being used."
+                    f"An unstable version of Spey ({version}) is being used."
                     f" Latest stable version is {pypi_version}."
                 )
 
