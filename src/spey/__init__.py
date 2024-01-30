@@ -275,6 +275,12 @@ def get_backend_bibtex(name: Text) -> Dict[Text, List[Text]]:
     Returns:
         ``Dict[Text, List[Text]]``:
         BibTex entries for the backend. Keywords include inspire, doi.org and zenodo.
+
+        .. versionchanged:: 0.1.7
+
+            In the previous version, function was returning ``List[Text]`` now it returns
+            a ``Dict[Text, List[Text]]`` indicating the source of BibTeX entry.
+
     """
     # pylint: disable=import-outside-toplevel, W1203
     out = {"inspire": [], "doi.org": [], "zenodo": []}
