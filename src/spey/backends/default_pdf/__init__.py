@@ -115,8 +115,13 @@ class DefaultPDFBase(BackendBase):
         self._config = ModelConfig(
             poi_index=0,
             minimum_poi=minimum_poi,
-            suggested_init=[1.0] * (len(data) + 1),
-            suggested_bounds=[(minimum_poi, 10)] + [(None, None)] * len(data),
+            suggested_init=[1.0] * (len(data) + 1)
+            + (signal_uncertainty_configuration is not None)
+            * ([1.0] * len(signal_yields)),
+            suggested_bounds=[(minimum_poi, 10)]
+            + [(None, None)] * len(data)
+            + (signal_uncertainty_configuration is not None)
+            * ([(None, None)] * len(signal_yields)),
         )
 
     @property
@@ -188,11 +193,11 @@ class DefaultPDFBase(BackendBase):
                     expectation value of the poisson distribution with respect to
                     nuisance parameters.
                 """
-                return pars[0] * self.signal_yields + A + B * pars[1:]
+                return pars[0] * self.signal_yields + A + B * pars[slice(1, len(B) + 1)]
 
             def constraint(pars: np.ndarray) -> np.ndarray:
                 """Compute constraint term"""
-                return A + B * pars[1:]
+                return A + B * pars[slice(1, len(B) + 1)]
 
             jac_constr = jacobian(constraint)
 
@@ -484,7 +489,7 @@ class UncorrelatedBackground(DefaultPDFBase):
                 {
                     "distribution_type": "normal",
                     "args": [np.zeros(len(self.data)), np.ones(len(B))],
-                    "kwargs": {"domain": slice(1, None)},
+                    "kwargs": {"domain": slice(1, len(B) + 1)},
                 }
             ]
             + self.signal_uncertainty_configuration.get("constraint", [])
@@ -492,11 +497,15 @@ class UncorrelatedBackground(DefaultPDFBase):
 
         def lam(pars: np.ndarray) -> np.ndarray:
             """Compute lambda for Main model"""
-            return self.background_yields + pars[1:] * B + pars[0] * self.signal_yields
+            return (
+                self.background_yields
+                + pars[slice(1, len(B) + 1)] * B
+                + pars[0] * self.signal_yields
+            )
 
         def constraint(pars: np.ndarray) -> np.ndarray:
             """Compute the constraint term"""
-            return self.background_yields + pars[1:] * B
+            return self.background_yields + pars[slice(1, len(B) + 1)] * B
 
         jac_constr = jacobian(constraint)
 
@@ -703,12 +712,20 @@ class ThirdMomentExpansion(DefaultPDFBase):
                 expectation value of the poisson distribution with respect to
                 nuisance parameters.
             """
-            nI = A + B * pars[1:] + C * np.square(pars[1:])
+            nI = (
+                A
+                + B * pars[slice(1, len(B) + 1)]
+                + C * np.square(pars[slice(1, len(B) + 1)])
+            )
             return pars[0] * self.signal_yields + nI
 
         def constraint(pars: np.ndarray) -> np.ndarray:
             """Compute constraint term"""
-            return A + B * pars[1:] + C * np.square(pars[1:])
+            return (
+                A
+                + B * pars[slice(1, len(B) + 1)]
+                + C * np.square(pars[slice(1, len(B) + 1)])
+            )
 
         jac_constr = jacobian(constraint)
 
@@ -732,7 +749,7 @@ class ThirdMomentExpansion(DefaultPDFBase):
                 {
                     "distribution_type": "multivariatenormal",
                     "args": [np.zeros(len(self.data)), corr],
-                    "kwargs": {"domain": slice(1, None)},
+                    "kwargs": {"domain": slice(1, len(B) + 1)},
                 }
             ]
             + self.signal_uncertainty_configuration.get("constraint", [])
@@ -851,7 +868,7 @@ class EffectiveSigma(DefaultPDFBase):
             return np.sqrt(
                 np.clip(
                     sigma_plus * sigma_minus
-                    + (sigma_plus - sigma_minus) * (pars[1:] - A),
+                    + (sigma_plus - sigma_minus) * (pars[slice(1, len(A) + 1)] - A),
                     1e-10,
                     None,
                 )
@@ -859,11 +876,15 @@ class EffectiveSigma(DefaultPDFBase):
 
         def lam(pars: np.ndarray) -> np.ndarray:
             """Compute lambda for Main model"""
-            return A + effective_sigma(pars) * pars[1:] + pars[0] * self.signal_yields
+            return (
+                A
+                + effective_sigma(pars) * pars[slice(1, len(A) + 1)]
+                + pars[0] * self.signal_yields
+            )
 
         def constraint(pars: np.ndarray) -> np.ndarray:
             """Compute the constraint term"""
-            return A + effective_sigma(pars) * pars[1:]
+            return A + effective_sigma(pars) * pars[slice(1, len(A) + 1)]
 
         jac_constr = jacobian(constraint)
         self.constraints.append(

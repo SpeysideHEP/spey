@@ -63,6 +63,9 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 * Typofix during computation of $\sigma_\mu$.
   ([#29](https://github.com/SpeysideHEP/spey/pull/29))
 
+* Bug fix in signal uncertainty synthesizer
+  ([#34](https://github.com/SpeysideHEP/spey/pull/34))
+
 ## Contributors
 
 This release contains contributions from (in alphabetical order):
