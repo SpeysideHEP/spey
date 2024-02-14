@@ -14,7 +14,7 @@ from spey.combiner import UnCorrStatisticsCombiner
 from spey.interface.statistical_model import StatisticalModel, statistical_model_wrapper
 from spey.system import logger
 from spey.system.exceptions import PluginError
-from spey.system.webutils import get_bibtex, check_updates
+from spey.system.webutils import get_bibtex, check_updates, ConnectionError
 
 from ._version import __version__
 from .about import about
@@ -257,7 +257,7 @@ def get_backend_metadata(name: Text) -> Dict[Text, Any]:
     )
 
 
-def get_backend_bibtex(name: Text) -> List[Text]:
+def get_backend_bibtex(name: Text) -> Dict[Text, List[Text]]:
     """
     Retreive BibTex entry for backend plug-in if available.
 
@@ -273,47 +273,63 @@ def get_backend_bibtex(name: Text) -> List[Text]:
           that prescribes likelihood function.
 
     Returns:
-        ``List[Text]``:
-        BibTex entries for the backend.
+        ``Dict[Text, List[Text]]``:
+        BibTex entries for the backend. Keywords include inspire, doi.org and zenodo.
+
+        .. versionchanged:: 0.1.7
+
+            In the previous version, function was returning ``List[Text]`` now it returns
+            a ``Dict[Text, List[Text]]`` indicating the source of BibTeX entry.
+
     """
     # pylint: disable=import-outside-toplevel, W1203
-    txt = []
+    out = {"inspire": [], "doi.org": [], "zenodo": []}
     meta = get_backend_metadata(name)
 
-    for arxiv_id in meta.get("arXiv", []):
-        tmp = get_bibtex("inspire/arxiv", arxiv_id)
-        if tmp != "":
-            txt.append(textwrap.indent(tmp, " " * 4))
-        else:
-            log.debug(f"Can not find {arxiv_id} in Inspire")
-    for doi in meta.get("doi", []):
-        tmp = get_bibtex("inspire/doi", doi)
-        if tmp == "":
-            log.debug(f"Can not find {doi} in Inspire, looking at doi.org")
-            tmp = get_bibtex("doi", doi)
+    try:
+        for arxiv_id in meta.get("arXiv", []):
+            tmp = get_bibtex("inspire/arxiv", arxiv_id)
             if tmp != "":
-                txt.append(tmp)
+                out["inspire"].append(textwrap.indent(tmp, " " * 4))
             else:
-                log.debug(f"Can not find {doi} in doi.org")
-        else:
-            txt.append(textwrap.indent(tmp, " " * 4))
-    for zenodo_id in meta.get("zenodo", []):
-        tmp = get_bibtex("zenodo", zenodo_id)
-        if tmp != "":
-            txt.append(textwrap.indent(tmp, " " * 4))
-        else:
-            log.debug(f"{zenodo_id} is not a valid zenodo identifier")
+                log.debug(f"Can not find {arxiv_id} in Inspire")
+        for doi in meta.get("doi", []):
+            tmp = get_bibtex("inspire/doi", doi)
+            if tmp == "":
+                log.debug(f"Can not find {doi} in Inspire, looking at doi.org")
+                tmp = get_bibtex("doi", doi)
+                if tmp != "":
+                    out["doi.org"].append(tmp)
+                else:
+                    log.debug(f"Can not find {doi} in doi.org")
+            else:
+                out["inspire"].append(textwrap.indent(tmp, " " * 4))
+        for zenodo_id in meta.get("zenodo", []):
+            tmp = get_bibtex("zenodo", zenodo_id)
+            if tmp != "":
+                out["zenodo"].append(textwrap.indent(tmp, " " * 4))
+            else:
+                log.debug(f"{zenodo_id} is not a valid zenodo identifier")
+    except ConnectionError as err:
+        log.error("Can not connect to the internet. Please check your connection.")
+        log.debug(str(err))
+        return out
 
-    return txt
+    return out
 
 
 def cite() -> List[Text]:
     """Retreive BibTex information for Spey"""
-    arxiv = textwrap.indent(get_bibtex("inspire/arxiv", "2307.06996"), " " * 4)
-    zenodo = get_bibtex("zenodo", "10156353")
-    linker = re.search("@software{(.+?),\n", zenodo).group(1)
-    zenodo = textwrap.indent(zenodo.replace(linker, "spey_zenodo"), " " * 4)
-    return arxiv + "\n\n" + zenodo
+    try:
+        arxiv = textwrap.indent(get_bibtex("inspire/arxiv", "2307.06996"), " " * 4)
+        zenodo = get_bibtex("zenodo", "10156353")
+        linker = re.search("@software{(.+?),\n", zenodo).group(1)
+        zenodo = textwrap.indent(zenodo.replace(linker, "spey_zenodo"), " " * 4)
+        return arxiv + "\n\n" + zenodo
+    except ConnectionError as err:
+        log.error("Can not connect to the internet. Please check your connection.")
+        log.debug(str(err))
+        return ""
 
 
 if os.environ.get("SPEY_CHECKUPDATE", "ON").upper() != "OFF":
