@@ -142,12 +142,12 @@ html_theme_options = {
             "icon": "https://img.shields.io/pypi/v/spey?style=plastic",
             "type": "url",
         },
-        {
-            "name": "PyPI",
-            "url": "https://pypi.org/project/spey/",
-            "icon": "https://img.shields.io/pypi/dm/spey?style=plastic",
-            "type": "url",
-        },
+        # {
+        #     "name": "PyPI",
+        #     "url": "https://pypi.org/project/spey/",
+        #     "icon": "https://img.shields.io/pypi/dm/spey?style=plastic",
+        #     "type": "url",
+        # },
     ],
 }
 

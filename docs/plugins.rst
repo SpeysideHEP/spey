@@ -74,7 +74,7 @@ given as
 
 where :math:`\mu, \theta` are the parameter of interest (signal strength) and nuisance parameters, 
 the signal and background yields are given as :math:`n_s^i` and :math:`n_b^i\pm\sigma_b^i` respectively.
-Additionally, absolute uncertainties are modelled as Gaussian distributions. This model can be 
+Additionally, absolute uncertainties are modeled as Gaussian distributions. This model can be 
 used as follows
 
 .. code-block:: python3
@@ -107,7 +107,7 @@ This particular example implements a two-bin histogram with uncorrelated bins. T
     >>> statistical_model.exclusion_confidence_level()
     >>> # [0.9701795436411219]
 
-For all the properties of :obj:`~spey.StatisticalModel` class we refer the reader to the corresponding
+For all the properties of :obj:`~spey.StatisticalModel` class, we refer the reader to the corresponding
 API description.
 
 ``'default_pdf.correlated_background'``
