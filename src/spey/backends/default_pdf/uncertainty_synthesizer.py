@@ -41,11 +41,30 @@ def signal_uncertainty_synthesizer(
     third_moments: List[float] = None,
     domain: slice = None,
 ) -> Dict[Text, np.ndarray]:
+    """
+    Synthesize signal uncertainties
+
+    Args:
+        signal_yields (``List[float]``): signal yields
+        absolute_uncertainties (``List[float]``, default ``None``): absolute uncertainties
+        absolute_uncertainty_envelops (``List[Tuple[float, float]]``, default ``None``):
+            asymmetric uncertainty envelops (upper, lower)
+        correlation_matrix (``List[List[float]]``, default ``None``): correlation matrix
+        third_moments (``List[float]``, default ``None``): third moments
+        domain (``slice``, default ``None``): domain of the nuisances
+
+    Raises:
+        ``ValueError``: if inconsistent number of input has been provided
+
+    Returns:
+        ``Dict[Text, np.ndarray]``:
+        Inputs for the main model and the constraint term
+    """
     assert domain is not None, "Invalid domain"
-    signal_yields = np.ndarray(signal_yields)
+    signal_yields = np.array(signal_yields)
 
     if absolute_uncertainties is not None and third_moments is None:
-        absolute_uncertainties = np.ndarray(absolute_uncertainties)
+        absolute_uncertainties = np.array(absolute_uncertainties)
 
         def lam_signal(pars: np.ndarray) -> np.ndarray:
             return pars[0] * absolute_uncertainties * pars[domain]
