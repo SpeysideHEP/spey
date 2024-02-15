@@ -12,6 +12,17 @@ from .third_moment import third_moment_expansion
 def constraint_from_corr(
     correlation_matrix: List[List[float]], size: int, domain: slice
 ) -> List[Dict[Text, Any]]:
+    """
+    Derive constraints from inputs
+
+    Args:
+        correlation_matrix (``List[List[float]]``): correlation matrix
+        size (``int``): size of the signal vector
+        domain (``slice``): domain of the nuisances
+
+    Returns:
+        ``List[Dict[Text, Any]]``:
+    """
     if correlation_matrix is not None:
         corr = np.array(correlation_matrix)
         constraint_term = [
@@ -67,7 +78,7 @@ def signal_uncertainty_synthesizer(
         absolute_uncertainties = np.array(absolute_uncertainties)
 
         def lam_signal(pars: np.ndarray) -> np.ndarray:
-            return pars[0] * absolute_uncertainties * pars[domain]
+            return absolute_uncertainties * pars[domain]
 
         constraint_term = constraint_from_corr(
             correlation_matrix, len(absolute_uncertainties), domain
@@ -86,12 +97,12 @@ def signal_uncertainty_synthesizer(
             """Compute effective sigma"""
             return np.sqrt(
                 sigma_plus * sigma_minus
-                + (sigma_plus - sigma_minus) * (pars - signal_yields)
+                + (sigma_plus - sigma_minus) * (pars[domain] - signal_yields)
             )
 
         def lam_signal(pars: np.ndarray) -> np.ndarray:
             """Compute lambda for Main model"""
-            return pars[0] * effective_sigma(pars[domain]) * pars[domain]
+            return effective_sigma(pars) * pars[domain]
 
         constraint_term = constraint_from_corr(
             correlation_matrix, len(sigma_plus), domain
@@ -120,8 +131,7 @@ def signal_uncertainty_synthesizer(
                 expectation value of the poisson distribution with respect to
                 nuisance parameters.
             """
-            nI = A + B * pars[domain] + C * np.square(pars[domain])
-            return pars[0] * nI
+            return A + B * pars[domain] + C * np.square(pars[domain])
 
         constraint_term = [
             {
