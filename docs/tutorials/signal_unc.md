@@ -37,7 +37,7 @@ import matplotlib.pyplot as plt
 We can add uncorrelated signal uncertainties just like in uncorrelated background case
 
 $$
-    \mathcal{L}(\mu, \theta) = \prod_{i\in{\rm bins}}{\rm Poiss}(n_i|\mu (n^{(s)}_i + \theta_i^{(s)}\sigma^{(s)}_i) + n^{(b)}_i + \theta_i^{(b)}\sigma^{(b)}_i) \cdot \prod_{j\in{\rm nui}}\mathcal{N}(\theta_j^{(b)}|0, 1) \cdot \prod_{j\in{\rm nui}}\mathcal{N}(\theta^{(s)}_j|0, 1)\ ,
+    \mathcal{L}(\mu, \theta) = \prod_{i\in{\rm bins}}{\rm Poiss}(n_i|\mu n^{(s)}_i + \theta_i^{(s)}\sigma^{(s)}_i + n^{(b)}_i + \theta_i^{(b)}\sigma^{(b)}_i) \cdot \prod_{j\in{\rm nui}}\mathcal{N}(\theta_j^{(b)}|0, 1) \cdot \prod_{j\in{\rm nui}}\mathcal{N}(\theta^{(s)}_j|0, 1)\ ,
 $$
 
 where $(s)$ superscript indicates signal and $(b)$ indicates background.
@@ -81,8 +81,8 @@ Using ``statistical_model`` and ``statistical_model_sigunc`` we can compute the 
 ```{code-cell} ipython3
 :tags: [hide-cell]
 poi = np.linspace(-3,2,20)
-plt.plot(poi, [statistical_model.chi2(p) for p in poi], color="b", label="no signal uncertainties")
-plt.plot(poi, [statistical_model_sigunc.chi2(p) for p in poi], color="r", label="with signal uncertainties")
+plt.plot(poi, [statistical_model.chi2(p, allow_negative_signal=True) for p in poi], color="b", label="no signal uncertainties")
+plt.plot(poi, [statistical_model_sigunc.chi2(p, allow_negative_signal=True) for p in poi], color="r", label="with signal uncertainties")
 plt.legend()
 plt.xlabel("$\mu$")
 plt.ylabel("$\chi^2(\mu)$")
