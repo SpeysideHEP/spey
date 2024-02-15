@@ -61,8 +61,8 @@ print(f"POI upper limit: {statistical_model_sigunc.poi_upper_limit():.5f}")
 ```
 
 ```python
-1 - CLs: 0.96419
-POI upper limit: 0.89459
+1 - CLs: 0.96607
+POI upper limit: 0.88808
 ```
 
 Let us also check the $\chi^2$ distribution with respect to POI which we expect the distribution should get wider with signal uncertainties. For this comparison we first need to define the model without signal uncertainties:
