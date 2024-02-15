@@ -18,7 +18,7 @@ def constraint_from_corr(
             {
                 "distribution_type": "multivariatenormal",
                 "args": [np.zeros(size), corr],
-                "kwargs": {"domain": domain, "weight": lambda pars: pars[0]},
+                "kwargs": {"domain": domain},
             }
         ]
     else:
@@ -26,7 +26,7 @@ def constraint_from_corr(
             {
                 "distribution_type": "normal",
                 "args": [np.zeros(size), np.ones(size)],
-                "kwargs": {"domain": domain, "weight": lambda pars: pars[0]},
+                "kwargs": {"domain": domain},
             }
         ]
 
@@ -127,7 +127,7 @@ def signal_uncertainty_synthesizer(
             {
                 "distribution_type": "multivariatenormal",
                 "args": [np.zeros(len(signal_yields)), corr],
-                "kwargs": {"domain": domain, "weight": lambda pars: pars[0]},
+                "kwargs": {"domain": domain},
             }
         ]
 
