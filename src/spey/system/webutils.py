@@ -2,8 +2,9 @@ import logging
 from typing import Literal, Text
 
 import requests
-from pkg_resources import get_distribution
 from semantic_version import Version
+
+from spey._version import __version__
 
 log = logging.getLogger("Spey")
 
@@ -101,7 +102,7 @@ def check_updates() -> None:
         response.encoding = "utf-8"
         pypi_info = response.json()
         pypi_version = pypi_info.get("info", {}).get("version", False)
-        version = get_distribution("spey").version
+        version = __version__
         if pypi_version:
             log.debug(f"Curernt version {version}, latest version {pypi_version}.")
             if Version(version) < Version(pypi_version):
