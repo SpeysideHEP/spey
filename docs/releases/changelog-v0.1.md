@@ -66,6 +66,9 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 * Bug fix in signal uncertainty synthesizer
   ([#34](https://github.com/SpeysideHEP/spey/pull/34))
 
+* Signal uncertainties were causing a narrower $\chi^2$ distribution due to the weight of the constraint term. 
+  ([#38](https://github.com/SpeysideHEP/spey/pull/38))
+
 ## Contributors
 
 This release contains contributions from (in alphabetical order):
