@@ -1,5 +1,6 @@
 """Autograd based differentiable distribution classes"""
 
+import logging
 import warnings
 from typing import Any, Callable, Dict, List, Text, Union
 
@@ -8,7 +9,9 @@ from autograd.scipy.special import gammaln
 from autograd.scipy.stats.poisson import logpmf
 from scipy.stats import multivariate_normal, norm, poisson
 
-# pylint: disable=E1101
+# pylint: disable=E1101, W1203
+
+log = logging.getLogger("Spey")
 
 __all__ = ["Poisson", "Normal", "MultivariateNormal", "MainModel", "ConstraintModel"]
 
@@ -239,11 +242,13 @@ class ConstraintModel:
         self._pdfs = []
         distributions = {"normal": Normal, "multivariatenormal": MultivariateNormal}
 
+        log.debug("Adding constraint terms:")
         for desc in pdf_descriptions:
             assert desc["distribution_type"].lower() in [
                 "normal",
                 "multivariatenormal",
             ], f"Unknown distribution type: {desc['distribution_type']}"
+            log.debug(f"{desc}")
             self._pdfs.append(
                 distributions[desc["distribution_type"]](
                     *desc.get("args", []), **desc.get("kwargs", {})

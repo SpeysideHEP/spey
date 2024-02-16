@@ -30,35 +30,71 @@ Note that theoretical uncertainties have different interpretations, we can inter
 ```{code-cell} ipython3
 :tags: [hide-cell]
 import spey
+import numpy as np
+import matplotlib.pyplot as plt
 ```
 
 We can add uncorrelated signal uncertainties just like in uncorrelated background case
 
 $$
-    \mathcal{L}(\mu, \theta) = \prod_{i\in{\rm bins}}{\rm Poiss}(n^i|\mu n_s^i + n_b^i + \theta^i\sigma_b^i + \theta_i^{(s)}\sigma_s^i) \cdot \prod_{j\in{\rm nui}}\mathcal{N}(\theta^j|0, 1) \cdot \prod_{j\in{\rm nui}}\mathcal{N}(\theta_{(s)}^j|0, 1)\ ,
+    \mathcal{L}(\mu, \theta) = \prod_{i\in{\rm bins}}{\rm Poiss}(n_i|\mu n^{(s)}_i + \theta_i^{(s)}\sigma^{(s)}_i + n^{(b)}_i + \theta_i^{(b)}\sigma^{(b)}_i) \cdot \prod_{j\in{\rm nui}}\mathcal{N}(\theta_j^{(b)}|0, 1) \cdot \prod_{j\in{\rm nui}}\mathcal{N}(\theta^{(s)}_j|0, 1)\ ,
 $$
+
+where $(s)$ superscript indicates signal and $(b)$ indicates background.
 
 ```{code-cell} ipython3
 pdf_wrapper = spey.get_backend("default_pdf.uncorrelated_background")
-statistical_model = pdf_wrapper(
+statistical_model_sigunc = pdf_wrapper(
     signal_yields=[12.0, 15.0],
-    background_yields=[50.0,48.0],
+    background_yields=[50.0, 48.0],
     data=[36, 33],
-    absolute_uncertainties=[12.0,16.0],
+    absolute_uncertainties=[12.0, 16.0],
     signal_uncertainty_configuration={"absolute_uncertainties": [3.0, 4.0]},
-    analysis="example",
-    xsection=0.123,
 )
 ```
 
 Similarly, we can construct signal uncertainties using ``"absolute_uncertainty_envelops"`` keyword which accepts upper and lower uncertainties as ``[(upper, lower)]``. We can also add a correlation matrix with ``"correlation_matrix"`` keyword and third moments with ``"third_moments"`` keyword. Notice that these are completely independent of background. Now we can simply compute the limits as follows
 
 ```{code-cell} ipython3
-print(f"1 - CLs: {statistical_model.exclusion_confidence_level()[0]:.5f}")
-print(f"POI upper limit: {statistical_model.poi_upper_limit():.5f}")
+print(f"1 - CLs: {statistical_model_sigunc.exclusion_confidence_level()[0]:.5f}")
+print(f"POI upper limit: {statistical_model_sigunc.poi_upper_limit():.5f}")
 ```
 
 ```python
-1 - CLs: 0.99563
-POI upper limit: 0.51504
+1 - CLs: 0.96607
+POI upper limit: 0.88808
+```
+
+Let us also check the $\chi^2$ distribution with respect to POI which we expect the distribution should get wider with signal uncertainties. For this comparison we first need to define the model without signal uncertainties:
+
+```{code-cell} ipython3
+statistical_model = pdf_wrapper(
+    signal_yields=[12.0, 15.0],
+    background_yields=[50.0, 48.0],
+    data=[36, 33],
+    absolute_uncertainties=[12.0, 16.0],
+)
+```
+
+Using ``statistical_model`` and ``statistical_model_sigunc`` we can compute the $\chi^2$ distribution
+
+```{code-cell} ipython3
+:tags: [hide-cell]
+poi = np.linspace(-3,2,20)
+plt.plot(poi, [statistical_model.chi2(p, allow_negative_signal=True) for p in poi], color="b", label="no signal uncertainties")
+plt.plot(poi, [statistical_model_sigunc.chi2(p, allow_negative_signal=True) for p in poi], color="r", label="with signal uncertainties")
+plt.legend()
+plt.xlabel("$\mu$")
+plt.ylabel("$\chi^2(\mu)$")
+plt.show()
+```
+
+```{figure} ../figs/sig_unc_chi2.png
+---
+width: 60%
+figclass: caption
+alt: chi-square distribution
+name: fig1
+---
+$\chi^2(\mu)$ distribution comparisson for statistical model with and without signal uncertainties.
 ```
