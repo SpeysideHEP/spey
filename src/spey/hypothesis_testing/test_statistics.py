@@ -16,6 +16,13 @@ def qmu_tilde(
     r"""
     Alternative test statistics, :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`.
 
+    .. math::
+
+        \tilde{q}_{\mu} = \begin{cases}
+            0 & \text{if}\ \hat{\mu} > \mu\ , \\
+            -2\log\left( \frac{\mathcal{L}(\mu, \theta_\mu)}{\mathcal{L}(\max(\hat{\mu}, 0), \hat{\theta})} \right) & \text{otherwise}
+        \end{cases}
+
     .. warning::
 
         Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
@@ -48,6 +55,13 @@ def qmu(
 ) -> float:
     r"""
     Test statistic :math:`q_{\mu}`, see eq. (54) of :xref:`1007.1727`
+    
+    .. math::
+
+        q_{\mu} = \begin{cases}
+            0 & \text{if}\ \hat{\mu} > \mu\ ,\\
+            -2\log\left( \frac{\mathcal{L}(\mu, \theta_\mu)}{\mathcal{L}(\hat{\mu}, \hat{\theta})} \right) & \text{otherwise}
+        \end{cases}
 
     Args:
         mu (``float``): parameter of interest, :math:`\mu`.
@@ -67,6 +81,13 @@ def q0(
 ) -> float:
     r"""
     Discovery test statistics, :math:`q_{0}` see eq. (47) of :xref:`1007.1727`.
+
+    .. math::
+
+        q_0 = \begin{cases}
+            0 & \text{if}\ \hat{\mu} < 0\ ,\\
+            -2\log\left( \frac{\mathcal{L}(0, \theta_0)}{\mathcal{L}(\hat{\mu}, \hat{\theta})} \right) & \text{otherwise}
+        \end{cases}
 
     Args:
         mu (``float``): parameter of interest, :math:`\mu`.
