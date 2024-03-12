@@ -34,8 +34,16 @@ def pvalues(
     Calculate the p-values for the observed test statistic under the
     signal + background and background-only model hypotheses.
 
+    .. math::
+    
+        p_{s+b}&=& \int_{-\infty}^{-\sqrt{q_{\mu,A}} - \Delta q_\mu} \mathcal{N}(x| 0, 1) dx \\
+        p_{b}&=& \int_{-\infty}^{-\Delta q_\mu} \mathcal{N}(x| 0, 1) dx \\
+        p_{s} &=& p_{s+b}/ p_{b}
+
+    where :math:`q_\mu` stands for the test statistic and A stands for Assimov.
+
     Args:
-        delta_test_statistic (``float``): :math:`\Delta{\sqrt{q_{\mu}},\sqrt{q_{\mu,A}}}`
+        delta_test_statistic (``float``): :math:`\Delta q_\mu`
         sig_plus_bkg_distribution (~spey.hypothesis_testing.asymptotic_calculator.AsymptoticTestStatisticsDistribution):
           the distribution for the signal + background hypothesis.
         bkg_only_distribution (~spey.hypothesis_testing.asymptotic_calculator.AsymptoticTestStatisticsDistribution):
@@ -45,6 +53,12 @@ def pvalues(
         ``Tuple[float, float, float]``:
         The p-values for the test statistic corresponding to the :math:`CL_{s+b}`,
         :math:`CL_{b}`, and :math:`CL_{s}`.
+        
+    .. seealso::
+    
+        :func:`~spey.hypothesis_testing.test_statistics.compute_teststatistics`, 
+        :func:`~spey.hypothesis_testing.asymptotic_calculator.compute_asymptotic_confidence_level`,
+        :func:`~spey.hypothesis_testing.utils.expected_pvalues`
     """
     CLsb = sig_plus_bkg_distribution.pvalue(delta_test_statistic)
     CLb = bkg_only_distribution.pvalue(delta_test_statistic)
@@ -62,9 +76,18 @@ def expected_pvalues(
     ],
 ) -> List[List]:
     r"""
-    Calculate the :math:`CL_s` values corresponding to the
+    Calculate the :math:`p` values corresponding to the
     median significance of variations of the signal strength from the
     background only hypothesis :math:`\mu=0` at :math:`(-2,-1,0,1,2)\sigma`.
+
+    .. math::
+    
+        p_{s+b}&=& \int_{-\infty}^{-\sqrt{q_{\mu,A}} - N\sigma} \mathcal{N}(x| 0, 1) dx \\
+        p_{b}&=& \int_{-\infty}^{-N\sigma} \mathcal{N}(x| 0, 1) dx \\
+        p_{s} &=& p_{s+b}/ p_{b}
+
+    where :math:`q_\mu` stands for the test statistic and A stands for Assimov. 
+    :math:`N\sigma\in[-2,-1,0,1,2]`.
 
     Args:
         sig_plus_bkg_distribution (~spey.hypothesis_testing.asymptotic_calculator.AsymptoticTestStatisticsDistribution):
@@ -76,6 +99,12 @@ def expected_pvalues(
         ``List[List]``:
         The p-values for the test statistic corresponding to the :math:`CL_{s+b}`,
         :math:`CL_{b}`, and :math:`CL_{s}`.
+        
+    .. seealso::
+    
+        :func:`~spey.hypothesis_testing.test_statistics.compute_teststatistics`, 
+        :func:`~spey.hypothesis_testing.asymptotic_calculator.compute_asymptotic_confidence_level`,
+        :func:`~spey.hypothesis_testing.utils.pvalues`
     """
     return list(
         map(
