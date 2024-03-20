@@ -39,5 +39,5 @@ An up-to-date list can be found on `Inspire-HEP <https://inspirehep.net/literatu
 
 .. bibliography:: bib/cited.bib
     :all:
-    :style: alpha
+    :style: unsrtalpha
     :list: enumerated
