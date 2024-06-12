@@ -9,6 +9,8 @@ Talks
 
    * - Date
      - Event
+   * - June 18, 2024
+     - `Reinterpretation & OpenMAPP mini-workshop <https://indico.cern.ch/event/1420197/contributions/5988218/>`_
    * - February 15, 2024
      - `Electroweak and Beyond the Standard Model Physics at the EIC <https://www.int.washington.edu/program/schedule/24-87W>`_
    * - December 5, 2023
