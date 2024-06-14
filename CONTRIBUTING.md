@@ -1,39 +1,30 @@
 # Contributing to Spey
 
-We are happy to accept contributions to `spey` via
+We welcome contributions to ``spey`` via
   [Pull Requests to our GitHub repository](https://github.com/SpeysideHEP/spey/pulls).
-You can begin this with forking the `main` repository.
+To get started, fork the ``main`` repository.
 
-Unless there is a very small fix that does not require any discussion, please
-always first [open an issue](https://github.com/SpeysideHEP/spey/issues/new/choose)
+For anything beyond minimal fixes that do not require discussion, please first [open an issue](https://github.com/SpeysideHEP/spey/issues/new/choose)
 to discuss your request with the development team.
 
-If the desired change is not limited to a couple of lines of code, please create
-a draft pull request. This draft should detail the context of the change, its
-description and the benefits of the implementation.
+If your proposed changes are more extensive than a few lines of code, please create a draft pull request. This draft should include the context of the change, a description, and the benefits of the implementation.
 
-- If there is a change within the Python interface of the program, please
-   proceed with standard tests and write extra tests if necessary.
-- Please additionally make sure to add examples on how to use the new
-   implementation.
-- If there are any drawbacks of your implementation, these should be specified.
-  Possible solutions should be offered, if any.
+- For changes within the Python interface of the program, please run standard tests and write additional tests if necessary.
+- Ensure you add examples demonstrating the new implementation.
+- Specify any drawbacks of your implementation and offer possible solutions if available.
 
-### Pull request procedure
+## Pull request procedure
 
-Here are the steps to follow to make a pull request:
+Follow these steps to submit a pull request:
 
 1. Fork the `spey` repository.
 2. Open an issue and discuss the implementation with the developers.
-3. Commit your changes to a feature branch on your fork and push all your
-   changes there.
-4. Start a draft pull request and let the developers know about your
-   progress.
-5. Pull the main branch to make sure that there is no
-   conflict with the current developments of the code.
-6. Make sure that you modified appropriate section of
+3. Commit your changes to a feature branch on your fork and push all your changes.
+4. Start a draft pull request and inform the developers about your progress.
+5. Pull the ``main`` branch to ensure there are no conflicts with the current code developments.
+6. Modify the appropriate section of
    `docs/releases/changelog-dev.md`.
-7. Once you are done, request one of the maintainers to review your PR.
+7. Once complete, request a review from one of the maintainers.
 
 #### Docstring style
 
