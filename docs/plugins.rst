@@ -3,6 +3,32 @@
 Plug-ins
 ========
 
+.. list-table::
+   :header-rows: 1
+
+   * - Keyword
+     - Summary
+   * - ``'default_pdf.uncorrelated_background'``
+     - :ref:`Combination of Poisson and Gaussian PDF, assuming uncorrelated bins. <uncorrelated_background>`
+   * - ``'default_pdf.correlated_background'``
+     - :ref:`Combination of Poisson and Gaussian PDF, with correlated bins. <correlated_background>`
+   * - ``'default_pdf.third_moment_expansion'``
+     - :ref:`Simplified likelihood, extended with third moments of the background. <third_moment_expansion>`
+   * - ``'default_pdf.effective_sigma'``
+     - :ref:`Simplified likelihood, extended with asymmetric uncertainties.  <effective_sigma>`
+   * - ``'default_pdf.poisson'``
+     - :ref:`Poisson distribution, without uncertainties.  <poisson>`
+   * - ``'default_pdf.normal'``
+     - :ref:`Gaussian distribution.  <third_moment_expansion>`
+   * - ``'default_pdf.multivariate_normal'``
+     - :ref:`Multivariate Normal distribution.  <third_moment_expansion>`
+   * - ``'pyhf'``
+     - `External plug-in <https://spey-pyhf.readthedocs.io>`_ uses ``pyhf`` to construct the likelihoods.
+   * - ``'pyhf.uncorrelated_background'``
+     - `External plug-in <https://spey-pyhf.readthedocs.io>`_ constructs ``pyhf``-based uncorrelated likelihoods.
+   * - ``'pyhf.simplify'``
+     - `See doc. <https://spey-pyhf.readthedocs.io/en/main/simplify.html>`_ converts full ``pyhf`` likelihoods into simplified framework.
+
 .. meta::
     :property=og:title: Plug-ins
     :property=og:description: Currently supported likelihood prescriptions.
@@ -61,6 +87,8 @@ All default plug-ins are defined using the following main likelihood structure
 
 The first term represents the primary model, and the second represents the constraint model.
 
+.. _uncorrelated_background:
+
 ``'default_pdf.uncorrelated_background'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -110,6 +138,8 @@ This particular example implements a two-bin histogram with uncorrelated bins. T
 For all the properties of :obj:`~spey.StatisticalModel` class, we refer the reader to the corresponding
 API description.
 
+.. _correlated_background:
+
 ``'default_pdf.correlated_background'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -158,6 +188,8 @@ as expected.
    and both dimensions should match the number of ``background_yields`` given as input.
  * ``analysis`` (optional): Unique identifier for the analysis.
  * ``xsection`` (optional): Cross-section value for the signal hypothesis. Units determined by the user.
+
+.. _third_moment_expansion:
 
 ``'default_pdf.third_moment_expansion'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -230,6 +262,7 @@ reduced the exclusion limit.
  * ``analysis`` (optional): Unique identifier for the analysis.
  * ``xsection`` (optional): Cross-section value for the signal hypothesis. Units determined by the user.
 
+.. _effective_sigma:
 
 ``'default_pdf.effective_sigma'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -288,6 +321,8 @@ Once again, the exclusion limit can be computed as
    for background given as :math:`{n_b}_{-\sigma^-}^{+\sigma^+}` the input should be [(:math:`|\sigma^+|`, :math:`|\sigma^-|`)].
  * ``analysis`` (optional): Unique identifier for the analysis.
  * ``xsection`` (optional): Cross-section value for the signal hypothesis. Units determined by the user.
+
+.. _poisson:
 
 ``'default_pdf.poisson'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~
