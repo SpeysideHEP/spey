@@ -2,34 +2,23 @@
 
 from typing import Callable, List, Optional, Text, Tuple, Union
 
-from autograd import value_and_grad, hessian
+from autograd import hessian
 from autograd import numpy as np
+from autograd import value_and_grad
 
 from spey._version import __version__
 from spey.backends.distributions import MainModel
 from spey.base import BackendBase, ModelConfig
+from spey.system.exceptions import InvalidInput
 from spey.utils import ExpectationType
 
 # pylint: disable=E1101,E1120,W0613
 
 
-class Poisson(BackendBase):
-    r"""
-    Poisson distribution without uncertainty implementation.
+class SimplePDFBase(BackendBase):
+    """Base structure for simple PDFs"""
 
-    .. math::
-
-        \mathcal{L}(\mu) = \prod_{i\in{\rm bins}}{\rm Poiss}(n^i|\mu n_s^i + n_b^i)
-
-    where :math:`n_{s,b}` are signal and background yields and :math:`n` are the observations.
-
-    Args:
-        signal_yields (``List[float]``): signal yields
-        background_yields (``List[float]``): background yields
-        data (``List[int]``): data
-    """
-
-    name: Text = "default_pdf.poisson"
+    name: Text = "__simplepdf_base__"
     """Name of the backend"""
     version: Text = __version__
     """Version of the backend"""
@@ -37,8 +26,6 @@ class Poisson(BackendBase):
     """Author of the backend"""
     spey_requires: Text = __version__
     """Spey version required for the backend"""
-
-    __slots__ = ["_model", "_main_model"]
 
     def __init__(
         self,
@@ -50,77 +37,10 @@ class Poisson(BackendBase):
         self.signal_yields = np.array(signal_yields, dtype=np.float64)
         self.background_yields = np.array(background_yields, dtype=np.float64)
 
-        minimum_poi = -np.inf
-        if self.is_alive:
-            minimum_poi = -np.min(
-                self.background_yields[self.signal_yields > 0.0]
-                / self.signal_yields[self.signal_yields > 0.0]
-            )
-
-        self._main_model = None
-
-        self._config = ModelConfig(
-            poi_index=0,
-            minimum_poi=minimum_poi,
-            suggested_init=[1.0],
-            suggested_bounds=[(minimum_poi, 10)],
-        )
-
     @property
     def is_alive(self) -> bool:
         """Returns True if at least one bin has non-zero signal yield."""
         return np.any(self.signal_yields > 0.0)
-
-    def config(
-        self, allow_negative_signal: bool = True, poi_upper_bound: float = 10.0
-    ) -> ModelConfig:
-        r"""
-        Model configuration.
-
-        Args:
-            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
-              value will be allowed to be negative.
-            poi_upper_bound (``float``, default ``40.0``): upper bound for parameter
-              of interest, :math:`\mu`.
-
-        Returns:
-            ~spey.base.ModelConfig:
-            Model configuration. Information regarding the position of POI in
-            parameter list, suggested input and bounds.
-        """
-        if allow_negative_signal and poi_upper_bound == 10.0:
-            return self._config
-
-        return ModelConfig(
-            self._config.poi_index,
-            self._config.minimum_poi,
-            self._config.suggested_init,
-            [(0, poi_upper_bound)],
-        )
-
-    @property
-    def main_model(self) -> MainModel:
-        """retreive the main model distribution"""
-        if self._main_model is None:
-
-            def lam(pars: np.ndarray) -> np.ndarray:
-                """
-                Compute lambda for Main model with third moment expansion.
-                For details see above eq 2.6 in :xref:`1809.05548`
-
-                Args:
-                    pars (``np.ndarray``): nuisance parameters
-
-                Returns:
-                    ``np.ndarray``:
-                    expectation value of the poisson distribution with respect to
-                    nuisance parameters.
-                """
-                return pars[0] * self.signal_yields + self.background_yields
-
-            self._main_model = MainModel(lam)
-
-        return self._main_model
 
     def get_objective_function(
         self,
@@ -283,3 +203,334 @@ class Poisson(BackendBase):
             Expected data of the statistical model
         """
         return self.main_model.expected_data(pars)
+
+
+class Poisson(SimplePDFBase):
+    r"""
+    Poisson distribution without uncertainty implementation.
+
+    .. math::
+
+        \mathcal{L}(\mu) = \prod_{i\in{\rm bins}}{\rm Poiss}(n^i|\mu n_s^i + n_b^i)
+
+    where :math:`n_{s,b}` are signal and background yields and :math:`n` are the observations.
+
+    Args:
+        signal_yields (``List[float]``): signal yields
+        background_yields (``List[float]``): background yields
+        data (``List[int]``): data
+    """
+
+    name: Text = "default_pdf.poisson"
+    """Name of the backend"""
+    version: Text = SimplePDFBase.version
+    """Version of the backend"""
+    author: Text = SimplePDFBase.author
+    """Author of the backend"""
+    spey_requires: Text = SimplePDFBase.spey_requires
+    """Spey version required for the backend"""
+
+    __slots__ = ["_model", "_main_model"]
+
+    def __init__(
+        self,
+        signal_yields: List[float],
+        background_yields: List[float],
+        data: List[int],
+    ):
+        super().__init__(
+            signal_yields=signal_yields, background_yields=background_yields, data=data
+        )
+
+        minimum_poi = -np.inf
+        if self.is_alive:
+            minimum_poi = -np.min(
+                self.background_yields[self.signal_yields > 0.0]
+                / self.signal_yields[self.signal_yields > 0.0]
+            )
+
+        self._main_model = None
+
+        self._config = ModelConfig(
+            poi_index=0,
+            minimum_poi=minimum_poi,
+            suggested_init=[1.0],
+            suggested_bounds=[(minimum_poi, 10)],
+        )
+
+    def config(
+        self, allow_negative_signal: bool = True, poi_upper_bound: float = 10.0
+    ) -> ModelConfig:
+        r"""
+        Model configuration.
+
+        Args:
+            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
+              value will be allowed to be negative.
+            poi_upper_bound (``float``, default ``40.0``): upper bound for parameter
+              of interest, :math:`\mu`.
+
+        Returns:
+            ~spey.base.ModelConfig:
+            Model configuration. Information regarding the position of POI in
+            parameter list, suggested input and bounds.
+        """
+        if allow_negative_signal and poi_upper_bound == 10.0:
+            return self._config
+
+        return ModelConfig(
+            self._config.poi_index,
+            self._config.minimum_poi,
+            self._config.suggested_init,
+            [(0, poi_upper_bound)],
+        )
+
+    @property
+    def main_model(self) -> MainModel:
+        """retreive the main model distribution"""
+        if self._main_model is None:
+
+            def lam(pars: np.ndarray) -> np.ndarray:
+                """
+                Compute lambda for Main model with third moment expansion.
+                For details see above eq 2.6 in :xref:`1809.05548`
+
+                Args:
+                    pars (``np.ndarray``): nuisance parameters
+
+                Returns:
+                    ``np.ndarray``:
+                    expectation value of the poisson distribution with respect to
+                    nuisance parameters.
+                """
+                return pars[0] * self.signal_yields + self.background_yields
+
+            self._main_model = MainModel(lam)
+
+        return self._main_model
+
+
+class Gaussian(SimplePDFBase):
+    r"""
+    Gaussian distribution for uncorrelated likelihoods.
+
+    .. math::
+
+        \mathcal{L}(\mu) = \prod_{i\in{\rm bins}}{\rm Gauss}(n^i|\mu n_s^i + n_b^i, \sigma_b^i)
+
+    where :math:`n_{s,b}` are signal and background yields and :math:`n` are the observations.
+
+    Args:
+        signal_yields (``List[float]``): signal yields
+        background_yields (``List[float]``): background yields
+        data (``List[int]``): data
+        absolute_uncertainties (``List[float]``): absolute uncertainties on the background
+    """
+
+    name: Text = "default_pdf.normal"
+    """Name of the backend"""
+    version: Text = SimplePDFBase.version
+    """Version of the backend"""
+    author: Text = SimplePDFBase.author
+    """Author of the backend"""
+    spey_requires: Text = SimplePDFBase.spey_requires
+    """Spey version required for the backend"""
+
+    __slots__ = ["_model", "_main_model", "absolute_uncertainties"]
+
+    def __init__(
+        self,
+        signal_yields: List[float],
+        background_yields: List[float],
+        data: List[int],
+        absolute_uncertainties: List[float],
+    ):
+        super().__init__(
+            signal_yields=signal_yields, background_yields=background_yields, data=data
+        )
+        self.absolute_uncertainties = np.array(absolute_uncertainties, dtype=np.float64)
+
+        minimum_poi = -np.inf
+        if self.is_alive:
+            minimum_poi = -np.min(
+                self.background_yields[self.signal_yields > 0.0]
+                / self.signal_yields[self.signal_yields > 0.0]
+            )
+
+        self._main_model = None
+
+        self._config = ModelConfig(
+            poi_index=0,
+            minimum_poi=minimum_poi,
+            suggested_init=[1.0],
+            suggested_bounds=[(minimum_poi, 10)],
+        )
+
+    def config(
+        self, allow_negative_signal: bool = True, poi_upper_bound: float = 10.0
+    ) -> ModelConfig:
+        r"""
+        Model configuration.
+
+        Args:
+            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
+              value will be allowed to be negative.
+            poi_upper_bound (``float``, default ``40.0``): upper bound for parameter
+              of interest, :math:`\mu`.
+
+        Returns:
+            ~spey.base.ModelConfig:
+            Model configuration. Information regarding the position of POI in
+            parameter list, suggested input and bounds.
+        """
+        if allow_negative_signal and poi_upper_bound == 10.0:
+            return self._config
+
+        return ModelConfig(
+            self._config.poi_index,
+            self._config.minimum_poi,
+            self._config.suggested_init,
+            [(0, poi_upper_bound)],
+        )
+
+    @property
+    def main_model(self) -> MainModel:
+        """retreive the main model distribution"""
+        if self._main_model is None:
+
+            def lam(pars: np.ndarray) -> np.ndarray:
+                """
+                Compute lambda for Main model
+
+                Args:
+                    pars (``np.ndarray``): nuisance parameters
+
+                Returns:
+                    ``np.ndarray``:
+                    expectation value
+                """
+                return pars[0] * self.signal_yields + self.background_yields - self.data
+
+            self._main_model = MainModel(
+                lam, cov=self.absolute_uncertainties, pdf_type="gauss"
+            )
+
+        return self._main_model
+
+
+class MultivariateNormal(SimplePDFBase):
+    r"""
+    Multivariate Gaussian distribution.
+
+    .. math::
+
+        \mathcal{L}(\mu) = \mathcal{N}(\mathbf{n}|\mu \mathbf{n}_s + \mathbf{n}_b, \Sigma_b)
+
+    where :math:`n_{s,b}` are signal and background yields and :math:`n` are the observations.
+
+    Args:
+        signal_yields (``List[float]``): signal yields
+        background_yields (``List[float]``): background yields
+        data (``List[int]``): data
+        covariance_matrix (``List[List[float]]``): covariance matrix (square matrix)
+
+          * If you have correlation matrix and absolute uncertainties please use :func:`~spey.helper_functions.correlation_to_covariance`
+
+    """
+
+    name: Text = "default_pdf.multivariate_normal"
+    """Name of the backend"""
+    version: Text = SimplePDFBase.version
+    """Version of the backend"""
+    author: Text = SimplePDFBase.author
+    """Author of the backend"""
+    spey_requires: Text = SimplePDFBase.spey_requires
+    """Spey version required for the backend"""
+
+    __slots__ = ["_model", "_main_model", "covariance_matrix"]
+
+    def __init__(
+        self,
+        signal_yields: List[float],
+        background_yields: List[float],
+        data: List[int],
+        covariance_matrix: List[List[float]],
+    ):
+        super().__init__(
+            signal_yields=signal_yields, background_yields=background_yields, data=data
+        )
+        self.covariance_matrix = np.array(covariance_matrix, dtype=np.float64)
+        if (
+            self.covariance_matrix.shape[0] != len(self.background_yields)
+            and len(self.covariance_matrix.shape) == 2
+        ):
+            raise InvalidInput(
+                "Dimensionality of the covariance matrix should match to the background"
+            )
+
+        minimum_poi = -np.inf
+        if self.is_alive:
+            minimum_poi = -np.min(
+                self.background_yields[self.signal_yields > 0.0]
+                / self.signal_yields[self.signal_yields > 0.0]
+            )
+
+        self._main_model = None
+
+        self._config = ModelConfig(
+            poi_index=0,
+            minimum_poi=minimum_poi,
+            suggested_init=[1.0],
+            suggested_bounds=[(minimum_poi, 10)],
+        )
+
+    def config(
+        self, allow_negative_signal: bool = True, poi_upper_bound: float = 10.0
+    ) -> ModelConfig:
+        r"""
+        Model configuration.
+
+        Args:
+            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
+              value will be allowed to be negative.
+            poi_upper_bound (``float``, default ``40.0``): upper bound for parameter
+              of interest, :math:`\mu`.
+
+        Returns:
+            ~spey.base.ModelConfig:
+            Model configuration. Information regarding the position of POI in
+            parameter list, suggested input and bounds.
+        """
+        if allow_negative_signal and poi_upper_bound == 10.0:
+            return self._config
+
+        return ModelConfig(
+            self._config.poi_index,
+            self._config.minimum_poi,
+            self._config.suggested_init,
+            [(0, poi_upper_bound)],
+        )
+
+    @property
+    def main_model(self) -> MainModel:
+        """retreive the main model distribution"""
+        if self._main_model is None:
+
+            def lam(pars: np.ndarray) -> np.ndarray:
+                """
+                Compute lambda for Main model
+
+                Args:
+                    pars (``np.ndarray``): nuisance parameters
+
+                Returns:
+                    ``np.ndarray``:
+                    expectation value
+                """
+                return pars[0] * self.signal_yields + self.background_yields - self.data
+
+            self._main_model = MainModel(
+                lam, cov=self.covariance_matrix, pdf_type="multivariategauss"
+            )
+
+        return self._main_model
