@@ -11,7 +11,7 @@ from scipy.stats import multivariate_normal, norm, poisson
 
 from spey.system.exceptions import DistributionError
 
-# pylint: disable=E1101, W1203
+# pylint: disable=E1101, W1203, E1121
 
 log = logging.getLogger("Spey")
 
