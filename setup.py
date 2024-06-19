@@ -8,8 +8,8 @@ with open("src/spey/_version.py", mode="r", encoding="UTF-8") as f:
 
 requirements = [
     "numpy>=1.21.6",
-    "scipy==1.10.0",
-    "autograd==1.5",
+    "scipy>=1.10.0",
+    "autograd>=1.5",
     "semantic_version~=2.10",
     "tqdm>=4.64.0",
     "requests>=2.31.0",
