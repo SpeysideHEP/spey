@@ -325,7 +325,8 @@ class Gaussian(SimplePDFBase):
 
     .. math::
 
-        \mathcal{L}(\mu) = \prod_{i\in{\rm bins}}{\rm Gauss}(n^i|\mu n_s^i + n_b^i, \sigma_b^i)
+        \mathcal{L}(\mu) = \prod_{i\in{\rm bins}} \frac{1}{\sigma^i \sqrt{2\pi}}
+        \exp\left[-\frac{1}{2} \left(\frac{\mu n_s^i + n_b^i - n^i}{\sigma^i} \right)^2 \right]
 
     where :math:`n_{s,b}` are signal and background yields and :math:`n` are the observations.
 
@@ -368,7 +369,8 @@ class MultivariateNormal(SimplePDFBase):
 
     .. math::
 
-        \mathcal{L}(\mu) = \mathcal{N}(\mathbf{n}|\mu \mathbf{n}_s + \mathbf{n}_b, \Sigma_b)
+        \mathcal{L}(\mu) = \frac{1}{\sqrt{(2\pi)^k {\rm det}[\Sigma] }}
+        \exp\left[-\frac{1}{2} (\mu n_s + n_b - n)\Sigma^{-1} (\mu n_s + n_b - n)^T \right]
 
     where :math:`n_{s,b}` are signal and background yields and :math:`n` are the observations.
 
@@ -378,7 +380,8 @@ class MultivariateNormal(SimplePDFBase):
         data (``List[int]``): data
         covariance_matrix (``List[List[float]]``): covariance matrix (square matrix)
 
-          * If you have correlation matrix and absolute uncertainties please use :func:`~spey.helper_functions.correlation_to_covariance`
+          * If you have correlation matrix and absolute uncertainties please use
+            :func:`~spey.helper_functions.correlation_to_covariance`
 
     """
 
