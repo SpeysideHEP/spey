@@ -19,9 +19,9 @@ Plug-ins
    * - ``'default_pdf.poisson'``
      - :ref:`Poisson distribution, without uncertainties.  <poisson>`
    * - ``'default_pdf.normal'``
-     - :ref:`Gaussian distribution.  <third_moment_expansion>`
+     - :ref:`Gaussian distribution.  <normal>`
    * - ``'default_pdf.multivariate_normal'``
-     - :ref:`Multivariate Normal distribution.  <third_moment_expansion>`
+     - :ref:`Multivariate Normal distribution.  <multinormal>`
    * - ``'pyhf'``
      - `External plug-in <https://spey-pyhf.readthedocs.io>`_ uses ``pyhf`` to construct the likelihoods.
    * - ``'pyhf.uncorrelated_background'``
@@ -354,6 +354,78 @@ It can take any number of yields.
  * ``data``: keyword for observations. It can take one or more values as a list or NumPy array.
  * ``analysis`` (optional): Unique identifier for the analysis.
  * ``xsection`` (optional): Cross-section value for the signal hypothesis. Units determined by the user.
+
+.. _normal:
+
+``'default_pdf.normal'``
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Simple Normal distribution implementation;
+
+.. math::
+
+    \mathcal{L}(\mu) = \prod_{i\in{\rm bins}} \frac{1}{\sigma^i \sqrt{2\pi}} \exp\left[-\frac{1}{2} \left(\frac{\mu n_s^i + n_b^i - n^i}{\sigma^i} \right)^2 \right]
+
+It can take any number of yields.
+
+.. code-block:: python3
+    :linenos:
+
+    >>> pdf_wrapper = spey.get_backend("default_pdf.normal")
+    >>> statistical_model = pdf_wrapper(
+    ...     signal_yields=[12.0, 15.0],
+    ...     background_yields=[50.0,48.0],
+    ...     data=[36, 33],
+    ...     absolute_uncertainties=[20.0, 10.0],
+    ...     analysis="example",
+    ...     xsection=0.123,
+    ... )
+
+**Arguments:**
+
+ * ``signal_yields``: keyword for signal yields. It can take one or more values as a list or NumPy array.
+ * ``background_yields``: keyword for background-only expectations. It can take one or more values as a list or NumPy array.
+ * ``data``: keyword for observations. It can take one or more values as a list or NumPy array.
+ * ``absolute_uncertainties``: absolute uncertainties on the background
+ * ``analysis`` (optional): Unique identifier for the analysis.
+ * ``xsection`` (optional): Cross-section value for the signal hypothesis. Units determined by the user.
+
+
+.. _multinormal:
+
+``'default_pdf.multivariate_normal'``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Simple Normal distribution implementation;
+
+.. math::
+
+    \mathcal{L}(\mu) = \frac{1}{\sqrt{(2\pi)^k {\rm det}[\Sigma] }} \exp\left[-\frac{1}{2} (\mu n_s + n_b - n)\Sigma^{-1} (\mu n_s + n_b - n)^T \right]
+
+It can take any number of yields.
+
+.. code-block:: python3
+    :linenos:
+
+    >>> pdf_wrapper = spey.get_backend("default_pdf.multivariate_normal")
+    >>> statistical_model = pdf_wrapper(
+    ...     signal_yields=[12.0, 15.0],
+    ...     background_yields=[50.0,48.0],
+    ...     data=[36, 33],
+    ...     covariance_matrix=[[144.0,13.0], [25.0, 256.0]],
+    ...     analysis="example",
+    ...     xsection=0.123,
+    ... )
+
+**Arguments:**
+
+ * ``signal_yields``: keyword for signal yields. It can take one or more values as a list or NumPy array.
+ * ``background_yields``: keyword for background-only expectations. It can take one or more values as a list or NumPy array.
+ * ``data``: keyword for observations. It can take one or more values as a list or NumPy array.
+ * ``covariance_matrix``: covariance matrix (square matrix)
+ * ``analysis`` (optional): Unique identifier for the analysis.
+ * ``xsection`` (optional): Cross-section value for the signal hypothesis. Units determined by the user.
+
 
 
 External Plug-ins
