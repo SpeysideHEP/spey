@@ -50,7 +50,19 @@ class SimplePDFBase(BackendBase):
         self._main_kwargs = {}
         """Keyword arguments for main model"""
 
-        self._config = None
+        minimum_poi = -np.inf
+        if self.is_alive:
+            minimum_poi = -np.min(
+                self.background_yields[self.signal_yields > 0.0]
+                / self.signal_yields[self.signal_yields > 0.0]
+            )
+
+        self._config = ModelConfig(
+            poi_index=0,
+            minimum_poi=minimum_poi,
+            suggested_init=[1.0],
+            suggested_bounds=[(minimum_poi, 10)],
+        )
 
     @property
     def is_alive(self) -> bool:
@@ -296,8 +308,6 @@ class Poisson(SimplePDFBase):
     spey_requires: Text = SimplePDFBase.spey_requires
     """Spey version required for the backend"""
 
-    __slots__ = ["_model", "_main_model"]
-
     def __init__(
         self,
         signal_yields: List[float],
@@ -306,20 +316,6 @@ class Poisson(SimplePDFBase):
     ):
         super().__init__(
             signal_yields=signal_yields, background_yields=background_yields, data=data
-        )
-
-        minimum_poi = -np.inf
-        if self.is_alive:
-            minimum_poi = -np.min(
-                self.background_yields[self.signal_yields > 0.0]
-                / self.signal_yields[self.signal_yields > 0.0]
-            )
-
-        self._config = ModelConfig(
-            poi_index=0,
-            minimum_poi=minimum_poi,
-            suggested_init=[1.0],
-            suggested_bounds=[(minimum_poi, 10)],
         )
 
 
@@ -362,22 +358,8 @@ class Gaussian(SimplePDFBase):
             signal_yields=signal_yields, background_yields=background_yields, data=data
         )
         self.absolute_uncertainties = np.array(absolute_uncertainties, dtype=np.float64)
-
-        minimum_poi = -np.inf
-        if self.is_alive:
-            minimum_poi = -np.min(
-                self.background_yields[self.signal_yields > 0.0]
-                / self.signal_yields[self.signal_yields > 0.0]
-            )
-
+        """absolute uncertainties on the background"""
         self._main_kwargs = {"cov": self.absolute_uncertainties, "pdf_type": "gauss"}
-
-        self._config = ModelConfig(
-            poi_index=0,
-            minimum_poi=minimum_poi,
-            suggested_init=[1.0],
-            suggested_bounds=[(minimum_poi, 10)],
-        )
 
 
 class MultivariateNormal(SimplePDFBase):
@@ -430,21 +412,7 @@ class MultivariateNormal(SimplePDFBase):
                 "Dimensionality of the covariance matrix should match to the background"
             )
 
-        minimum_poi = -np.inf
-        if self.is_alive:
-            minimum_poi = -np.min(
-                self.background_yields[self.signal_yields > 0.0]
-                / self.signal_yields[self.signal_yields > 0.0]
-            )
-
         self._main_kwargs = {
             "cov": self.covariance_matrix,
             "pdf_type": "multivariategauss",
         }
-
-        self._config = ModelConfig(
-            poi_index=0,
-            minimum_poi=minimum_poi,
-            suggested_init=[1.0],
-            suggested_bounds=[(minimum_poi, 10)],
-        )
