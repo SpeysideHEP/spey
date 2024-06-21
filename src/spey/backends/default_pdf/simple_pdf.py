@@ -330,6 +330,8 @@ class Gaussian(SimplePDFBase):
 
     where :math:`n_{s,b}` are signal and background yields and :math:`n` are the observations.
 
+    .. versionadded:: 0.1.9
+
     Args:
         signal_yields (``List[float]``): signal yields
         background_yields (``List[float]``): background yields
@@ -373,6 +375,8 @@ class MultivariateNormal(SimplePDFBase):
         \exp\left[-\frac{1}{2} (\mu n_s + n_b - n)\Sigma^{-1} (\mu n_s + n_b - n)^T \right]
 
     where :math:`n_{s,b}` are signal and background yields and :math:`n` are the observations.
+
+    .. versionadded:: 0.1.9
 
     Args:
         signal_yields (``List[float]``): signal yields
