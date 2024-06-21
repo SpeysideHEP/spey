@@ -27,6 +27,15 @@ class SimplePDFBase(BackendBase):
     spey_requires: Text = __version__
     """Spey version required for the backend"""
 
+    __slots__ = [
+        "data",
+        "signal_yields",
+        "background_yields",
+        "_main_model",
+        "_main_kwargs",
+        "_config",
+    ]
+
     def __init__(
         self,
         signal_yields: List[float],
@@ -36,11 +45,68 @@ class SimplePDFBase(BackendBase):
         self.data = np.array(data, dtype=np.float64)
         self.signal_yields = np.array(signal_yields, dtype=np.float64)
         self.background_yields = np.array(background_yields, dtype=np.float64)
+        self._main_model = None
+        """main model"""
+        self._main_kwargs = {}
+        """Keyword arguments for main model"""
+
+        self._config = None
 
     @property
     def is_alive(self) -> bool:
         """Returns True if at least one bin has non-zero signal yield."""
         return np.any(self.signal_yields > 0.0)
+
+    def config(
+        self, allow_negative_signal: bool = True, poi_upper_bound: float = 10.0
+    ) -> ModelConfig:
+        r"""
+        Model configuration.
+
+        Args:
+            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
+              value will be allowed to be negative.
+            poi_upper_bound (``float``, default ``40.0``): upper bound for parameter
+              of interest, :math:`\mu`.
+
+        Returns:
+            ~spey.base.ModelConfig:
+            Model configuration. Information regarding the position of POI in
+            parameter list, suggested input and bounds.
+        """
+        if allow_negative_signal and poi_upper_bound == 10.0:
+            return self._config
+
+        return ModelConfig(
+            self._config.poi_index,
+            self._config.minimum_poi,
+            self._config.suggested_init,
+            [(0, poi_upper_bound)],
+        )
+
+    @property
+    def main_model(self) -> MainModel:
+        """retreive the main model distribution"""
+        if self._main_model is None:
+
+            def lam(pars: np.ndarray) -> np.ndarray:
+                """
+                Compute lambda for Main model with third moment expansion.
+                For details see above eq 2.6 in :xref:`1809.05548`
+
+                Args:
+                    pars (``np.ndarray``): nuisance parameters
+
+                Returns:
+                    ``np.ndarray``:
+                    expectation value of the poisson distribution with respect to
+                    nuisance parameters.
+                """
+                return pars[0] * self.signal_yields + self.background_yields
+
+            self._main_model = MainModel(lam, **self._main_kwargs)
+
+        return self._main_model
 
     def get_objective_function(
         self,
@@ -249,65 +315,12 @@ class Poisson(SimplePDFBase):
                 / self.signal_yields[self.signal_yields > 0.0]
             )
 
-        self._main_model = None
-
         self._config = ModelConfig(
             poi_index=0,
             minimum_poi=minimum_poi,
             suggested_init=[1.0],
             suggested_bounds=[(minimum_poi, 10)],
         )
-
-    def config(
-        self, allow_negative_signal: bool = True, poi_upper_bound: float = 10.0
-    ) -> ModelConfig:
-        r"""
-        Model configuration.
-
-        Args:
-            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
-              value will be allowed to be negative.
-            poi_upper_bound (``float``, default ``40.0``): upper bound for parameter
-              of interest, :math:`\mu`.
-
-        Returns:
-            ~spey.base.ModelConfig:
-            Model configuration. Information regarding the position of POI in
-            parameter list, suggested input and bounds.
-        """
-        if allow_negative_signal and poi_upper_bound == 10.0:
-            return self._config
-
-        return ModelConfig(
-            self._config.poi_index,
-            self._config.minimum_poi,
-            self._config.suggested_init,
-            [(0, poi_upper_bound)],
-        )
-
-    @property
-    def main_model(self) -> MainModel:
-        """retreive the main model distribution"""
-        if self._main_model is None:
-
-            def lam(pars: np.ndarray) -> np.ndarray:
-                """
-                Compute lambda for Main model with third moment expansion.
-                For details see above eq 2.6 in :xref:`1809.05548`
-
-                Args:
-                    pars (``np.ndarray``): nuisance parameters
-
-                Returns:
-                    ``np.ndarray``:
-                    expectation value of the poisson distribution with respect to
-                    nuisance parameters.
-                """
-                return pars[0] * self.signal_yields + self.background_yields
-
-            self._main_model = MainModel(lam)
-
-        return self._main_model
 
 
 class Gaussian(SimplePDFBase):
@@ -336,7 +349,7 @@ class Gaussian(SimplePDFBase):
     spey_requires: Text = SimplePDFBase.spey_requires
     """Spey version required for the backend"""
 
-    __slots__ = ["_model", "_main_model", "absolute_uncertainties"]
+    __slots__ = ["absolute_uncertainties"]
 
     def __init__(
         self,
@@ -357,7 +370,7 @@ class Gaussian(SimplePDFBase):
                 / self.signal_yields[self.signal_yields > 0.0]
             )
 
-        self._main_model = None
+        self._main_kwargs = {"cov": self.absolute_uncertainties, "pdf_type": "gauss"}
 
         self._config = ModelConfig(
             poi_index=0,
@@ -365,57 +378,6 @@ class Gaussian(SimplePDFBase):
             suggested_init=[1.0],
             suggested_bounds=[(minimum_poi, 10)],
         )
-
-    def config(
-        self, allow_negative_signal: bool = True, poi_upper_bound: float = 10.0
-    ) -> ModelConfig:
-        r"""
-        Model configuration.
-
-        Args:
-            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
-              value will be allowed to be negative.
-            poi_upper_bound (``float``, default ``40.0``): upper bound for parameter
-              of interest, :math:`\mu`.
-
-        Returns:
-            ~spey.base.ModelConfig:
-            Model configuration. Information regarding the position of POI in
-            parameter list, suggested input and bounds.
-        """
-        if allow_negative_signal and poi_upper_bound == 10.0:
-            return self._config
-
-        return ModelConfig(
-            self._config.poi_index,
-            self._config.minimum_poi,
-            self._config.suggested_init,
-            [(0, poi_upper_bound)],
-        )
-
-    @property
-    def main_model(self) -> MainModel:
-        """retreive the main model distribution"""
-        if self._main_model is None:
-
-            def lam(pars: np.ndarray) -> np.ndarray:
-                """
-                Compute lambda for Main model
-
-                Args:
-                    pars (``np.ndarray``): nuisance parameters
-
-                Returns:
-                    ``np.ndarray``:
-                    expectation value
-                """
-                return pars[0] * self.signal_yields + self.background_yields - self.data
-
-            self._main_model = MainModel(
-                lam, cov=self.absolute_uncertainties, pdf_type="gauss"
-            )
-
-        return self._main_model
 
 
 class MultivariateNormal(SimplePDFBase):
@@ -447,7 +409,7 @@ class MultivariateNormal(SimplePDFBase):
     spey_requires: Text = SimplePDFBase.spey_requires
     """Spey version required for the backend"""
 
-    __slots__ = ["_model", "_main_model", "covariance_matrix"]
+    __slots__ = ["covariance_matrix"]
 
     def __init__(
         self,
@@ -475,7 +437,10 @@ class MultivariateNormal(SimplePDFBase):
                 / self.signal_yields[self.signal_yields > 0.0]
             )
 
-        self._main_model = None
+        self._main_kwargs = {
+            "cov": self.covariance_matrix,
+            "pdf_type": "multivariategauss",
+        }
 
         self._config = ModelConfig(
             poi_index=0,
@@ -483,54 +448,3 @@ class MultivariateNormal(SimplePDFBase):
             suggested_init=[1.0],
             suggested_bounds=[(minimum_poi, 10)],
         )
-
-    def config(
-        self, allow_negative_signal: bool = True, poi_upper_bound: float = 10.0
-    ) -> ModelConfig:
-        r"""
-        Model configuration.
-
-        Args:
-            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
-              value will be allowed to be negative.
-            poi_upper_bound (``float``, default ``40.0``): upper bound for parameter
-              of interest, :math:`\mu`.
-
-        Returns:
-            ~spey.base.ModelConfig:
-            Model configuration. Information regarding the position of POI in
-            parameter list, suggested input and bounds.
-        """
-        if allow_negative_signal and poi_upper_bound == 10.0:
-            return self._config
-
-        return ModelConfig(
-            self._config.poi_index,
-            self._config.minimum_poi,
-            self._config.suggested_init,
-            [(0, poi_upper_bound)],
-        )
-
-    @property
-    def main_model(self) -> MainModel:
-        """retreive the main model distribution"""
-        if self._main_model is None:
-
-            def lam(pars: np.ndarray) -> np.ndarray:
-                """
-                Compute lambda for Main model
-
-                Args:
-                    pars (``np.ndarray``): nuisance parameters
-
-                Returns:
-                    ``np.ndarray``:
-                    expectation value
-                """
-                return pars[0] * self.signal_yields + self.background_yields - self.data
-
-            self._main_model = MainModel(
-                lam, cov=self.covariance_matrix, pdf_type="multivariategauss"
-            )
-
-        return self._main_model
