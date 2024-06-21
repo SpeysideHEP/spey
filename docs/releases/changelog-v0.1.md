@@ -14,6 +14,9 @@ Specific upgrades for the latest release can be found [here](https://github.com/
   (Request by Veronica Sanz for EFT studies).
   ([#22](https://github.com/SpeysideHEP/spey/pull/22))
 
+* Normal and multivariate normal distributions have been added (for integration to Contur, requested by Jon Butterworth and Joe Egan).
+  ([#40](https://github.com/SpeysideHEP/spey/pull/40))
+
 ## Improvements
 
 * Backend inspection has been added for the models that act like intermediate functions.
@@ -66,8 +69,12 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 * Bug fix in signal uncertainty synthesizer
   ([#34](https://github.com/SpeysideHEP/spey/pull/34))
 
-* Signal uncertainties were causing a narrower $\chi^2$ distribution due to the weight of the constraint term. 
+* Signal uncertainties were causing a narrower $\chi^2$ distribution due to the weight of the constraint term.
   ([#38](https://github.com/SpeysideHEP/spey/pull/38))
+
+* Scipy and Autograd version limitations have been relieved. But there is a clash with numpy v2.0
+  so numpy version has been limited to less than 2.0.
+  ([#40](https://github.com/SpeysideHEP/spey/pull/40))
 
 ## Contributors
 

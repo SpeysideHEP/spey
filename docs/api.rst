@@ -137,6 +137,8 @@ Simple PDFs
     :toctree: _generated/
 
     simple_pdf.Poisson
+    simple_pdf.Gaussian
+    simple_pdf.MultivariateNormal
 
 
 Exceptions

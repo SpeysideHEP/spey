@@ -3,6 +3,32 @@
 Plug-ins
 ========
 
+.. list-table::
+   :header-rows: 1
+
+   * - Keyword
+     - Summary
+   * - ``'default_pdf.uncorrelated_background'``
+     - :ref:`Combination of Poisson and Gaussian PDF, assuming uncorrelated bins. <uncorrelated_background>`
+   * - ``'default_pdf.correlated_background'``
+     - :ref:`Combination of Poisson and Gaussian PDF, with correlated bins. <correlated_background>`
+   * - ``'default_pdf.third_moment_expansion'``
+     - :ref:`Simplified likelihood, extended with third moments of the background. <third_moment_expansion>`
+   * - ``'default_pdf.effective_sigma'``
+     - :ref:`Simplified likelihood, extended with asymmetric uncertainties.  <effective_sigma>`
+   * - ``'default_pdf.poisson'``
+     - :ref:`Poisson distribution, without uncertainties.  <poisson>`
+   * - ``'default_pdf.normal'``
+     - :ref:`Gaussian distribution.  <normal>`
+   * - ``'default_pdf.multivariate_normal'``
+     - :ref:`Multivariate Normal distribution.  <multinormal>`
+   * - ``'pyhf'``
+     - `External plug-in <https://spey-pyhf.readthedocs.io>`_ uses ``pyhf`` to construct the likelihoods.
+   * - ``'pyhf.uncorrelated_background'``
+     - `External plug-in <https://spey-pyhf.readthedocs.io>`_ constructs ``pyhf``-based uncorrelated likelihoods.
+   * - ``'pyhf.simplify'``
+     - `See doc. <https://spey-pyhf.readthedocs.io/en/main/simplify.html>`_ converts full ``pyhf`` likelihoods into simplified framework.
+
 .. meta::
     :property=og:title: Plug-ins
     :property=og:description: Currently supported likelihood prescriptions.
@@ -61,6 +87,8 @@ All default plug-ins are defined using the following main likelihood structure
 
 The first term represents the primary model, and the second represents the constraint model.
 
+.. _uncorrelated_background:
+
 ``'default_pdf.uncorrelated_background'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -110,6 +138,8 @@ This particular example implements a two-bin histogram with uncorrelated bins. T
 For all the properties of :obj:`~spey.StatisticalModel` class, we refer the reader to the corresponding
 API description.
 
+.. _correlated_background:
+
 ``'default_pdf.correlated_background'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -158,6 +188,8 @@ as expected.
    and both dimensions should match the number of ``background_yields`` given as input.
  * ``analysis`` (optional): Unique identifier for the analysis.
  * ``xsection`` (optional): Cross-section value for the signal hypothesis. Units determined by the user.
+
+.. _third_moment_expansion:
 
 ``'default_pdf.third_moment_expansion'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -230,6 +262,7 @@ reduced the exclusion limit.
  * ``analysis`` (optional): Unique identifier for the analysis.
  * ``xsection`` (optional): Cross-section value for the signal hypothesis. Units determined by the user.
 
+.. _effective_sigma:
 
 ``'default_pdf.effective_sigma'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -289,6 +322,8 @@ Once again, the exclusion limit can be computed as
  * ``analysis`` (optional): Unique identifier for the analysis.
  * ``xsection`` (optional): Cross-section value for the signal hypothesis. Units determined by the user.
 
+.. _poisson:
+
 ``'default_pdf.poisson'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -319,6 +354,78 @@ It can take any number of yields.
  * ``data``: keyword for observations. It can take one or more values as a list or NumPy array.
  * ``analysis`` (optional): Unique identifier for the analysis.
  * ``xsection`` (optional): Cross-section value for the signal hypothesis. Units determined by the user.
+
+.. _normal:
+
+``'default_pdf.normal'``
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Simple Normal distribution implementation;
+
+.. math::
+
+    \mathcal{L}(\mu) = \prod_{i\in{\rm bins}} \frac{1}{\sigma^i \sqrt{2\pi}} \exp\left[-\frac{1}{2} \left(\frac{\mu n_s^i + n_b^i - n^i}{\sigma^i} \right)^2 \right]
+
+It can take any number of yields.
+
+.. code-block:: python3
+    :linenos:
+
+    >>> pdf_wrapper = spey.get_backend("default_pdf.normal")
+    >>> statistical_model = pdf_wrapper(
+    ...     signal_yields=[12.0, 15.0],
+    ...     background_yields=[50.0,48.0],
+    ...     data=[36, 33],
+    ...     absolute_uncertainties=[20.0, 10.0],
+    ...     analysis="example",
+    ...     xsection=0.123,
+    ... )
+
+**Arguments:**
+
+ * ``signal_yields``: keyword for signal yields. It can take one or more values as a list or NumPy array.
+ * ``background_yields``: keyword for background-only expectations. It can take one or more values as a list or NumPy array.
+ * ``data``: keyword for observations. It can take one or more values as a list or NumPy array.
+ * ``absolute_uncertainties``: absolute uncertainties on the background
+ * ``analysis`` (optional): Unique identifier for the analysis.
+ * ``xsection`` (optional): Cross-section value for the signal hypothesis. Units determined by the user.
+
+
+.. _multinormal:
+
+``'default_pdf.multivariate_normal'``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Simple Normal distribution implementation;
+
+.. math::
+
+    \mathcal{L}(\mu) = \frac{1}{\sqrt{(2\pi)^k {\rm det}[\Sigma] }} \exp\left[-\frac{1}{2} (\mu n_s + n_b - n)\Sigma^{-1} (\mu n_s + n_b - n)^T \right]
+
+It can take any number of yields.
+
+.. code-block:: python3
+    :linenos:
+
+    >>> pdf_wrapper = spey.get_backend("default_pdf.multivariate_normal")
+    >>> statistical_model = pdf_wrapper(
+    ...     signal_yields=[12.0, 15.0],
+    ...     background_yields=[50.0,48.0],
+    ...     data=[36, 33],
+    ...     covariance_matrix=[[144.0,13.0], [25.0, 256.0]],
+    ...     analysis="example",
+    ...     xsection=0.123,
+    ... )
+
+**Arguments:**
+
+ * ``signal_yields``: keyword for signal yields. It can take one or more values as a list or NumPy array.
+ * ``background_yields``: keyword for background-only expectations. It can take one or more values as a list or NumPy array.
+ * ``data``: keyword for observations. It can take one or more values as a list or NumPy array.
+ * ``covariance_matrix``: covariance matrix (square matrix)
+ * ``analysis`` (optional): Unique identifier for the analysis.
+ * ``xsection`` (optional): Cross-section value for the signal hypothesis. Units determined by the user.
+
 
 
 External Plug-ins

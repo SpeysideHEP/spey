@@ -3,7 +3,7 @@ import os
 import re
 import sys
 import textwrap
-from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union, Literal
+from typing import Any, Callable, Dict, List, Literal, Optional, Text, Tuple, Union
 
 import numpy as np
 import pkg_resources
@@ -14,7 +14,7 @@ from spey.combiner import UnCorrStatisticsCombiner
 from spey.interface.statistical_model import StatisticalModel, statistical_model_wrapper
 from spey.system import logger
 from spey.system.exceptions import PluginError
-from spey.system.webutils import get_bibtex, check_updates, ConnectionError
+from spey.system.webutils import ConnectionError, check_updates, get_bibtex
 
 from ._version import __version__
 from .about import about
