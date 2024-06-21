@@ -1,8 +1,8 @@
 {
     "description": "smooth inference for reinterpretation studies",
     "license": "MIT",
-    "title": "SpeysideHEP/spey: v0.1.8",
-    "version": "v0.1.8",
+    "title": "SpeysideHEP/spey: v0.1.9",
+    "version": "v0.1.9",
     "upload_type": "software",
     "creators": [
         {
@@ -18,7 +18,9 @@
         "statistics",
         "fitting",
         "scipy",
-        "auto-differentiation"
+        "auto-differentiation",
+        "inference",
+        "differentiable programming"
     ],
     "related_identifiers": [
         {
@@ -29,7 +31,7 @@
         },
         {
             "scheme": "url",
-            "identifier": "https://github.com/SpeysideHEP/spey/tree/v0.1.8",
+            "identifier": "https://github.com/SpeysideHEP/spey/tree/v0.1.9",
             "relation": "isSupplementTo"
         },
         {
