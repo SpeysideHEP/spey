@@ -123,3 +123,48 @@ def test_poisson():
         stat_model.exclusion_confidence_level()[0], 0.9999807105228611
     ), "CLs is wrong"
     assert np.isclose(stat_model.sigma_mu(1.0), 0.5573350296644078), "Sigma mu is wrong"
+
+
+def test_normal():
+    """tester for gaussian model"""
+
+    statistical_model = spey.get_backend("default_pdf.normal")(
+        signal_yields=[12.0],
+        background_yields=[50.0],
+        data=[36],
+        absolute_uncertainties=[20.0],
+    )
+
+    assert np.isclose(
+        statistical_model.chi2(),
+        2.0
+        * (
+            0.5 * ((12.0 + 50.0 - 36.0) ** 2 / 20.0**2)
+            - (0.5 * ((50.0 - 36.0) ** 2 / 20.0**2))
+        ),
+    ), "Gaussian chi2 is wrong"
+
+
+def test_multivariate_gauss():
+    """tester for multivar gauss"""
+
+    signal = np.array([12.0, 15.0])
+    bkg = np.array([50.0, 48.0])
+    data = np.array([36, 33])
+    cov = np.array([[144.0, 13.0], [25.0, 256.0]])
+
+    statistical_model = spey.get_backend("default_pdf.multivariate_normal")(
+        signal_yields=signal,
+        background_yields=bkg,
+        data=data,
+        covariance_matrix=cov,
+    )
+
+    assert np.isclose(
+        statistical_model.chi2(),
+        2.0
+        * (
+            (0.5 * (signal + bkg - data) @ np.linalg.inv(cov) @ (signal + bkg - data))
+            - (0.5 * (bkg - data) @ np.linalg.inv(cov) @ (bkg - data))
+        ),
+    )

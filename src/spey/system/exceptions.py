@@ -76,3 +76,7 @@ class CalculatorNotAvailable(Exception):
 
 class CombinerNotAvailable(Exception):
     """Unavailable combination routine exception"""
+
+
+class DistributionError(Exception):
+    """Unknown Distribution"""

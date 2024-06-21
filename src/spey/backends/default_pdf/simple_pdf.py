@@ -2,34 +2,23 @@
 
 from typing import Callable, List, Optional, Text, Tuple, Union
 
-from autograd import value_and_grad, hessian
+from autograd import hessian
 from autograd import numpy as np
+from autograd import value_and_grad
 
 from spey._version import __version__
 from spey.backends.distributions import MainModel
 from spey.base import BackendBase, ModelConfig
+from spey.system.exceptions import InvalidInput
 from spey.utils import ExpectationType
 
 # pylint: disable=E1101,E1120,W0613
 
 
-class Poisson(BackendBase):
-    r"""
-    Poisson distribution without uncertainty implementation.
+class SimplePDFBase(BackendBase):
+    """Base structure for simple PDFs"""
 
-    .. math::
-
-        \mathcal{L}(\mu) = \prod_{i\in{\rm bins}}{\rm Poiss}(n^i|\mu n_s^i + n_b^i)
-
-    where :math:`n_{s,b}` are signal and background yields and :math:`n` are the observations.
-
-    Args:
-        signal_yields (``List[float]``): signal yields
-        background_yields (``List[float]``): background yields
-        data (``List[int]``): data
-    """
-
-    name: Text = "default_pdf.poisson"
+    name: Text = "__simplepdf_base__"
     """Name of the backend"""
     version: Text = __version__
     """Version of the backend"""
@@ -38,7 +27,14 @@ class Poisson(BackendBase):
     spey_requires: Text = __version__
     """Spey version required for the backend"""
 
-    __slots__ = ["_model", "_main_model"]
+    __slots__ = [
+        "data",
+        "signal_yields",
+        "background_yields",
+        "_main_model",
+        "_main_kwargs",
+        "_config",
+    ]
 
     def __init__(
         self,
@@ -49,6 +45,10 @@ class Poisson(BackendBase):
         self.data = np.array(data, dtype=np.float64)
         self.signal_yields = np.array(signal_yields, dtype=np.float64)
         self.background_yields = np.array(background_yields, dtype=np.float64)
+        self._main_model = None
+        """main model"""
+        self._main_kwargs = {}
+        """Keyword arguments for main model"""
 
         minimum_poi = -np.inf
         if self.is_alive:
@@ -56,8 +56,6 @@ class Poisson(BackendBase):
                 self.background_yields[self.signal_yields > 0.0]
                 / self.signal_yields[self.signal_yields > 0.0]
             )
-
-        self._main_model = None
 
         self._config = ModelConfig(
             poi_index=0,
@@ -118,7 +116,7 @@ class Poisson(BackendBase):
                 """
                 return pars[0] * self.signal_yields + self.background_yields
 
-            self._main_model = MainModel(lam)
+            self._main_model = MainModel(lam, **self._main_kwargs)
 
         return self._main_model
 
@@ -283,3 +281,145 @@ class Poisson(BackendBase):
             Expected data of the statistical model
         """
         return self.main_model.expected_data(pars)
+
+
+class Poisson(SimplePDFBase):
+    r"""
+    Poisson distribution without uncertainty implementation.
+
+    .. math::
+
+        \mathcal{L}(\mu) = \prod_{i\in{\rm bins}}{\rm Poiss}(n^i|\mu n_s^i + n_b^i)
+
+    where :math:`n_{s,b}` are signal and background yields and :math:`n` are the observations.
+
+    Args:
+        signal_yields (``List[float]``): signal yields
+        background_yields (``List[float]``): background yields
+        data (``List[int]``): data
+    """
+
+    name: Text = "default_pdf.poisson"
+    """Name of the backend"""
+    version: Text = SimplePDFBase.version
+    """Version of the backend"""
+    author: Text = SimplePDFBase.author
+    """Author of the backend"""
+    spey_requires: Text = SimplePDFBase.spey_requires
+    """Spey version required for the backend"""
+
+    def __init__(
+        self,
+        signal_yields: List[float],
+        background_yields: List[float],
+        data: List[int],
+    ):
+        super().__init__(
+            signal_yields=signal_yields, background_yields=background_yields, data=data
+        )
+
+
+class Gaussian(SimplePDFBase):
+    r"""
+    Gaussian distribution for uncorrelated likelihoods.
+
+    .. math::
+
+        \mathcal{L}(\mu) = \prod_{i\in{\rm bins}} \frac{1}{\sigma^i \sqrt{2\pi}}
+        \exp\left[-\frac{1}{2} \left(\frac{\mu n_s^i + n_b^i - n^i}{\sigma^i} \right)^2 \right]
+
+    where :math:`n_{s,b}` are signal and background yields and :math:`n` are the observations.
+
+    .. versionadded:: 0.1.9
+
+    Args:
+        signal_yields (``List[float]``): signal yields
+        background_yields (``List[float]``): background yields
+        data (``List[int]``): data
+        absolute_uncertainties (``List[float]``): absolute uncertainties on the background
+    """
+
+    name: Text = "default_pdf.normal"
+    """Name of the backend"""
+    version: Text = SimplePDFBase.version
+    """Version of the backend"""
+    author: Text = SimplePDFBase.author
+    """Author of the backend"""
+    spey_requires: Text = SimplePDFBase.spey_requires
+    """Spey version required for the backend"""
+
+    __slots__ = ["absolute_uncertainties"]
+
+    def __init__(
+        self,
+        signal_yields: List[float],
+        background_yields: List[float],
+        data: List[int],
+        absolute_uncertainties: List[float],
+    ):
+        super().__init__(
+            signal_yields=signal_yields, background_yields=background_yields, data=data
+        )
+        self.absolute_uncertainties = np.array(absolute_uncertainties, dtype=np.float64)
+        """absolute uncertainties on the background"""
+        self._main_kwargs = {"cov": self.absolute_uncertainties, "pdf_type": "gauss"}
+
+
+class MultivariateNormal(SimplePDFBase):
+    r"""
+    Multivariate Gaussian distribution.
+
+    .. math::
+
+        \mathcal{L}(\mu) = \frac{1}{\sqrt{(2\pi)^k {\rm det}[\Sigma] }}
+        \exp\left[-\frac{1}{2} (\mu n_s + n_b - n)\Sigma^{-1} (\mu n_s + n_b - n)^T \right]
+
+    where :math:`n_{s,b}` are signal and background yields and :math:`n` are the observations.
+
+    .. versionadded:: 0.1.9
+
+    Args:
+        signal_yields (``List[float]``): signal yields
+        background_yields (``List[float]``): background yields
+        data (``List[int]``): data
+        covariance_matrix (``List[List[float]]``): covariance matrix (square matrix)
+
+          * If you have correlation matrix and absolute uncertainties please use
+            :func:`~spey.helper_functions.correlation_to_covariance`
+
+    """
+
+    name: Text = "default_pdf.multivariate_normal"
+    """Name of the backend"""
+    version: Text = SimplePDFBase.version
+    """Version of the backend"""
+    author: Text = SimplePDFBase.author
+    """Author of the backend"""
+    spey_requires: Text = SimplePDFBase.spey_requires
+    """Spey version required for the backend"""
+
+    __slots__ = ["covariance_matrix"]
+
+    def __init__(
+        self,
+        signal_yields: List[float],
+        background_yields: List[float],
+        data: List[int],
+        covariance_matrix: List[List[float]],
+    ):
+        super().__init__(
+            signal_yields=signal_yields, background_yields=background_yields, data=data
+        )
+        self.covariance_matrix = np.array(covariance_matrix, dtype=np.float64)
+        if (
+            self.covariance_matrix.shape[0] != len(self.background_yields)
+            and len(self.covariance_matrix.shape) == 2
+        ):
+            raise InvalidInput(
+                "Dimensionality of the covariance matrix should match to the background"
+            )
+
+        self._main_kwargs = {
+            "cov": self.covariance_matrix,
+            "pdf_type": "multivariategauss",
+        }

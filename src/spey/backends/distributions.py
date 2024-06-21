@@ -2,14 +2,16 @@
 
 import logging
 import warnings
-from typing import Any, Callable, Dict, List, Text, Union
+from typing import Any, Callable, Dict, List, Literal, Text, Union
 
 import autograd.numpy as np
 from autograd.scipy.special import gammaln
 from autograd.scipy.stats.poisson import logpmf
 from scipy.stats import multivariate_normal, norm, poisson
 
-# pylint: disable=E1101, W1203
+from spey.system.exceptions import DistributionError
+
+# pylint: disable=E1101, W1203, E1121
 
 log = logging.getLogger("Spey")
 
@@ -187,12 +189,26 @@ class MainModel:
           lambda values of poisson distribution. It takes nuisance parameters as input.
     """
 
-    def __init__(self, loc: Callable[[np.ndarray], np.ndarray]):
-        self._pdf = lambda pars: Poisson(loc(pars))
+    def __init__(
+        self,
+        loc: Callable[[np.ndarray], np.ndarray],
+        cov: np.ndarray = None,
+        pdf_type: Literal["poiss", "gauss", "multivariategauss"] = "poiss",
+    ):
+        self.pdf_type = pdf_type
+        """Type of the PDF"""
+        if pdf_type == "poiss":
+            self._pdf = lambda pars: Poisson(loc(pars))
+        elif pdf_type == "gauss" and cov is not None:
+            self._pdf = lambda pars: Normal(loc=loc(pars), scale=cov)
+        elif pdf_type == "multivariategauss" and cov is not None:
+            self._pdf = lambda pars: MultivariateNormal(mean=loc(pars), cov=cov)
+        else:
+            raise DistributionError("Unknown pdf type or associated input.")
 
     def expected_data(self, pars: np.ndarray) -> np.ndarray:
         """The expectation value of the main model."""
-        return self._pdf(pars).loc
+        return self._pdf(pars).expected_data()
 
     def sample(self, pars: np.ndarray, sample_size: int) -> np.ndarray:
         r"""
@@ -207,7 +223,10 @@ class MainModel:
             ``np.ndarray``:
             sampled data
         """
-        return self._pdf(pars).sample(sample_size)
+        if self.pdf_type == "poiss":
+            return self._pdf(pars).sample(sample_size)
+
+        return self._pdf(pars).sample(pars, sample_size)
 
     def log_prob(self, pars: np.ndarray, data: np.ndarray) -> np.ndarray:
         r"""
