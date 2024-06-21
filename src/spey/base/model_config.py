@@ -88,7 +88,7 @@ class ModelConfig:
     def rescale_poi_bounds(
         self, allow_negative_signal: bool = True, poi_upper_bound: Optional[float] = None
     ) -> List[Tuple[float, float]]:
-        """
+        r"""
         Rescale bounds for POI.
 
         Args:

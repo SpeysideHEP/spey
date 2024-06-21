@@ -105,7 +105,12 @@ def check_updates() -> None:
         version = __version__
         if pypi_version:
             log.debug(f"Curernt version {version}, latest version {pypi_version}.")
-            if Version(version) < Version(pypi_version):
+            if "beta" in Version(version).prerelease:
+                log.warning(
+                    f"A prerelease version of Spey is in use: {version}. "
+                    f"Latest stable version is {pypi_version}."
+                )
+            elif Version(version) < Version(pypi_version):
                 log.warning(
                     f"A newer version ({pypi_version}) of Spey is available. "
                     f"Current version is {version}."
