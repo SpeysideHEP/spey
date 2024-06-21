@@ -76,6 +76,9 @@ Specific upgrades for the latest release can be found [here](https://github.com/
   so numpy version has been limited to less than 2.0.
   ([#40](https://github.com/SpeysideHEP/spey/pull/40))
 
+* Compatibility issues have been fixed in Python 3.12
+  ([#39](https://github.com/SpeysideHEP/spey/pull/39))
+
 ## Contributors
 
 This release contains contributions from (in alphabetical order):
