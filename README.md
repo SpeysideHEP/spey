@@ -60,6 +60,8 @@ Finally, the name "Spey" originally comes from the Spey River, a river in the mi
 | ``"default_pdf.third_moment_expansion"``  | Implements the skewness of the likelihood by using third moments.            |
 | ``"default_pdf.effective_sigma"``         | Implements the skewness of the likelihood by using asymmetric uncertainties. |
 | ``"default_pdf.poisson"``                 | Implements simple Poisson-based likelihood without uncertainties. |
+| ``"default_pdf.normal"``                  | Implements Normal distribution. |
+| ``"default_pdf.multivariate_normal"``     | Implements Multivariate normal distribution. |
 | ``"pyhf.uncorrelated_background"``        | Uses uncorrelated background functionality of pyhf (see [``spey-phyf`` plugin](https://github.com/SpeysideHEP/spey-pyhf)).                          |
 | ``"pyhf"``                                | Uses generic likelihood structure of pyhf (see [``spey-phyf`` plugin](https://github.com/SpeysideHEP/spey-pyhf))                                   |
 
