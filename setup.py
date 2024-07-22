@@ -35,6 +35,10 @@ setup(
     url="https://github.com/SpeysideHEP/spey",
     project_urls={
         "Bug Tracker": "https://github.com/SpeysideHEP/spey/issues",
+        "Documentation": "https://spey.readthedocs.io",
+        "Repository": "https://github.com/SpeysideHEP/spey",
+        "Homepage": "https://github.com/SpeysideHEP/spey",
+        "Download": f"https://github.com/SpeysideHEP/spey/archive/refs/tags/v{version}.tar.gz",
     },
     download_url=f"https://github.com/SpeysideHEP/spey/archive/refs/tags/v{version}.tar.gz",
     author="Jack Y. Araz",
@@ -44,7 +48,7 @@ setup(
     packages=find_packages(where="src"),
     entry_points={"spey.backend.plugins": backend_plugins},
     install_requires=requirements,
-    python_requires=">=3.8",
+    python_requires=">=3.8, <=3.12.4",
     classifiers=[
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: MIT License",
