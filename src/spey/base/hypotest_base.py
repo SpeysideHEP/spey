@@ -420,7 +420,7 @@ class HypothesisTestingBase(ABC):
             (:math:`\hat\mu`, :math:`\arg\min(-\log\mathcal{L})`), :math:`\log\mathcal{L(\mu, \theta_\mu)}`,
             (:math:`\hat\mu_A`, :math:`\arg\min(-\log\mathcal{L}_A)`), :math:`\log\mathcal{L_A(\mu, \theta_\mu)}`
         """
-        allow_negative_signal = True if test_statistics in ["q" or "qmu"] else False
+        allow_negative_signal = test_statistics in ["q" or "qmu"]
 
         muhat, nll = self.maximize_likelihood(
             expected=expected,
