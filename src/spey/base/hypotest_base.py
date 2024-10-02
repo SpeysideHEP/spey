@@ -725,8 +725,7 @@ class HypothesisTestingBase(ABC):
             )
 
             pvalues = [
-                1.0
-                - chi2.cdf(
+                chi2.cdf(
                     chi_square,
                     1 if isinstance(poi_test, (float, int)) else len(poi_test),
                 )
