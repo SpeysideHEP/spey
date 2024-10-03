@@ -611,7 +611,6 @@ class HypothesisTestingBase(ABC):
               * **init_pars** (``List[float]``, default ``None``): initial parameters for the optimiser
               * **par_bounds** (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
                 the optimiser.
-              * **dof** (``int``, defaults to number of POI): Degrees of freedom for ``chi_square`` calculator.
 
         Raises:
           :obj:`~spey.system.exceptions.CalculatorNotAvailable`: If calculator is not available.
@@ -624,6 +623,7 @@ class HypothesisTestingBase(ABC):
             raise CalculatorNotAvailable(f"{calculator} calculator is not available.")
 
         test_stat = "q" if allow_negative_signal else "qtilde"
+        verbose = kwargs.pop("verbose", True)
 
         if calculator == "asymptotic":
             (
@@ -666,6 +666,19 @@ class HypothesisTestingBase(ABC):
             )
 
             test_stat_func = get_test_statistic(test_stat)
+            ts = test_stat_func(
+                poi_test,
+                *self.maximize_likelihood(
+                    expected=expected,
+                    allow_negative_signal=allow_negative_signal,
+                    **kwargs,
+                ),
+                lambda mu: -self.likelihood(
+                    poi_test=float(mu) if isinstance(mu, (float, int)) else mu[0],
+                    expected=expected,
+                    **kwargs,
+                ),
+            )
 
             def logpdf(
                 mu: Union[float, np.ndarray], data: Union[float, np.ndarray]
@@ -694,6 +707,7 @@ class HypothesisTestingBase(ABC):
                 total=self.ntoys,
                 unit="toy sample",
                 bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}",
+                disable=not verbose,
             ) as pbar:
                 for sig_smp, bkg_smp in zip(signal_samples, bkg_samples):
                     signal_like_test_stat.append(
@@ -717,31 +731,31 @@ class HypothesisTestingBase(ABC):
             pvalues, expected_pvalues = compute_toy_confidence_level(
                 signal_like_test_stat,
                 bkg_like_test_stat,
-                test_statistic=poi_test,
+                test_statistic=ts,
                 test_stat=test_stat,
             )
 
         elif calculator == "chi_square":
-            ts_s_b = self.chi2(
+            signal_like = self.chi2(
                 poi_test=poi_test,
                 expected=expected,
                 allow_negative_signal=allow_negative_signal,
                 **kwargs,
             )
-            ts_b_only = self.chi2(
+            bkg_like = self.chi2(
                 poi_test=0.0,
                 expected=expected,
                 allow_negative_signal=allow_negative_signal,
                 **kwargs,
             )
-            sqrt_ts_s_b = np.sqrt(np.clip(ts_s_b, 0.0, None))
-            sqrt_ts_b_only = np.sqrt(np.clip(ts_b_only, 0.0, None))
+
+            sqrt_ts_s_b = np.sqrt(np.clip(signal_like, 0.0, None))
+            sqrt_ts_b_only = np.sqrt(np.clip(bkg_like, 0.0, None))
             if test_stat in ["q", "q0", "qmu"] or sqrt_ts_s_b <= sqrt_ts_b_only:
                 delta_ts = sqrt_ts_b_only - sqrt_ts_s_b
             else:
                 with warnings.catch_warnings(record=True):
-                    delta_ts = np.true_divide(ts_b_only - ts_s_b, 2.0 * sqrt_ts_s_b)
-
+                    delta_ts = np.true_divide(bkg_like - signal_like, 2.0 * sqrt_ts_s_b)
             pvalues, expected_pvalues = compute_asymptotic_confidence_level(
                 sqrt_ts_s_b, delta_ts, test_stat=test_stat
             )
