@@ -4,13 +4,13 @@ tools to compute exclusion limits and POI upper limits
 """
 
 import logging
+import warnings
 from abc import ABC, abstractmethod
 from functools import partial
 from typing import Any, Callable, Dict, List, Literal, Optional, Text, Tuple, Union
 
 import numpy as np
 import tqdm
-from scipy.stats import chi2
 
 from spey.hypothesis_testing.asymptotic_calculator import (
     compute_asymptotic_confidence_level,
@@ -21,7 +21,11 @@ from spey.hypothesis_testing.test_statistics import (
 )
 from spey.hypothesis_testing.toy_calculator import compute_toy_confidence_level
 from spey.hypothesis_testing.upper_limits import find_poi_upper_limit
-from spey.system.exceptions import CalculatorNotAvailable, MethodNotAvailable
+from spey.system.exceptions import (
+    AsimovTestStatZero,
+    CalculatorNotAvailable,
+    MethodNotAvailable,
+)
 from spey.utils import ExpectationType
 
 __all__ = ["HypothesisTestingBase"]
@@ -548,7 +552,6 @@ class HypothesisTestingBase(ABC):
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = False,
         calculator: Literal["asymptotic", "toy", "chi_square"] = "asymptotic",
-        poi_test_denominator: Optional[float] = None,
         **kwargs,
     ) -> List[float]:
         r"""
@@ -603,15 +606,12 @@ class HypothesisTestingBase(ABC):
               * ``"chi_square"``: Computes p-values via chi-square;
                 :math:`\chi^2=-2\log\frac{\mathcal{L}(1,\theta_1)}{\mathcal{L}(0,\theta_0)}`.
 
-            poi_test_denominator (``float``, default ``None``): Set the POI value for the null hypothesis.
-                if ``None``, signal hypothesis will be compared against maximum likelihood otherwise
-                with respect to the hypothesis determined with the POI value provided with this input.
-                Only used when ``calculator="chi-square"``.
             kwargs: keyword arguments for the optimiser.
 
               * **init_pars** (``List[float]``, default ``None``): initial parameters for the optimiser
               * **par_bounds** (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
                 the optimiser.
+              * **dof** (``int``, defaults to number of POI): Degrees of freedom for ``chi_square`` calculator.
 
         Raises:
           :obj:`~spey.system.exceptions.CalculatorNotAvailable`: If calculator is not available.
@@ -637,18 +637,24 @@ class HypothesisTestingBase(ABC):
                 **kwargs,
             )
 
-            _, sqrt_qmuA, delta_teststat = compute_teststatistics(
-                poi_test,
-                maximum_likelihood,
-                logpdf,
-                maximum_asimov_likelihood,
-                logpdf_asimov,
-                test_stat,
-            )
+            try:
+                _, sqrt_qmuA, delta_teststat = compute_teststatistics(
+                    poi_test,
+                    maximum_likelihood,
+                    logpdf,
+                    maximum_asimov_likelihood,
+                    logpdf_asimov,
+                    test_stat,
+                )
+                log.debug(f"sqrt_qmuA = {sqrt_qmuA}, test statistic = {delta_teststat}")
 
-            pvalues, expected_pvalues = compute_asymptotic_confidence_level(
-                sqrt_qmuA, delta_teststat, test_stat
-            )
+                pvalues, expected_pvalues = compute_asymptotic_confidence_level(
+                    sqrt_qmuA, delta_teststat, test_stat
+                )
+                log.debug(f"pval = {pvalues}, expected pval = {expected_pvalues}")
+            except AsimovTestStatZero as err:
+                log.error(str(err))
+                pvalues, expected_pvalues = [1.0], [1.0] * 5
 
         elif calculator == "toy":
             signal_samples = self.fixed_poi_sampler(
@@ -716,28 +722,29 @@ class HypothesisTestingBase(ABC):
             )
 
         elif calculator == "chi_square":
-            chi_square = self.chi2(
-                poi_test=1.0,
-                poi_test_denominator=poi_test_denominator,
+            ts_s_b = self.chi2(
+                poi_test=poi_test,
                 expected=expected,
                 allow_negative_signal=allow_negative_signal,
                 **kwargs,
             )
+            ts_b_only = self.chi2(
+                poi_test=0.0,
+                expected=expected,
+                allow_negative_signal=allow_negative_signal,
+                **kwargs,
+            )
+            sqrt_ts_s_b = np.sqrt(np.clip(ts_s_b, 0.0, None))
+            sqrt_ts_b_only = np.sqrt(np.clip(ts_b_only, 0.0, None))
+            if test_stat in ["q", "q0", "qmu"] or sqrt_ts_s_b <= sqrt_ts_b_only:
+                delta_ts = sqrt_ts_b_only - sqrt_ts_s_b
+            else:
+                with warnings.catch_warnings(record=True):
+                    delta_ts = np.true_divide(ts_b_only - ts_s_b, 2.0 * sqrt_ts_s_b)
 
-            pvalues = [
-                chi2.cdf(
-                    chi_square,
-                    1 if isinstance(poi_test, (float, int)) else len(poi_test),
-                )
-            ]
-            expected_pvalues = pvalues
-
-            if expected in [ExpectationType.aposteriori, ExpectationType.apriori]:
-                fit = "post" if expected == ExpectationType.aposteriori else "pre"
-                log.warning(
-                    "chi-square calculator does not support expected p-values."
-                    f" Only one p-value for {fit}fit will be returned."
-                )
+            pvalues, expected_pvalues = compute_asymptotic_confidence_level(
+                sqrt_ts_s_b, delta_ts, test_stat=test_stat
+            )
 
         if expected == "all":
             return list(map(lambda x: 1.0 - x, pvalues)), list(
