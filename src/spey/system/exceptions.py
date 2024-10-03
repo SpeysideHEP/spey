@@ -80,3 +80,15 @@ class CombinerNotAvailable(Exception):
 
 class DistributionError(Exception):
     """Unknown Distribution"""
+
+
+class AsimovTestStatZero(Exception):
+    """Asimov Test Statistic is zero"""
+
+    def __init__(
+        self,
+        message="Asimov test statistic is zero. "
+        "Note: Asimov test statistic of zero indicates a "
+        "lack of evidence for a signal or deviation from a null hypothesis.",
+    ):
+        super().__init__(message)
