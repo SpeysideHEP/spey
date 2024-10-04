@@ -625,27 +625,33 @@ class HypothesisTestingBase(ABC):
         test_stat = "q" if allow_negative_signal else "qtilde"
         verbose = kwargs.pop("verbose", True)
 
-        test_stat_func = get_test_statistic(test_stat)
+        # NOTE Improve code efficiency, these are not necessary for asymptotic calculator
+        if calculator in ["toy", "chi_square"]:
+            test_stat_func = get_test_statistic(test_stat)
 
-        def logpdf(mu: Union[float, np.ndarray], data: Union[float, np.ndarray]) -> float:
-            """Compute logpdf with respect to poi and given data"""
-            return -self.likelihood(
-                poi_test=float(mu) if isinstance(mu, (float, int)) else mu[0],
-                expected=expected,
-                data=data,
-                **kwargs,
-            )
+            def logpdf(
+                mu: Union[float, np.ndarray], data: Union[float, np.ndarray]
+            ) -> float:
+                """Compute logpdf with respect to poi and given data"""
+                return -self.likelihood(
+                    poi_test=float(mu) if isinstance(mu, (float, int)) else mu[0],
+                    expected=expected,
+                    data=data,
+                    **kwargs,
+                )
 
-        def maximize_likelihood(data: Union[float, np.ndarray]) -> Tuple[float, float]:
-            """Compute maximum likelihood with respect to given data"""
-            return self.maximize_likelihood(
-                expected=expected,
-                allow_negative_signal=allow_negative_signal,
-                data=data,
-                **kwargs,
-            )
+            def maximize_likelihood(
+                data: Union[float, np.ndarray]
+            ) -> Tuple[float, float]:
+                """Compute maximum likelihood with respect to given data"""
+                return self.maximize_likelihood(
+                    expected=expected,
+                    allow_negative_signal=allow_negative_signal,
+                    data=data,
+                    **kwargs,
+                )
 
-        muhat, min_negloglike = maximize_likelihood(None)
+            muhat, min_negloglike = maximize_likelihood(None)
 
         if calculator == "asymptotic":
             (
