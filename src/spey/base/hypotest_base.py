@@ -645,6 +645,8 @@ class HypothesisTestingBase(ABC):
                 **kwargs,
             )
 
+        muhat, min_negloglike = maximize_likelihood(None)
+
         if calculator == "asymptotic":
             (
                 maximum_likelihood,
@@ -685,11 +687,6 @@ class HypothesisTestingBase(ABC):
                 poi_test=0.0, size=self.ntoys, expected=expected, **kwargs
             )
 
-            muhat, min_negloglike = maximize_likelihood(None)
-            ts = test_stat_func(
-                poi_test, muhat, -min_negloglike, partial(logpdf, data=None)
-            )
-
             signal_like_test_stat, bkg_like_test_stat = [], []
             with tqdm.tqdm(
                 total=self.ntoys,
@@ -723,13 +720,13 @@ class HypothesisTestingBase(ABC):
             pvalues, expected_pvalues = compute_toy_confidence_level(
                 signal_like_test_stat,
                 bkg_like_test_stat,
-                test_statistic=ts,
+                test_statistic=test_stat_func(
+                    poi_test, muhat, -min_negloglike, partial(logpdf, data=None)
+                ),
                 test_stat=test_stat,
             )
 
         elif calculator == "chi_square":
-            muhat, min_negloglike = maximize_likelihood(data=None)
-
             ts_s_b = test_stat_func(
                 poi_test, muhat, -min_negloglike, partial(logpdf, data=None)
             )
@@ -737,8 +734,7 @@ class HypothesisTestingBase(ABC):
                 0.0, muhat, -min_negloglike, partial(logpdf, data=None)
             )
 
-            sqrt_ts_s_b = np.sqrt(ts_s_b)
-            sqrt_ts_b_only = np.sqrt(ts_b_only)
+            sqrt_ts_s_b, sqrt_ts_b_only = np.sqrt(ts_s_b), np.sqrt(ts_b_only)
             if test_stat in ["q", "q0", "qmu"] or sqrt_ts_s_b <= sqrt_ts_b_only:
                 delta_ts = sqrt_ts_b_only - sqrt_ts_s_b
             else:
