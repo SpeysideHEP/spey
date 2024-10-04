@@ -42,7 +42,7 @@ setup(
     },
     download_url=f"https://github.com/SpeysideHEP/spey/archive/refs/tags/v{version}.tar.gz",
     author="Jack Y. Araz",
-    author_email=("jackaraz@jlab.org"),
+    author_email=("jack.araz@stonybrook.edu"),
     license="MIT",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
