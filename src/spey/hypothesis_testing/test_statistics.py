@@ -46,6 +46,8 @@ def qmu_tilde(
         ``float``:
         the value of :math:`\tilde{q}_{\mu}`.
     """
+    # NOTE Comparing muhat to mu is important in the cases where obs >> bkg.
+    # it can lead sig << bkg scenario to be excluded which should not happen
     return (
         0.0
         if muhat > mu
