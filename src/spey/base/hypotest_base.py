@@ -739,9 +739,7 @@ class HypothesisTestingBase(ABC):
             ts_s_b = test_stat_func(
                 poi_test, muhat, -min_negloglike, partial(logpdf, data=None)
             )
-            ts_b_only = test_stat_func(
-                0.0, muhat, -min_negloglike, partial(logpdf, data=None)
-            )
+            ts_b_only = np.clip(-2.0 * (logpdf(0.0, None) + min_negloglike), 0.0, None)
 
             sqrt_ts_s_b, sqrt_ts_b_only = np.sqrt(ts_s_b), np.sqrt(ts_b_only)
             if test_stat in ["q", "q0", "qmu"] or sqrt_ts_s_b <= sqrt_ts_b_only:
