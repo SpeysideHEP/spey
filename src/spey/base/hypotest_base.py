@@ -739,10 +739,14 @@ class HypothesisTestingBase(ABC):
             ts_s_b = test_stat_func(
                 poi_test, muhat, -min_negloglike, partial(logpdf, data=None)
             )
-            ts_b_only = np.clip(-2.0 * (logpdf(0.0, None) + min_negloglike), 0.0, None)
+            null_logpdf = logpdf(0.0, None)
+            max_logpdf = (
+                -min_negloglike if muhat >= 0.0 or test_stat == "q" else null_logpdf
+            )
+            ts_b_only = np.clip(-2.0 * (null_logpdf - max_logpdf), 0.0, None)
 
             sqrt_ts_s_b, sqrt_ts_b_only = np.sqrt(ts_s_b), np.sqrt(ts_b_only)
-            if test_stat in ["q", "q0", "qmu"] or sqrt_ts_s_b <= sqrt_ts_b_only:
+            if test_stat == "q" or sqrt_ts_s_b <= sqrt_ts_b_only:
                 delta_ts = sqrt_ts_b_only - sqrt_ts_s_b
             else:
                 with warnings.catch_warnings(record=True):
