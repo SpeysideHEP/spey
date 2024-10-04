@@ -136,7 +136,7 @@ def test_normal():
     )
 
     assert np.isclose(
-        statistical_model.chi2(),
+        statistical_model.chi2(poi_test_denominator=0),
         2.0
         * (
             0.5 * ((12.0 + 50.0 - 36.0) ** 2 / 20.0**2)
@@ -161,10 +161,10 @@ def test_multivariate_gauss():
     )
 
     assert np.isclose(
-        statistical_model.chi2(),
+        statistical_model.chi2(poi_test_denominator=0),
         2.0
         * (
             (0.5 * (signal + bkg - data) @ np.linalg.inv(cov) @ (signal + bkg - data))
             - (0.5 * (bkg - data) @ np.linalg.inv(cov) @ (bkg - data))
         ),
-    )
+    ), "Multivariate gauss wrong"

@@ -54,12 +54,12 @@ For complex statistical models, optimizing the likelihood can be challenging and
 
 Below we compare the exclusion limits computed with each approach. This comparisson uses normal distribution for the likelihood (`default_pdf.normal`) background yields are set to $n_b$, uncertainties are shown with $\sigma$ and observations are given with $n$.
 
-```{figure} ./figs/comparisson.png
+```{figure} ./figs/comparisson_observed.png
 ---
 width: 100%
 figclass: caption
 alt: exclusion limit calculator comparisson
 name: fig2
 ---
-exclusion limit calculator comparisson
+exclusion limit calculator comparisson for observed p-values
 ```
