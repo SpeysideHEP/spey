@@ -53,6 +53,14 @@ def set_log_level(level: Literal[0, 1, 2, 3]) -> None:
     """
     Set log level for spey
 
+    Log level can also be set through terminal by the following command
+
+    .. code::
+
+        export SPEY_LOGLEVEL=3
+
+    value corresponds to the levels shown below.
+
     Args:
         level (``int``): log level
 
@@ -331,6 +339,9 @@ def cite() -> List[Text]:
         log.debug(str(err))
         return ""
 
+
+if int(os.environ.get("SPEY_LOGLEVEL", -1)) >= 0:
+    set_log_level(int(os.environ.get("SPEY_LOGLEVEL")))
 
 if os.environ.get("SPEY_CHECKUPDATE", "ON").upper() != "OFF":
     check_updates()
