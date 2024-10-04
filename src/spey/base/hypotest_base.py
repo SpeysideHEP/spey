@@ -731,6 +731,9 @@ class HypothesisTestingBase(ABC):
                 ),
                 test_stat=test_stat,
             )
+            pvalues, expected_pvalues = np.clip(pvalues, 0.0, 1.0), np.clip(
+                expected_pvalues, 0.0, 1.0
+            )
 
         elif calculator == "chi_square":
             ts_s_b = test_stat_func(
