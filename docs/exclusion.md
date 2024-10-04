@@ -20,29 +20,19 @@ kernelspec:
 
 # Exclusion limits
 
-Any Spey statistical model can compute the exclusion confidence level
-using three options. Depending on the available functions in likelihood construction
-(see {ref}`this section <sec_new_plugin>` for details), one or more of these options will be
-available for the user. One can use
-{func}`~spey.StatisticalModel.available_calculators` function to see which calculators are available.
+Any Spey statistical model can compute the exclusion confidence level using three different calculators. The availability of these options depends on the functions used in the likelihood construction (see {ref}`this section <sec_new_plugin>` for details). To check which calculators are available for a given model, users can call the {func}`~spey.StatisticalModel.available_calculators` function.
 
-{func}`~spey.StatisticalModel.exclusion_confidence_level` function uses ``calculator`` keyword
-to choose in between ``"asymptotic"``, ``"toy"`` and ``"chi_square"`` calculators.
+The {func}`~spey.StatisticalModel.exclusion_confidence_level` function allows users to select a calculator through the ``calculator`` keyword, with three options:
 
-* ``"asymptotic"``: uses asymptotic formulae to compute p-values, see ref. {cite}`Cowan:2010js`
-  for details. This method is only available if the likelihood construction has access to
-  the expected values of the distribution, which allows one to construct Asimov data. Hence the test statistic is constructed with the Asimov likelihood. LHC analyses mostly use this method.
-* ``"toy"``: This method uses the sampling functionality of the likelihood, hence expects the
-  construction to have sampling abilities. It computes p-values by sampling from signal+background
-  and background-only distributions.
-* ``"chi_square"``: This method compares $\chi^2(\mu)$ distributions,
+- **"asymptotic"**: Uses asymptotic formulae to calculate p-values (see ref. {cite}`Cowan:2010js` for details). This method requires access to the expected values of the distribution to construct Asimov data, forming the test statistic based on the Asimov likelihood. This is the most common method used in LHC analyses.
+- **"toy"**: Relies on the sampling functionality of the likelihood, requiring the construction to support sampling. It computes p-values by drawing samples from both the signal-plus-background and background-only distributions.
+- **"chi_square"**: Compares $\chi^2(\mu)$ distributions,
 
   $$
-
-        \chi^2(\mu) = -2 \log\frac{\mathcal{L}(\mu, \theta_\mu)}{\mathcal{L}(\hat{\mu},\hat{\theta}_{\mu})},
+  \chi^2(\mu) = -2 \log\frac{\mathcal{L}(\mu, \theta_\mu)}{\mathcal{L}(\hat{\mu},\hat{\theta}_{\mu})},
   $$
 
-  for signal-like $\chi^2(\mu=1)$ and background like $\chi^2(\mu=0)$ to compute the p-values for the model. This method usually used during Tevatron era.
+  where $\chi^2(\mu=1)$ represents signal-like behavior and $\chi^2(\mu=0)$ represents background-like behavior, to compute the p-values. This method was widely used during the Tevatron era.
 
 The `expected` keyword allows users to select between computing observed or expected exclusion limits. It also supports the calculation of prefit expected exclusion limits, which can be enabled by setting `expected=spey.ExpectationType.apriori`. This option ignores experimental data and computes the expected exclusion limit based solely on the simulated Standard Model (SM) background yields. On the other hand, {attr}`~spey.ExpectationType.observed` (for observed limits) and {attr}`~spey.ExpectationType.aposteriori` (for post-fit expected limits) compute the exclusion confidence limits after fitting the model.
 
