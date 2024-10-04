@@ -31,7 +31,7 @@ to choose in between ``"asymptotic"``, ``"toy"`` and ``"chi_square"`` calculator
 
 * ``"asymptotic"``: uses asymptotic formulae to compute p-values, see ref. {cite}`Cowan:2010js`
   for details. This method is only available if the likelihood construction has access to
-  the expected values of the distribution, which allows one to construct Asimov data. Hence the test statistic is constructed with the Asimov likelihood.
+  the expected values of the distribution, which allows one to construct Asimov data. Hence the test statistic is constructed with the Asimov likelihood. LHC analyses mostly use this method.
 * ``"toy"``: This method uses the sampling functionality of the likelihood, hence expects the
   construction to have sampling abilities. It computes p-values by sampling from signal+background
   and background-only distributions.
@@ -42,7 +42,7 @@ to choose in between ``"asymptotic"``, ``"toy"`` and ``"chi_square"`` calculator
         \chi^2(\mu) = -2 \log\frac{\mathcal{L}(\mu, \theta_\mu)}{\mathcal{L}(\hat{\mu},\hat{\theta}_{\mu})},
   $$
 
-  for signal-like $\chi^2(\mu=1)$ and background like $\chi^2(\mu=0)$ to compute the p-values for the model.
+  for signal-like $\chi^2(\mu=1)$ and background like $\chi^2(\mu=0)$ to compute the p-values for the model. This method usually used during Tevatron era.
 
 The `expected` keyword allows users to select between computing observed or expected exclusion limits. It also supports the calculation of prefit expected exclusion limits, which can be enabled by setting `expected=spey.ExpectationType.apriori`. This option ignores experimental data and computes the expected exclusion limit based solely on the simulated Standard Model (SM) background yields. On the other hand, {attr}`~spey.ExpectationType.observed` (for observed limits) and {attr}`~spey.ExpectationType.aposteriori` (for post-fit expected limits) compute the exclusion confidence limits after fitting the model.
 
