@@ -674,7 +674,9 @@ class HypothesisTestingBase(ABC):
                     logpdf_asimov,
                     test_stat,
                 )
-                log.debug(f"sqrt_qmuA = {sqrt_qmuA}, test statistic = {delta_teststat}")
+                log.debug(
+                    f"<asymptotic> sqrt_qmuA = {sqrt_qmuA}, test statistic = {delta_teststat}"
+                )
 
                 pvalues, expected_pvalues = compute_asymptotic_confidence_level(
                     sqrt_qmuA, delta_teststat, test_stat
@@ -744,6 +746,9 @@ class HypothesisTestingBase(ABC):
                 -min_negloglike if muhat >= 0.0 or test_stat == "q" else null_logpdf
             )
             ts_b_only = np.clip(-2.0 * (null_logpdf - max_logpdf), 0.0, None)
+            log.debug(
+                f"<chi_square> test statistic: null hypothesis={ts_b_only}, s+b={ts_s_b}"
+            )
 
             sqrt_ts_s_b, sqrt_ts_b_only = np.sqrt(ts_s_b), np.sqrt(ts_b_only)
             if test_stat == "q" or sqrt_ts_s_b <= sqrt_ts_b_only:
