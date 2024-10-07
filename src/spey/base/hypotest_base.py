@@ -4,7 +4,6 @@ tools to compute exclusion limits and POI upper limits
 """
 
 import logging
-import warnings
 from abc import ABC, abstractmethod
 from functools import partial
 from typing import Any, Callable, Dict, List, Literal, Optional, Text, Tuple, Union
@@ -750,15 +749,23 @@ class HypothesisTestingBase(ABC):
                 f"<chi_square> test statistic: null hypothesis={ts_b_only}, s+b={ts_s_b}"
             )
 
+            delta_ts = None
             sqrt_ts_s_b, sqrt_ts_b_only = np.sqrt(ts_s_b), np.sqrt(ts_b_only)
             if test_stat == "q" or sqrt_ts_s_b <= sqrt_ts_b_only:
                 delta_ts = sqrt_ts_b_only - sqrt_ts_s_b
             else:
-                with warnings.catch_warnings(record=True):
-                    delta_ts = np.true_divide(ts_b_only - ts_s_b, 2.0 * sqrt_ts_s_b)
-            pvalues, expected_pvalues = compute_asymptotic_confidence_level(
-                sqrt_ts_s_b, delta_ts, test_stat=test_stat
-            )
+                try:
+                    delta_ts = (ts_b_only - ts_s_b) / (2.0 * sqrt_ts_s_b)
+                except ZeroDivisionError:
+                    log.error(
+                        "Lack of evidence for a signal or deviation from a null hypothesis."
+                    )
+            if delta_ts is not None:
+                pvalues, expected_pvalues = compute_asymptotic_confidence_level(
+                    sqrt_ts_s_b, delta_ts, test_stat=test_stat
+                )
+            else:
+                pvalues, expected_pvalues = [1.0], [1.0] * 5
 
         if expected == "all":
             return list(map(lambda x: 1.0 - x, pvalues)), list(
