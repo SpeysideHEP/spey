@@ -10,7 +10,6 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Text, Tuple, Un
 
 import numpy as np
 import tqdm
-from scipy.stats import chi2
 
 from spey.hypothesis_testing.asymptotic_calculator import (
     compute_asymptotic_confidence_level,
@@ -21,7 +20,11 @@ from spey.hypothesis_testing.test_statistics import (
 )
 from spey.hypothesis_testing.toy_calculator import compute_toy_confidence_level
 from spey.hypothesis_testing.upper_limits import find_poi_upper_limit
-from spey.system.exceptions import CalculatorNotAvailable, MethodNotAvailable
+from spey.system.exceptions import (
+    AsimovTestStatZero,
+    CalculatorNotAvailable,
+    MethodNotAvailable,
+)
 from spey.utils import ExpectationType
 
 __all__ = ["HypothesisTestingBase"]
@@ -420,7 +423,7 @@ class HypothesisTestingBase(ABC):
             (:math:`\hat\mu`, :math:`\arg\min(-\log\mathcal{L})`), :math:`\log\mathcal{L(\mu, \theta_\mu)}`,
             (:math:`\hat\mu_A`, :math:`\arg\min(-\log\mathcal{L}_A)`), :math:`\log\mathcal{L_A(\mu, \theta_\mu)}`
         """
-        allow_negative_signal = True if test_statistics in ["q" or "qmu"] else False
+        allow_negative_signal = test_statistics in ["q" or "qmu"]
 
         muhat, nll = self.maximize_likelihood(
             expected=expected,
@@ -548,7 +551,6 @@ class HypothesisTestingBase(ABC):
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = False,
         calculator: Literal["asymptotic", "toy", "chi_square"] = "asymptotic",
-        poi_test_denominator: Optional[float] = None,
         **kwargs,
     ) -> List[float]:
         r"""
@@ -603,10 +605,6 @@ class HypothesisTestingBase(ABC):
               * ``"chi_square"``: Computes p-values via chi-square;
                 :math:`\chi^2=-2\log\frac{\mathcal{L}(1,\theta_1)}{\mathcal{L}(0,\theta_0)}`.
 
-            poi_test_denominator (``float``, default ``None``): Set the POI value for the null hypothesis.
-                if ``None``, signal hypothesis will be compared against maximum likelihood otherwise
-                with respect to the hypothesis determined with the POI value provided with this input.
-                Only used when ``calculator="chi-square"``.
             kwargs: keyword arguments for the optimiser.
 
               * **init_pars** (``List[float]``, default ``None``): initial parameters for the optimiser
@@ -624,41 +622,10 @@ class HypothesisTestingBase(ABC):
             raise CalculatorNotAvailable(f"{calculator} calculator is not available.")
 
         test_stat = "q" if allow_negative_signal else "qtilde"
+        verbose = kwargs.pop("verbose", True)
 
-        if calculator == "asymptotic":
-            (
-                maximum_likelihood,
-                logpdf,
-                maximum_asimov_likelihood,
-                logpdf_asimov,
-            ) = self._prepare_for_hypotest(
-                expected=expected,
-                test_statistics=test_stat,
-                **kwargs,
-            )
-
-            _, sqrt_qmuA, delta_teststat = compute_teststatistics(
-                poi_test,
-                maximum_likelihood,
-                logpdf,
-                maximum_asimov_likelihood,
-                logpdf_asimov,
-                test_stat,
-            )
-
-            pvalues, expected_pvalues = compute_asymptotic_confidence_level(
-                sqrt_qmuA, delta_teststat, test_stat
-            )
-
-        elif calculator == "toy":
-            signal_samples = self.fixed_poi_sampler(
-                poi_test=poi_test, size=self.ntoys, expected=expected, **kwargs
-            )
-
-            bkg_samples = self.fixed_poi_sampler(
-                poi_test=0.0, size=self.ntoys, expected=expected, **kwargs
-            )
-
+        # NOTE Improve code efficiency, these are not necessary for asymptotic calculator
+        if calculator in ["toy", "chi_square"]:
             test_stat_func = get_test_statistic(test_stat)
 
             def logpdf(
@@ -683,25 +650,74 @@ class HypothesisTestingBase(ABC):
                     **kwargs,
                 )
 
+            muhat, min_negloglike = maximize_likelihood(None)
+
+        if calculator == "asymptotic":
+            (
+                maximum_likelihood,
+                logpdf,
+                maximum_asimov_likelihood,
+                logpdf_asimov,
+            ) = self._prepare_for_hypotest(
+                expected=expected,
+                test_statistics=test_stat,
+                **kwargs,
+            )
+
+            try:
+                _, sqrt_qmuA, delta_teststat = compute_teststatistics(
+                    poi_test,
+                    maximum_likelihood,
+                    logpdf,
+                    maximum_asimov_likelihood,
+                    logpdf_asimov,
+                    test_stat,
+                )
+                log.debug(
+                    f"<asymptotic> sqrt_qmuA = {sqrt_qmuA}, test statistic = {delta_teststat}"
+                )
+
+                pvalues, expected_pvalues = compute_asymptotic_confidence_level(
+                    sqrt_qmuA, delta_teststat, test_stat
+                )
+                log.debug(f"pval = {pvalues}, expected pval = {expected_pvalues}")
+            except AsimovTestStatZero as err:
+                log.error(str(err))
+                pvalues, expected_pvalues = [1.0], [1.0] * 5
+
+        elif calculator == "toy":
+            signal_samples = self.fixed_poi_sampler(
+                poi_test=poi_test, size=self.ntoys, expected=expected, **kwargs
+            )
+
+            bkg_samples = self.fixed_poi_sampler(
+                poi_test=0.0, size=self.ntoys, expected=expected, **kwargs
+            )
+
             signal_like_test_stat, bkg_like_test_stat = [], []
             with tqdm.tqdm(
                 total=self.ntoys,
                 unit="toy sample",
                 bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}",
+                disable=not verbose,
             ) as pbar:
                 for sig_smp, bkg_smp in zip(signal_samples, bkg_samples):
+                    muhat_s_b, min_negloglike_s_b = maximize_likelihood(data=sig_smp)
                     signal_like_test_stat.append(
                         test_stat_func(
                             poi_test,
-                            *maximize_likelihood(data=sig_smp),
+                            muhat_s_b,
+                            -min_negloglike_s_b,
                             partial(logpdf, data=sig_smp),
                         )
                     )
 
+                    muhat_b, min_negloglike_b = maximize_likelihood(data=bkg_smp)
                     bkg_like_test_stat.append(
                         test_stat_func(
                             poi_test,
-                            *maximize_likelihood(data=bkg_smp),
+                            muhat_b,
+                            -min_negloglike_b,
                             partial(logpdf, data=bkg_smp),
                         )
                     )
@@ -711,34 +727,45 @@ class HypothesisTestingBase(ABC):
             pvalues, expected_pvalues = compute_toy_confidence_level(
                 signal_like_test_stat,
                 bkg_like_test_stat,
-                test_statistic=poi_test,
+                test_statistic=test_stat_func(
+                    poi_test, muhat, -min_negloglike, partial(logpdf, data=None)
+                ),
                 test_stat=test_stat,
+            )
+            pvalues, expected_pvalues = np.clip(pvalues, 0.0, 1.0), np.clip(
+                expected_pvalues, 0.0, 1.0
             )
 
         elif calculator == "chi_square":
-            chi_square = self.chi2(
-                poi_test=1.0,
-                poi_test_denominator=poi_test_denominator,
-                expected=expected,
-                allow_negative_signal=allow_negative_signal,
-                **kwargs,
+            ts_s_b = test_stat_func(
+                poi_test, muhat, -min_negloglike, partial(logpdf, data=None)
+            )
+            null_logpdf = logpdf(0.0, None)
+            max_logpdf = (
+                -min_negloglike if muhat >= 0.0 or test_stat == "q" else null_logpdf
+            )
+            ts_b_only = np.clip(-2.0 * (null_logpdf - max_logpdf), 0.0, None)
+            log.debug(
+                f"<chi_square> test statistic: null hypothesis={ts_b_only}, s+b={ts_s_b}"
             )
 
-            pvalues = [
-                1.0
-                - chi2.cdf(
-                    chi_square,
-                    1 if isinstance(poi_test, (float, int)) else len(poi_test),
+            delta_ts = None
+            sqrt_ts_s_b, sqrt_ts_b_only = np.sqrt(ts_s_b), np.sqrt(ts_b_only)
+            if test_stat == "q" or sqrt_ts_s_b <= sqrt_ts_b_only:
+                delta_ts = sqrt_ts_b_only - sqrt_ts_s_b
+            else:
+                try:
+                    delta_ts = (ts_b_only - ts_s_b) / (2.0 * sqrt_ts_s_b)
+                except ZeroDivisionError:
+                    log.error(
+                        "Lack of evidence for a signal or deviation from a null hypothesis."
+                    )
+            if delta_ts is not None:
+                pvalues, expected_pvalues = compute_asymptotic_confidence_level(
+                    sqrt_ts_s_b, delta_ts, test_stat=test_stat
                 )
-            ]
-            expected_pvalues = pvalues
-
-            if expected in [ExpectationType.aposteriori, ExpectationType.apriori]:
-                fit = "post" if expected == ExpectationType.aposteriori else "pre"
-                log.warning(
-                    "chi-square calculator does not support expected p-values."
-                    f" Only one p-value for {fit}fit will be returned."
-                )
+            else:
+                pvalues, expected_pvalues = [1.0], [1.0] * 5
 
         if expected == "all":
             return list(map(lambda x: 1.0 - x, pvalues)), list(

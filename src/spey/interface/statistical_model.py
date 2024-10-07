@@ -633,7 +633,9 @@ class StatisticalModel(HypothesisTestingBase):
             fit_opts["model_configuration"].npar == 1
             and fit_opts["model_configuration"].poi_index is not None
         ):
-            fit_param = np.array(list(poi_test))
+            fit_param = np.array(
+                poi_test if isinstance(poi_test, (list, np.ndarray)) else [poi_test]
+            )
         else:
             _, fit_param = fit(
                 **fit_opts,

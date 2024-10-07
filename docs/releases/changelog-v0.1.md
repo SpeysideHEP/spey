@@ -79,6 +79,9 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 * Compatibility issues have been fixed in Python 3.12
   ([#39](https://github.com/SpeysideHEP/spey/pull/39))
 
+* p-value computation in $\chi^2$ and toy calculators have been fixed.
+  ([#42](https://github.com/SpeysideHEP/spey/pull/42))
+
 ## Contributors
 
 This release contains contributions from (in alphabetical order):

@@ -1,13 +1,18 @@
 """Functions for computation of test statistic"""
 
+import logging
 import warnings
 from typing import Callable, Text, Tuple
 
 import numpy as np
 
-from spey.system.exceptions import UnknownTestStatistics
+from spey.system.exceptions import UnknownTestStatistics, AsimovTestStatZero
 
 __all__ = ["qmu", "qmu_tilde", "q0", "get_test_statistic", "compute_teststatistics"]
+
+log = logging.getLogger("Spey")
+
+# pylint: disable=W1203
 
 
 def qmu_tilde(
@@ -41,6 +46,8 @@ def qmu_tilde(
         ``float``:
         the value of :math:`\tilde{q}_{\mu}`.
     """
+    # NOTE Comparing muhat to mu is important in the cases where obs >> bkg.
+    # it can lead sig << bkg scenario to be excluded which should not happen
     return (
         0.0
         if muhat > mu
@@ -194,6 +201,9 @@ def compute_teststatistics(
           * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
             of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
 
+    Raises:
+        :obj:`~spey.system.exceptions.AsimovTestStatZero`: Raised if Asimov test statistic is zero.
+
     Returns:
         ``Tuple[float, float, float]``:
         :math:`\sqrt{q_\mu}`, :math:`\sqrt{q_{\mu,A}}` and :math:`\Delta(\sqrt{q_\mu}, \sqrt{q_{\mu,A}})`
@@ -217,5 +227,9 @@ def compute_teststatistics(
         else:
             with warnings.catch_warnings(record=True):
                 delta_teststat = np.true_divide(qmu_ - qmuA, 2.0 * sqrt_qmuA)
-
+            if sqrt_qmuA == 0:
+                raise AsimovTestStatZero()
+    log.debug(
+        f"sqrt_qmu = {sqrt_qmu}, sqrt_qmuA = {sqrt_qmuA}, delta_teststat = {delta_teststat}"
+    )
     return sqrt_qmu, sqrt_qmuA, delta_teststat
