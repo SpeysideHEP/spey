@@ -44,12 +44,22 @@ $$
 The main distinction being, alternate test statistic assumes that the signal can not be negative, for instance in case of negative interference effects in EFT one should use test statistic. By default {func}`~spey.StatisticalModel.exclusion_confidence_level` function assumes alternate test statistic being use and this can be changed with ``allow_negative_signal`` boolean argument.
 
 ````{margin}
-```{note}
+```{admonition} Tip!
+:class: dropdown, tip
+
 To check which calculators are available for a given model, users can call the {obj}`~spey.StatisticalModel.available_calculators` function.
 ```
 ````
 
 The {func}`~spey.StatisticalModel.exclusion_confidence_level` function allows users to specify the calculator through the ``calculator`` keyword, offering three options:
+
+````{margin}
+```{admonition} How has the Asimov likelihood been calculated?
+:class: dropdown, attention
+
+ For exclusion limits, the first step is to fit the likelihood to the parameter of interest (POI) set to 0, representing the background-only model. Using the fitted parameters, expected data is generated, known as Asimov data. By replacing the observed data with this Asimov data, a new likelihood distribution—referred to as the "Asimov likelihood"—is created. This Asimov likelihood is then used for inference.
+```
+````
 
 - **"asymptotic"**: Uses asymptotic formulae to compute p-values (see ref. {cite}`Cowan:2010js` for details). This method requires the likelihood to support sampling capabilities, as it compares the signal-like test statistic to the Asimov test statistic using the formula $t_\mu = \sqrt{\tilde{q}_\mu} - \sqrt{\tilde{q}_{\mu,A}}$. This is the most commonly used method in LHC analyses.
 - **"toy"**: Relies on the likelihood's sampling functionality. It calculates p-values by generating samples from both the signal-plus-background and background-only distributions.
