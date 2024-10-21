@@ -82,6 +82,9 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 * p-value computation in $\chi^2$ and toy calculators have been fixed.
   ([#42](https://github.com/SpeysideHEP/spey/pull/42))
 
+* Bugfix in uncorrelated statistics combiner. This is due to a crash while computing $\sigma_\mu$ through inverse of the Hessian matrix.
+  ([#43](https://github.com/SpeysideHEP/spey/pull/43))
+
 ## Contributors
 
 This release contains contributions from (in alphabetical order):
