@@ -3,6 +3,7 @@ Statistical Model combiner class: this class combines likelihoods
 of different statistical models for hypothesis testing
 """
 
+import logging
 import warnings
 from typing import Dict, Iterator, List, Optional, Text, Tuple, Union
 
@@ -16,6 +17,8 @@ from spey.system.exceptions import AnalysisQueryError, NegativeExpectedYields
 from spey.utils import ExpectationType
 
 __all__ = ["UnCorrStatisticsCombiner"]
+
+log = logging.getLogger("Spey")
 
 
 class UnCorrStatisticsCombiner(HypothesisTestingBase):
@@ -494,27 +497,31 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
         # muhat initial value estimation in gaussian limit
         mu_init = initial_muhat_value or 0.0
         if initial_muhat_value is None:
-            _mu, _sigma_mu = np.zeros(len(self)), np.ones(len(self))
-            for idx, stat_model in enumerate(self):
+            try:
+                _mu, _sigma_mu = np.zeros(len(self)), np.ones(len(self))
+                for idx, stat_model in enumerate(self):
 
-                current_kwargs = {}
-                current_kwargs.update(
-                    statistical_model_options.get(str(stat_model.backend_type), {})
-                )
+                    current_kwargs = {}
+                    current_kwargs.update(
+                        statistical_model_options.get(str(stat_model.backend_type), {})
+                    )
 
-                _mu[idx] = stat_model.maximize_likelihood(
-                    expected=expected, **current_kwargs, **optimiser_options
-                )[0]
-                _sigma_mu[idx] = stat_model.sigma_mu(
-                    poi_test=_mu[idx],
-                    expected=expected,
-                    **current_kwargs,
-                    **optimiser_options,
+                    _mu[idx] = stat_model.maximize_likelihood(
+                        expected=expected, **current_kwargs, **optimiser_options
+                    )[0]
+                    _sigma_mu[idx] = stat_model.sigma_mu(
+                        poi_test=_mu[idx],
+                        expected=expected,
+                        **current_kwargs,
+                        **optimiser_options,
+                    )
+                norm = np.sum(np.power(_sigma_mu, -2))
+                mu_init = np.true_divide(1.0, norm) * np.sum(
+                    np.true_divide(_mu, np.square(_sigma_mu))
                 )
-            norm = np.sum(np.power(_sigma_mu, -2))
-            mu_init = np.true_divide(1.0, norm) * np.sum(
-                np.true_divide(_mu, np.square(_sigma_mu))
-            )
+            except Exception as err:
+                log.debug(str(err))
+                mu_init = 0.0
 
         config: ModelConfig = ModelConfig(
             poi_index=0,
