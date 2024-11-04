@@ -658,3 +658,16 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
         )
 
         return fit_params[0], twice_nll / 2.0 if return_nll else np.exp(-twice_nll / 2.0)
+
+    def __matmul__(self, other: StatisticalModel):
+        new_model = UnCorrStatisticsCombiner(*self._statistical_models)
+        if isinstance(other, StatisticalModel):
+            new_model.append(other)
+        elif isinstance(other, UnCorrStatisticsCombiner):
+            for model in other:
+                new_model.append(model)
+        else:
+            raise ValueError(
+                f"Can not combine type<{type(other)}> with UnCorrStatisticsCombiner"
+            )
+        return new_model
