@@ -84,3 +84,27 @@ name: fig2
 ---
 exclusion limit calculator comparisson for observed p-values
 ```
+
+**Example:**
+
+```{code-cell} ipython3
+import spey
+
+stat_wrapper = spey.get_backend("default_pdf.normal")
+statistical_model = stat_wrapper(
+    signal_yields=[3.0],
+    background_yields=[2.0],
+    absolute_uncertainties=[1.5],
+    data=[2],
+)
+
+print(f"1-CLs value with calculator='asymptotic': {statistical_model.exclusion_confidence_level()[0]:.3f}")
+print(f"1-CLs value with calculator='chi_square': {statistical_model.exclusion_confidence_level(calculator='chi_square')[0]:.3f}")
+print(f"1-CLs value with calculator='toy': {statistical_model.exclusion_confidence_level(calculator='toy')[0]:.3f}")
+```
+
+```shell
+1-CLs value with calculator='asymptotic': 0.954
+1-CLs value with calculator='chi_square': 0.811
+1-CLs value with calculator='toy': 0.965
+```
