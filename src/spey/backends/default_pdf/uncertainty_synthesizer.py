@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Text, Tuple
+from typing import Any, Dict, List, Tuple
 
 import autograd.numpy as np
 
@@ -11,7 +11,7 @@ from .third_moment import third_moment_expansion
 
 def constraint_from_corr(
     correlation_matrix: List[List[float]], size: int, domain: slice
-) -> List[Dict[Text, Any]]:
+) -> List[Dict[str, Any]]:
     """
     Derive constraints from inputs
 
@@ -51,7 +51,7 @@ def signal_uncertainty_synthesizer(
     correlation_matrix: List[List[float]] = None,
     third_moments: List[float] = None,
     domain: slice = None,
-) -> Dict[Text, np.ndarray]:
+) -> Dict[str, np.ndarray]:
     """
     Synthesize signal uncertainties
 

@@ -10,9 +10,9 @@ body:
         ## Before posting a question
 
         Search existing [GitHub issues](https://github.com/SpeysideHEP/spey/issues) to make sure the issue does not already exist.
-          
+
         If your question involves software issues, please include your system settings as shown below;
-        
+
         **System Settings:**
         Please copy and paste the output of `spey.about()` function. If you are working on a specific branch please add the name of the branch and last commit ID. The abbreviated commit ID can be found via `git log -n1 --format="%h"` command. To retreive the branch name please use `git rev-parse --abbrev-ref HEAD` command.)
   - type: textarea
@@ -21,7 +21,7 @@ body:
       label: Question
       description: |
         How can we help?
-        
+
         * **Please use [Markdown syntax](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax).**
     validations:
       required: true

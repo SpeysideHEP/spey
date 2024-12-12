@@ -13,31 +13,31 @@ def __dir__():
 
 
 def compute_asymptotic_confidence_level(
-    sqrt_qmuA: float, delta_test_statistic: float, test_stat: Text = "qtilde"
+    sqrt_qmuA: float, delta_test_statistic: float, test_stat: str = "qtilde"
 ) -> Tuple[List[float], List[float]]:
     r"""
     Compute p values i.e. :math:`p_{s+b}`, :math:`p_b` and :math:`p_s`
-        
+
     .. math::
-    
+
         p_{s+b}&=& \int_{-\infty}^{-\sqrt{q_{\mu,A}} - \Delta q_\mu} \mathcal{N}(x| 0, 1) dx \\
         p_{b}&=& \int_{-\infty}^{-\Delta q_\mu} \mathcal{N}(x| 0, 1) dx \\
         p_{s} &=& p_{s+b}/ p_{b}
 
     where :math:`q_\mu` stands for the test statistic and A stands for Assimov.
-    
+
     .. math::
-        
-        \Delta q_\mu = \begin{cases} 
+
+        \Delta q_\mu = \begin{cases}
         \sqrt{q_{\mu}} - \sqrt{q_{\mu,A}}, &  \text{if}\ \sqrt{q_{\mu}} \leq \sqrt{q_{\mu,A}} \\
-        \frac{\sqrt{q_{\mu}} - \sqrt{q_{\mu,A}}}{2\ \sqrt{q_{\mu,A}}}, & \text{otherwise} 
+        \frac{\sqrt{q_{\mu}} - \sqrt{q_{\mu,A}}}{2\ \sqrt{q_{\mu,A}}}, & \text{otherwise}
         \end{cases}
 
-    Note that the CDF has a cutoff at :math:`-\sqrt{q_{\mu,A}}`, hence if 
+    Note that the CDF has a cutoff at :math:`-\sqrt{q_{\mu,A}}`, hence if
     :math:`p_{s\ {\rm or}\ s+b} < -\sqrt{q_{\mu,A}}` p-value will not be computed.
 
     .. seealso::
-    
+
         eq. 66 of :xref:`1007.1727`
 
     Args:
@@ -65,10 +65,10 @@ def compute_asymptotic_confidence_level(
     Returns:
         ``Tuple[List[float], List[float]]``:
         returns p-values and expected p-values.
-        
+
     .. seealso::
 
-        :func:`~spey.hypothesis_testing.test_statistics.compute_teststatistics`, 
+        :func:`~spey.hypothesis_testing.test_statistics.compute_teststatistics`,
         :func:`~spey.hypothesis_testing.utils.pvalues`,
         :func:`~spey.hypothesis_testing.utils.expected_pvalues`
     """

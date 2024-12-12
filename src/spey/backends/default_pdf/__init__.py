@@ -55,13 +55,13 @@ class DefaultPDFBase(BackendBase):
         :func:`autograd.numpy.array` function.
     """
 
-    name: Text = "default_pdf.base"
+    name: str = "default_pdf.base"
     """Name of the backend"""
-    version: Text = __version__
+    version: str = __version__
     """Version of the backend"""
-    author: Text = "SpeysideHEP"
+    author: str = "SpeysideHEP"
     """Author of the backend"""
-    spey_requires: Text = __version__
+    spey_requires: str = __version__
     """Spey version required for the backend"""
 
     __slots__ = [
@@ -80,7 +80,7 @@ class DefaultPDFBase(BackendBase):
         covariance_matrix: Optional[
             Union[np.ndarray, Callable[[np.ndarray], np.ndarray]]
         ] = None,
-        signal_uncertainty_configuration: Optional[Dict[Text, Any]] = None,
+        signal_uncertainty_configuration: Optional[Dict[str, Any]] = None,
     ):
         self.data = np.array(data, dtype=np.float64)
         self.signal_yields = np.array(signal_yields, dtype=np.float64)
@@ -457,13 +457,13 @@ class UncorrelatedBackground(DefaultPDFBase):
         >>> print("1-CLs : %.3f" % tuple(stat_model.exclusion_confidence_level()))
     """
 
-    name: Text = "default_pdf.uncorrelated_background"
+    name: str = "default_pdf.uncorrelated_background"
     """Name of the backend"""
-    version: Text = DefaultPDFBase.version
+    version: str = DefaultPDFBase.version
     """Version of the backend"""
-    author: Text = "SpeysideHEP"
+    author: str = "SpeysideHEP"
     """Author of the backend"""
-    spey_requires: Text = DefaultPDFBase.spey_requires
+    spey_requires: str = DefaultPDFBase.spey_requires
     """Spey version required for the backend"""
 
     def __init__(
@@ -472,7 +472,7 @@ class UncorrelatedBackground(DefaultPDFBase):
         background_yields: List[float],
         data: List[int],
         absolute_uncertainties: List[float],
-        signal_uncertainty_configuration: Optional[Dict[Text, Any]] = None,
+        signal_uncertainty_configuration: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(
             signal_yields=signal_yields,
@@ -586,13 +586,13 @@ class CorrelatedBackground(DefaultPDFBase):
         >>> print(statistical_model.exclusion_confidence_level())
     """
 
-    name: Text = "default_pdf.correlated_background"
+    name: str = "default_pdf.correlated_background"
     """Name of the backend"""
-    version: Text = DefaultPDFBase.version
+    version: str = DefaultPDFBase.version
     """Version of the backend"""
-    author: Text = "SpeysideHEP"
+    author: str = "SpeysideHEP"
     """Author of the backend"""
-    spey_requires: Text = DefaultPDFBase.spey_requires
+    spey_requires: str = DefaultPDFBase.spey_requires
     """Spey version required for the backend"""
 
     def __init__(
@@ -601,7 +601,7 @@ class CorrelatedBackground(DefaultPDFBase):
         background_yields: np.ndarray,
         data: np.ndarray,
         covariance_matrix: np.ndarray,
-        signal_uncertainty_configuration: Optional[Dict[Text, Any]] = None,
+        signal_uncertainty_configuration: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(
             signal_yields=signal_yields,
@@ -663,17 +663,17 @@ class ThirdMomentExpansion(DefaultPDFBase):
         ``third_moment`` should also have three inputs.
     """
 
-    name: Text = "default_pdf.third_moment_expansion"
+    name: str = "default_pdf.third_moment_expansion"
     """Name of the backend"""
-    version: Text = DefaultPDFBase.version
+    version: str = DefaultPDFBase.version
     """Version of the backend"""
-    author: Text = "SpeysideHEP"
+    author: str = "SpeysideHEP"
     """Author of the backend"""
-    spey_requires: Text = DefaultPDFBase.spey_requires
+    spey_requires: str = DefaultPDFBase.spey_requires
     """Spey version required for the backend"""
-    doi: List[Text] = ["10.1007/JHEP04(2019)064"]
+    doi: List[str] = ["10.1007/JHEP04(2019)064"]
     """Citable DOI for the backend"""
-    arXiv: List[Text] = ["1809.05548"]
+    arXiv: List[str] = ["1809.05548"]
     """arXiv reference for the backend"""
 
     def __init__(
@@ -683,7 +683,7 @@ class ThirdMomentExpansion(DefaultPDFBase):
         data: np.ndarray,
         covariance_matrix: np.ndarray,
         third_moment: np.ndarray,
-        signal_uncertainty_configuration: Optional[Dict[Text, Any]] = None,
+        signal_uncertainty_configuration: Optional[Dict[str, Any]] = None,
     ):
         third_moments = np.array(third_moment)
 
@@ -803,17 +803,17 @@ class EffectiveSigma(DefaultPDFBase):
           * third_moments (``List[float]``): diagonal elemetns of the third moment
     """
 
-    name: Text = "default_pdf.effective_sigma"
+    name: str = "default_pdf.effective_sigma"
     """Name of the backend"""
-    version: Text = DefaultPDFBase.version
+    version: str = DefaultPDFBase.version
     """Version of the backend"""
-    author: Text = "SpeysideHEP"
+    author: str = "SpeysideHEP"
     """Author of the backend"""
-    spey_requires: Text = DefaultPDFBase.spey_requires
+    spey_requires: str = DefaultPDFBase.spey_requires
     """Spey version required for the backend"""
-    doi: List[Text] = ["10.1142/9781860948985_0013"]
+    doi: List[str] = ["10.1142/9781860948985_0013"]
     """Citable DOI for the backend"""
-    arXiv: List[Text] = ["physics/0406120"]
+    arXiv: List[str] = ["physics/0406120"]
     """arXiv reference for the backend"""
 
     def __init__(
@@ -823,7 +823,7 @@ class EffectiveSigma(DefaultPDFBase):
         data: np.ndarray,
         correlation_matrix: np.ndarray,
         absolute_uncertainty_envelops: List[Tuple[float, float]],
-        signal_uncertainty_configuration: Optional[Dict[Text, Any]] = None,
+        signal_uncertainty_configuration: Optional[Dict[str, Any]] = None,
     ):
         assert len(absolute_uncertainty_envelops) == len(
             background_yields

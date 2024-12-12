@@ -16,7 +16,7 @@ def compute_toy_confidence_level(
     signal_like_test_statistic: List[float],
     background_like_test_statistic: List[float],
     test_statistic: float,
-    test_stat: Text = "qtilde",
+    test_stat: str = "qtilde",
 ) -> Tuple[List[float], List[float]]:
     r"""
     Compute confidence limits i.e. :math:`CL_{s+b}`, :math:`CL_b` and :math:`CL_s`

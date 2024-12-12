@@ -62,7 +62,7 @@ def qmu(
 ) -> float:
     r"""
     Test statistic :math:`q_{\mu}`, see eq. (54) of :xref:`1007.1727`
-    
+
     .. math::
 
         q_{\mu} = \begin{cases}
@@ -117,7 +117,7 @@ def q0(
 
 
 def get_test_statistic(
-    test_stat: Text,
+    test_stat: str,
 ) -> Callable[[float, float, float, Callable[[float], float]], float]:
     r"""
     Retreive the test statistic function
@@ -171,7 +171,7 @@ def compute_teststatistics(
     logpdf: Callable[[float], float],
     maximum_asimov_likelihood: Tuple[float, float],
     asimov_logpdf: Callable[[float], float],
-    teststat: Text,
+    teststat: str,
 ) -> Tuple[float, float, float]:
     r"""
     Compute test statistics

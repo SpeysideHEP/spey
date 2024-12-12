@@ -1,5 +1,5 @@
 """
-Statistical Model combiner class: this class combines likelihoods 
+Statistical Model combiner class: this class combines likelihoods
 of different statistical models for hypothesis testing
 """
 
@@ -73,7 +73,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
         else:
             raise TypeError(f"Can not append type {type(statistical_model)}.")
 
-    def remove(self, analysis: Text) -> None:
+    def remove(self, analysis: str) -> None:
         """
         Remove an analysis from the stack.
 
@@ -104,7 +104,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
         return tuple(self._statistical_models)
 
     @property
-    def analyses(self) -> List[Text]:
+    def analyses(self) -> List[str]:
         """
         List of the unique identifiers of the statistical models within the stack.
 
@@ -151,7 +151,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
         r"""Check if :math:`\chi^2` calculator is available for the backend"""
         return all(model.is_chi_square_calculator_available for model in self)
 
-    def __getitem__(self, item: Union[Text, int]) -> StatisticalModel:
+    def __getitem__(self, item: Union[str, int]) -> StatisticalModel:
         """Retrieve a statistical model"""
         if isinstance(item, int):
             if item < len(self):
@@ -175,7 +175,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
         """Number of statistical models within the stack"""
         return len(self._statistical_models)
 
-    def items(self) -> Iterator[Tuple[Text, StatisticalModel]]:
+    def items(self) -> Iterator[Tuple[str, StatisticalModel]]:
         """
         Returns a generator that returns analysis name and :obj:`~spey.StatisticalModel`
         every iteration.
@@ -201,8 +201,8 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
         poi_test: float = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
-        data: Optional[Dict[Text, List[float]]] = None,
-        statistical_model_options: Optional[Dict[Text, Dict]] = None,
+        data: Optional[Dict[str, List[float]]] = None,
+        statistical_model_options: Optional[Dict[str, Dict]] = None,
         **kwargs,
     ) -> float:
         r"""
@@ -277,10 +277,10 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
     def generate_asimov_data(
         self,
         expected: ExpectationType = ExpectationType.observed,
-        test_statistic: Text = "qtilde",
-        statistical_model_options: Optional[Dict[Text, Dict]] = None,
+        test_statistic: str = "qtilde",
+        statistical_model_options: Optional[Dict[str, Dict]] = None,
         **kwargs,
-    ) -> Dict[Text, List[float]]:
+    ) -> Dict[str, List[float]]:
         r"""
         Generate Asimov data for the statistical model. This function calls
         :func:`~spey.StatisticalModel.generate_asimov_data` function for each statistical model with
@@ -361,8 +361,8 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
         poi_test: float = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
-        test_statistics: Text = "qtilde",
-        statistical_model_options: Optional[Dict[Text, Dict]] = None,
+        test_statistics: str = "qtilde",
+        statistical_model_options: Optional[Dict[str, Dict]] = None,
         **kwargs,
     ) -> float:
         r"""
@@ -436,10 +436,10 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
         return_nll: bool = True,
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = True,
-        data: Optional[Dict[Text, List[float]]] = None,
+        data: Optional[Dict[str, List[float]]] = None,
         initial_muhat_value: Optional[float] = None,
         par_bounds: Optional[List[Tuple[float, float]]] = None,
-        statistical_model_options: Optional[Dict[Text, Dict]] = None,
+        statistical_model_options: Optional[Dict[str, Dict]] = None,
         **optimiser_options,
     ) -> Tuple[float, float]:
         r"""
@@ -561,10 +561,10 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
         self,
         return_nll: bool = True,
         expected: ExpectationType = ExpectationType.observed,
-        test_statistics: Text = "qtilde",
+        test_statistics: str = "qtilde",
         initial_muhat_value: Optional[float] = None,
         par_bounds: Optional[List[Tuple[float, float]]] = None,
-        statistical_model_options: Optional[Dict[Text, Dict]] = None,
+        statistical_model_options: Optional[Dict[str, Dict]] = None,
         **optimiser_options,
     ) -> Tuple[float, float]:
         r"""

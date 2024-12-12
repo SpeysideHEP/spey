@@ -9,7 +9,7 @@ body:
       value: |
         ## Before posting a feature request
         Search existing [GitHub issues](https://github.com/SpeysideHEP/spey/issues) to make sure the issue does not already exist.
-        
+
         * **Please use [Markdown syntax](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax).**
   - type: textarea
     id: system
@@ -63,4 +63,3 @@ body:
       options:
         - label: I have searched existing GitHub issues to make sure the issue does not already exist.
           required: true
-

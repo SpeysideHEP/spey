@@ -31,8 +31,3 @@ testpypi:
 .PHONY: pypi
 pypi:
 	python3 -m twine upload -r pypi dist/*
-
-
-
-
-

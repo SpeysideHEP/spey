@@ -33,7 +33,7 @@ jobs:
         uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -44,7 +44,7 @@ jobs:
       - name: Compile Docs
         run: |
           cd docs; make clean; make html; cd ..
-      
+
       - name: Fix permissions if needed
         run: |
           chmod -c -R +rX "docs/_build/html/" | while read line; do
