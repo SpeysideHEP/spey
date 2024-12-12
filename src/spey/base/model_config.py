@@ -37,7 +37,7 @@ class ModelConfig:
     minimum_poi: float
     r"""
     minimum value parameter of interest can take to ensure :math:`N^{\rm bkg}+\mu N^{\rm sig}\geq0`.
-    This value can be set to :math:`-\infty` but note that optimiser will take it as a lower bound so 
+    This value can be set to :math:`-\infty` but note that optimiser will take it as a lower bound so
     such low value might effect the convergence of the optimisation algorithm especially for relatively
     flat objective surfaceses. Hence we suggest setting the minimum value to
 
@@ -49,7 +49,7 @@ class ModelConfig:
     """Suggested initialisation for parameters"""
     suggested_bounds: List[Tuple[float, float]]
     """Suggested upper and lower bounds for parameters"""
-    parameter_names: Optional[List[Text]] = None
+    parameter_names: Optional[List[str]] = None
     """Names of the parameters"""
     suggested_fixed: Optional[List[bool]] = None
     """Suggested fixed values"""

@@ -8,7 +8,7 @@ To get started, fork the ``main`` repository.
 For anything beyond minimal fixes that do not require discussion, please first `open an issue <https://github.com/SpeysideHEP/spey/issues/new/choose>`_
 to discuss your request with the development team.
 
-If your proposed changes are more extensive than a few lines of code, please create a draft pull request. 
+If your proposed changes are more extensive than a few lines of code, please create a draft pull request.
 This draft should include the context of the change, a description, and the benefits of the implementation.
 
 * For changes within the Python interface of the program, please run standard tests and write additional tests if necessary.
@@ -66,5 +66,5 @@ Throughout the code, the following documentation style has been employed
         {{descriptionPlaceholder}}
     {{/returns}}
 
-This code can directly be imported into ``custom.mustache`` file and used within 
+This code can directly be imported into ``custom.mustache`` file and used within
 vscode as an auto docstring generator.

@@ -21,9 +21,9 @@ class ConnectionError(Exception):
 
 def get_bibtex(
     home: Literal["inspire/arxiv", "inspire/doi", "doi", "zenodo"],
-    identifier: Text,
+    identifier: str,
     timeout: int = 5,
-) -> Text:
+) -> str:
     """
     Retreive BibTex information from InspireHEP, Zenodo or DOI.org
 

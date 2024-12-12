@@ -19,20 +19,20 @@ Installation
     >>> pip install spey
 
 
-Python >=3.8 is required. spey heavily relies on `numpy <https://numpy.org/doc/stable/>`_, 
-`scipy <https://docs.scipy.org/doc/scipy/>`_ and `autograd <https://github.com/HIPS/autograd>`_ 
-which are all packaged during the installation with the necessary versions. Note that some 
+Python >=3.8 is required. spey heavily relies on `numpy <https://numpy.org/doc/stable/>`_,
+`scipy <https://docs.scipy.org/doc/scipy/>`_ and `autograd <https://github.com/HIPS/autograd>`_
+which are all packaged during the installation with the necessary versions. Note that some
 versions may be restricted due to numeric stability and validation.
 
 What is Spey?
 -------------
 
-Spey is a plug-in-based statistics tool designed to consolidate a wide range of 
-likelihood prescriptions in a comprehensive platform. Spey empowers users to integrate 
-different statistical models seamlessly and explore 
-their properties through a unified interface by offering a flexible workspace. 
-To ensure compatibility with existing and future 
-statistical model prescriptions, Spey adopts a versatile plug-in system. This approach enables 
+Spey is a plug-in-based statistics tool designed to consolidate a wide range of
+likelihood prescriptions in a comprehensive platform. Spey empowers users to integrate
+different statistical models seamlessly and explore
+their properties through a unified interface by offering a flexible workspace.
+To ensure compatibility with existing and future
+statistical model prescriptions, Spey adopts a versatile plug-in system. This approach enables
 developers to propose and integrate their statistical model prescriptions, thereby expanding
 the capabilities and applicability of Spey.
 
@@ -42,8 +42,8 @@ the capabilities and applicability of Spey.
 First Steps
 -----------
 
-First, one needs to choose which backend to work with. By default, Spey is shipped with various types of 
-likelihood prescriptions which can be checked via :func:`~spey.AvailableBackends` 
+First, one needs to choose which backend to work with. By default, Spey is shipped with various types of
+likelihood prescriptions which can be checked via :func:`~spey.AvailableBackends`
 function
 
 .. code-block:: python3
@@ -74,21 +74,21 @@ statistical models:
     ...     background_yields=background_yields,
     ...     data=data,
     ...     absolute_uncertainties=background_unc,
-    ...     analysis="single_bin", 
+    ...     analysis="single_bin",
     ...     xsection=0.123,
     ... )
 
 where ``data`` indicates the observed events, ``signal_yields`` and ``background_yields`` represents
-yields for signal and background samples and ``background_unc`` shows the absolute uncertainties on 
-the background events, i.e. :math:`2.0\pm1.1` in this particular case. Note that we also introduced 
+yields for signal and background samples and ``background_unc`` shows the absolute uncertainties on
+the background events, i.e. :math:`2.0\pm1.1` in this particular case. Note that we also introduced
 ``analysis`` and ``xsection`` information which are optional where the ``analysis`` indicates an unique
 identifier for the statistical model, and ``xsection`` is the cross-section value of the signal, which is
 only used for the computation of the excluded cross-section value.
 
-During the computation of any probability distribution, Spey relies on the so-called "expectation type". 
+During the computation of any probability distribution, Spey relies on the so-called "expectation type".
 This can be set via :obj:`~spey.ExpectationType`, which includes three different expectation modes.
 
-* :obj:`~spey.ExpectationType.observed`: Indicates that the computation of the log-probability will be 
+* :obj:`~spey.ExpectationType.observed`: Indicates that the computation of the log-probability will be
   achieved by fitting the statistical model on the experimental data. For the exclusion limit computation,
   this will tell the package to compute observed :math:`1-CL_s` values. :obj:`~spey.ExpectationType.observed`
   has been set as default throughout the package.
@@ -98,7 +98,7 @@ This can be set via :obj:`~spey.ExpectationType`, which includes three different
   the statistical model on the background and checking :math:`\pm1\sigma` and :math:`\pm2\sigma` fluctuations.
 
 * :obj:`~spey.ExpectationType.apriori`: Indicates that the observation has never taken place and the theoretical
-  SM computation is the absolute truth. Thus, it replaces observed values in the statistical model with the 
+  SM computation is the absolute truth. Thus, it replaces observed values in the statistical model with the
   background values and computes the log-probability accordingly. Similar to :obj:`~spey.ExpectationType.aposteriori`
   Exclusion limit computation will return expected limits.
 
@@ -112,12 +112,12 @@ To compute the observed exclusion limit for the above example, one can type
     >>> # 1-CLs (aposteriori): [0.6959976874809755, 0.5466491036450178, 0.3556261845401908, 0.2623335168616665, 0.2623335168616665]
     >>> # 1-CLs (observed): [0.40145846656558726]
 
-Note that :obj:`~spey.ExpectationType.apriori` and :obj:`~spey.ExpectationType.aposteriori` expectation types 
+Note that :obj:`~spey.ExpectationType.apriori` and :obj:`~spey.ExpectationType.aposteriori` expectation types
 resulted in a list of 5 elements which indicates :math:`-2\sigma,\ -1\sigma,\ 0,\ +1\sigma,\ +2\sigma` standard deviations
-from the background hypothesis. :obj:`~spey.ExpectationType.observed`, on the other hand, resulted in a single value, which is 
-the observed exclusion limit. Notice that the bounds on :obj:`~spey.ExpectationType.aposteriori` are slightly more potent than 
-:obj:`~spey.ExpectationType.apriori`; this is due to the data value has been replaced with background yields, 
-which are larger than the observations. :obj:`~spey.ExpectationType.apriori` is mainly used in theory 
+from the background hypothesis. :obj:`~spey.ExpectationType.observed`, on the other hand, resulted in a single value, which is
+the observed exclusion limit. Notice that the bounds on :obj:`~spey.ExpectationType.aposteriori` are slightly more potent than
+:obj:`~spey.ExpectationType.apriori`; this is due to the data value has been replaced with background yields,
+which are larger than the observations. :obj:`~spey.ExpectationType.apriori` is mainly used in theory
 collaborations to estimate the difference from the Standard Model rather than the experimental observations.
 
 .. note::
@@ -140,11 +140,11 @@ One can play the same game using the same backend for multi-bin histograms as fo
     ...     background_yields=background_yields,
     ...     data=data,
     ...     absolute_uncertainties=background_unc,
-    ...     analysis="multi_bin", 
+    ...     analysis="multi_bin",
     ...     xsection=0.123,
     ... )
 
-Note that our statistical model still represents individual bins of the histograms independently however, it sums up the 
+Note that our statistical model still represents individual bins of the histograms independently however, it sums up the
 log-likelihood of each bin. Hence, all bins are completely uncorrelated from each other. Computing the exclusion limits
 for each :obj:`~spey.ExpectationType` will yield
 
@@ -178,7 +178,7 @@ This can be achieved by including a value for ``poi_test`` argument
     >>> plt.text(0.5,0.96, r"$95\%\ {\rm CL}$")
     >>> plt.show()
 
-Here in the first line, we extract :math:`1-CL_s` values per POI for :obj:`~spey.ExpectationType.aposteriori` 
+Here in the first line, we extract :math:`1-CL_s` values per POI for :obj:`~spey.ExpectationType.aposteriori`
 expectation type, and we plot specific standard deviations, which provides the following plot:
 
 .. image:: ./figs/brazilian_plot.png
@@ -194,7 +194,7 @@ The excluded value of POI can also be retrieved by :func:`~spey.StatisticalModel
     >>> # POI UL:  0.920
 
 which is the exact point where the red curve and black dashed line meet. The upper limit for the :math:`\pm1\sigma`
-or :math:`\pm2\sigma` bands can be extracted by setting ``expected_pvalue`` to ``"1sigma"`` or ``"2sigma"`` 
+or :math:`\pm2\sigma` bands can be extracted by setting ``expected_pvalue`` to ``"1sigma"`` or ``"2sigma"``
 respectively, e.g.
 
 .. code:: python
@@ -202,10 +202,10 @@ respectively, e.g.
     >>> stat_model.poi_upper_limit(expected=spey.ExpectationType.aposteriori, expected_pvalue="1sigma")
     >>> # [0.5507713378348318, 0.9195052042538805, 1.4812721449679866]
 
-At a lower level, one can extract the likelihood information for the statistical model by calling 
+At a lower level, one can extract the likelihood information for the statistical model by calling
 :func:`~spey.StatisticalModel.likelihood` and :func:`~spey.StatisticalModel.maximize_likelihood` functions.
 By default, these will return negative log-likelihood values, but this can be changed via ``return_nll=False``
-argument. 
+argument.
 
 .. code:: python
     :linenos:
@@ -241,6 +241,6 @@ as follows
     :alt: Likelihood distribution for a multi-bin statistical model.
 
 Notice the slight difference between likelihood distributions because of the use of different expectation types.
-The dots on the likelihood distribution represent the point where the likelihood is maximised. Since for an 
+The dots on the likelihood distribution represent the point where the likelihood is maximised. Since for an
 :obj:`~spey.ExpectationType.apriori` likelihood distribution observed and background values are the same, the likelihood
 should peak at :math:`\mu=0`.

@@ -60,7 +60,7 @@ class StatisticalModel(HypothesisTestingBase):
     def __init__(
         self,
         backend: BackendBase,
-        analysis: Text,
+        analysis: str,
         xsection: float = np.nan,
         ntoys: int = 1000,
     ):
@@ -68,7 +68,7 @@ class StatisticalModel(HypothesisTestingBase):
         self._backend: BackendBase = backend
         self.xsection: float = xsection
         """Value of the cross section, unit is defined by the user."""
-        self.analysis: Text = analysis
+        self.analysis: str = analysis
         """Unique identifier as analysis name"""
         super().__init__(ntoys=ntoys)
 
@@ -92,7 +92,7 @@ class StatisticalModel(HypothesisTestingBase):
         return self._backend
 
     @property
-    def backend_type(self) -> Text:
+    def backend_type(self) -> str:
         """Return type of the backend"""
         return getattr(self.backend, "name", self.backend.__class__.__name__)
 
@@ -117,7 +117,7 @@ class StatisticalModel(HypothesisTestingBase):
         return True
 
     @property
-    def available_calculators(self) -> List[Text]:
+    def available_calculators(self) -> List[str]:
         """
         Retruns available calculator names i.e. ``'toy'``,
         ``'asymptotic'`` and ``'chi_square'``.
@@ -311,7 +311,7 @@ class StatisticalModel(HypothesisTestingBase):
     def generate_asimov_data(
         self,
         expected: ExpectationType = ExpectationType.observed,
-        test_statistic: Text = "qtilde",
+        test_statistic: str = "qtilde",
         init_pars: Optional[List[float]] = None,
         par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
@@ -386,7 +386,7 @@ class StatisticalModel(HypothesisTestingBase):
         poi_test: float = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
-        test_statistics: Text = "qtilde",
+        test_statistics: str = "qtilde",
         init_pars: Optional[List[float]] = None,
         par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
@@ -517,7 +517,7 @@ class StatisticalModel(HypothesisTestingBase):
         self,
         return_nll: bool = True,
         expected: ExpectationType = ExpectationType.observed,
-        test_statistics: Text = "qtilde",
+        test_statistics: str = "qtilde",
         init_pars: Optional[List[float]] = None,
         par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
@@ -790,7 +790,7 @@ def statistical_model_wrapper(
 
     def wrapper(
         *args,
-        analysis: Text = "__unknown_analysis__",
+        analysis: str = "__unknown_analysis__",
         xsection: float = np.nan,
         ntoys: int = 1000,
         **kwargs,

@@ -2,7 +2,7 @@
 
 import logging
 import warnings
-from typing import Any, Callable, Dict, List, Literal, Text, Union
+from typing import Any, Callable, Dict, List, Literal, Union
 
 import autograd.numpy as np
 from autograd.scipy.special import gammaln
@@ -257,7 +257,7 @@ class ConstraintModel:
               * ``"kwargs"``: Input keyword arguments for the distribution
     """
 
-    def __init__(self, pdf_descriptions: List[Dict[Text, Any]]):
+    def __init__(self, pdf_descriptions: List[Dict[str, Any]]):
         self._pdfs = []
         distributions = {"normal": Normal, "multivariatenormal": MultivariateNormal}
 

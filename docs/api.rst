@@ -11,7 +11,7 @@ Top-Level
 
 .. currentmodule:: spey
 
-.. autosummary:: 
+.. autosummary::
     :toctree: _generated/
 
     version
@@ -68,7 +68,7 @@ Hypothesis testing
 
 .. currentmodule:: spey.hypothesis_testing
 
-.. autosummary:: 
+.. autosummary::
     :toctree: _generated/
 
     test_statistics.qmu
@@ -91,7 +91,7 @@ Gradient Tools
 
 .. currentmodule:: spey.math
 
-.. autosummary:: 
+.. autosummary::
     :toctree: _generated/
 
     value_and_grad
@@ -105,7 +105,7 @@ Distributions
 
 .. currentmodule:: spey.backends.distributions
 
-.. autosummary:: 
+.. autosummary::
     :toctree: _generated/
 
     Poisson
@@ -119,7 +119,7 @@ Default PDFs
 
 .. currentmodule:: spey.backends.default_pdf
 
-.. autosummary:: 
+.. autosummary::
     :toctree: _generated/
 
     DefaultPDFBase
@@ -133,7 +133,7 @@ Default PDFs
 Simple PDFs
 ~~~~~~~~~~~
 
-.. autosummary:: 
+.. autosummary::
     :toctree: _generated/
 
     simple_pdf.Poisson
@@ -146,7 +146,7 @@ Exceptions
 
 .. currentmodule:: spey.system.exceptions
 
-.. autosummary:: 
+.. autosummary::
     :toctree: _generated/
     :nosignatures:
 

@@ -1,7 +1,7 @@
 """Abstract Methods for backend objects"""
 
 from abc import ABC, abstractmethod
-from typing import Callable, List, Optional, Text, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -250,7 +250,7 @@ class BackendBase(ABC):
         self,
         poi_test: float = 1.0,
         expected: ExpectationType = ExpectationType.observed,
-        test_statistics: Text = "qtilde",
+        test_statistics: str = "qtilde",
         **kwargs,
     ) -> Tuple[float, np.ndarray]:
         r"""
@@ -353,7 +353,7 @@ class BackendBase(ABC):
     def minimize_asimov_negative_loglikelihood(
         self,
         expected: ExpectationType = ExpectationType.observed,
-        test_statistics: Text = "qtilde",
+        test_statistics: str = "qtilde",
         **kwargs,
     ) -> Tuple[float, np.ndarray]:
         r"""

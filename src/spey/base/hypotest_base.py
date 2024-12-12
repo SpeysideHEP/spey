@@ -6,7 +6,7 @@ tools to compute exclusion limits and POI upper limits
 import logging
 from abc import ABC, abstractmethod
 from functools import partial
-from typing import Any, Callable, Dict, List, Literal, Optional, Text, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import tqdm
@@ -841,7 +841,7 @@ class HypothesisTestingBase(ABC):
         hig_init: Optional[float] = 1.0,
         expected_pvalue: Literal["nominal", "1sigma", "2sigma"] = "nominal",
         maxiter: int = 10000,
-        optimiser_arguments: Optional[Dict[Text, Any]] = None,
+        optimiser_arguments: Optional[Dict[str, Any]] = None,
     ) -> Union[float, List[float]]:
         r"""
         Compute the upper limit for the parameter of interest i.e. :math:`\mu`.

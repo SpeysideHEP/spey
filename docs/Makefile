@@ -1,4 +1,4 @@
-# Makefile for Sphinx documentation 
+# Makefile for Sphinx documentation
 
 SPHINXOPTS    = -W --keep-going #-n
 SPHINXBUILD   = sphinx-build

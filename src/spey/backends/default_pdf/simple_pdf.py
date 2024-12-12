@@ -1,10 +1,11 @@
 """This file contains basic likelihood implementations"""
 
-from typing import Callable, List, Optional, Text, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
-from autograd import hessian
+from autograd import hessian, jacobian
 from autograd import numpy as np
 from autograd import value_and_grad
+from scipy.optimize import NonlinearConstraint
 
 from spey._version import __version__
 from spey.backends.distributions import MainModel
@@ -18,13 +19,13 @@ from spey.utils import ExpectationType
 class SimplePDFBase(BackendBase):
     """Base structure for simple PDFs"""
 
-    name: Text = "__simplepdf_base__"
+    name: str = "__simplepdf_base__"
     """Name of the backend"""
-    version: Text = __version__
+    version: str = __version__
     """Version of the backend"""
-    author: Text = "SpeysideHEP"
+    author: str = "SpeysideHEP"
     """Author of the backend"""
-    spey_requires: Text = __version__
+    spey_requires: str = __version__
     """Spey version required for the backend"""
 
     __slots__ = [
@@ -49,6 +50,8 @@ class SimplePDFBase(BackendBase):
         """main model"""
         self._main_kwargs = {}
         """Keyword arguments for main model"""
+        self.constraints = []
+        """Constraints to be used during optimisation process"""
 
         minimum_poi = -np.inf
         if self.is_alive:
@@ -297,15 +300,17 @@ class Poisson(SimplePDFBase):
         signal_yields (``List[float]``): signal yields
         background_yields (``List[float]``): background yields
         data (``List[int]``): data
+        absolute_uncertainties (``List[float]``, optional): background uncertainties to be added.
+          :math:`\mu n_s^i + n_b^i + \theta^i\sigma^i`.
     """
 
-    name: Text = "default_pdf.poisson"
+    name: str = "default_pdf.poisson"
     """Name of the backend"""
-    version: Text = SimplePDFBase.version
+    version: str = SimplePDFBase.version
     """Version of the backend"""
-    author: Text = SimplePDFBase.author
+    author: str = SimplePDFBase.author
     """Author of the backend"""
-    spey_requires: Text = SimplePDFBase.spey_requires
+    spey_requires: str = SimplePDFBase.spey_requires
     """Spey version required for the backend"""
 
     def __init__(
@@ -313,10 +318,47 @@ class Poisson(SimplePDFBase):
         signal_yields: List[float],
         background_yields: List[float],
         data: List[int],
+        absolute_uncertainties: Optional[List[float]] = None,
     ):
         super().__init__(
             signal_yields=signal_yields, background_yields=background_yields, data=data
         )
+
+        if absolute_uncertainties is not None:
+            self.absolute_uncertainties = np.array(absolute_uncertainties)
+            assert len(self.absolute_uncertainties) == len(
+                self.data
+            ), "Invalid input dimension."
+
+            def lam(pars: np.ndarray) -> np.ndarray:
+                return (
+                    pars[0] * self.signal_yields
+                    + self.background_yields
+                    + pars[slice(1, len(self.data) + 1)] * self.absolute_uncertainties
+                )
+
+            self._main_model = MainModel(lam)
+
+            self._config = ModelConfig(
+                poi_index=0,
+                minimum_poi=self._config.minimum_poi,
+                suggested_init=[1.0] * (len(self.data) + 1),
+                suggested_bounds=[(self._config.minimum_poi, 10)]
+                + [(None, None)] * len(self.data),
+            )
+
+            def constraint(pars: np.ndarray) -> np.ndarray:
+                """Compute the constraint term"""
+                return (
+                    self.background_yields
+                    + pars[slice(1, len(self.data) + 1)] * self.background_yields
+                )
+
+            jac_constr = jacobian(constraint)
+
+            self.constraints.append(
+                NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
+            )
 
 
 class Gaussian(SimplePDFBase):
@@ -339,13 +381,13 @@ class Gaussian(SimplePDFBase):
         absolute_uncertainties (``List[float]``): absolute uncertainties on the background
     """
 
-    name: Text = "default_pdf.normal"
+    name: str = "default_pdf.normal"
     """Name of the backend"""
-    version: Text = SimplePDFBase.version
+    version: str = SimplePDFBase.version
     """Version of the backend"""
-    author: Text = SimplePDFBase.author
+    author: str = SimplePDFBase.author
     """Author of the backend"""
-    spey_requires: Text = SimplePDFBase.spey_requires
+    spey_requires: str = SimplePDFBase.spey_requires
     """Spey version required for the backend"""
 
     __slots__ = ["absolute_uncertainties"]
@@ -389,13 +431,13 @@ class MultivariateNormal(SimplePDFBase):
 
     """
 
-    name: Text = "default_pdf.multivariate_normal"
+    name: str = "default_pdf.multivariate_normal"
     """Name of the backend"""
-    version: Text = SimplePDFBase.version
+    version: str = SimplePDFBase.version
     """Version of the backend"""
-    author: Text = SimplePDFBase.author
+    author: str = SimplePDFBase.author
     """Author of the backend"""
-    spey_requires: Text = SimplePDFBase.spey_requires
+    spey_requires: str = SimplePDFBase.spey_requires
     """Spey version required for the backend"""
 
     __slots__ = ["covariance_matrix"]

@@ -78,7 +78,7 @@ def set_log_level(level: Literal[0, 1, 2, 3]) -> None:
     log.setLevel(log_dict[level])
 
 
-def version() -> Text:
+def version() -> str:
     """
     Version of ``spey`` package
 
@@ -88,7 +88,7 @@ def version() -> Text:
     return __version__
 
 
-def _get_backend_entrypoints() -> Dict[Text, pkg_resources.EntryPoint]:
+def _get_backend_entrypoints() -> Dict[str, pkg_resources.EntryPoint]:
     """Collect plugin entries"""
     return {
         entry.name: entry
@@ -96,7 +96,7 @@ def _get_backend_entrypoints() -> Dict[Text, pkg_resources.EntryPoint]:
     }
 
 
-_backend_entries: Dict[Text, pkg_resources.EntryPoint] = _get_backend_entrypoints()
+_backend_entries: Dict[str, pkg_resources.EntryPoint] = _get_backend_entrypoints()
 # ! Preinitialise backends, it might be costly to scan the system everytime
 
 
@@ -105,7 +105,7 @@ def reset_backend_entries() -> None:
     _backend_entries = _get_backend_entrypoints()
 
 
-def AvailableBackends() -> List[Text]:  # pylint: disable=C0103
+def AvailableBackends() -> List[str]:  # pylint: disable=C0103
     """
     Returns a list of available backends. The default backends are automatically installed
     with ``spey`` package. To enable other backends, please see the relevant section
@@ -122,7 +122,7 @@ def AvailableBackends() -> List[Text]:  # pylint: disable=C0103
     return [*_backend_entries.keys()]
 
 
-def get_backend(name: Text) -> Callable[[Any], StatisticalModel]:
+def get_backend(name: str) -> Callable[[Any], StatisticalModel]:
     """
     Statistical model backend retreiver. Available backend names can be found via
     :func:`~spey.AvailableBackends` function.
@@ -210,7 +210,7 @@ def get_backend(name: Text) -> Callable[[Any], StatisticalModel]:
     )
 
 
-def get_backend_metadata(name: Text) -> Dict[Text, Any]:
+def get_backend_metadata(name: str) -> Dict[str, Any]:
     """
     Retreive metadata about the backend. This includes citation information,
     doi, author names etc. Available backend names can be found via
@@ -265,7 +265,7 @@ def get_backend_metadata(name: Text) -> Dict[Text, Any]:
     )
 
 
-def get_backend_bibtex(name: Text) -> Dict[Text, List[Text]]:
+def get_backend_bibtex(name: str) -> Dict[str, List[str]]:
     """
     Retreive BibTex entry for backend plug-in if available.
 
@@ -326,7 +326,7 @@ def get_backend_bibtex(name: Text) -> Dict[Text, List[Text]]:
     return out
 
 
-def cite() -> List[Text]:
+def cite() -> List[str]:
     """Retreive BibTex information for Spey"""
     try:
         arxiv = textwrap.indent(get_bibtex("inspire/arxiv", "2307.06996"), " " * 4)
