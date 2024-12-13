@@ -18,13 +18,15 @@ If your proposed changes are more extensive than a few lines of code, please cre
 Follow these steps to submit a pull request:
 
 1. Fork the `spey` repository.
-2. Open an issue and discuss the implementation with the developers.
-3. Commit your changes to a feature branch on your fork and push all your changes.
-4. Start a draft pull request and inform the developers about your progress.
-5. Pull the ``main`` branch to ensure there are no conflicts with the current code developments.
-6. Modify the appropriate section of
+2. Install pre-commit using `pip install pre-commit`
+3. Go to `spey` main folder and type `pre-commit install`.
+4. Open an issue and discuss the implementation with the developers.
+5. Commit your changes to a feature branch on your fork and push all your changes.
+6. Start a draft pull request and inform the developers about your progress.
+7. Pull the ``main`` branch to ensure there are no conflicts with the current code developments.
+8. Modify the appropriate section of
    `docs/releases/changelog-dev.md`.
-7. Once complete, request a review from one of the maintainers.
+9. Once complete, request a review from one of the maintainers.
 
 #### Docstring style
 

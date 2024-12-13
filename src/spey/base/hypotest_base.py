@@ -36,7 +36,7 @@ def __dir__():
 
 log = logging.getLogger("Spey")
 
-# pylint: disable=W1203,C0103
+# pylint: disable=W1203,C0103,possibly-used-before-assignment
 
 
 class HypothesisTestingBase(ABC):
