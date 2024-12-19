@@ -21,10 +21,24 @@ kernelspec:
 
 Let us assume that we have a set of signal uncertainties (such as scale and PDF uncertainties). We can extend the likelihood prescription to include these uncertainties as a new set of nuisance parameters.
 
-```{note}
+```{attention}
 :class: dropdown
 
-Note that theoretical uncertainties have different interpretations, we can interpret them similar to experimental uncertainties, as we will do in this tutorial, or they can be interpreted as uncertainties on the cross-section. In the latter case one should compute the limits by changing the signal yields with respect to the change in cross section.
+Note that theoretical uncertainties have different interpretations, we can interpret them similar to experimental uncertainties, as we will do in this tutorial, or they can be interpreted as uncertainties on the cross-section. In the latter case one should compute the limits by changing the background uncertainties with respect to the change in cross section. Notice that the below example adds an extra source of error in terms of a normal distribution, this will widen the likelihood distribution. If this is not the intended use of the error source, it can be added as follows;
+
+    import spey
+    from math import sqrt
+
+    pdf_wrapper = spey.get_backend("default_pdf.uncorrelated_background")
+    statistical_model_sigunc = pdf_wrapper(
+        signal_yields=[12.0],
+        background_yields=[50.0],
+        data=[36],
+        absolute_uncertainties=[sqrt(12.0**2 + (12.0*0.2)**2)],
+    )
+
+Notice that here we added 20% uncertainty on the signal yields.
+
 ```
 
 ```{code-cell} ipython3
