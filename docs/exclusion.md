@@ -73,7 +73,7 @@ The `allow_negative_signal` keyword controls which test statistic is used and re
 
 For complex statistical models, optimizing the likelihood can be challenging and depends on the choice of optimizer. Spey uses SciPy for optimization and fitting tasks. Any additional keyword arguments not explicitly covered in the {func}`~spey.StatisticalModel.exclusion_confidence_level` function description are passed directly to the optimizer, allowing users to customize its behavior through the interface.
 
-Below we compare the exclusion limits computed with each approach. This comparisson uses normal distribution for the likelihood ([`default_pdf.normal`](#normal)) background yields are set to $n_b$, uncertainties are shown with $\sigma$ and observations are given with $n$.
+Below we compare the exclusion limits computed with each approach. This comparisson uses normal distribution for the likelihood ([`default.normal`](#normal)) background yields are set to $n_b$, uncertainties are shown with $\sigma$ and observations are given with $n$.
 
 ```{figure} ./figs/comparisson_observed.png
 ---
@@ -90,7 +90,7 @@ exclusion limit calculator comparisson for observed p-values
 ```{code-cell} ipython3
 import spey
 
-stat_wrapper = spey.get_backend("default_pdf.normal")
+stat_wrapper = spey.get_backend("default.normal")
 statistical_model = stat_wrapper(
     signal_yields=[3.0],
     background_yields=[2.0],

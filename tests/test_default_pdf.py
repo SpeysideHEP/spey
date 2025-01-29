@@ -7,7 +7,7 @@ import spey
 def test_uncorrelated_background():
     """tester for uncorrelated background model"""
 
-    pdf_wrapper = spey.get_backend("default_pdf.uncorrelated_background")
+    pdf_wrapper = spey.get_backend("default.uncorrelated_background")
 
     data = [36, 33]
     signal_yields = [12.0, 15.0]
@@ -32,7 +32,7 @@ def test_uncorrelated_background():
 def test_correlated_background():
     """tester for correlated background"""
 
-    pdf_wrapper = spey.get_backend("default_pdf.correlated_background")
+    pdf_wrapper = spey.get_backend("default.correlated_background")
     statistical_model = pdf_wrapper(
         signal_yields=[12.0, 15.0],
         background_yields=[50.0, 48.0],
@@ -54,7 +54,7 @@ def test_correlated_background():
 def test_third_moment():
     """tester for the third moment"""
 
-    pdf_wrapper = spey.get_backend("default_pdf.third_moment_expansion")
+    pdf_wrapper = spey.get_backend("default.third_moment_expansion")
     statistical_model = pdf_wrapper(
         signal_yields=[12.0, 15.0],
         background_yields=[50.0, 48.0],
@@ -79,7 +79,7 @@ def test_third_moment():
 def test_effective_sigma():
     """tester for the effective sigma"""
 
-    pdf_wrapper = spey.get_backend("default_pdf.effective_sigma")
+    pdf_wrapper = spey.get_backend("default.effective_sigma")
     statistical_model = pdf_wrapper(
         signal_yields=[12.0, 15.0],
         background_yields=[50.0, 48.0],
@@ -104,7 +104,7 @@ def test_effective_sigma():
 def test_poisson():
     """tester for uncorrelated background model"""
 
-    pdf_wrapper = spey.get_backend("default_pdf.poisson")
+    pdf_wrapper = spey.get_backend("default.poisson")
 
     data = [36, 33]
     signal_yields = [12.0, 15.0]
@@ -128,7 +128,7 @@ def test_poisson():
 def test_normal():
     """tester for gaussian model"""
 
-    statistical_model = spey.get_backend("default_pdf.normal")(
+    statistical_model = spey.get_backend("default.normal")(
         signal_yields=[12.0],
         background_yields=[50.0],
         data=[36],
@@ -153,7 +153,7 @@ def test_multivariate_gauss():
     data = np.array([36, 33])
     cov = np.array([[144.0, 13.0], [25.0, 256.0]])
 
-    statistical_model = spey.get_backend("default_pdf.multivariate_normal")(
+    statistical_model = spey.get_backend("default.multivariate_normal")(
         signal_yields=signal,
         background_yields=bkg,
         data=data,

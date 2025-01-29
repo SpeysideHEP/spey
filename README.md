@@ -55,13 +55,13 @@ Finally, the name "Spey" originally comes from the Spey River, a river in the mi
 
 | Accessor                                | Description                                                                  |
 | --------------------------------------- | ---------------------------------------------------------------------------- |
-| ``"default_pdf.uncorrelated_background"`` | Constructs uncorrelated multi-bin statistical model.                         |
-| ``"default_pdf.correlated_background"``   | Constructs correlated multi-bin statistical model with Gaussian nuisances.   |
-| ``"default_pdf.third_moment_expansion"``  | Implements the skewness of the likelihood by using third moments.            |
-| ``"default_pdf.effective_sigma"``         | Implements the skewness of the likelihood by using asymmetric uncertainties. |
-| ``"default_pdf.poisson"``                 | Implements simple Poisson-based likelihood without uncertainties. |
-| ``"default_pdf.normal"``                  | Implements Normal distribution. |
-| ``"default_pdf.multivariate_normal"``     | Implements Multivariate normal distribution. |
+| ``"default.uncorrelated_background"`` | Constructs uncorrelated multi-bin statistical model.                         |
+| ``"default.correlated_background"``   | Constructs correlated multi-bin statistical model with Gaussian nuisances.   |
+| ``"default.third_moment_expansion"``  | Implements the skewness of the likelihood by using third moments.            |
+| ``"default.effective_sigma"``         | Implements the skewness of the likelihood by using asymmetric uncertainties. |
+| ``"default.poisson"``                 | Implements simple Poisson-based likelihood without uncertainties. |
+| ``"default.normal"``                  | Implements Normal distribution. |
+| ``"default.multivariate_normal"``     | Implements Multivariate normal distribution. |
 | ``"pyhf.uncorrelated_background"``        | Uses uncorrelated background functionality of pyhf (see [``spey-phyf`` plugin](https://github.com/SpeysideHEP/spey-pyhf)).                          |
 | ``"pyhf"``                                | Uses generic likelihood structure of pyhf (see [``spey-phyf`` plugin](https://github.com/SpeysideHEP/spey-pyhf))                                   |
 
@@ -75,17 +75,17 @@ likelihood prescriptions which can be checked via `AvailableBackends` function
 ```python
 import spey
 print(spey.AvailableBackends())
-# ['default_pdf.correlated_background',
-#  'default_pdf.effective_sigma',
-#  'default_pdf.third_moment_expansion',
-#  'default_pdf.uncorrelated_background']
+# ['default.correlated_background',
+#  'default.effective_sigma',
+#  'default.third_moment_expansion',
+#  'default.uncorrelated_background']
 ```
 
-Using ``'default_pdf.uncorrelated_background'`` one can simply create single or multi-bin
+Using ``'default.uncorrelated_background'`` one can simply create single or multi-bin
 statistical models:
 
 ```python
-pdf_wrapper = spey.get_backend('default_pdf.uncorrelated_background')
+pdf_wrapper = spey.get_backend('default.uncorrelated_background')
 
 data = [1]
 signal_yields = [0.5]
@@ -147,7 +147,7 @@ collaborations to estimate the difference from the Standard Model rather than th
 One can play the same game using the same backend for multi-bin histograms as follows;
 
 ```python
-pdf_wrapper = spey.get_backend('default_pdf.uncorrelated_background')
+pdf_wrapper = spey.get_backend('default.uncorrelated_background')
 
 data = [36, 33]
 signal = [12.0, 15.0]

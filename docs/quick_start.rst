@@ -50,19 +50,19 @@ function
 
     >>> import spey
     >>> print(spey.AvailableBackends())
-    >>> # ['default_pdf.correlated_background',
-    >>> #  'default_pdf.effective_sigma',
-    >>> #  'default_pdf.third_moment_expansion',
-    >>> #  'default_pdf.uncorrelated_background']
+    >>> # ['default.correlated_background',
+    >>> #  'default.effective_sigma',
+    >>> #  'default.third_moment_expansion',
+    >>> #  'default.uncorrelated_background']
 
 For details on all the backends, see `Plug-ins section <plugins.html>`_.
 
-Using ``'default_pdf.uncorrelated_background'`` one can simply create single or multi-bin
+Using ``'default.uncorrelated_background'`` one can simply create single or multi-bin
 statistical models:
 
 .. code:: python
 
-    >>> pdf_wrapper = spey.get_backend('default_pdf.uncorrelated_background')
+    >>> pdf_wrapper = spey.get_backend('default.uncorrelated_background')
 
     >>> data = [1]
     >>> signal_yields = [0.5]
@@ -128,7 +128,7 @@ One can play the same game using the same backend for multi-bin histograms as fo
 
 .. code:: python
 
-    >>> pdf_wrapper = spey.get_backend('default_pdf.uncorrelated_background')
+    >>> pdf_wrapper = spey.get_backend('default.uncorrelated_background')
 
     >>> data = [36, 33]
     >>> signal_yields = [12.0, 15.0]

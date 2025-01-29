@@ -8,19 +8,19 @@ Plug-ins
 
    * - Keyword
      - Summary
-   * - ``'default_pdf.uncorrelated_background'``
+   * - ``'default.uncorrelated_background'``
      - :ref:`Combination of Poisson and Gaussian PDF, assuming uncorrelated bins. <uncorrelated_background>`
-   * - ``'default_pdf.correlated_background'``
+   * - ``'default.correlated_background'``
      - :ref:`Combination of Poisson and Gaussian PDF, with correlated bins. <correlated_background>`
-   * - ``'default_pdf.third_moment_expansion'``
+   * - ``'default.third_moment_expansion'``
      - :ref:`Simplified likelihood, extended with third moments of the background. <third_moment_expansion>`
-   * - ``'default_pdf.effective_sigma'``
+   * - ``'default.effective_sigma'``
      - :ref:`Simplified likelihood, extended with asymmetric uncertainties.  <effective_sigma>`
-   * - ``'default_pdf.poisson'``
+   * - ``'default.poisson'``
      - :ref:`Poisson distribution, without uncertainties.  <poisson>`
-   * - ``'default_pdf.normal'``
+   * - ``'default.normal'``
      - :ref:`Gaussian distribution.  <normal>`
-   * - ``'default_pdf.multivariate_normal'``
+   * - ``'default.multivariate_normal'``
      - :ref:`Multivariate Normal distribution.  <multinormal>`
    * - ``'pyhf'``
      - `External plug-in <https://spey-pyhf.readthedocs.io>`_ uses ``pyhf`` to construct the likelihoods.
@@ -46,10 +46,10 @@ to the available plugins can be seen using the following command:
 .. code-block:: python3
 
     >>> spey.AvailableBackends()
-    >>> # ['default_pdf.correlated_background',
-    >>> #  'default_pdf.effective_sigma',
-    >>> #  'default_pdf.third_moment_expansion',
-    >>> #  'default_pdf.uncorrelated_background']
+    >>> # ['default.correlated_background',
+    >>> #  'default.effective_sigma',
+    >>> #  'default.third_moment_expansion',
+    >>> #  'default.uncorrelated_background']
 
 where once installed without any plug-ins :func:`~spey.AvailableBackends` function
 only shows the default PDFs. In the following section, we will summarise their usability.
@@ -58,7 +58,7 @@ function e.g.
 
 .. code-block:: python3
 
-    >>> pdf_wrapper = spey.get_backend('default_pdf.uncorrelated_background')
+    >>> pdf_wrapper = spey.get_backend('default.uncorrelated_background')
 
 this will automatically create a wrapper around the likelihood prescription and allow `spey`
 to use it properly. We will demonstrate the usage for each of the default plugins below.
@@ -89,7 +89,7 @@ The first term represents the primary model, and the second represents the const
 
 .. _uncorrelated_background:
 
-``'default_pdf.uncorrelated_background'``
+``'default.uncorrelated_background'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This is a basic PDF where the background is assumed to be not correlated, where the PDF has been
@@ -108,7 +108,7 @@ used as follows
 .. code-block:: python3
     :linenos:
 
-    >>> pdf_wrapper = spey.get_backend("default_pdf.uncorrelated_background")
+    >>> pdf_wrapper = spey.get_backend("default.uncorrelated_background")
     >>> statistical_model = pdf_wrapper(
     ...     signal_yields=[12.0, 15.0],
     ...     background_yields=[50.0,48.0],
@@ -140,7 +140,7 @@ API description.
 
 .. _correlated_background:
 
-``'default_pdf.correlated_background'``
+``'default.correlated_background'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This plugin embeds the correlations between each bin using a covariance matrix provided by the user
@@ -158,7 +158,7 @@ defined as
 .. code-block:: python3
     :linenos:
 
-    >>> pdf_wrapper = spey.get_backend("default_pdf.correlated_background")
+    >>> pdf_wrapper = spey.get_backend("default.correlated_background")
     >>> statistical_model = pdf_wrapper(
     ...     signal_yields=[12.0, 15.0],
     ...     background_yields=[50.0,48.0],
@@ -191,7 +191,7 @@ as expected.
 
 .. _third_moment_expansion:
 
-``'default_pdf.third_moment_expansion'``
+``'default.third_moment_expansion'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This plug-in implements the third-moment expansion presented in :cite:`Buckley:2018vdr`, which expands the
@@ -227,7 +227,7 @@ iterating over the same example, this PDF can be accessed as follows
 .. code-block:: python3
     :linenos:
 
-    >>> pdf_wrapper = spey.get_backend("default_pdf.third_moment_expansion")
+    >>> pdf_wrapper = spey.get_backend("default.third_moment_expansion")
     >>> statistical_model = pdf_wrapper(
     ...     signal_yields=[12.0, 15.0],
     ...     background_yields=[50.0,48.0],
@@ -257,14 +257,14 @@ reduced the exclusion limit.
    For absolute uncertainty :math:`\sigma_b`; :math:`\sigma_b = \sqrt{{\rm diag}(\Sigma)}`. The covariance matrix should be a square matrix
    and both dimensions should match the number of ``background_yields`` given as input.
  * ``third_moment``: Diagonal elements of the third moments. These can be computed using
-   :func:`~spey.backends.default_pdf.third_moment.compute_third_moments` function; however this function computes third moments using
+   :func:`~spey.backends.default.third_moment.compute_third_moments` function; however this function computes third moments using
    Bifurcated Gaussian, which may not be suitable for every case.
  * ``analysis`` (optional): Unique identifier for the analysis.
  * ``xsection`` (optional): Cross-section value for the signal hypothesis. Units determined by the user.
 
 .. _effective_sigma:
 
-``'default_pdf.effective_sigma'``
+``'default.effective_sigma'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The skewness of the PDF distribution can also be captured by building an effective variance
@@ -288,7 +288,7 @@ iterating over the same example, this PDF can be utilised as follows;
 .. code-block:: python3
     :linenos:
 
-    >>> pdf_wrapper = spey.get_backend("default_pdf.effective_sigma")
+    >>> pdf_wrapper = spey.get_backend("default.effective_sigma")
     >>> statistical_model = pdf_wrapper(
     ...     signal_yields=[12.0, 15.0],
     ...     background_yields=[50.0,48.0],
@@ -324,7 +324,7 @@ Once again, the exclusion limit can be computed as
 
 .. _poisson:
 
-``'default_pdf.poisson'``
+``'default.poisson'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Simple Poisson implementation without uncertainties which can be described as follows;
@@ -338,7 +338,7 @@ It can take any number of yields.
 .. code-block:: python3
     :linenos:
 
-    >>> pdf_wrapper = spey.get_backend("default_pdf.poisson")
+    >>> pdf_wrapper = spey.get_backend("default.poisson")
     >>> statistical_model = pdf_wrapper(
     ...     signal_yields=[12.0, 15.0],
     ...     background_yields=[50.0,48.0],
@@ -357,7 +357,7 @@ It can take any number of yields.
 
 .. _normal:
 
-``'default_pdf.normal'``
+``'default.normal'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Simple Normal distribution implementation;
@@ -371,7 +371,7 @@ It can take any number of yields.
 .. code-block:: python3
     :linenos:
 
-    >>> pdf_wrapper = spey.get_backend("default_pdf.normal")
+    >>> pdf_wrapper = spey.get_backend("default.normal")
     >>> statistical_model = pdf_wrapper(
     ...     signal_yields=[12.0, 15.0],
     ...     background_yields=[50.0,48.0],
@@ -393,7 +393,7 @@ It can take any number of yields.
 
 .. _multinormal:
 
-``'default_pdf.multivariate_normal'``
+``'default.multivariate_normal'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Simple Normal distribution implementation;
@@ -407,7 +407,7 @@ It can take any number of yields.
 .. code-block:: python3
     :linenos:
 
-    >>> pdf_wrapper = spey.get_backend("default_pdf.multivariate_normal")
+    >>> pdf_wrapper = spey.get_backend("default.multivariate_normal")
     >>> statistical_model = pdf_wrapper(
     ...     signal_yields=[12.0, 15.0],
     ...     background_yields=[50.0,48.0],

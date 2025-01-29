@@ -39,7 +39,7 @@ Let us first import all the necessary packages and construct the data (please ad
     >>> models = {}
     >>> # loop overall data
     >>> for data in example_data["data"]:
-    >>>     pdf_wrapper = spey.get_backend("default_pdf.uncorrelated_background")
+    >>>     pdf_wrapper = spey.get_backend("default.uncorrelated_background")
 
     >>>     stat_model = pdf_wrapper(
     ...         signal_yields=data["signal_yields"],

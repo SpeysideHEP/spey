@@ -8,7 +8,7 @@ import spey
 def test_uncorrelated_background():
     """tester for uncorrelated background model"""
 
-    pdf_wrapper = spey.get_backend("default_pdf.uncorrelated_background")
+    pdf_wrapper = spey.get_backend("default.uncorrelated_background")
 
     data = [36, 33]
     signal_yields = [12.0, 15.0]

@@ -29,7 +29,7 @@ Note that theoretical uncertainties have different interpretations, we can inter
     import spey
     from math import sqrt
 
-    pdf_wrapper = spey.get_backend("default_pdf.uncorrelated_background")
+    pdf_wrapper = spey.get_backend("default.uncorrelated_background")
     statistical_model_sigunc = pdf_wrapper(
         signal_yields=[12.0],
         background_yields=[50.0],
@@ -57,7 +57,7 @@ $$
 where $(s)$ superscript indicates signal and $(b)$ indicates background.
 
 ```{code-cell} ipython3
-pdf_wrapper = spey.get_backend("default_pdf.uncorrelated_background")
+pdf_wrapper = spey.get_backend("default.uncorrelated_background")
 statistical_model_sigunc = pdf_wrapper(
     signal_yields=[12.0, 15.0],
     background_yields=[50.0, 48.0],

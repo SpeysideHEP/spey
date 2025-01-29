@@ -237,13 +237,13 @@ def get_backend_metadata(name: str) -> Dict[str, Any]:
 
     .. code-block:: python3
 
-        >>> spey.get_backend_metadata("default_pdf.third_moment_expansion")
+        >>> spey.get_backend_metadata("default.third_moment_expansion")
 
     will return the following
 
     .. code-block:: python3
 
-        >>> {'name': 'default_pdf.third_moment_expansion',
+        >>> {'name': 'default.third_moment_expansion',
         ... 'author': 'SpeysideHEP',
         ... 'version': '0.0.1',
         ... 'spey_requires': '0.0.1',
