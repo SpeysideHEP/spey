@@ -142,7 +142,8 @@ def find_poi_upper_limit(
 
         confidence_level (``float``, default ``0.95``): Determines the confidence level of the upper
               limit i.e. the value of :math:`1-CL_s`. It needs to be between ``[0,1]``.
-        allow_negative_signal (``bool``, default ``True``): _description_
+        allow_negative_signal (``bool``, default ``True``): allow for negative signal values. This will
+            change the computation of the test statistic.
         low_init (``float``, default ``None``): Lower limit for the search algorithm to start
         hig_init (``float``, default ``None``): Upper limit for the search algorithm to start
         expected_pvalue (``Text``, default ``"nominal"``): In case of :obj:`~spey.ExpectationType.aposteriori`
