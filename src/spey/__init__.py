@@ -150,7 +150,7 @@ def get_backend(name: str) -> Callable[[Any], StatisticalModel]:
         :linenos:
 
         >>> import spey; import numpy as np
-        >>> stat_wrapper = spey.get_backend("default_pdf.uncorrelated_background")
+        >>> stat_wrapper = spey.get_backend("default.uncorrelated_background")
 
         >>> data = np.array([1])
         >>> signal = np.array([0.5])
@@ -175,6 +175,12 @@ def get_backend(name: str) -> Callable[[Any], StatisticalModel]:
         the backend it self which is in this particular example
         :obj:`~spey.backends.simplifiedlikelihood_backend.interface.SimplifiedLikelihoodInterface`.
     """
+    if "default_pdf" in name:
+        log.warning(
+            f"`{name}` has been deprecated, please use `{name.replace('default_pdf', 'default')}` instead."
+            " This will be removed in the future."
+        )
+        name = name.replace("default_pdf", "default")
     backend = _backend_entries.get(name, False)
 
     if backend:

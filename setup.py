@@ -17,13 +17,13 @@ requirements = [
 ]
 
 backend_plugins = [
-    "default_pdf.uncorrelated_background = spey.backends.default_pdf:UncorrelatedBackground",
-    "default_pdf.correlated_background = spey.backends.default_pdf:CorrelatedBackground",
-    "default_pdf.third_moment_expansion = spey.backends.default_pdf:ThirdMomentExpansion",
-    "default_pdf.effective_sigma = spey.backends.default_pdf:EffectiveSigma",
-    "default_pdf.poisson = spey.backends.default_pdf.simple_pdf:Poisson",
-    "default_pdf.normal = spey.backends.default_pdf.simple_pdf:Gaussian",
-    "default_pdf.multivariate_normal = spey.backends.default_pdf.simple_pdf:MultivariateNormal",
+    "default.uncorrelated_background = spey.backends.default_pdf:UncorrelatedBackground",
+    "default.correlated_background = spey.backends.default_pdf:CorrelatedBackground",
+    "default.third_moment_expansion = spey.backends.default_pdf:ThirdMomentExpansion",
+    "default.effective_sigma = spey.backends.default_pdf:EffectiveSigma",
+    "default.poisson = spey.backends.default_pdf.simple_pdf:Poisson",
+    "default.normal = spey.backends.default_pdf.simple_pdf:Gaussian",
+    "default.multivariate_normal = spey.backends.default_pdf.simple_pdf:MultivariateNormal",
 ]
 
 setup(
