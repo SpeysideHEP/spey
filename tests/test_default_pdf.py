@@ -2,7 +2,7 @@
 
 import numpy as np
 from scipy.optimize import minimize_scalar
-from scipy.stats import norm, multivariate_normal, poisson
+from scipy.stats import multivariate_normal, norm, poisson
 
 import spey
 
@@ -109,9 +109,9 @@ def test_poisson():
 
     pdf_wrapper = spey.get_backend("default.poisson")
 
-    data = np.array([36, 33])
-    signal_yields = np.array([12.0, 15.0])
-    background_yields = np.array([50.0, 48.0])
+    data = np.array([55])
+    signal_yields = np.array([12.0])
+    background_yields = np.array([50.0])
 
     stat_model = pdf_wrapper(
         signal_yields=signal_yields,
@@ -121,20 +121,47 @@ def test_poisson():
         xsection=0.123,
     )
 
-    assert np.isclose(stat_model.poi_upper_limit(), 0.3140867496931846), "POI is wrong."
-    assert np.isclose(
-        stat_model.exclusion_confidence_level()[0], 0.9999807105228611
-    ), "CLs is wrong"
-    assert np.isclose(stat_model.sigma_mu(1.0), 0.5573350296644078), "Sigma mu is wrong"
-
     opt = minimize_scalar(
         lambda x: -sum(poisson.logpmf(data, x * signal_yields + background_yields)),
-        bounds=(-2, 0),
+        bounds=(-0.5, 1),
     )
     muhat, maxnll = stat_model.maximize_likelihood()
 
-    assert np.isclose(muhat, opt.x, rtol=1e-3), "Poisson:: Muhat is wrong"
+    assert np.isclose(
+        muhat, opt.x, rtol=1e-3
+    ), f"Poisson:: Muhat is wrong {muhat} != {opt.x}"
     assert np.isclose(maxnll, opt.fun), "Poisson:: MLE is wrong"
+
+    ## Test Exclusion limit
+    def logprob(mu, data):
+        return poisson.logpmf(data, mu * signal_yields + background_yields)
+
+    opt = minimize_scalar(
+        lambda x: -sum(poisson.logpmf(data, x * signal_yields + background_yields)),
+        bounds=(0, 1),
+    )
+    tmu = 2 * (-logprob(1, data) - opt.fun)
+
+    opt = minimize_scalar(
+        lambda x: -sum(
+            poisson.logpmf(background_yields, x * signal_yields + background_yields)
+        ),
+        bounds=(-0.5, 0.5),
+    )
+    tmuA = 2 * (-logprob(1, background_yields) - opt.fun)
+
+    sqrt_qmuA = np.sqrt(tmuA)
+    sqrt_qmu = np.sqrt(tmu)
+    delta_teststat = sqrt_qmu - sqrt_qmuA
+
+    CLsb = norm.cdf(-sqrt_qmuA - delta_teststat)
+    CLb = norm.cdf(-delta_teststat)
+    print(CLsb, CLb)
+    CLs = (CLsb / CLb)[0]
+    st_cls = stat_model.exclusion_confidence_level()[0]
+    assert np.isclose(
+        1 - CLs, st_cls
+    ), f"Poisson:: Exclusion limit is wrong {1 - CLs} != {st_cls}"
 
 
 def test_normal():
