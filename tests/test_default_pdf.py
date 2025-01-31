@@ -2,7 +2,7 @@
 
 import numpy as np
 from scipy.optimize import minimize_scalar
-from scipy.stats import norm, multivariate_normal
+from scipy.stats import norm, multivariate_normal, poisson
 
 import spey
 
@@ -109,9 +109,9 @@ def test_poisson():
 
     pdf_wrapper = spey.get_backend("default.poisson")
 
-    data = [36, 33]
-    signal_yields = [12.0, 15.0]
-    background_yields = [50.0, 48.0]
+    data = np.array([36, 33])
+    signal_yields = np.array([12.0, 15.0])
+    background_yields = np.array([50.0, 48.0])
 
     stat_model = pdf_wrapper(
         signal_yields=signal_yields,
@@ -126,6 +126,15 @@ def test_poisson():
         stat_model.exclusion_confidence_level()[0], 0.9999807105228611
     ), "CLs is wrong"
     assert np.isclose(stat_model.sigma_mu(1.0), 0.5573350296644078), "Sigma mu is wrong"
+
+    opt = minimize_scalar(
+        lambda x: -sum(poisson.logpmf(data, x * signal_yields + background_yields)),
+        bounds=(-2, 0),
+    )
+    muhat, maxnll = stat_model.maximize_likelihood()
+
+    assert np.isclose(muhat, opt.x, rtol=1e-3), "Poisson:: Muhat is wrong"
+    assert np.isclose(maxnll, opt.fun), "Poisson:: MLE is wrong"
 
 
 def test_normal():
