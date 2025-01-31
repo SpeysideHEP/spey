@@ -136,10 +136,6 @@ def test_poisson():
     def logprob(mu, data):
         return poisson.logpmf(data, mu * signal_yields + background_yields)
 
-    opt = minimize_scalar(
-        lambda x: -sum(poisson.logpmf(data, x * signal_yields + background_yields)),
-        bounds=(0, 1),
-    )
     tmu = 2 * (-logprob(1, data) - opt.fun)
 
     opt = minimize_scalar(
