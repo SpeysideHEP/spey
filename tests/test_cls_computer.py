@@ -18,7 +18,7 @@ def test_compute_asymptotic_confidence_level():
         0.14339349869880672,
         0.31731050786291404,
         0.5942867086725301,
-        0.5942867086725301,
+        0.8609310408460745,
     ], "expected CLs value is wrong."
 
     a, b = compute_asymptotic_confidence_level(1.0, 2.0, "q0")
@@ -29,7 +29,7 @@ def test_compute_asymptotic_confidence_level():
         0.02275013194817923,
         0.15865525393145702,
         0.5,
-        0.5,
+        0.841344746068543,
     ], "expected CLs value is wrong."
 
 

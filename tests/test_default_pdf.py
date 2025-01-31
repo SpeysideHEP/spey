@@ -1,6 +1,9 @@
 """Test default pdf plugin"""
 
 import numpy as np
+from scipy.optimize import minimize_scalar
+from scipy.stats import norm, multivariate_normal
+
 import spey
 
 
@@ -128,12 +131,18 @@ def test_poisson():
 def test_normal():
     """tester for gaussian model"""
 
+    sig, bkg, obs, unc = 12.0, 50.0, 36.0, 20.0
+
+    dist = norm(loc=obs, scale=unc)
+    opt = minimize_scalar(lambda x: -dist.logpdf(x * sig + bkg), bounds=(-2.0, 0.0))
+
     statistical_model = spey.get_backend("default.normal")(
-        signal_yields=[12.0],
-        background_yields=[50.0],
-        data=[36],
-        absolute_uncertainties=[20.0],
+        signal_yields=[sig],
+        background_yields=[bkg],
+        data=[obs],
+        absolute_uncertainties=[unc],
     )
+    muhat, maxnll = statistical_model.maximize_likelihood()
 
     assert np.isclose(
         statistical_model.chi2(poi_test_denominator=0),
@@ -143,6 +152,8 @@ def test_normal():
             - (0.5 * ((50.0 - 36.0) ** 2 / 20.0**2))
         ),
     ), "Gaussian chi2 is wrong"
+    assert np.isclose(muhat, opt.x), "Normal:: Muhat is wrong"
+    assert np.isclose(maxnll, opt.fun), "Normal:: MLE is wrong"
 
 
 def test_multivariate_gauss():
@@ -160,6 +171,10 @@ def test_multivariate_gauss():
         covariance_matrix=cov,
     )
 
+    dist = multivariate_normal(mean=data, cov=cov)
+    opt = minimize_scalar(lambda x: -dist.logpdf(x * signal + bkg), bounds=(-2, 0))
+    muhat, maxnll = statistical_model.maximize_likelihood()
+
     assert np.isclose(
         statistical_model.chi2(poi_test_denominator=0),
         2.0
@@ -168,3 +183,5 @@ def test_multivariate_gauss():
             - (0.5 * (bkg - data) @ np.linalg.inv(cov) @ (bkg - data))
         ),
     ), "Multivariate gauss wrong"
+    assert np.isclose(muhat, opt.x, rtol=1e-3), "MultivariateNormal:: Muhat is wrong"
+    assert np.isclose(maxnll, opt.fun, rtol=1e-3), "MultivariateNormal:: MLE is wrong"
