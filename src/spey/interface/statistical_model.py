@@ -1,6 +1,7 @@
 """Statistical Model wrapper class"""
 import logging
-from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
+from functools import wraps
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -788,6 +789,7 @@ def statistical_model_wrapper(
         * **other keyword arguments**: Backend specific keyword inputs.
     """
 
+    @wraps(func)
     def wrapper(
         *args,
         analysis: str = "__unknown_analysis__",
@@ -795,11 +797,21 @@ def statistical_model_wrapper(
         ntoys: int = 1000,
         **kwargs,
     ) -> StatisticalModel:
-        """
-        Statistical Model Backend wrapper.
+        return StatisticalModel(
+            backend=func(*args, **kwargs),
+            analysis=analysis,
+            xsection=xsection,
+            ntoys=ntoys,
+        )
+
+    docstring = (
+        "\n\n"
+        + "<>" * 30
+        + "\n\n"
+        + """
+        Optional arguments:
 
         Args:
-            args: Backend specific arguments.
             analysis (``Text``, default ``"__unknown_analysis__"``): Unique identifier of the
               statistical model. This attribue will be used for book keeping purposes.
             xsection (``float``, default ``nan``): cross section, unit is determined by the
@@ -807,7 +819,6 @@ def statistical_model_wrapper(
               cross-section value.
             ntoys (``int``, default ``1000``): Number of toy samples for hypothesis testing.
               (Only used for toy-based hypothesis testing)
-            kwargs: Backend specific keyword inputs.
 
         Raises:
             :obj:`AssertionError`: If the model input does not inherit :class:`~spey.DataBase`.
@@ -816,23 +827,8 @@ def statistical_model_wrapper(
             ~spey.StatisticalModel:
             Backend wraped with statistical model interface.
         """
-        return StatisticalModel(
-            backend=func(*args, **kwargs),
-            analysis=analysis,
-            xsection=xsection,
-            ntoys=ntoys,
-        )
-
-    docstring = getattr(func, "__doc__", "no docstring available")
-    if docstring is None:
-        docstring = "Documentation is not available..."
-
-    wrapper.__doc__ += (
-        "\n\t"
-        + "<>" * 30
-        + "\n\n\t Current statistical model backend properties:\n"
-        + docstring.replace("\n", "\n\t")
-        + "\n"
     )
+
+    wrapper.__doc__ += docstring
 
     return wrapper
