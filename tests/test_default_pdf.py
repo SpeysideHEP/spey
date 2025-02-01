@@ -109,22 +109,18 @@ def test_poisson():
 
     pdf_wrapper = spey.get_backend("default.poisson")
 
-    data = np.array([55])
-    signal_yields = np.array([12.0])
-    background_yields = np.array([50.0])
+    data = 55
+    signal_yields = 12.0
+    background_yields = 50.0
 
     stat_model = pdf_wrapper(
-        signal_yields=signal_yields,
-        background_yields=background_yields,
-        data=data,
-        analysis="multi_bin",
-        xsection=0.123,
+        signal_yields=[signal_yields], background_yields=[background_yields], data=[data]
     )
 
-    opt = minimize_scalar(
-        lambda x: -sum(poisson.logpmf(data, x * signal_yields + background_yields)),
-        bounds=(-0.5, 1),
-    )
+    def logprob(mu, data):
+        return poisson.logpmf(data, mu * signal_yields + background_yields)
+
+    opt = minimize_scalar(lambda x: -logprob(x, data), bounds=(-0.5, 1))
     muhat, maxnll = stat_model.maximize_likelihood()
 
     assert np.isclose(
@@ -133,18 +129,10 @@ def test_poisson():
     assert np.isclose(maxnll, opt.fun), "Poisson:: MLE is wrong"
 
     ## Test Exclusion limit
-    def logprob(mu, data):
-        return poisson.logpmf(data, mu * signal_yields + background_yields)
-
     tmu = 2 * (-logprob(1, data) - opt.fun)
 
-    opt = minimize_scalar(
-        lambda x: -sum(
-            poisson.logpmf(background_yields, x * signal_yields + background_yields)
-        ),
-        bounds=(-0.5, 0.5),
-    )
-    tmuA = 2 * (-logprob(1, background_yields) - opt.fun)
+    optA = minimize_scalar(lambda x: -logprob(x, background_yields), bounds=(-0.5, 0.5))
+    tmuA = 2 * (-logprob(1, background_yields) - optA.fun)
 
     sqrt_qmuA = np.sqrt(tmuA)
     sqrt_qmu = np.sqrt(tmu)
@@ -152,8 +140,7 @@ def test_poisson():
 
     CLsb = norm.cdf(-sqrt_qmuA - delta_teststat)
     CLb = norm.cdf(-delta_teststat)
-    print(CLsb, CLb)
-    CLs = (CLsb / CLb)[0]
+    CLs = CLsb / CLb
     st_cls = stat_model.exclusion_confidence_level()[0]
     assert np.isclose(
         1 - CLs, st_cls
