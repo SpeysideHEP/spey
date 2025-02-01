@@ -2,11 +2,11 @@
 
 import logging
 import warnings
-from typing import Callable, Text, Tuple
+from typing import Callable, Tuple
 
 import numpy as np
 
-from spey.system.exceptions import UnknownTestStatistics, AsimovTestStatZero
+from spey.system.exceptions import AsimovTestStatZero, UnknownTestStatistics
 
 __all__ = ["qmu", "qmu_tilde", "q0", "get_test_statistic", "compute_teststatistics"]
 
