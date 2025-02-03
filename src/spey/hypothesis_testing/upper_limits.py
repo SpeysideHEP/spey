@@ -3,12 +3,13 @@
 import logging
 import warnings
 from functools import partial
-from typing import Callable, List, Tuple, Union, Literal
+from typing import Callable, List, Literal, Tuple, Union
 
 import numpy as np
 import scipy
 
 from spey.hypothesis_testing.test_statistics import compute_teststatistics
+from spey.system.exceptions import AsimovTestStatZero
 from spey.utils import ExpectationType
 
 from .asymptotic_calculator import compute_asymptotic_confidence_level
@@ -182,22 +183,26 @@ def find_poi_upper_limit(
 
     def computer(poi_test: float, pvalue_idx: int) -> float:
         """Compute 1 - CLs(POI) = `confidence_level`"""
-        _, sqrt_qmuA, delta_teststat = compute_teststatistics(
-            poi_test,
-            maximum_likelihood,
-            logpdf,
-            maximum_asimov_likelihood,
-            asimov_logpdf,
-            test_stat,
-        )
-        pvalue = list(
-            map(
-                lambda x: 1.0 - x,
-                compute_asymptotic_confidence_level(sqrt_qmuA, delta_teststat, test_stat)[
-                    0 if expected == ExpectationType.observed else 1
-                ],
+        try:
+            _, sqrt_qmuA, delta_teststat = compute_teststatistics(
+                poi_test,
+                maximum_likelihood,
+                logpdf,
+                maximum_asimov_likelihood,
+                asimov_logpdf,
+                test_stat,
             )
-        )
+            pvalue = list(
+                map(
+                    lambda x: 1.0 - x,
+                    compute_asymptotic_confidence_level(
+                        sqrt_qmuA, delta_teststat, test_stat
+                    )[0 if expected == ExpectationType.observed else 1],
+                )
+            )
+        except AsimovTestStatZero as err:
+            log.debug(err)
+            pvalue = [0.0] if expected == ExpectationType.observed else [0.0] * 5
         return pvalue[pvalue_idx] - confidence_level
 
     result = []
