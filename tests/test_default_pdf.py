@@ -146,6 +146,25 @@ def test_poisson():
         1 - CLs, st_cls
     ), f"Poisson:: Exclusion limit is wrong {1 - CLs} != {st_cls}"
 
+    # compare with analytic results
+    s_b = signal_yields + background_yields
+    sqrt_qmu = np.sqrt(-2 * (-s_b + data * np.log(s_b) - data * np.log(data) + data))
+    sqrt_qmuA = np.sqrt(
+        -2
+        * (
+            -signal_yields
+            + background_yields * np.log(1 + signal_yields / background_yields)
+        )
+    )
+    delta_teststat = sqrt_qmu - sqrt_qmuA
+
+    logp_sb = norm.logcdf(-sqrt_qmu)
+    logp_b = norm.logcdf(-sqrt_qmu + sqrt_qmuA)
+    CLs_analytic = 1 - np.exp(logp_sb - logp_b)
+    assert np.isclose(
+        CLs_analytic, st_cls
+    ), f"Poisson:: Analytic exclusion limit is wrong {CLs_analytic} != {st_cls}"
+
 
 def test_normal():
     """tester for gaussian model"""
