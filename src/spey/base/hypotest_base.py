@@ -944,8 +944,8 @@ class HypothesisTestingBase(ABC):
                 if not np.isclose(muhat, 0.0)
                 else 1.0
             )
-            low_init = low_init or muhat + 1.5 * sigma_mu
-            hig_init = hig_init or muhat + 2.5 * sigma_mu
+            low_init = np.clip(low_init or muhat + 1.5 * sigma_mu, 1e-10, None)
+            hig_init = np.clip(hig_init or muhat + 2.5 * sigma_mu, 1e-10, None)
             log.debug(f"new low_init = {low_init}, new hig_init = {hig_init}")
 
         return find_poi_upper_limit(
@@ -955,7 +955,7 @@ class HypothesisTestingBase(ABC):
             asimov_logpdf=logpdf_asimov,
             expected=expected,
             confidence_level=confidence_level,
-            allow_negative_signal=allow_negative_signal,
+            test_stat="q" if allow_negative_signal else "qtilde",
             low_init=low_init,
             hig_init=hig_init,
             expected_pvalue=expected_pvalue,
