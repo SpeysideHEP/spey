@@ -961,3 +961,101 @@ class HypothesisTestingBase(ABC):
             expected_pvalue=expected_pvalue,
             maxiter=maxiter,
         )
+
+    def two_sided_poi_upper_limit(
+        self,
+        expected: ExpectationType = ExpectationType.observed,
+        confidence_level: float = 0.95,
+        low_init: float = -1.0,
+        hig_init: float = -1.0,
+        maxiter: int = 10000,
+        optimiser_arguments_right_tail: Dict[str, Any] = None,
+        optimiser_arguments_left_tail: Dict[str, Any] = None,
+    ) -> List[float]:
+        r"""
+        [EXPERIMENTAL] Construct two sided POI upper limit.
+
+        .. attention::
+
+            This algorithm locates the POI upper limit on both positive and negative side.
+            Depending on the likelihood, `par_bounds` may need adjusting to be able to
+            find the correct point. `par_bounds` argument can be given through
+            `optimiser_arguments_<tail direction>` keyword argument.
+
+            Note that if there are intermediate roots, `par_bounds` needs to be further adjusted
+            to be able to extract those points.
+
+        Args:
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should
+              focus and p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                  prescriotion which means that the experimental data will be assumed to be the truth
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                  post-fit prescriotion which means that the experimental data will be assumed to be
+                  the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                  prescription which means that the SM will be assumed to be the truth.
+
+            confidence_level (``float``, default ``0.95``): Determines the confidence level
+              of the upper limit i.e. the value of :math:`1-CL_s`. It needs to be between ``[0,1]``.
+            low_init (``float``, default ``-1.0``): Lower limit for the search algorithm to start
+            hig_init (``float``, default ``-1.0``): Upper limit for the search algorithm to start
+            maxiter (``int``, default ``10000``): Maximum iteration limit for the optimiser.
+            optimiser_arguments_right_tail (``Dict[str, Any]``, default ``None``): Optimiser arguments
+              to find the roots on the right tail of the p-value distribution i.e. :math:`\mu>\hat\mu`
+            optimiser_arguments_left_tail (``Dict[str, Any]``, default ``None``): Optimiser arguments
+              to find the roots on the left tail of the p-value distribution i.e. :math:`\mu<\hat\mu`
+
+        Returns:
+            ``List[float]``:
+            lower and upper bounds for the POI
+
+        Raises:
+            AssertionError: If the `confidence_level` input is not between [0,1].
+        """
+        assert (
+            0.0 <= confidence_level <= 1.0
+        ), "Confidence level must be between zero and one."
+
+        # If the signal yields in all regions are zero then return inf.
+        # This means we are not able to set a bound with the given information.
+        if not self.is_alive:
+            return [np.inf, np.inf]
+
+        right_poi_ul = self.poi_upper_limit(
+            expected=expected,
+            confidence_level=confidence_level,
+            allow_negative_signal=True,
+            maxiter=maxiter,
+            optimiser_arguments=optimiser_arguments_right_tail,
+        )
+
+        optimiser_arguments = optimiser_arguments_left_tail or {}
+        (
+            maximum_likelihood,
+            logpdf,
+            maximum_asimov_likelihood,
+            logpdf_asimov,
+        ) = self._prepare_for_hypotest(
+            expected=expected,
+            test_statistics="qmu_left",
+            **optimiser_arguments,
+        )
+
+        left_poi_ul = find_poi_upper_limit(
+            maximum_likelihood=maximum_likelihood,
+            logpdf=logpdf,
+            maximum_asimov_likelihood=maximum_asimov_likelihood,
+            asimov_logpdf=logpdf_asimov,
+            expected=expected,
+            confidence_level=confidence_level,
+            test_stat="qmu_left",
+            low_init=low_init,
+            hig_init=hig_init,
+            hig_bound=-1e-10,
+            low_bound=-1e10,
+            maxiter=maxiter,
+        )
+
+        return [left_poi_ul, right_poi_ul]
