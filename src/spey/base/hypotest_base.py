@@ -1018,10 +1018,13 @@ class HypothesisTestingBase(ABC):
             0.0 <= confidence_level <= 1.0
         ), "Confidence level must be between zero and one."
 
+        # use half of the CL due to two sided limit. Inner area should be confidence_level
+        confidence_level /= 2.0
+
         # If the signal yields in all regions are zero then return inf.
         # This means we are not able to set a bound with the given information.
-        if not self.is_alive:
-            return [np.inf, np.inf]
+        # if not self.is_alive:
+        #     return [np.inf, np.inf]
 
         right_poi_ul = self.poi_upper_limit(
             expected=expected,
