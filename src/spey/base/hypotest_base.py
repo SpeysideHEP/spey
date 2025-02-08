@@ -1072,32 +1072,40 @@ class HypothesisTestingBase(ABC):
         limit_type: Literal["right", "left", "two-sided"] = "two-sided",
     ) -> list[float]:
         r"""
-        [Experimental] Find the POI value(s) that constraint :math:`\chi^2` distribution at a specific
-        confidence limit.
+        Determine the parameter of interest (POI) value(s) that constrain the
+        :math:`\chi^2` distribution at a specified confidence level.
+
+        .. versionadded:: 0.2.0
+
+        .. attention::
+
+            The degrees of freedom are set to one, referring to the POI. Currently, spey does not
+            support multiple POIs, but this feature is planned for future releases.
 
         Args:
-            expected (~spey.ExpectationType): Sets which values the fitting algorithm should
-              focus and p-values to be computed.
+            expected (~spey.ExpectationType): Specifies the type of expectation for the fitting
+              algorithm and p-value computation.
 
-              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                  prescriotion which means that the experimental data will be assumed to be the truth
-              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                  post-fit prescriotion which means that the experimental data will be assumed to be
-                  the truth.
-              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
-                  prescription which means that the SM will be assumed to be the truth.
+              * :obj:`~spey.ExpectationType.observed`: Computes p-values using post-fit prescription,
+                assuming experimental data as the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes expected p-values using pre-fit
+                prescription, assuming the Standard Model (SM) as the truth.
 
-            confidence_level (``float``, default ``0.95``): Determines the confidence level
-              of the upper limit. It needs to be between ``[0,1]``.
-            limit_type (``'right'``, ``'left'`` or ``'two-sided``, default ``"two-sided"``): choose
-              which side of the :math:`\chi^2` distribution should be constrained. Note that for
-              two-sided limits inner area of the :math:`\chi^2` distribution is set to `confidence_level`
-              thus the threshold becomes :math:`\alpha=(1-CL)/2` where CL corresponds to
-              `confidence_level`. For the left or right side alone :math:`\alpha=1-CL`.
+            confidence_level (``float``, default ``0.95``): The confidence level for the upper limit.
+              Must be between 0 and 1.
+
+            limit_type (``'right'``, ``'left'`` or ``'two-sided'``, default ``"two-sided"``): Specifies
+              which side of the :math:`\chi^2` distribution should be constrained. For two-sided limits,
+              the inner area of the :math:`\chi^2` distribution is set to ``confidence_level``, making the
+              threshold :math:`\alpha=(1-CL)/2`, where CL is the `confidence_level`. For left or right
+              limits alone, :math:`\alpha=1-CL`. The :math:`\chi^2`-threshold is calculated using
+              ``chi2.isf(1.0 - confidence_level, df=1)`` for `left` and `right` limits, and
+              ``chi2.isf((1.0 - confidence_level)/2, df=1)`` for `two-sided` limits. Here, ``chi2``
+              refers to `SciPy's chi2 module <https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.chi2.html>`_.
 
         Returns:
             ``list[float]``:
-            POI value(s) that constraints the :math:`\chi^2` distribution at a given threshold.
+            POI value(s) that constrain the :math:`\chi^2` distribution at the given threshold.
         """
         assert (
             0.0 <= confidence_level <= 1.0
