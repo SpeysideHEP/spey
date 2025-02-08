@@ -10,6 +10,8 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import tqdm
+from scipy.optimize import toms748
+from scipy.stats import chi2
 
 from spey.hypothesis_testing.asymptotic_calculator import (
     compute_asymptotic_confidence_level,
@@ -19,7 +21,7 @@ from spey.hypothesis_testing.test_statistics import (
     get_test_statistic,
 )
 from spey.hypothesis_testing.toy_calculator import compute_toy_confidence_level
-from spey.hypothesis_testing.upper_limits import find_poi_upper_limit
+from spey.hypothesis_testing.upper_limits import find_poi_upper_limit, ComputerWrapper
 from spey.system.exceptions import (
     AsimovTestStatZero,
     CalculatorNotAvailable,
@@ -977,9 +979,9 @@ class HypothesisTestingBase(ABC):
 
         .. attention::
 
-            This algorithm locates the POI upper limit on both positive and negative side.
-            Depending on the likelihood, `par_bounds` may need adjusting to be able to
-            find the correct point. `par_bounds` argument can be given through
+            This algorithm locates the POI upper limit for :math:`p_s` on both positive
+            and negative side. Depending on the likelihood, `par_bounds` may need adjusting
+            to be able to find the correct point. `par_bounds` argument can be given through
             `optimiser_arguments_<tail direction>` keyword argument.
 
             Note that if there are intermediate roots, `par_bounds` needs to be further adjusted
@@ -1062,3 +1064,165 @@ class HypothesisTestingBase(ABC):
         )
 
         return [left_poi_ul, right_poi_ul]
+
+    def chi2_test(
+        self,
+        expected: ExpectationType = ExpectationType.observed,
+        confidence_level: float = 0.95,
+        limit_type: Literal["right", "left", "two-sided"] = "two-sided",
+    ) -> list[float]:
+        r"""
+        [Experimental] Find the POI value(s) that constraint :math:`\chi^2` distribution at a specific
+        confidence limit.
+
+        Args:
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should
+              focus and p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                  prescriotion which means that the experimental data will be assumed to be the truth
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                  post-fit prescriotion which means that the experimental data will be assumed to be
+                  the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                  prescription which means that the SM will be assumed to be the truth.
+
+            confidence_level (``float``, default ``0.95``): Determines the confidence level
+              of the upper limit. It needs to be between ``[0,1]``.
+            limit_type (``'right'``, ``'left'`` or ``'two-sided``, default ``"two-sided"``): choose
+              which side of the :math:`\chi^2` distribution should be constrained. Note that for
+              two-sided limits inner area of the :math:`\chi^2` distribution is set to `confidence_level`
+              thus the threshold becomes :math:`\alpha=(1-CL)/2` where CL corresponds to
+              `confidence_level`. For the left or right side alone :math:`\alpha=1-CL`.
+
+        Returns:
+            ``list[float]``:
+            POI value(s) that constraints the :math:`\chi^2` distribution at a given threshold.
+        """
+        assert (
+            0.0 <= confidence_level <= 1.0
+        ), "Confidence level must be between zero and one."
+        assert limit_type in [
+            "left",
+            "right",
+            "two-sided",
+        ], f"Invalid limit type: {limit_type}"
+
+        # Two sided test statistic need to be halfed, total area within
+        # two sides should be equal to confidence_level
+        alpha = (1.0 - confidence_level) * (0.5 if limit_type == "two-sided" else 1.0)
+
+        # DoF = # POI
+        chi2_threshold = chi2.isf(alpha, df=1)
+
+        muhat, mllhd = self.maximize_likelihood(
+            expected=expected, allow_negative_signal=limit_type in ["two-sided", "left"]
+        )
+
+        def computer(poi_test: float) -> float:
+            """Compute chi^2 - chi^2 threshold"""
+            llhd = self.likelihood(poi_test=poi_test, expected=expected)
+            return 2.0 * (llhd - mllhd) - chi2_threshold
+
+        try:
+            sigma_muhat = self.sigma_mu(muhat, expected=expected)
+        except:  # specify an exeption type
+            sigma_muhat = 1.0
+
+        results = []
+        if limit_type in ["left", "two-sided"]:
+            is_muhat_gt_0 = np.isclose(muhat, 0.0) or muhat > 0.0
+            low = -1.0 if is_muhat_gt_0 else muhat - 1.5 * sigma_muhat
+            hig = -1.0 if is_muhat_gt_0 else muhat - 2.5 * sigma_muhat
+            hig_bound, low_bound = -1e5, -1e-5
+
+            hig_computer = ComputerWrapper(computer)
+            while hig_computer(hig) < 0.0 and hig > hig_bound:
+                hig *= 2.0
+
+            low_computer = ComputerWrapper(computer)
+            while low_computer(low) > 0.0 and low < low_bound:
+                low *= 0.5
+
+            log.debug(
+                f"Left first attempt:: low: f({low:.5e})={low_computer[-1]:.5e},"
+                f" high: f({hig:.5e})={hig_computer[-1]:.5e}"
+            )
+            if np.sign(low_computer[-1]) == np.sign(hig_computer[-1]) and muhat > 0:
+                low_computer = ComputerWrapper(computer)
+                low = muhat
+                while low_computer(low) > 0.0 and low > 1e-5:
+                    low *= 0.5
+                log.debug(
+                    f"Left second attempt:: low: f({low:.5e})={low_computer[-1]:.5e},"
+                    f" high: f({hig:.5e})={hig_computer[-1]:.5e}"
+                )
+
+            if np.sign(low_computer[-1]) != np.sign(hig_computer[-1]):
+                x0, _ = toms748(
+                    computer,
+                    hig,
+                    low,
+                    k=2,
+                    xtol=2e-12,
+                    rtol=1e-4,
+                    full_output=True,
+                    maxiter=10000,
+                )
+                results.append(x0)
+            else:
+                log.error(
+                    "Can not find the roots on the left side."
+                    " Please check your chi^2 distribution, it might be too wide."
+                )
+                results.append(-1e5 if hig >= -1e5 else np.nan)
+
+        if limit_type in ["right", "two-sided"]:
+            is_muhat_le_0 = np.isclose(muhat, 0.0) or muhat < 0.0
+            low = 1.0 if is_muhat_le_0 else muhat + 1.5 * sigma_muhat
+            hig = 1.0 if is_muhat_le_0 else muhat + 2.5 * sigma_muhat
+            hig_bound, low_bound = 1e5, 1e-5
+
+            hig_computer = ComputerWrapper(computer)
+            while hig_computer(hig) < 0.0 and hig < hig_bound:
+                hig *= 2.0
+
+            low_computer = ComputerWrapper(computer)
+            while low_computer(low) > 0.0 and low > low_bound:
+                low *= 0.5
+
+            log.debug(
+                f"Right first attempt:: low: f({low:.5e})={low_computer[-1]:.5e},"
+                f" high: f({hig:.5e})={hig_computer[-1]:.5e}"
+            )
+
+            if np.sign(low_computer[-1]) == np.sign(hig_computer[-1]) and muhat < 0:
+                low_computer = ComputerWrapper(computer)
+                low = muhat
+                while low_computer(low) > 0.0 and low < -1e-5:
+                    low *= 0.5
+                log.debug(
+                    f"Left second attempt:: low: f({low:.5e})={low_computer[-1]:.5e},"
+                    f" high: f({hig:.5e})={hig_computer[-1]:.5e}"
+                )
+
+            if np.sign(low_computer[-1]) != np.sign(hig_computer[-1]):
+                x0, _ = toms748(
+                    computer,
+                    low,
+                    hig,
+                    k=2,
+                    xtol=2e-12,
+                    rtol=1e-4,
+                    full_output=True,
+                    maxiter=10000,
+                )
+                results.append(x0)
+            else:
+                log.error(
+                    "Can not find the roots on the right side."
+                    " Please check your chi^2 distribution, it might be too wide."
+                )
+                results.append(1e5 if hig >= 1e5 else np.nan)
+
+        return results
