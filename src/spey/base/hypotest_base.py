@@ -1092,7 +1092,7 @@ class HypothesisTestingBase(ABC):
                 prescription, assuming the Standard Model (SM) as the truth.
 
             confidence_level (``float``, default ``0.95``): The confidence level for the upper limit.
-              Must be between 0 and 1.
+              Must be between 0 and 1. This refers to the total inner area under the bell curve.
 
             limit_type (``'right'``, ``'left'`` or ``'two-sided'``, default ``"two-sided"``): Specifies
               which side of the :math:`\chi^2` distribution should be constrained. For two-sided limits,

@@ -2,7 +2,7 @@
 
 import numpy as np
 from scipy.optimize import minimize_scalar
-from scipy.stats import multivariate_normal, norm, poisson
+from scipy.stats import multivariate_normal, norm, poisson, chi2
 
 import spey
 
@@ -192,6 +192,17 @@ def test_normal():
     ), "Gaussian chi2 is wrong"
     assert np.isclose(muhat, opt.x), "Normal:: Muhat is wrong"
     assert np.isclose(maxnll, opt.fun), "Normal:: MLE is wrong"
+
+    # add chi2-test
+
+    left_lim, right_lim = statistical_model.chi2_test()
+    left_chi2 = statistical_model.chi2(poi_test=left_lim, allow_negative_signal=True)
+    right_chi2 = statistical_model.chi2(poi_test=right_lim, allow_negative_signal=True)
+    chi2_threshold = chi2.isf((1 - 0.95) / 2, df=1)
+
+    assert np.isclose(
+        [left_chi2, right_chi2], chi2_threshold
+    ).all(), "chi2 test doesnt match chi2 threshold"
 
 
 def test_multivariate_gauss():
