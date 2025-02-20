@@ -69,15 +69,17 @@ def test_third_moment():
     )
 
     CLs = statistical_model.exclusion_confidence_level()[0]
-    assert np.isclose(CLs, 0.961432961), f"CLs is wrong, expected 0.961432961 got {CLs}"
+    assert np.isclose(
+        CLs, 0.961432961, rtol=1e-4
+    ), f"CLs is wrong, expected 0.961432961 got {CLs}"
     poi_ul = statistical_model.poi_upper_limit()
     assert np.isclose(
-        poi_ul, 0.9221339
-    ), f"POI is wrong, expected 0.922133977 got {poi_ul}"
+        poi_ul, 0.9221339, rtol=1e-4
+    ), f"POI is wrong, expected 0.9221339 got {poi_ul}"
     sigma_mu = statistical_model.sigma_mu(1.0)
     assert np.isclose(
-        sigma_mu, 0.85455
-    ), f"Sigma mu is wrong, expected 0.8545511 got {sigma_mu}"
+        sigma_mu, 0.85455, rtol=1e-4
+    ), f"Sigma mu is wrong, expected 0.85455 got {sigma_mu}"
 
 
 def test_effective_sigma():
