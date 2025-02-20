@@ -5,7 +5,7 @@ Similar implementation can be found in https://github.com/scikit-hep/pyhf/blob/m
 """
 
 import numpy as np
-from scipy.stats import multivariate_normal
+from scipy.stats import norm
 
 __all__ = ["AsymptoticTestStatisticsDistribution", "EmpricTestStatisticsDistribution"]
 
@@ -39,7 +39,21 @@ class AsymptoticTestStatisticsDistribution:
             ``float``:
             p-value
         """
-        return_value = multivariate_normal.cdf(self.shift - value)
+        return_value = norm.cdf(float(self.shift - value))
+        return return_value if return_value >= self.cutoff else np.nan
+
+    def logcdf(self, value: float) -> float:
+        r"""
+        Log of cumulative distribution function
+
+        Args:
+            value (``float``): The test statistic value.
+
+        Returns:
+            ``float``:
+            log-cdf
+        """
+        return_value = norm.logcdf(float(self.shift - value))
         return return_value if return_value >= self.cutoff else np.nan
 
     def expected_value(self, nsigma: float) -> float:
@@ -95,6 +109,4 @@ class EmpricTestStatisticsDistribution:
             ``float``:
             expected value of test statistic.
         """
-        return np.percentile(
-            self.samples, multivariate_normal.cdf(nsigma) * 100.0, method="linear"
-        )
+        return np.percentile(self.samples, norm.cdf(nsigma) * 100.0, method="linear")

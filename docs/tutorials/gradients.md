@@ -46,10 +46,10 @@ np.random.seed(14)
 
 {py:func}`spey.math.value_and_grad` returns a function that computes negative log-likelihood and its gradient for a given statistical model and {py:func}`spey.math.hessian` returns a function that computes Hessian of negative log-likelihood.
 
-Let us examine this on ``"default_pdf.uncorrelated_background"``:
+Let us examine this on ``"default.uncorrelated_background"``:
 
 ```{code-cell} ipython3
-pdf_wrapper = spey.get_backend("default_pdf.uncorrelated_background")
+pdf_wrapper = spey.get_backend("default.uncorrelated_background")
 
 data = [36, 33]
 signal_yields = [12.0, 15.0]

@@ -2,11 +2,11 @@
 
 import logging
 import warnings
-from typing import Callable, Text, Tuple
+from typing import Callable, Tuple
 
 import numpy as np
 
-from spey.system.exceptions import UnknownTestStatistics, AsimovTestStatZero
+from spey.system.exceptions import AsimovTestStatZero, UnknownTestStatistics
 
 __all__ = ["qmu", "qmu_tilde", "q0", "get_test_statistic", "compute_teststatistics"]
 
@@ -83,6 +83,12 @@ def qmu(
     return 0.0 if muhat > mu else np.clip(-2.0 * (logpdf(mu) - max_logpdf), 0.0, None)
 
 
+def qmu_left(
+    mu: float, muhat: float, max_logpdf: float, logpdf: Callable[[float], float]
+) -> float:
+    return 0.0 if muhat < mu else np.clip(-2.0 * (logpdf(mu) - max_logpdf), 0.0, None)
+
+
 def q0(
     mu: float, muhat: float, max_logpdf: float, logpdf: Callable[[float], float]
 ) -> float:
@@ -112,8 +118,7 @@ def q0(
         ``float``:
         the value of :math:`q_{0}`.
     """
-    mu = 0.0
-    return 0.0 if muhat < 0.0 else np.clip(-2.0 * (logpdf(mu) - max_logpdf), 0.0, None)
+    return 0.0 if muhat < 0.0 else np.clip(-2.0 * (logpdf(0.0) - max_logpdf), 0.0, None)
 
 
 def get_test_statistic(
@@ -155,7 +160,7 @@ def get_test_statistic(
         test_stat = "q"
     elif test_stat in ["qtilde", "qmutilde"]:
         test_stat = "qmutilde"
-    options = {"qmutilde": qmu_tilde, "q": qmu, "q0": q0}
+    options = {"qmutilde": qmu_tilde, "q": qmu, "q0": q0, "qmu_left": qmu_left}
 
     if options.get(test_stat, False) is False:
         raise UnknownTestStatistics(

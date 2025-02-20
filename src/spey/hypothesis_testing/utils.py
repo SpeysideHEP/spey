@@ -60,6 +60,12 @@ def pvalues(
         :func:`~spey.hypothesis_testing.asymptotic_calculator.compute_asymptotic_confidence_level`,
         :func:`~spey.hypothesis_testing.utils.expected_pvalues`
     """
+    if isinstance(sig_plus_bkg_distribution, AsymptoticTestStatisticsDistribution):
+        logp_sb = sig_plus_bkg_distribution.logcdf(delta_test_statistic)
+        logp_b = bkg_only_distribution.logcdf(delta_test_statistic)
+        p_s = np.exp(logp_sb - logp_b)
+        return np.exp(logp_sb), np.exp(logp_b), p_s
+
     CLsb = sig_plus_bkg_distribution.pvalue(delta_test_statistic)
     CLb = bkg_only_distribution.pvalue(delta_test_statistic)
     with warnings.catch_warnings(record=True):

@@ -10,6 +10,8 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import tqdm
+from scipy.optimize import toms748
+from scipy.stats import chi2
 
 from spey.hypothesis_testing.asymptotic_calculator import (
     compute_asymptotic_confidence_level,
@@ -19,7 +21,7 @@ from spey.hypothesis_testing.test_statistics import (
     get_test_statistic,
 )
 from spey.hypothesis_testing.toy_calculator import compute_toy_confidence_level
-from spey.hypothesis_testing.upper_limits import find_poi_upper_limit
+from spey.hypothesis_testing.upper_limits import find_poi_upper_limit, ComputerWrapper
 from spey.system.exceptions import (
     AsimovTestStatZero,
     CalculatorNotAvailable,
@@ -840,42 +842,38 @@ class HypothesisTestingBase(ABC):
         low_init: Optional[float] = 1.0,
         hig_init: Optional[float] = 1.0,
         expected_pvalue: Literal["nominal", "1sigma", "2sigma"] = "nominal",
+        allow_negative_signal: bool = False,
         maxiter: int = 10000,
         optimiser_arguments: Optional[Dict[str, Any]] = None,
     ) -> Union[float, List[float]]:
         r"""
-        Compute the upper limit for the parameter of interest i.e. :math:`\mu`.
-
-        .. note::
-
-            This function uses ``"qtilde"`` test statistic which means signal values are always
-            assumed to be positive i.e. :math:`\hat\mu>0`.
+        Compute the upper limit for the parameter of interest (POI), denoted as :math:`\mu`.
 
         Args:
-            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
-              p-values to be computed.
+            expected (:obj:`~spey.ExpectationType`, default :obj:`~spey.ExpectationType.observed`):
+              Specifies the type of expectation for the fitting algorithm and p-value computation.
 
-              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
-                (default).
-              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
-                the truth.
-              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
-                prescription which means that the SM will be assumed to be the truth.
+              * :obj:`~spey.ExpectationType.observed`: Computes p-values using post-fit prescription,
+                assuming experimental data as the truth (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes expected p-values using post-fit
+                prescription, assuming experimental data as the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes expected p-values using pre-fit
+                prescription, assuming the Standard Model (SM) as the truth.
 
-            confidence_level (``float``, default ``0.95``): Determines the confidence level of the upper
-              limit i.e. the value of :math:`1-CL_s`. It needs to be between ``[0,1]``.
-            low_init (``Optional[float]``, default ``1.0``): Lower limit for the search algorithm to start
-              If ``None`` it the lower limit will be determined by :math:`\hat\mu + 1.5\sigma_{\hat\mu}`.
+            confidence_level (``float``, default ``0.95``): Confidence level for the upper limit,
+                representing :math:`1 - CL_s`. Must be between 0 and 1. Default is 0.95.
+            low_init (``Optional[float]``, default ``1.0``): Initial lower limit for the search
+              algorithm. If `None`, it is determined by :math:`\hat\mu + 1.5\sigma_{\hat\mu}`.
+              Default is 1.0.
 
               .. note::
 
                 :math:`\sigma_{\hat\mu}` is determined via
                 :func:`~spey.base.hypotest_base.HypothesisTestingBase.sigma_mu` function.
 
-            hig_init (``Optional[float]``, default ``1.0``): Upper limit for the search algorithm to start
-              If ``None`` it the upper limit will be determined by :math:`\hat\mu + 2.5\sigma_{\hat\mu}`.
+            hig_init (``Optional[float]``, default ``1.0``): Initial upper limit for the search
+              algorithm. If `None`, it is determined by :math:`\hat\mu + 2.5\sigma_{\hat\mu}`.
+              Default is 1.0.
 
               .. note::
 
@@ -884,30 +882,36 @@ class HypothesisTestingBase(ABC):
 
             expected_pvalue (``Literal["nominal", "1sigma", "2sigma"]``, default ``"nominal"``):
               In case of :obj:`~spey.ExpectationType.aposteriori` and :obj:`~spey.ExpectationType.apriori`
-              expectation, gives the choice to find excluded upper limit for statistical deviations as well.
+              expectation, specifies the type of expected p-value for upper limit calculation.
 
-              * ``"nominal"``: only find the upper limit for the central p-value. Returns a single value.
-              * ``"1sigma"``: find the upper limit for central p-value and :math:`1\sigma` fluctuation from
-                background. Returns 3 values.
-              * ``"2sigma"``: find the upper limit for central p-value and :math:`1\sigma` and
-                :math:`2\sigma` fluctuation from background. Returns 5 values.
+              * ``"nominal"``: Computes the upper limit for the central p-value. Returns a single value.
+              * ``"1sigma"``: Computes the upper limit for the central p-value and :math:`1\sigma`
+                fluctuation from background. Returns 3 values.
+              * ``"2sigma"``: Computes the upper limit for the central p-value and :math:`1\sigma`
+                and :math:`2\sigma` fluctuation from background. Returns 5 values.
 
               .. note::
 
                 For ``expected=spey.ExpectationType.observed``, ``expected_pvalue`` argument will
                 be overwritten to ``"nominal"``.
 
-            maxiter (``int``, default ``10000``): Maximum iteration limit for the optimiser.
-            optimiser_arguments (``Dict``, default ``None``): Arguments for optimiser that is used
-              to compute likelihood and its maximum.
+            allow_negative_signal (``bool``, default ``True``): Allows for negative signal values,
+                changing the computation of the test statistic. Default is False.
+            maxiter (``int``, default ``10000``): Maximum number of iterations for the optimiser.
+                Default is 10000.
+            optimiser_arguments (``Dict``, default ``None``): Additional arguments for the optimiser
+                used to compute the likelihood and its maximum. Default is None.
 
         Returns:
             ``Union[float, List[float]]``:
-            In case of nominal values it returns a single value for the upper limit. In case of
-            ``expected_pvalue="1sigma"`` or ``expected_pvalue="2sigma"`` it will return a list of
-            multiple upper limit values for fluctuations as well as the central value. The
-            output order is :math:`-2\sigma` value, :math:`-1\sigma` value, central value,
-            :math:`1\sigma` and :math:`2\sigma` value.
+
+            - A single value representing the upper limit for the nominal case.
+            - A list of values representing the upper limits for the central value and statistical
+              deviations (for "1sigma" and "2sigma" cases). The order is: :math:`-2\sigma`,
+              :math:`-1\sigma`, central value, :math:`1\sigma`, :math:`2\sigma`.
+
+        Raises:
+            AssertionError: If the confidence level is not between 0 and 1.
         """
         assert (
             0.0 <= confidence_level <= 1.0
@@ -942,8 +946,8 @@ class HypothesisTestingBase(ABC):
                 if not np.isclose(muhat, 0.0)
                 else 1.0
             )
-            low_init = low_init or muhat + 1.5 * sigma_mu
-            hig_init = hig_init or muhat + 2.5 * sigma_mu
+            low_init = np.clip(low_init or muhat + 1.5 * sigma_mu, 1e-10, None)
+            hig_init = np.clip(hig_init or muhat + 2.5 * sigma_mu, 1e-10, None)
             log.debug(f"new low_init = {low_init}, new hig_init = {hig_init}")
 
         return find_poi_upper_limit(
@@ -953,9 +957,179 @@ class HypothesisTestingBase(ABC):
             asimov_logpdf=logpdf_asimov,
             expected=expected,
             confidence_level=confidence_level,
-            allow_negative_signal=False,
+            test_stat="q" if allow_negative_signal else "qtilde",
             low_init=low_init,
             hig_init=hig_init,
             expected_pvalue=expected_pvalue,
             maxiter=maxiter,
         )
+
+    def chi2_test(
+        self,
+        expected: ExpectationType = ExpectationType.observed,
+        confidence_level: float = 0.95,
+        limit_type: Literal["right", "left", "two-sided"] = "two-sided",
+    ) -> List[float]:
+        r"""
+        Determine the parameter of interest (POI) value(s) that constrain the
+        :math:`\chi^2` distribution at a specified confidence level.
+
+        .. versionadded:: 0.2.0
+
+        .. attention::
+
+            The degrees of freedom are set to one, referring to the POI. Currently, spey does not
+            support multiple POIs, but this feature is planned for future releases.
+
+        Args:
+            expected (~spey.ExpectationType): Specifies the type of expectation for the fitting
+              algorithm and p-value computation.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes p-values using post-fit prescription,
+                assuming experimental data as the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes expected p-values using pre-fit
+                prescription, assuming the Standard Model (SM) as the truth.
+
+            confidence_level (``float``, default ``0.95``): The confidence level for the upper limit.
+              Must be between 0 and 1. This refers to the total inner area under the bell curve.
+
+            limit_type (``'right'``, ``'left'`` or ``'two-sided'``, default ``"two-sided"``): Specifies
+              which side of the :math:`\chi^2` distribution should be constrained. For two-sided limits,
+              the inner area of the :math:`\chi^2` distribution is set to ``confidence_level``, making the
+              threshold :math:`\alpha=(1-CL)/2`, where CL is the `confidence_level`. For left or right
+              limits alone, :math:`\alpha=1-CL`. The :math:`\chi^2`-threshold is calculated using
+              ``chi2.isf(1.0 - confidence_level, df=1)`` for `left` and `right` limits, and
+              ``chi2.isf((1.0 - confidence_level)/2, df=1)`` for `two-sided` limits. Here, ``chi2``
+              refers to `SciPy's chi2 module <https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.chi2.html>`_.
+
+        Returns:
+            ``list[float]``:
+            POI value(s) that constrain the :math:`\chi^2` distribution at the given threshold.
+        """
+        assert (
+            0.0 <= confidence_level <= 1.0
+        ), "Confidence level must be between zero and one."
+        assert limit_type in [
+            "left",
+            "right",
+            "two-sided",
+        ], f"Invalid limit type: {limit_type}"
+
+        # Two sided test statistic need to be halfed, total area within
+        # two sides should be equal to confidence_level
+        alpha = (1.0 - confidence_level) * (0.5 if limit_type == "two-sided" else 1.0)
+
+        # DoF = # POI
+        chi2_threshold = chi2.isf(alpha, df=1)
+
+        muhat, mllhd = self.maximize_likelihood(
+            expected=expected, allow_negative_signal=limit_type in ["two-sided", "left"]
+        )
+
+        def computer(poi_test: float) -> float:
+            """Compute chi^2 - chi^2 threshold"""
+            llhd = self.likelihood(poi_test=poi_test, expected=expected)
+            return 2.0 * (llhd - mllhd) - chi2_threshold
+
+        try:
+            sigma_muhat = self.sigma_mu(muhat, expected=expected)
+        except:  # specify an exeption type
+            sigma_muhat = 1.0
+
+        results = []
+        if limit_type in ["left", "two-sided"]:
+            is_muhat_gt_0 = np.isclose(muhat, 0.0) or muhat > 0.0
+            low = -1.0 if is_muhat_gt_0 else muhat - 1.5 * sigma_muhat
+            hig = -1.0 if is_muhat_gt_0 else muhat - 2.5 * sigma_muhat
+            hig_bound, low_bound = -1e5, -1e-5
+
+            hig_computer = ComputerWrapper(computer)
+            while hig_computer(hig) < 0.0 and hig > hig_bound:
+                hig *= 2.0
+
+            low_computer = ComputerWrapper(computer)
+            while low_computer(low) > 0.0 and low < low_bound:
+                low *= 0.5
+
+            log.debug(
+                f"Left first attempt:: low: f({low:.5e})={low_computer[-1]:.5e},"
+                f" high: f({hig:.5e})={hig_computer[-1]:.5e}"
+            )
+            if np.sign(low_computer[-1]) == np.sign(hig_computer[-1]) and muhat > 0:
+                low_computer = ComputerWrapper(computer)
+                low = muhat
+                while low_computer(low) > 0.0 and low > 1e-5:
+                    low *= 0.5
+                log.debug(
+                    f"Left second attempt:: low: f({low:.5e})={low_computer[-1]:.5e},"
+                    f" high: f({hig:.5e})={hig_computer[-1]:.5e}"
+                )
+
+            if np.sign(low_computer[-1]) != np.sign(hig_computer[-1]):
+                x0, _ = toms748(
+                    computer,
+                    hig,
+                    low,
+                    k=2,
+                    xtol=2e-12,
+                    rtol=1e-4,
+                    full_output=True,
+                    maxiter=10000,
+                )
+                results.append(x0)
+            else:
+                log.error(
+                    "Can not find the roots on the left side."
+                    " Please check your chi^2 distribution, it might be too wide."
+                )
+                results.append(-1e5 if hig >= -1e5 else np.nan)
+
+        if limit_type in ["right", "two-sided"]:
+            is_muhat_le_0 = np.isclose(muhat, 0.0) or muhat < 0.0
+            low = 1.0 if is_muhat_le_0 else muhat + 1.5 * sigma_muhat
+            hig = 1.0 if is_muhat_le_0 else muhat + 2.5 * sigma_muhat
+            hig_bound, low_bound = 1e5, 1e-5
+
+            hig_computer = ComputerWrapper(computer)
+            while hig_computer(hig) < 0.0 and hig < hig_bound:
+                hig *= 2.0
+
+            low_computer = ComputerWrapper(computer)
+            while low_computer(low) > 0.0 and low > low_bound:
+                low *= 0.5
+
+            log.debug(
+                f"Right first attempt:: low: f({low:.5e})={low_computer[-1]:.5e},"
+                f" high: f({hig:.5e})={hig_computer[-1]:.5e}"
+            )
+
+            if np.sign(low_computer[-1]) == np.sign(hig_computer[-1]) and muhat < 0:
+                low_computer = ComputerWrapper(computer)
+                low = muhat
+                while low_computer(low) > 0.0 and low < -1e-5:
+                    low *= 0.5
+                log.debug(
+                    f"Left second attempt:: low: f({low:.5e})={low_computer[-1]:.5e},"
+                    f" high: f({hig:.5e})={hig_computer[-1]:.5e}"
+                )
+
+            if np.sign(low_computer[-1]) != np.sign(hig_computer[-1]):
+                x0, _ = toms748(
+                    computer,
+                    low,
+                    hig,
+                    k=2,
+                    xtol=2e-12,
+                    rtol=1e-4,
+                    full_output=True,
+                    maxiter=10000,
+                )
+                results.append(x0)
+            else:
+                log.error(
+                    "Can not find the roots on the right side."
+                    " Please check your chi^2 distribution, it might be too wide."
+                )
+                results.append(1e5 if hig >= 1e5 else np.nan)
+
+        return results

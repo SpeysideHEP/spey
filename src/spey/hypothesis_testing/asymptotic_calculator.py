@@ -1,6 +1,6 @@
 """Tools for computing confidence level and pvalues at the asymptotic limit"""
 
-from typing import List, Text, Tuple
+from typing import List, Tuple
 
 from .distributions import AsymptoticTestStatisticsDistribution
 from .utils import expected_pvalues, pvalues
@@ -72,11 +72,12 @@ def compute_asymptotic_confidence_level(
         :func:`~spey.hypothesis_testing.utils.pvalues`,
         :func:`~spey.hypothesis_testing.utils.expected_pvalues`
     """
-    cutoff = -sqrt_qmuA  # use clipped normal -> normal will mean -np.inf
-    # gives more stable result for cases that \hat\mu > \mu : see eq 14, 16 :xref:`1007.1727`
+    # use normal distribution for the cutoff -> default
+    # to use clipped normal change cutoff to -sqrt_qmuA this may give more stable results
+    # for cases that \hat\mu > \mu : see eq 14, 16 :xref:`1007.1727`
 
-    sig_plus_bkg_distribution = AsymptoticTestStatisticsDistribution(-sqrt_qmuA, cutoff)
-    bkg_only_distribution = AsymptoticTestStatisticsDistribution(0.0, cutoff)
+    sig_plus_bkg_distribution = AsymptoticTestStatisticsDistribution(-sqrt_qmuA)
+    bkg_only_distribution = AsymptoticTestStatisticsDistribution(0.0)
 
     CLsb_obs, CLb_obs, CLs_obs = pvalues(
         delta_test_statistic, sig_plus_bkg_distribution, bkg_only_distribution

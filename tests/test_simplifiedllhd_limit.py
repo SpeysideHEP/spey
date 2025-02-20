@@ -9,7 +9,7 @@ from spey.helper_functions import covariance_to_correlation
 def test_simplified_llhds_at_limit():
     """Test models at the limit"""
 
-    base_model = spey.get_backend("default_pdf.uncorrelated_background")(
+    base_model = spey.get_backend("default.uncorrelated_background")(
         signal_yields=[1, 1, 1],
         background_yields=[2, 1, 3],
         data=[2, 2, 2],
@@ -17,7 +17,7 @@ def test_simplified_llhds_at_limit():
     )
     base_model_cls = base_model.exclusion_confidence_level()[0]
 
-    correlated_model = spey.get_backend("default_pdf.correlated_background")(
+    correlated_model = spey.get_backend("default.correlated_background")(
         signal_yields=[1, 1, 1],
         background_yields=[2, 1, 3],
         data=[2, 2, 2],
@@ -29,7 +29,7 @@ def test_simplified_llhds_at_limit():
         correlated_model_cls, base_model_cls
     ), "Correlated model is not same as base model"
 
-    third_moment_model = spey.get_backend("default_pdf.third_moment_expansion")(
+    third_moment_model = spey.get_backend("default.third_moment_expansion")(
         signal_yields=[1, 1, 1],
         background_yields=[2, 1, 3],
         data=[2, 2, 2],
@@ -42,7 +42,7 @@ def test_simplified_llhds_at_limit():
         third_moment_model_cls, base_model_cls
     ), "third moment model is not same as base model"
 
-    eff_sigma_model = spey.get_backend("default_pdf.effective_sigma")(
+    eff_sigma_model = spey.get_backend("default.effective_sigma")(
         signal_yields=[1, 1, 1],
         background_yields=[2, 1, 3],
         data=[2, 2, 2],

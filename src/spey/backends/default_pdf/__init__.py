@@ -55,7 +55,7 @@ class DefaultPDFBase(BackendBase):
         :func:`autograd.numpy.array` function.
     """
 
-    name: str = "default_pdf.base"
+    name: str = "default.base"
     """Name of the backend"""
     version: str = __version__
     """Version of the backend"""
@@ -444,7 +444,7 @@ class UncorrelatedBackground(DefaultPDFBase):
     .. code:: python3
 
         >>> import spey
-        >>> stat_wrapper = spey.get_backend('default_pdf.uncorrelated_background')
+        >>> stat_wrapper = spey.get_backend('default.uncorrelated_background')
 
         >>> data = [1, 3]
         >>> signal = [0.5, 2.0]
@@ -457,7 +457,7 @@ class UncorrelatedBackground(DefaultPDFBase):
         >>> print("1-CLs : %.3f" % tuple(stat_model.exclusion_confidence_level()))
     """
 
-    name: str = "default_pdf.uncorrelated_background"
+    name: str = "default.uncorrelated_background"
     """Name of the backend"""
     version: str = DefaultPDFBase.version
     """Version of the backend"""
@@ -575,7 +575,7 @@ class CorrelatedBackground(DefaultPDFBase):
 
         >>> import spey
 
-        >>> stat_wrapper = spey.get_backend('default_pdf.correlated_background')
+        >>> stat_wrapper = spey.get_backend('default.correlated_background')
 
         >>> signal_yields = [12.0, 11.0]
         >>> background_yields = [50.0, 52.0]
@@ -586,7 +586,7 @@ class CorrelatedBackground(DefaultPDFBase):
         >>> print(statistical_model.exclusion_confidence_level())
     """
 
-    name: str = "default_pdf.correlated_background"
+    name: str = "default.correlated_background"
     """Name of the backend"""
     version: str = DefaultPDFBase.version
     """Version of the backend"""
@@ -663,7 +663,7 @@ class ThirdMomentExpansion(DefaultPDFBase):
         ``third_moment`` should also have three inputs.
     """
 
-    name: str = "default_pdf.third_moment_expansion"
+    name: str = "default.third_moment_expansion"
     """Name of the backend"""
     version: str = DefaultPDFBase.version
     """Version of the backend"""
@@ -803,7 +803,7 @@ class EffectiveSigma(DefaultPDFBase):
           * third_moments (``List[float]``): diagonal elemetns of the third moment
     """
 
-    name: str = "default_pdf.effective_sigma"
+    name: str = "default.effective_sigma"
     """Name of the backend"""
     version: str = DefaultPDFBase.version
     """Version of the backend"""

@@ -304,7 +304,7 @@ class Poisson(SimplePDFBase):
           :math:`\mu n_s^i + n_b^i + \theta^i\sigma^i`.
     """
 
-    name: str = "default_pdf.poisson"
+    name: str = "default.poisson"
     """Name of the backend"""
     version: str = SimplePDFBase.version
     """Version of the backend"""
@@ -381,7 +381,7 @@ class Gaussian(SimplePDFBase):
         absolute_uncertainties (``List[float]``): absolute uncertainties on the background
     """
 
-    name: str = "default_pdf.normal"
+    name: str = "default.normal"
     """Name of the backend"""
     version: str = SimplePDFBase.version
     """Version of the backend"""
@@ -431,7 +431,7 @@ class MultivariateNormal(SimplePDFBase):
 
     """
 
-    name: str = "default_pdf.multivariate_normal"
+    name: str = "default.multivariate_normal"
     """Name of the backend"""
     version: str = SimplePDFBase.version
     """Version of the backend"""

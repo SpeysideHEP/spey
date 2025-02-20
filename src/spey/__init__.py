@@ -3,6 +3,7 @@ import os
 import re
 import sys
 import textwrap
+import warnings
 from typing import Any, Callable, Dict, List, Literal, Optional, Text, Tuple, Union
 
 import numpy as np
@@ -150,7 +151,7 @@ def get_backend(name: str) -> Callable[[Any], StatisticalModel]:
         :linenos:
 
         >>> import spey; import numpy as np
-        >>> stat_wrapper = spey.get_backend("default_pdf.uncorrelated_background")
+        >>> stat_wrapper = spey.get_backend("default.uncorrelated_background")
 
         >>> data = np.array([1])
         >>> signal = np.array([0.5])
@@ -175,6 +176,24 @@ def get_backend(name: str) -> Callable[[Any], StatisticalModel]:
         the backend it self which is in this particular example
         :obj:`~spey.backends.simplifiedlikelihood_backend.interface.SimplifiedLikelihoodInterface`.
     """
+    deprecated = [
+        "default_pdf.correlated_background",
+        "default_pdf.effective_sigma",
+        "default_pdf.multivariate_normal",
+        "default_pdf.normal",
+        "default_pdf.poisson",
+        "default_pdf.third_moment_expansion",
+        "default_pdf.uncorrelated_background",
+    ]
+    if name in deprecated:
+        # pylint: disable=logging-fstring-interpolation
+        message = (
+            f"`{name}` has been deprecated, please use `{name.replace('default_pdf', 'default')}` instead."
+            + " This will be removed in the future."
+        )
+        warnings.warn(message, DeprecationWarning, stacklevel=2)
+        log.warning(message)
+        name = name.replace("default_pdf", "default")
     backend = _backend_entries.get(name, False)
 
     if backend:
@@ -231,13 +250,13 @@ def get_backend_metadata(name: str) -> Dict[str, Any]:
 
     .. code-block:: python3
 
-        >>> spey.get_backend_metadata("default_pdf.third_moment_expansion")
+        >>> spey.get_backend_metadata("default.third_moment_expansion")
 
     will return the following
 
     .. code-block:: python3
 
-        >>> {'name': 'default_pdf.third_moment_expansion',
+        >>> {'name': 'default.third_moment_expansion',
         ... 'author': 'SpeysideHEP',
         ... 'version': '0.0.1',
         ... 'spey_requires': '0.0.1',

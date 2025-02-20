@@ -234,7 +234,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
 
               .. code-block:: python3
 
-                >>> statistical_model_options = {"default_pdf.uncorrelated_background" : {"init_pars" : [1., 3., 4.]}}
+                >>> statistical_model_options = {"default.uncorrelated_background" : {"init_pars" : [1., 3., 4.]}}
 
             kwargs: keyword arguments for the optimiser.
 
@@ -325,7 +325,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
 
               .. code-block:: python3
 
-                >>> statistical_model_options = {"default_pdf.uncorrelated_background" : {"init_pars" : [1., 3., 4.]}}
+                >>> statistical_model_options = {"default.uncorrelated_background" : {"init_pars" : [1., 3., 4.]}}
 
             kwargs: keyword arguments for the optimiser.
 
@@ -409,7 +409,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
 
               .. code-block:: python3
 
-                >>> statistical_model_options = {"default_pdf.uncorrelated_background" : {"init_pars" : [1., 3., 4.]}}
+                >>> statistical_model_options = {"default.uncorrelated_background" : {"init_pars" : [1., 3., 4.]}}
 
             kwargs: keyword arguments for the optimiser.
 
@@ -483,7 +483,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
 
               .. code-block:: python3
 
-                >>> statistical_model_options = {"default_pdf.uncorrelated_background" : {"init_pars" : [1., 3., 4.]}}
+                >>> statistical_model_options = {"default.uncorrelated_background" : {"init_pars" : [1., 3., 4.]}}
 
             kwargs: keyword arguments for the optimiser.
 
@@ -613,7 +613,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
 
               .. code-block:: python3
 
-                >>> statistical_model_options = {"default_pdf.uncorrelated_background" : {"init_pars" : [1., 3., 4.]}}
+                >>> statistical_model_options = {"default.uncorrelated_background" : {"init_pars" : [1., 3., 4.]}}
 
             kwargs: keyword arguments for the optimiser.
 
