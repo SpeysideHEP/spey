@@ -3,6 +3,7 @@ import os
 import re
 import sys
 import textwrap
+import warnings
 from typing import Any, Callable, Dict, List, Literal, Optional, Text, Tuple, Union
 
 import numpy as np
@@ -175,11 +176,23 @@ def get_backend(name: str) -> Callable[[Any], StatisticalModel]:
         the backend it self which is in this particular example
         :obj:`~spey.backends.simplifiedlikelihood_backend.interface.SimplifiedLikelihoodInterface`.
     """
-    if "default_pdf" in name:
-        log.warning(
+    deprecated = [
+        "default_pdf.correlated_background",
+        "default_pdf.effective_sigma",
+        "default_pdf.multivariate_normal",
+        "default_pdf.normal",
+        "default_pdf.poisson",
+        "default_pdf.third_moment_expansion",
+        "default_pdf.uncorrelated_background",
+    ]
+    if name in deprecated:
+        # pylint: disable=logging-fstring-interpolation
+        message = (
             f"`{name}` has been deprecated, please use `{name.replace('default_pdf', 'default')}` instead."
-            " This will be removed in the future."
+            + " This will be removed in the future."
         )
+        warnings.warn(message, DeprecationWarning, stacklevel=2)
+        log.warning(message)
         name = name.replace("default_pdf", "default")
     backend = _backend_entries.get(name, False)
 
