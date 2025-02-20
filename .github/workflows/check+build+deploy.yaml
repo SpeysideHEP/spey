@@ -74,6 +74,8 @@ jobs:
             run: ls -l dist
 
           - name: Publish package distributions to PyPI
-            uses: pypa/gh-action-pypi-publish@v1.12.4
+            uses: pypa/gh-action-pypi-publish@v1.4.2
             with:
+              user:     ${{ secrets.TWINE_USERNAME }}
+              password: ${{ secrets.TWINE_PSSWRD }}
               verbose: true
