@@ -348,10 +348,10 @@ def get_backend_bibtex(name: str) -> Dict[str, List[str]]:
 def cite() -> List[str]:
     """Retreive BibTex information for Spey"""
     try:
-        arxiv = textwrap.indent(get_bibtex("inspire/arxiv", "2307.06996"), " " * 4)
+        arxiv = get_bibtex("inspire/arxiv", "2307.06996")
         zenodo = get_bibtex("zenodo", "10156353")
         linker = re.search("@software{(.+?),\n", zenodo).group(1)
-        zenodo = textwrap.indent(zenodo.replace(linker, "spey_zenodo"), " " * 4)
+        zenodo = zenodo.replace(linker, "spey_zenodo")
         return arxiv + "\n\n" + zenodo
     except ConnectionError as err:
         log.error("Can not connect to the internet. Please check your connection.")

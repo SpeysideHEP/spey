@@ -16,7 +16,7 @@ from pkg_resources import get_distribution
 sys.path.insert(0, str(Path("./ext").resolve()))
 
 project = "spey"
-copyright = "2024, Jack Y. Araz"
+copyright = "2025, Jack Y. Araz"
 author = "Jack Y. Araz"
 release = get_distribution("spey").version
 version = ".".join(release.split(".")[:3])
@@ -117,6 +117,10 @@ html_theme_options = {
     "repository_url": "https://github.com/SpeysideHEP/spey",
     "use_repository_button": True,  # add a 'link to repository' button
     "use_issues_button": False,  # add an 'Open an Issue' button
+    "use_download_button": True,  # add a 'Download' button
+    "home_page_in_toc": False,
+    "repository_branch": "main",
+    # "announcement": "Some announcement",
     "path_to_docs": "docs",
     "use_edit_page_button": True,
     "use_fullscreen_button": True,
@@ -142,12 +146,6 @@ html_theme_options = {
             "icon": "https://img.shields.io/pypi/v/spey?style=plastic",
             "type": "url",
         },
-        # {
-        #     "name": "PyPI",
-        #     "url": "https://pypi.org/project/spey/",
-        #     "icon": "https://img.shields.io/pypi/dm/spey?style=plastic",
-        #     "type": "url",
-        # },
     ],
 }
 

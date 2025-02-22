@@ -18,7 +18,7 @@ The BibTeX entry for citing ``spey`` including latest zenodo archive:
 
     @article{Araz:2023bwx,
         author        = {Araz, Jack Y.},
-        title         = {{Spey: smooth inference for reinterpretation studies}},
+        title         = {{Spey: Smooth inference for reinterpretation studies}},
         eprint        = {2307.06996},
         archiveprefix = {arXiv},
         primaryclass  = {hep-ph},
@@ -26,6 +26,7 @@ The BibTeX entry for citing ``spey`` including latest zenodo archive:
         doi           = {10.21468/SciPostPhys.16.1.032},
         journal       = {SciPost Phys.},
         volume        = {16},
+        number        = {1},
         pages         = {032},
         year          = {2024}
     }
