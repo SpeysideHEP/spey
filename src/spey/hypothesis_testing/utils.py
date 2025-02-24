@@ -63,8 +63,23 @@ def pvalues(
     if isinstance(sig_plus_bkg_distribution, AsymptoticTestStatisticsDistribution):
         logp_sb = sig_plus_bkg_distribution.logcdf(delta_test_statistic)
         logp_b = bkg_only_distribution.logcdf(delta_test_statistic)
-        p_s = np.exp(logp_sb - logp_b)
-        return np.exp(logp_sb), np.exp(logp_b), p_s
+
+        try:
+            p_sb = np.exp(logp_sb)
+        except FloatingPointError:
+            if logp_sb < 0: p_sb = 0
+            
+        try:
+            p_b = np.exp(logp_b)
+        except FloatingPointError:
+            if logp_b < 0: p_b = 0
+
+        try:
+            p_s = np.exp(logp_sb - logp_b)
+        except FloatingPointError:
+            if logp_sb - logp_b < 0: p_s = 0
+
+        return p_sb, p_b, p_s
 
     CLsb = sig_plus_bkg_distribution.pvalue(delta_test_statistic)
     CLb = bkg_only_distribution.pvalue(delta_test_statistic)
