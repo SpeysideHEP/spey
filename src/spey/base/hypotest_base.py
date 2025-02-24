@@ -4,6 +4,7 @@ tools to compute exclusion limits and POI upper limits
 """
 
 import logging
+import warnings
 from abc import ABC, abstractmethod
 from functools import partial
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
@@ -21,7 +22,7 @@ from spey.hypothesis_testing.test_statistics import (
     get_test_statistic,
 )
 from spey.hypothesis_testing.toy_calculator import compute_toy_confidence_level
-from spey.hypothesis_testing.upper_limits import find_poi_upper_limit, ComputerWrapper
+from spey.hypothesis_testing.upper_limits import ComputerWrapper, find_poi_upper_limit
 from spey.system.exceptions import (
     AsimovTestStatZero,
     CalculatorNotAvailable,
@@ -739,14 +740,19 @@ class HypothesisTestingBase(ABC):
             )
 
         elif calculator == "chi_square":
-            ts_s_b = test_stat_func(
-                poi_test, muhat, -min_negloglike, partial(logpdf, data=None)
-            )
-            null_logpdf = logpdf(0.0, None)
-            max_logpdf = (
-                -min_negloglike if muhat >= 0.0 or test_stat == "q" else null_logpdf
-            )
-            ts_b_only = np.clip(-2.0 * (null_logpdf - max_logpdf), 0.0, None)
+            with warnings.catch_warnings(record=True) as warnings_list:
+                ts_s_b = test_stat_func(
+                    poi_test, muhat, -min_negloglike, partial(logpdf, data=None)
+                )
+                null_logpdf = logpdf(0.0, None)
+                max_logpdf = (
+                    -min_negloglike if muhat >= 0.0 or test_stat == "q" else null_logpdf
+                )
+                ts_b_only = np.clip(-2.0 * (null_logpdf - max_logpdf), 0.0, None)
+                for warning in warnings_list:
+                    log.debug(
+                        f"{warning.message} (file: {warning.filename}, L:{warning.lineno})"
+                    )
             log.debug(
                 f"<chi_square> test statistic: null hypothesis={ts_b_only}, s+b={ts_s_b}"
             )
@@ -776,7 +782,7 @@ class HypothesisTestingBase(ABC):
 
         return list(
             map(
-                lambda x: 1.0 - x,
+                lambda x: 1.0 - x if not np.isnan(x) else 0.0,
                 pvalues if expected == ExpectationType.observed else expected_pvalues,
             )
         )

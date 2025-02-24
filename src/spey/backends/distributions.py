@@ -1,7 +1,7 @@
 """Autograd based differentiable distribution classes"""
 
 import logging
-import warnings
+from functools import lru_cache
 from typing import Any, Callable, Dict, List, Literal, Union
 
 import autograd.numpy as np
@@ -20,6 +20,15 @@ __all__ = ["Poisson", "Normal", "MultivariateNormal", "MainModel", "ConstraintMo
 
 def __dir__():
     return __all__
+
+
+@lru_cache(10)
+def warn_once(msg: str, wtype: str = "warning"):
+    """Warn for every 10 warning"""
+    if wtype == "warning":
+        log.warning(msg)
+    else:
+        log.error(msg)
 
 
 class Poisson:
@@ -147,12 +156,18 @@ class MultivariateNormal:
             inv = np.linalg.inv(cov)
             det = np.linalg.det(cov)
             if det <= 0.0:
-                warnings.warn(
-                    "det(rho) <= 0, this might cause numeric problems. "
+                warn_once(
+                    "det(cov) <= 0, this might cause numeric problems. "
                     "The value of the determinant will be limited to 1e-20. "
                     "This might be due to non-positive definite correlation matrix input."
                 )
                 det = np.clip(det, 1e-20, None)
+            if np.isinf(det):
+                warn_once(
+                    "det(cov) is infinite, this might cause numeric problems. "
+                    "Please check the covariance matrix.",
+                    wtype="error",
+                )
             self._inv_cov = lambda val: inv
             self._det_cov = lambda val: det
 
