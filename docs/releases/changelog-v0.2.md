@@ -18,4 +18,4 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 This release contains contributions from (in alphabetical order):
 
 * [Jack Araz](https://github.com/jackaraz)
-* [Joe Eagan](https://github.com/joes-git)
+* [Joe Egan](https://github.com/joes-git)
