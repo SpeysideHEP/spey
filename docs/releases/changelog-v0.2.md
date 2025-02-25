@@ -12,6 +12,7 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 ## Bug Fixes
 
 * Control mechanism added in case of infinite determinant in covariance matrix.
+  ([#47](https://github.com/SpeysideHEP/spey/pull/47))
 
 ## Contributors
 
