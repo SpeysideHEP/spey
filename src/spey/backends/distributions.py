@@ -1,7 +1,6 @@
 """Autograd based differentiable distribution classes"""
 
 import logging
-from functools import lru_cache
 from typing import Any, Callable, Dict, List, Literal, Union
 
 import autograd.numpy as np
@@ -9,6 +8,7 @@ from autograd.scipy.special import gammaln
 from autograd.scipy.stats.poisson import logpmf
 from scipy.stats import multivariate_normal, norm, poisson
 
+from spey import log_once
 from spey.system.exceptions import DistributionError
 
 # pylint: disable=E1101, W1203, E1121
@@ -20,15 +20,6 @@ __all__ = ["Poisson", "Normal", "MultivariateNormal", "MainModel", "ConstraintMo
 
 def __dir__():
     return __all__
-
-
-@lru_cache(10)
-def warn_once(msg: str, wtype: str = "warning"):
-    """Warn for every 10 warning"""
-    if wtype == "warning":
-        log.warning(msg)
-    else:
-        log.error(msg)
 
 
 class Poisson:
@@ -156,17 +147,18 @@ class MultivariateNormal:
             inv = np.linalg.inv(cov)
             det = np.linalg.det(cov)
             if det <= 0.0:
-                warn_once(
+                log_once(
                     "det(cov) <= 0, this might cause numeric problems. "
                     "The value of the determinant will be limited to 1e-20. "
-                    "This might be due to non-positive definite correlation matrix input."
+                    "This might be due to non-positive definite correlation matrix input.",
+                    log_type="warning",
                 )
                 det = np.clip(det, 1e-20, None)
             if np.isinf(det):
-                warn_once(
+                log_once(
                     "det(cov) is infinite, this might cause numeric problems. "
                     "Please check the covariance matrix.",
-                    wtype="error",
+                    log_type="error",
                 )
             self._inv_cov = lambda val: inv
             self._det_cov = lambda val: det
