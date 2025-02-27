@@ -1,15 +1,18 @@
 """Tools for computing third moment expansion"""
-import warnings
-from typing import Optional, Tuple, Union
 import logging
+from typing import Optional, Tuple, Union
+
 import autograd.numpy as np
 from scipy import integrate
 from scipy.stats import norm
+
+from spey.system.exceptions import warning_tracker
 
 # pylint: disable=E1101,E1120,W1203
 log = logging.getLogger("Spey")
 
 
+@warning_tracker
 def third_moment_expansion(
     expectation_value: np.ndarray,
     covariance_matrix: np.ndarray,
@@ -45,23 +48,17 @@ def third_moment_expansion(
         log.warning("The values that do not satisfy this condition will be set to zero.")
 
     # arXiv:1809.05548 eq. 2.9
-    with warnings.catch_warnings(record=True) as w:
-        C = (
-            -np.sign(third_moment)
-            * np.sqrt(2.0 * cov_diag)
-            * np.cos(
-                (4.0 * np.pi / 3.0)
-                + (1.0 / 3.0)
-                * np.arctan(np.sqrt(((8.0 * cov_diag**3) / third_moment**2) - 1.0))
-            )
+    C = (
+        -np.sign(third_moment)
+        * np.sqrt(2.0 * cov_diag)
+        * np.cos(
+            (4.0 * np.pi / 3.0)
+            + (1.0 / 3.0)
+            * np.arctan(np.sqrt(((8.0 * cov_diag**3) / third_moment**2) - 1.0))
         )
-    if len(w) > 0:
-        log.warning(
-            "8 * diag(cov)**3 >= third_moment**2 condition is not satisfied,"
-            " setting nan values to zero."
-        )
-        C = np.where(np.isnan(C), 0.0, C)
+    )
     log.debug(f"C: {C}")
+    C = np.where(np.isnan(C), 0.0, C)
 
     # arXiv:1809.05548 eq. 2.10
     B = np.sqrt(cov_diag - 2 * C**2)

@@ -4,7 +4,6 @@ tools to compute exclusion limits and POI upper limits
 """
 
 import logging
-import warnings
 from abc import ABC, abstractmethod
 from functools import partial
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
@@ -27,6 +26,7 @@ from spey.system.exceptions import (
     AsimovTestStatZero,
     CalculatorNotAvailable,
     MethodNotAvailable,
+    warning_tracker,
 )
 from spey.utils import ExpectationType
 
@@ -548,6 +548,7 @@ class HypothesisTestingBase(ABC):
 
         return 1.0 if qmuA <= 0.0 else np.true_divide(poi_test, np.sqrt(qmuA))
 
+    @warning_tracker
     def exclusion_confidence_level(
         self,
         poi_test: float = 1.0,
@@ -740,19 +741,14 @@ class HypothesisTestingBase(ABC):
             )
 
         elif calculator == "chi_square":
-            with warnings.catch_warnings(record=True) as warnings_list:
-                ts_s_b = test_stat_func(
-                    poi_test, muhat, -min_negloglike, partial(logpdf, data=None)
-                )
-                null_logpdf = logpdf(0.0, None)
-                max_logpdf = (
-                    -min_negloglike if muhat >= 0.0 or test_stat == "q" else null_logpdf
-                )
-                ts_b_only = np.clip(-2.0 * (null_logpdf - max_logpdf), 0.0, None)
-                for warning in warnings_list:
-                    log.debug(
-                        f"{warning.message} (file: {warning.filename}, L:{warning.lineno})"
-                    )
+            ts_s_b = test_stat_func(
+                poi_test, muhat, -min_negloglike, partial(logpdf, data=None)
+            )
+            null_logpdf = logpdf(0.0, None)
+            max_logpdf = (
+                -min_negloglike if muhat >= 0.0 or test_stat == "q" else null_logpdf
+            )
+            ts_b_only = np.clip(-2.0 * (null_logpdf - max_logpdf), 0.0, None)
             log.debug(
                 f"<chi_square> test statistic: null hypothesis={ts_b_only}, s+b={ts_s_b}"
             )
@@ -841,6 +837,7 @@ class HypothesisTestingBase(ABC):
 
         return sqrt_q0A, sqrt_q0, pvalues, expected_pvalues
 
+    @warning_tracker
     def poi_upper_limit(
         self,
         expected: ExpectationType = ExpectationType.observed,
@@ -1039,7 +1036,7 @@ class HypothesisTestingBase(ABC):
 
         try:
             sigma_muhat = self.sigma_mu(muhat, expected=expected)
-        except:  # specify an exeption type
+        except Exception:  # specify an exeption type
             sigma_muhat = 1.0
 
         results = []

@@ -1,5 +1,13 @@
 """Module specific exceptions"""
 
+import logging
+import warnings
+from functools import wraps
+
+log = logging.getLogger("Spey")
+
+# pylint: disable=logging-fstring-interpolation
+
 __all__ = [
     "FrozenInstanceError",
     "AnalysisQueryError",
@@ -10,6 +18,22 @@ __all__ = [
     "PluginError",
     "MethodNotAvailable",
 ]
+
+
+def warning_tracker(func: callable) -> callable:
+    """Warning tracker decorator"""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        with warnings.catch_warnings(record=True) as w:
+            result = func(*args, **kwargs)
+            for warning in w:
+                log.debug(
+                    f"{warning.message} (file: {warning.filename}::L{warning.lineno})"
+                )
+        return result
+
+    return wrapper
 
 
 class FrozenInstanceError(Exception):
