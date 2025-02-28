@@ -13,6 +13,8 @@
 [![Documentation Status](https://readthedocs.org/projects/spey/badge/?style=plastic&version=main)](https://spey.readthedocs.io/)
 [![GitHub License](https://img.shields.io/github/license/SpeysideHEP/spey?style=plastic)](https://github.com/SpeysideHEP/spey/blob/main/LICENSE)
 
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/spey?style=plastic)
+
 ## Outline
 
 * [Installation](#installation)
@@ -104,7 +106,7 @@ stat_model = pdf_wrapper(
 
 where ``data`` indicates the observed events, ``signal_yields`` and ``background_yields`` represents
 yields for signal and background samples and ``background_unc`` shows the absolute uncertainties on
-the background events i.e. :math:`2.0\pm1.1` in this particular case. Note that we also introduced
+the background events i.e. $2.0\pm1.1$ in this particular case. Note that we also introduced
 ``analysis`` and ``xsection`` information which are optional where the ``analysis`` indicates a unique
 identifier for the statistical model, and ``xsection`` is the cross-section value of the signal, which is
 only used for the computation of the excluded cross-section value.
@@ -114,12 +116,12 @@ This can be set via ``spey.ExpectationType`` which includes three different expe
 
 * ``spey.ExpectationType.observed``: Indicates that the computation of the log-probability will be
   achieved by fitting the statistical model on the experimental data. For the exclusion limit computation,
-  this will tell the package to compute observed :math:`1-CL_s` values. ``spey.ExpectationType.observed``
+  this will tell the package to compute observed ${\rm CL}_s$ values. ``spey.ExpectationType.observed``
   has been set as default throughout the package.
 
 * ``spey.ExpectationType.aposteriori``: This command will result in the same log-probability computation
   as ``spey.ExpectationType.observed``. However, the expected exclusion limit will be computed by centralizing
-  the statistical model on the background and checking :math:`\pm1\sigma` and :math:`\pm2\sigma` fluctuations.
+  the statistical model on the background and checking $\pm1\sigma$ and $\pm2\sigma$ fluctuations.
 
 * ``spey.ExpectationType.apriori``: Indicates that the observation has never taken place and the theoretical
   SM computation is the absolute truth. Thus, it replaces observed values in the statistical model with the
@@ -130,10 +132,10 @@ To compute the observed exclusion limit for the above example, one can type
 
 ```python
 for expectation in spey.ExpectationType:
-    print(f"1-CLs ({expectation}): {stat_model.exclusion_confidence_level(expected=expectation)}")
-# 1-CLs (apriori): [0.49026742260475775, 0.3571003642744075, 0.21302512037071475, 0.1756147641077802, 0.1756147641077802]
-# 1-CLs (aposteriori): [0.6959976874809755, 0.5466491036450178, 0.3556261845401908, 0.2623335168616665, 0.2623335168616665]
-# 1-CLs (observed): [0.40145846656558726]
+    print(f"CLs ({expectation}): {stat_model.exclusion_confidence_level(expected=expectation)}")
+# CLs (apriori): [0.49026742260475775, 0.3571003642744075, 0.21302512037071475, 0.1756147641077802, 0.1756147641077802]
+# CLs (aposteriori): [0.6959976874809755, 0.5466491036450178, 0.3556261845401908, 0.2623335168616665, 0.2623335168616665]
+# CLs (observed): [0.40145846656558726]
 ```
 
 Note that ``spey.ExpectationType.apriori`` and ``spey.ExpectationType.aposteriori`` expectation types
@@ -170,13 +172,13 @@ for each ``spey.ExpectationType`` will yield.
 
 ```python
 for expectation in spey.ExpectationType:
-    print(f"1-CLs ({expectation}): {stat_model.exclusion_confidence_level(expected=expectation)}")
-# 1-CLs (apriori): [0.971099302028661, 0.9151646569018123, 0.7747509673901924, 0.5058089246145081, 0.4365406649302913]
-# 1-CLs (aposteriori): [0.9989818194986659, 0.9933308419577298, 0.9618669253593897, 0.8317680908087413, 0.5183060229282643]
-# 1-CLs (observed): [0.9701795436411219]
+    print(f"CLs ({expectation}): {stat_model.exclusion_confidence_level(expected=expectation)}")
+# CLs (apriori): [0.971099302028661, 0.9151646569018123, 0.7747509673901924, 0.5058089246145081, 0.4365406649302913]
+# CLs (aposteriori): [0.9989818194986659, 0.9933308419577298, 0.9618669253593897, 0.8317680908087413, 0.5183060229282643]
+# CLs (observed): [0.9701795436411219]
 ```
 
-It is also possible to compute $1-CL_s$ value with respect to the parameter of interest, $\mu$.
+It is also possible to compute $CL_s$ value with respect to the parameter of interest, $\mu$.
 This can be achieved by including a value for ``poi_test`` argument.
 
 <img src="https://raw.githubusercontent.com/SpeysideHEP/spey/main/docs/figs/brazilian_plot.png" alt="Brazilian plot" style="float: right; margin-right: 20px" align="right" width=500px/>
@@ -192,14 +194,14 @@ plt.fill_between(poi, poiUL[:,1], poiUL[:,3], alpha=0.8, color="green", lw=0)
 plt.fill_between(poi, poiUL[:,0], poiUL[:,4], alpha=0.5, color="yellow", lw=0)
 plt.plot([0,10], [.95,.95], color="k", ls="dashed")
 plt.xlabel(r"${\rm signal\ strength}\ (\mu)$")
-plt.ylabel("$1-CL_s$")
+plt.ylabel("$CL_s$")
 plt.xlim([0,10])
 plt.ylim([0.6,1.01])
 plt.text(0.5,0.96, r"$95\%\ {\rm CL}$")
 plt.show()
 ```
 
-Here in the first line, we extract $1-CL_s$ values per POI for ``spey.ExpectationType.aposteriori``
+Here in the first line, we extract $CL_s$ values per POI for ``spey.ExpectationType.aposteriori``
 expectation type, and we plot specific standard deviations, which provide the following plot:
 
 The excluded value of POI can also be retrieved by `spey`.StatisticalModel.poi_upper_limit`` function, which is the exact point where the red-curve and black dashed line meet. The upper limit for the

@@ -51,6 +51,7 @@ extensions = [
 ]
 nb_execution_mode = "off"
 
+suppress_warnings = ["autosectionlabel.*"]
 # set the width of the page
 # sphinx_rtd_size_width = "100%"
 

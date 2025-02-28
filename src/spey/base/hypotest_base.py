@@ -21,11 +21,12 @@ from spey.hypothesis_testing.test_statistics import (
     get_test_statistic,
 )
 from spey.hypothesis_testing.toy_calculator import compute_toy_confidence_level
-from spey.hypothesis_testing.upper_limits import find_poi_upper_limit, ComputerWrapper
+from spey.hypothesis_testing.upper_limits import ComputerWrapper, find_poi_upper_limit
 from spey.system.exceptions import (
     AsimovTestStatZero,
     CalculatorNotAvailable,
     MethodNotAvailable,
+    warning_tracker,
 )
 from spey.utils import ExpectationType
 
@@ -547,6 +548,7 @@ class HypothesisTestingBase(ABC):
 
         return 1.0 if qmuA <= 0.0 else np.true_divide(poi_test, np.sqrt(qmuA))
 
+    @warning_tracker
     def exclusion_confidence_level(
         self,
         poi_test: float = 1.0,
@@ -776,7 +778,7 @@ class HypothesisTestingBase(ABC):
 
         return list(
             map(
-                lambda x: 1.0 - x,
+                lambda x: 1.0 - x if not np.isnan(x) else 0.0,
                 pvalues if expected == ExpectationType.observed else expected_pvalues,
             )
         )
@@ -835,6 +837,7 @@ class HypothesisTestingBase(ABC):
 
         return sqrt_q0A, sqrt_q0, pvalues, expected_pvalues
 
+    @warning_tracker
     def poi_upper_limit(
         self,
         expected: ExpectationType = ExpectationType.observed,
@@ -1033,7 +1036,7 @@ class HypothesisTestingBase(ABC):
 
         try:
             sigma_muhat = self.sigma_mu(muhat, expected=expected)
-        except:  # specify an exeption type
+        except Exception:  # specify an exeption type
             sigma_muhat = 1.0
 
         results = []

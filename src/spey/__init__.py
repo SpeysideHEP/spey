@@ -4,6 +4,7 @@ import re
 import sys
 import textwrap
 import warnings
+from functools import lru_cache
 from typing import Any, Callable, Dict, List, Literal, Optional, Text, Tuple, Union
 
 import numpy as np
@@ -357,6 +358,24 @@ def cite() -> List[str]:
         log.error("Can not connect to the internet. Please check your connection.")
         log.debug(str(err))
         return ""
+
+
+@lru_cache(10)
+def log_once(msg: str, log_type: Literal["warning", "error", "info", "debug"]) -> None:
+    """
+    Log for every 10 messages
+
+    Args:
+        msg (``str``): message to be logged
+        log_type (``str``): type of log message. ``"warning"``, ``"error"``,
+          ``"info"`` or ``"debug"``.
+    """
+    {
+        "warning": log.warning,
+        "error": log.error,
+        "info": log.info,
+        "debug": log.debug,
+    }.get(log_type, log.info)(msg)
 
 
 if int(os.environ.get("SPEY_LOGLEVEL", -1)) >= 0:

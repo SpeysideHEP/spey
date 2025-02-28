@@ -1,7 +1,6 @@
 """Tools for computing upper limit on parameter of interest"""
 
 import logging
-import warnings
 from functools import partial
 from typing import Callable, List, Literal, Tuple, Union
 
@@ -246,23 +245,16 @@ def find_poi_upper_limit(
             result.append(np.inf)
             continue
 
-        with warnings.catch_warnings(record=True) as w:
-            x0, r = scipy.optimize.toms748(
-                comp,
-                low.get_value(-1),
-                hig.get_value(-1),
-                k=2,
-                xtol=2e-12,
-                rtol=1e-4,
-                full_output=True,
-                maxiter=maxiter,
-            )
-
-        log.debug("Warnings:")
-        if log.level == logging.DEBUG:
-            for warning in w:
-                log.debug(f"\t{warning.message}")
-            log.debug("<><>" * 10)
+        x0, r = scipy.optimize.toms748(
+            comp,
+            low.get_value(-1),
+            hig.get_value(-1),
+            k=2,
+            xtol=2e-12,
+            rtol=1e-4,
+            full_output=True,
+            maxiter=maxiter,
+        )
 
         if not r.converged:
             log.warning(f"Optimiser did not converge.\n{r}")
