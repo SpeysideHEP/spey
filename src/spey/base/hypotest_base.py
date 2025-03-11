@@ -558,7 +558,7 @@ class HypothesisTestingBase(ABC):
         **kwargs,
     ) -> List[float]:
         r"""
-        Compute exclusion confidence level (:math:`1-CL_s`) at a given POI, :math:`\mu`.
+        Compute exclusion confidence level (:math:`CL_s`) at a given POI, :math:`\mu`.
 
         Args:
             poi_test (``float``, default ``1.0``): parameter of interest, :math:`\mu`.
@@ -620,7 +620,7 @@ class HypothesisTestingBase(ABC):
 
         Returns:
             ``List[float]``:
-            Exclusion confidence level i.e. :math:`1-CL_s`.
+            Exclusion confidence level i.e. :math:`CL_s`.
         """
         if not getattr(self, f"is_{calculator}_calculator_available", False):
             raise CalculatorNotAvailable(f"{calculator} calculator is not available.")

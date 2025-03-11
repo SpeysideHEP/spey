@@ -73,7 +73,7 @@ def find_root_limits(
 
     Args:
         computer (``Callable[[float], float]``): Function that we want to find the root
-        loc (``float``, default ``0.0``): location of the root e.g. ``0.95`` for :math:`1-CL_s` value
+        loc (``float``, default ``0.0``): location of the root e.g. ``0.95`` for :math:`CL_s` value
         low_ini (``float``, default ``1.0``): Initial value for low bracket
         hig_ini (``float``, default ``1.0``): initial value for high bracket
         low_bound (``float``, default ``1e-10``): Stop the execution below this value
@@ -143,7 +143,7 @@ def find_poi_upper_limit(
             prescription which means that the SM will be assumed to be the truth.
 
         confidence_level (``float``, default ``0.95``): Determines the confidence level of the upper
-              limit i.e. the value of :math:`1-CL_s`. It needs to be between ``[0,1]``.
+              limit i.e. the value of :math:`CL_s`. It needs to be between ``[0,1]``.
         allow_negative_signal (``bool``, default ``True``): allow for negative signal values. This will
             change the computation of the test statistic.
         low_init (``float``, default ``None``): Lower limit for the search algorithm to start
