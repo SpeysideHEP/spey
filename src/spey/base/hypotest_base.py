@@ -972,6 +972,7 @@ class HypothesisTestingBase(ABC):
         expected: ExpectationType = ExpectationType.observed,
         confidence_level: float = 0.95,
         limit_type: Literal["right", "left", "two-sided"] = "two-sided",
+        allow_negative_signal: bool = None,
     ) -> List[float]:
         r"""
         Determine the parameter of interest (POI) value(s) that constrain the
