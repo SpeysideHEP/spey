@@ -3,8 +3,10 @@
 import logging
 from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
 
-from autograd import value_and_grad, hessian, jacobian
-from autograd import numpy as np
+import jax
+from jax import hessian, jacobian
+from jax import numpy as np
+from jax import value_and_grad
 from scipy.optimize import NonlinearConstraint
 
 from spey._version import __version__
@@ -19,6 +21,7 @@ from .uncertainty_synthesizer import signal_uncertainty_synthesizer
 
 # pylint: disable=E1101,E1120
 log = logging.getLogger("Spey")
+jax.config.update("jax_enable_x64", True)
 
 # pylint: disable=W1203
 
@@ -82,11 +85,11 @@ class DefaultPDFBase(BackendBase):
         ] = None,
         signal_uncertainty_configuration: Optional[Dict[str, Any]] = None,
     ):
-        self.data = np.array(data, dtype=np.float64)
-        self.signal_yields = np.array(signal_yields, dtype=np.float64)
-        self.background_yields = np.array(background_yields, dtype=np.float64)
+        self.data = np.array(data)
+        self.signal_yields = np.array(signal_yields)
+        self.background_yields = np.array(background_yields)
         self.covariance_matrix = (
-            np.array(covariance_matrix, dtype=np.float64)
+            np.array(covariance_matrix)
             if not callable(covariance_matrix) and covariance_matrix is not None
             else covariance_matrix
         )
@@ -262,7 +265,7 @@ class DefaultPDFBase(BackendBase):
             ) - self.constraint_model.log_prob(pars)
 
         if do_grad:
-            return value_and_grad(negative_loglikelihood, argnum=0)
+            return jax.jit(value_and_grad(negative_loglikelihood, argnums=0))
 
         return negative_loglikelihood
 
@@ -345,7 +348,7 @@ class DefaultPDFBase(BackendBase):
                 pars, data[: len(self.data)]
             ) + self.constraint_model.log_prob(pars)
 
-        return hessian(log_prob, argnum=0)
+        return hessian(log_prob, argnums=0)
 
     def get_sampler(self, pars: np.ndarray) -> Callable[[int], np.ndarray]:
         r"""

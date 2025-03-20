@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Tuple
 
-import autograd.numpy as np
+import jax.numpy as np
 
 from spey.helper_functions import correlation_to_covariance
 

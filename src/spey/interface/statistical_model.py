@@ -307,7 +307,7 @@ class StatisticalModel(HypothesisTestingBase):
                 fixed_poi_value=poi_test,
             )
 
-        return -logpdf if return_nll else np.exp(logpdf)
+        return float(-logpdf if return_nll else np.exp(logpdf))
 
     def generate_asimov_data(
         self,
@@ -512,7 +512,7 @@ class StatisticalModel(HypothesisTestingBase):
         log.debug(f"fit parameters: {fit_param}")
 
         muhat = fit_param[self.backend.config().poi_index]
-        return muhat, -logpdf if return_nll else np.exp(logpdf)
+        return float(muhat), float(-logpdf if return_nll else np.exp(logpdf))
 
     def maximize_asimov_likelihood(
         self,

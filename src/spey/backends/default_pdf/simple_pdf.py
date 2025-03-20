@@ -2,9 +2,10 @@
 
 from typing import Callable, List, Optional, Tuple, Union
 
-from autograd import hessian, jacobian
-from autograd import numpy as np
-from autograd import value_and_grad
+import jax
+from jax import hessian, jacobian
+from jax import numpy as np
+from jax import value_and_grad
 from scipy.optimize import NonlinearConstraint
 
 from spey._version import __version__
@@ -14,6 +15,7 @@ from spey.system.exceptions import InvalidInput
 from spey.utils import ExpectationType
 
 # pylint: disable=E1101,E1120,W0613
+jax.config.update("jax_enable_x64", True)
 
 
 class SimplePDFBase(BackendBase):
@@ -43,9 +45,9 @@ class SimplePDFBase(BackendBase):
         background_yields: List[float],
         data: List[int],
     ):
-        self.data = np.array(data, dtype=np.float64)
-        self.signal_yields = np.array(signal_yields, dtype=np.float64)
-        self.background_yields = np.array(background_yields, dtype=np.float64)
+        self.data = np.array(data)
+        self.signal_yields = np.array(signal_yields)
+        self.background_yields = np.array(background_yields)
         self._main_model = None
         """main model"""
         self._main_kwargs = {}
@@ -163,7 +165,7 @@ class SimplePDFBase(BackendBase):
             return -self.main_model.log_prob(pars, data)
 
         if do_grad:
-            return value_and_grad(negative_loglikelihood, argnum=0)
+            return value_and_grad(negative_loglikelihood, argnums=0)
 
         return negative_loglikelihood
 
@@ -240,7 +242,7 @@ class SimplePDFBase(BackendBase):
             """Compute log-probability"""
             return self.main_model.log_prob(pars, data)
 
-        return hessian(log_prob, argnum=0)
+        return hessian(log_prob, argnums=0)
 
     def get_sampler(self, pars: np.ndarray) -> Callable[[int], np.ndarray]:
         r"""
@@ -402,7 +404,7 @@ class Gaussian(SimplePDFBase):
         super().__init__(
             signal_yields=signal_yields, background_yields=background_yields, data=data
         )
-        self.absolute_uncertainties = np.array(absolute_uncertainties, dtype=np.float64)
+        self.absolute_uncertainties = np.array(absolute_uncertainties)
         """absolute uncertainties on the background"""
         self._main_kwargs = {"cov": self.absolute_uncertainties, "pdf_type": "gauss"}
 
@@ -452,7 +454,7 @@ class MultivariateNormal(SimplePDFBase):
         super().__init__(
             signal_yields=signal_yields, background_yields=background_yields, data=data
         )
-        self.covariance_matrix = np.array(covariance_matrix, dtype=np.float64)
+        self.covariance_matrix = np.array(covariance_matrix)
         if (
             self.covariance_matrix.shape[0] != len(self.background_yields)
             and len(self.covariance_matrix.shape) == 2

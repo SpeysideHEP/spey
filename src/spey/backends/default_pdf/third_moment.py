@@ -2,7 +2,7 @@
 import logging
 from typing import Optional, Tuple, Union
 
-import autograd.numpy as np
+import numpy as np
 from scipy import integrate
 from scipy.stats import norm
 

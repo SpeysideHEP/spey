@@ -1,6 +1,6 @@
 from typing import Callable, Optional, Tuple, List
 
-from autograd import numpy as np
+from jax import numpy as np
 
 from .interface.statistical_model import StatisticalModel
 from .utils import ExpectationType

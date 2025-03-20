@@ -3,9 +3,9 @@
 import logging
 from typing import Any, Callable, Dict, List, Literal, Union
 
-import autograd.numpy as np
-from autograd.scipy.special import gammaln
-from autograd.scipy.stats.poisson import logpmf
+import jax.numpy as np
+from jax.scipy.special import gammaln
+from jax.scipy.stats.poisson import logpmf
 from scipy.stats import multivariate_normal, norm, poisson
 
 from spey import log_once
@@ -322,7 +322,7 @@ class ConstraintModel:
             ``np.ndarray``:
             log-probability of the main model
         """
-        return np.sum([pdf.log_prob(pars) for pdf in self._pdfs])
+        return sum(np.sum(pdf.log_prob(pars)) for pdf in self._pdfs)
 
 
 class MixtureModel:
@@ -359,4 +359,4 @@ class MixtureModel:
 
     def log_prob(self, value: np.ndarray) -> np.ndarray:
         """Compute log-probability"""
-        return np.sum([dist.log_prob(value) for dist in self.distributions])
+        return sum(np.sum(dist.log_prob(value)) for dist in self.distributions)
