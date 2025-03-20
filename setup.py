@@ -7,9 +7,9 @@ with open("src/spey/_version.py", encoding="UTF-8") as f:
     version = f.readlines()[-1].split()[-1].strip("\"'")
 
 requirements = [
-    "numpy>=1.21.6, <2.0.0",
+    "numpy>=1.21.6, <3.0.0",
     "scipy>=1.10.0",
-    "autograd>=1.5",
+    "autograd>=1.7.0",
     "semantic_version~=2.10",
     "tqdm>=4.64.0",
     "requests>=2.31.0",
