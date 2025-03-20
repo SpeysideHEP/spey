@@ -265,7 +265,7 @@ class DefaultPDFBase(BackendBase):
             ) - self.constraint_model.log_prob(pars)
 
         if do_grad:
-            return jax.jit(value_and_grad(negative_loglikelihood, argnums=0))
+            return jax.jit(value_and_grad(negative_loglikelihood))
 
         return negative_loglikelihood
 
@@ -348,7 +348,7 @@ class DefaultPDFBase(BackendBase):
                 pars, data[: len(self.data)]
             ) + self.constraint_model.log_prob(pars)
 
-        return hessian(log_prob, argnums=0)
+        return hessian(log_prob)
 
     def get_sampler(self, pars: np.ndarray) -> Callable[[int], np.ndarray]:
         r"""
