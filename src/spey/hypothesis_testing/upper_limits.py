@@ -111,11 +111,9 @@ def find_poi_upper_limit(
     asimov_logpdf: Callable[[float], float],
     expected: ExpectationType,
     confidence_level: float = 0.95,
-    test_stat: str = "qtilde",
+    allow_negative_signal: bool = True,
     low_init: float = 1.0,
     hig_init: float = 1.0,
-    hig_bound: float = 1e5,
-    low_bound: float = 1e-10,
     expected_pvalue: Literal["nominal", "1sigma", "2sigma"] = "nominal",
     maxiter: int = 10000,
 ) -> Union[float, List[float]]:
@@ -180,6 +178,7 @@ def find_poi_upper_limit(
     ], f"Unknown pvalue range {expected_pvalue}"
     if expected is ExpectationType.observed:
         expected_pvalue = "nominal"
+    test_stat = "q" if allow_negative_signal else "qtilde"
 
     def computer(poi_test: float, pvalue_idx: int) -> float:
         """Compute 1 - CLs(POI) = `confidence_level`"""
@@ -215,23 +214,11 @@ def find_poi_upper_limit(
         log.debug(f"Running for p-value idx: {pvalue_idx}")
         comp = partial(computer, pvalue_idx=pvalue_idx)
         # Set an upper bound for the computation
-        hi_lo = find_root_limits(
-            comp,
-            loc=0.0,
-            low_ini=low_init,
-            hig_ini=hig_init,
-            hig_bound=hig_bound,
-            low_bound=low_bound,
-        )  # low, hig
-        if all(x > 0 for x in [low_init, hig_init, hig_bound, low_bound]):
-            low, hig = hi_lo
-            log.debug(f"low: {low[-1]}, hig: {hig[-1]}")
-        else:
-            # flip the order if the search is on the negative POI side.
-            hig, low = hi_lo
-            log.debug(
-                f"Searching for the UL on the left tail, low: {low[-1]}, hig: {hig[-1]}"
-            )
+        hig_bound = 1e5
+        low, hig = find_root_limits(
+            comp, loc=0.0, low_ini=low_init, hig_ini=hig_init, hig_bound=hig_bound
+        )
+        log.debug(f"low: {low[-1]}, hig: {hig[-1]}")
 
         # Check if its possible to find roots
         if np.sign(low[-1]) * np.sign(hig[-1]) > 0.0:
