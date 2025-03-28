@@ -9,6 +9,12 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 
 ## Improvements
 
+* Autograd has been upgraded to v1.7 which supports numpy 2.0
+  ([#50](https://github.com/SpeysideHEP/spey/pull/50))
+
+* Enabled user control to allow negative signal yields in $\chi^2$-test.
+  ([#50](https://github.com/SpeysideHEP/spey/pull/50))
+
 ## Bug Fixes
 
 * Control mechanism added in case of infinite determinant in covariance matrix.
