@@ -3,6 +3,10 @@
 Plug-ins
 ========
 
+.. contents::
+    :backlinks: none
+    :depth: 3
+
 .. list-table::
    :header-rows: 1
 

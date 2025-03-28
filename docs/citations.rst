@@ -1,6 +1,11 @@
 Use & Citations
 ===============
 
+.. contents::
+    :backlinks: none
+    :depth: 2
+
+
 Citation
 --------
 
@@ -36,7 +41,7 @@ The BibTeX entry for citing ``spey`` including latest zenodo archive:
 Reinterpretation packages that are using ``spey``
 -------------------------------------------------
 
-If your package is not listed, please open an issue or a pull request.
+If your package is not listed, please open an `issue <https://github.com/SpeysideHEP/spey/issues>`_ or a `pull request <https://github.com/SpeysideHEP/spey/pulls>`_.
 
 * `Contur <https://hepcedar.gitlab.io/contur-webpage/>`_ - A framework for the statistical comparison of new physics predictions with LHC data.
 * `HackAnalysis <https://goodsell.pages.in2p3.fr/hackanalysis/>`_ - A tool for the reinterpretation of collider data.
