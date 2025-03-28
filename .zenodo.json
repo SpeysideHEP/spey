@@ -1,12 +1,12 @@
 {
     "description": "smooth inference for reinterpretation studies",
     "license": "MIT",
-    "title": "SpeysideHEP/spey: v0.2.1",
-    "version": "v0.2.1",
+    "title": "SpeysideHEP/spey: v0.2.2",
+    "version": "v0.2.2",
     "upload_type": "software",
     "creators": [
         {
-            "affiliation": "Stony Brook University",
+            "affiliation": "City St George's, University of London",
             "name": "Araz, Jack Y.",
             "orcid": "0000-0001-8721-8042"
         }
@@ -31,7 +31,7 @@
         },
         {
             "scheme": "url",
-            "identifier": "https://github.com/SpeysideHEP/spey/tree/v0.2.1",
+            "identifier": "https://github.com/SpeysideHEP/spey/tree/v0.2.2",
             "relation": "isSupplementTo"
         },
         {

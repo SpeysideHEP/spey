@@ -558,7 +558,7 @@ class HypothesisTestingBase(ABC):
         **kwargs,
     ) -> List[float]:
         r"""
-        Compute exclusion confidence level (:math:`1-CL_s`) at a given POI, :math:`\mu`.
+        Compute exclusion confidence level (:math:`CL_s`) at a given POI, :math:`\mu`.
 
         Args:
             poi_test (``float``, default ``1.0``): parameter of interest, :math:`\mu`.
@@ -620,7 +620,7 @@ class HypothesisTestingBase(ABC):
 
         Returns:
             ``List[float]``:
-            Exclusion confidence level i.e. :math:`1-CL_s`.
+            Exclusion confidence level i.e. :math:`CL_s`.
         """
         if not getattr(self, f"is_{calculator}_calculator_available", False):
             raise CalculatorNotAvailable(f"{calculator} calculator is not available.")
@@ -842,10 +842,9 @@ class HypothesisTestingBase(ABC):
         self,
         expected: ExpectationType = ExpectationType.observed,
         confidence_level: float = 0.95,
-        low_init: Optional[float] = 1.0,
-        hig_init: Optional[float] = 1.0,
+        low_init: float = 1.0,
+        hig_init: float = 1.0,
         expected_pvalue: Literal["nominal", "1sigma", "2sigma"] = "nominal",
-        allow_negative_signal: bool = False,
         maxiter: int = 10000,
         optimiser_arguments: Optional[Dict[str, Any]] = None,
     ) -> Union[float, List[float]]:
@@ -960,7 +959,7 @@ class HypothesisTestingBase(ABC):
             asimov_logpdf=logpdf_asimov,
             expected=expected,
             confidence_level=confidence_level,
-            test_stat="q" if allow_negative_signal else "qtilde",
+            allow_negative_signal=False,
             low_init=low_init,
             hig_init=hig_init,
             expected_pvalue=expected_pvalue,
@@ -972,6 +971,7 @@ class HypothesisTestingBase(ABC):
         expected: ExpectationType = ExpectationType.observed,
         confidence_level: float = 0.95,
         limit_type: Literal["right", "left", "two-sided"] = "two-sided",
+        allow_negative_signal: bool = None,
     ) -> List[float]:
         r"""
         Determine the parameter of interest (POI) value(s) that constrain the
@@ -994,19 +994,22 @@ class HypothesisTestingBase(ABC):
                 prescription, assuming the Standard Model (SM) as the truth.
 
             confidence_level (``float``, default ``0.95``): The confidence level for the upper limit.
-              Must be between 0 and 1. This refers to the total inner area under the bell curve.
+              Must be between 0 and 1. This refers to the total inner area under the bell curve. Noted
+              as :math:`CL` below.
 
             limit_type (``'right'``, ``'left'`` or ``'two-sided'``, default ``"two-sided"``): Specifies
               which side of the :math:`\chi^2` distribution should be constrained. For two-sided limits,
               the inner area of the :math:`\chi^2` distribution is set to ``confidence_level``, making the
               threshold :math:`\alpha=(1-CL)/2`, where CL is the `confidence_level`. For left or right
               limits alone, :math:`\alpha=1-CL`. The :math:`\chi^2`-threshold is calculated using
-              ``chi2.isf(1.0 - confidence_level, df=1)`` for `left` and `right` limits, and
-              ``chi2.isf((1.0 - confidence_level)/2, df=1)`` for `two-sided` limits. Here, ``chi2``
-              refers to `SciPy's chi2 module <https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.chi2.html>`_.
+              inverse survival function at :math:`\alpha`.
+
+            allow_negative_signal (``bool``, default ``None``): Controls whether the signal can be
+              negative. If ``None``, it will be set to ``True`` for two-sided and left limits, and
+              ``False`` for right limits. Otherwise, user can control this behaviour.
 
         Returns:
-            ``list[float]``:
+            ``List[float]``:
             POI value(s) that constrain the :math:`\chi^2` distribution at the given threshold.
         """
         assert (
@@ -1024,9 +1027,13 @@ class HypothesisTestingBase(ABC):
 
         # DoF = # POI
         chi2_threshold = chi2.isf(alpha, df=1)
+        allow_negative_signal = allow_negative_signal or limit_type in [
+            "two-sided",
+            "left",
+        ]
 
         muhat, mllhd = self.maximize_likelihood(
-            expected=expected, allow_negative_signal=limit_type in ["two-sided", "left"]
+            expected=expected, allow_negative_signal=allow_negative_signal
         )
 
         def computer(poi_test: float) -> float:
@@ -1036,7 +1043,7 @@ class HypothesisTestingBase(ABC):
 
         try:
             sigma_muhat = self.sigma_mu(muhat, expected=expected)
-        except Exception:  # specify an exeption type
+        except MethodNotAvailable:
             sigma_muhat = 1.0
 
         results = []
