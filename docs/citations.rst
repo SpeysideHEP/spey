@@ -33,6 +33,20 @@ The BibTeX entry for citing ``spey`` including latest zenodo archive:
 
 .. include:: ZENODO.rst
 
+Reinterpretation packages that are using ``spey``
+-------------------------------------------------
+
+If your package is not listed, please open an issue or a pull request.
+
+* `Contur <https://hepcedar.gitlab.io/contur-webpage/>`_ - A framework for the statistical comparison of new physics predictions with LHC data.
+* `HackAnalysis <https://goodsell.pages.in2p3.fr/hackanalysis/>`_ - A tool for the reinterpretation of collider data.
+* `CheckMate <https://checkmate.hepforge.org>`_ - A program that allows you to compare theoretical predictions for collider searches with the results of actual searches.
+* `MadAnalysis 5 <https://github.com/MadAnalysis/madanalysis5>`_ - A user-friendly, flexible and fast software package for phenomenological analyses of collider data.
+
+**At testing phase:**
+
+* `SModelS <https://smodels.github.io>`_ - A tool for simplified model reinterpretation of LHC results.
+
 Use in Publications
 -------------------
 
