@@ -1,8 +1,9 @@
 import logging
-from typing import Literal, Text
+from platform import python_version
+from typing import Literal
 
 import requests
-from semantic_version import Version
+from semantic_version import SimpleSpec, Version
 
 from spey._version import __version__
 
@@ -101,9 +102,11 @@ def check_updates() -> None:
         response = requests.get("https://pypi.org/pypi/spey/json", timeout=1)
         response.encoding = "utf-8"
         pypi_info = response.json()
+        py_version = Version(python_version())
         pypi_version = pypi_info.get("info", {}).get("version", False)
         version = __version__
         if pypi_version:
+            python_requires = SimpleSpec(pypi_info["info"]["requires_python"])
             log.debug(f"Curernt version {version}, latest version {pypi_version}.")
             if "beta" in Version(version).prerelease:
                 log.warning(
@@ -119,6 +122,11 @@ def check_updates() -> None:
                 log.warning(
                     f"An unstable version of Spey ({version}) is being used."
                     f" Latest stable version is {pypi_version}."
+                )
+            if py_version not in python_requires:
+                log.warning(
+                    f"The latest version of Spey requires python{python_requires},"
+                    f" however local python version is {py_version}."
                 )
 
     except Exception as err:  # pylint: disable=W0718
