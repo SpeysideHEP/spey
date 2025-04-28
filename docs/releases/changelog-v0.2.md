@@ -20,6 +20,9 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 * Control mechanism added in case of infinite determinant in covariance matrix.
   ([#47](https://github.com/SpeysideHEP/spey/pull/47))
 
+* Error during signal uncertainty insertion due to valid domain has been fixed.
+  ([#51](https://github.com/SpeysideHEP/spey/pull/51))
+
 ## Contributors
 
 This release contains contributions from (in alphabetical order):
