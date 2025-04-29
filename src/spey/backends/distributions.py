@@ -322,7 +322,7 @@ class ConstraintModel:
             ``np.ndarray``:
             log-probability of the main model
         """
-        return np.sum([pdf.log_prob(pars) for pdf in self._pdfs])
+        return sum(pdf.log_prob(pars).sum() for pdf in self._pdfs)
 
 
 class MixtureModel:

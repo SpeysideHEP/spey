@@ -166,7 +166,7 @@ class DefaultPDFBase(BackendBase):
                     {
                         "distribution_type": "multivariatenormal",
                         "args": [np.zeros(len(self.data)), corr],
-                        "kwargs": {"domain": slice(1, None)},
+                        "kwargs": {"domain": slice(1, corr.shape[0] + 1)},
                     }
                 ]
                 + self.signal_uncertainty_configuration.get("constraint", [])

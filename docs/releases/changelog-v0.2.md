@@ -15,10 +15,16 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 * Enabled user control to allow negative signal yields in $\chi^2$-test.
   ([#50](https://github.com/SpeysideHEP/spey/pull/50))
 
+* Implement python version compatibility check for new releases.
+  ([#52](https://github.com/SpeysideHEP/spey/pull/52))
+
 ## Bug Fixes
 
 * Control mechanism added in case of infinite determinant in covariance matrix.
   ([#47](https://github.com/SpeysideHEP/spey/pull/47))
+
+* Error during signal uncertainty insertion due to valid domain has been fixed.
+  ([#51](https://github.com/SpeysideHEP/spey/pull/51))
 
 ## Contributors
 
