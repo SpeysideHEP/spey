@@ -1,6 +1,6 @@
 """Various helper functions"""
 
-from typing import List
+from typing import List, Dict
 
 import numpy as np
 
@@ -45,7 +45,7 @@ def merge_correlated_bins(
     covariance_matrix: np.ndarray,
     merge_groups: List[List[int]],
     signal_yields: np.ndarray = None,
-) -> dict[str, np.ndarray]:
+) -> Dict[str, np.ndarray]:
     """
     Merge correlated bins in a dataset.
     This function takes a set of background yields, data, and a covariance matrix,
