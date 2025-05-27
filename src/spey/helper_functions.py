@@ -41,7 +41,7 @@ def merge_correlated_bins(
     background_yields: np.ndarray,
     data: np.ndarray,
     covariance_matrix: np.ndarray,
-    merge_groups: list[list[int]],
+    merge_groups: List[List[int]],
     signal_yields: np.ndarray = None,
 ) -> dict[str, np.ndarray]:
     """
