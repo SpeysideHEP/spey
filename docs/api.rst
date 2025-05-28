@@ -27,6 +27,7 @@ Top-Level
     statistical_model_wrapper
     helper_functions.correlation_to_covariance
     helper_functions.covariance_to_correlation
+    helper_functions.merge_correlated_bins
     optimizer.core.fit
     set_log_level
 

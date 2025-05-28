@@ -18,6 +18,9 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 * Implement python version compatibility check for new releases.
   ([#52](https://github.com/SpeysideHEP/spey/pull/52))
 
+* Added a helper function to merge correlated bins.
+  ([#53](https://github.com/SpeysideHEP/spey/pull/53))
+
 ## Bug Fixes
 
 * Control mechanism added in case of infinite determinant in covariance matrix.
