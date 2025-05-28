@@ -45,14 +45,16 @@ def merge_correlated_bins(
     covariance_matrix: np.ndarray,
     merge_groups: List[List[int]],
     signal_yields: np.ndarray = None,
+    return_group_indices: bool = False,
 ) -> Dict[str, np.ndarray]:
     """
-    Merge correlated bins in a dataset.
+    Merge correlated bins in a histogram/cutflow.
+
     This function takes a set of background yields, data, and a covariance matrix,
     and merges specified groups of bins into single bins. The resulting background yields,
-    data, and covariance matrix are returned in a dictionary.
-    The merging is done by summing the yields and data for the specified groups,
-    and summing the covariance matrix entries for the merged bins.
+    data, and covariance matrix are returned in a dictionary. The merging is done by summing
+    the yields and data for the specified groups, and summing the covariance matrix entries
+    for the merged bins.
 
     .. versionadded:: 0.2.4
 
@@ -63,6 +65,15 @@ def merge_correlated_bins(
         merge_groups (``list[list[int]]``): indices of bins to merge.
         signal_yields (``np.ndarray``, default ``None``): signal yields for each bin.
             If provided, these will also be merged according to the specified groups.
+        return_group_indices (``bool``, default ``False``): if ``True``, the function will
+          return the indices of the merged groups in the output dictionary. This is to help
+          user to keep track of which bins were merged together and how the bins are reordered.
+          New signal yields can be formed by running the following code:
+
+          .. code-block:: python
+
+                >>> new_signal_yields = [sum(np.array(signal_yields)[Gi]) for Gi in output["group_indices"]]
+
     Raises:
         AssertionError:
           * If the lengths of the input arrays do not match or if the covariance matrix is not square.
@@ -125,5 +136,7 @@ def merge_correlated_bins(
     }
     if signal_yields is not None:
         result["signal_yields"] = new_signal_yields
+    if return_group_indices:
+        result["group_indices"] = full_groups
 
     return result
