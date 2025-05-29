@@ -2,9 +2,10 @@
 
 import numpy as np
 from scipy.optimize import minimize_scalar
-from scipy.stats import multivariate_normal, norm, poisson, chi2
+from scipy.stats import chi2, multivariate_normal, norm, poisson
 
 import spey
+from spey.helper_functions import merge_correlated_bins
 
 
 def test_uncorrelated_background():
@@ -237,3 +238,47 @@ def test_multivariate_gauss():
     ), "Multivariate gauss wrong"
     assert np.isclose(muhat, opt.x, rtol=1e-3), "MultivariateNormal:: Muhat is wrong"
     assert np.isclose(maxnll, opt.fun, rtol=1e-3), "MultivariateNormal:: MLE is wrong"
+
+
+def test_bin_merge():
+    """Test merging of correlated bins in a histogram/cutflow."""
+    results = merge_correlated_bins(
+        background_yields=np.array([10, 20, 30, 40, 50, 60, 70]),
+        data=np.array([12, 22, 32, 42, 52, 62, 72]),
+        covariance_matrix=np.array(
+            [
+                [4, 1, 0.5, 0.2, 0.1, 0.2, 0.3],
+                [1, 3, 0.3, 0.1, 0.1, 0.1, 0.2],
+                [0.5, 0.3, 5, 0.2, 0.1, 0.0, 0.0],
+                [0.2, 0.1, 0.2, 4, 0.1, 0.2, 0.1],
+                [0.1, 0.1, 0.1, 0.1, 6, 2, 0.3],
+                [0.2, 0.1, 0.0, 0.2, 2, 5, 0.4],
+                [0.3, 0.2, 0.0, 0.1, 0.3, 0.4, 7],
+            ]
+        ),
+        merge_groups=[[0, 1], [2, 3]],
+        signal_yields=np.array([5, 15, 25, 35, 45, 55, 65]),
+    )
+
+    assert np.allclose(
+        results["background_yields"], np.array([30.0, 70.0, 50.0, 60.0, 70.0])
+    ), "Background yields after merging are incorrect"
+    assert np.allclose(
+        results["data"], np.array([34.0, 74.0, 52.0, 62.0, 72.0])
+    ), "Data after merging is incorrect"
+    assert np.allclose(
+        results["covariance_matrix"],
+        np.array(
+            [
+                [9.0, 1.1, 0.2, 0.3, 0.5],
+                [1.1, 9.4, 0.2, 0.2, 0.1],
+                [0.2, 0.2, 6.0, 2.0, 0.3],
+                [0.3, 0.2, 2.0, 5.0, 0.4],
+                [0.5, 0.1, 0.3, 0.4, 7.0],
+            ]
+        ),
+    ), "Covariance matrix after merging is incorrect"
+    if "signal_yields" in results:
+        assert np.allclose(
+            results["signal_yields"], np.array([20.0, 60.0, 45.0, 55.0, 65.0])
+        ), "Signal yields after merging are incorrect"
