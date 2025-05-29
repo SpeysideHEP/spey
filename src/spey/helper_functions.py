@@ -58,6 +58,54 @@ def merge_correlated_bins(
 
     .. versionadded:: 0.2.4
 
+    **Example:**
+
+    .. code-block:: python3
+
+        >>> from spey.helper_functions import merge_correlated_bins
+        >>> import numpy as np
+        >>> background_yields = np.array([10, 20, 30, 40])
+        >>> data = np.array([12, 22, 32, 42])
+        >>> covariance_matrix = np.array(
+        ...   [[4, 1, 0.5, 0.2],
+        ...    [1, 3, 0.3, 0.1],
+        ...    [0.5, 0.3, 5, 0.2],
+        ...    [0.2, 0.1, 0.2, 4]]
+        >>> )
+        >>> merge_groups = [[0, 1], [2, 3]]
+        >>> result = merge_correlated_bins(
+        ...     background_yields=background_yields,
+        ...     data=data,
+        ...     covariance_matrix=covariance_matrix,
+        ...     merge_groups=merge_groups
+        ... )
+        >>> print(result)
+        >>> # {
+        ... #    'background_yields': array([30., 70.]),
+        ... #    'data': array([34., 74.]),
+        ... #    'covariance_matrix': array([[ 9. ,  1.1],
+        ... #                                [ 1.1,  9.4]])
+        ... # }
+
+
+    The resulting ``result`` dictionary will contain:
+        - ``background_yields``: Merged background yields.
+        - ``data``: Merged data.
+        - ``covariance_matrix``: Merged covariance matrix.
+
+    .. note::
+
+        The function assumes that the input arrays are 1-dimensional and that the covariance
+        matrix is square. It also checks for overlapping indices in ``merge_groups`` and raises
+        an assertion error if any are found.
+
+    .. warning::
+
+        The function does not check for the validity of the covariance matrix (e.g., positive
+        definiteness). It is assumed that the input covariance matrix is valid for the given
+        background yields and data.
+
+
     Args:
         background_yields (``np.ndarray``): background yields for each bin.
         data (``np.ndarray``): observed data for each bin.
