@@ -51,8 +51,8 @@ def pvalues(
 
     Returns:
         ``Tuple[float, float, float]``:
-        The p-values for the test statistic corresponding to the :math:`CL_{s+b}`,
-        :math:`CL_{b}`, and :math:`CL_{s}`.
+        The p-values for the test statistic corresponding to the :math:`p_{s+b}`,
+        :math:`p_{b}`, and :math:`p_{s}`.
 
     .. seealso::
 
@@ -60,11 +60,16 @@ def pvalues(
         :func:`~spey.hypothesis_testing.asymptotic_calculator.compute_asymptotic_confidence_level`,
         :func:`~spey.hypothesis_testing.utils.expected_pvalues`
     """
-    CLsb = sig_plus_bkg_distribution.pvalue(delta_test_statistic)
-    CLb = bkg_only_distribution.pvalue(delta_test_statistic)
+    # delta_test_statistic is sqrt_qmu - sqrt_qmuA
+    # p_sb is CDF(-sqrt_qmuA - delta_test_statistic) = CDF(-sqrt_qmuA - (sqrt_qmu - sqrt_qmuA))
+    # CDF(-sqrt_qmu) = 1-CDF(sqrt_qmu)
+    # See eq 58-59 in https://arxiv.org/pdf/1007.1727.pdf
+    p_sb = sig_plus_bkg_distribution.pvalue(delta_test_statistic)
+    # p_b is CDF(delta_test_statistic) = CDF(-(sqrt_qmu - sqrt_qmuA))
+    p_b = bkg_only_distribution.pvalue(delta_test_statistic)
     with warnings.catch_warnings(record=True):
-        CLs = np.true_divide(CLsb, CLb, dtype=np.float64)
-    return CLsb, CLb, CLs if CLb != 0.0 else 0.0
+        p_s = np.true_divide(p_sb, p_b, dtype=np.float64)
+    return p_sb, p_b, p_s if p_b != 0.0 else 0.0
 
 
 def expected_pvalues(
@@ -97,8 +102,8 @@ def expected_pvalues(
 
     Returns:
         ``List[List]``:
-        The p-values for the test statistic corresponding to the :math:`CL_{s+b}`,
-        :math:`CL_{b}`, and :math:`CL_{s}`.
+        The p-values for the test statistic corresponding to the :math:`p_{s+b}`,
+        :math:`p_{b}`, and :math:`p_{s}`.
 
     .. seealso::
 
