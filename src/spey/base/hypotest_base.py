@@ -1088,11 +1088,11 @@ class HypothesisTestingBase(ABC):
                 )
                 results.append(x0)
             else:
-                log.error(
+                log.warninig(
                     "Can not find the roots on the left side."
                     " Please check your chi^2 distribution, it might be too wide."
                 )
-                results.append(-1e5 if hig >= -1e5 else np.nan)
+                results.append(-1e5 if hig <= -1e5 else np.nan)
 
         if limit_type in ["right", "two-sided"]:
             is_muhat_le_0 = np.isclose(muhat, 0.0) or muhat < 0.0
@@ -1136,7 +1136,7 @@ class HypothesisTestingBase(ABC):
                 )
                 results.append(x0)
             else:
-                log.error(
+                log.warninig(
                     "Can not find the roots on the right side."
                     " Please check your chi^2 distribution, it might be too wide."
                 )

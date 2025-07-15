@@ -21,6 +21,9 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 * Added a helper function to merge correlated bins.
   ([#53](https://github.com/SpeysideHEP/spey/pull/53))
 
+* Some errors are reduced to warnings in chi2 test to reduce the verbosity.
+  ([#54](https://github.com/SpeysideHEP/spey/pull/54))
+
 ## Bug Fixes
 
 * Control mechanism added in case of infinite determinant in covariance matrix.
