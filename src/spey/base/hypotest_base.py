@@ -1088,7 +1088,7 @@ class HypothesisTestingBase(ABC):
                 )
                 results.append(x0)
             else:
-                log.warninig(
+                log.warning(
                     "Can not find the roots on the left side."
                     " Please check your chi^2 distribution, it might be too wide."
                 )
@@ -1136,7 +1136,7 @@ class HypothesisTestingBase(ABC):
                 )
                 results.append(x0)
             else:
-                log.warninig(
+                log.warning(
                     "Can not find the roots on the right side."
                     " Please check your chi^2 distribution, it might be too wide."
                 )
