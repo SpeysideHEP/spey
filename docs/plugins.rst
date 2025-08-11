@@ -32,6 +32,8 @@ Plug-ins
      - `External plug-in <https://spey-pyhf.readthedocs.io>`_ constructs ``pyhf``-based uncorrelated likelihoods.
    * - ``'pyhf.simplify'``
      - `See doc. <https://spey-pyhf.readthedocs.io/en/main/simplify.html>`_ converts full ``pyhf`` likelihoods into simplified framework.
+   * - ``'strathisla.full_nuisance_parameters'``, ``'strathisla.simple_multivariate_gaussian_eft'``, ``'strathisla.multivariate_gaussian_scaled_covariance_eft'``
+     - `EFT plug-in <https://github.com/joes-git/spey-strathisla>`_ provides tools for full modeling of nuisance parameters and setting limits on Effective Field Theories. By `Joe Egan <mailto:joseph.caimin.egan@cern.ch>`_.
 
 .. meta::
     :property=og:title: Plug-ins
@@ -438,11 +440,13 @@ External Plug-ins
 .. toctree::
 
    Spey-pyhf plug-in documentation <https://spey-pyhf.readthedocs.io>
+   Spey-strathisla <https://pypi.org/project/strathisla/>
    Spey-fastprof: TBA <https://spey.readthedocs.io>
 
 **Useful links:**
 
 * `pyhf documentation <https://pyhf.readthedocs.io>`_ :cite:`pyhf_joss`.
 * `Spey-pyhf plug-in GitHub Repository <https://github.com/SpeysideHEP/spey-pyhf>`_
+* `Spey-strathisla GitHub Repository <https://github.com/joes-git/spey-strathisla>`_: Provides external plugins suitable for a. full modelling of nuisance parameters and b. setting limits on Effective Field Theories.
 * ``spey-fastprof``: TBA :cite:`Berger:2023bat`.
 * `fastprof documentation <https://fastprof.web.cern.ch/fastprof/>`_.
