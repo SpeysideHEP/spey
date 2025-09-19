@@ -5,10 +5,9 @@ import sys
 import textwrap
 import warnings
 from functools import lru_cache
-from typing import Any, Callable, Dict, List, Literal, Optional, Text, Tuple, Union
+from importlib.metadata import EntryPoint, entry_points
+from typing import Any, Callable, Dict, Iterable, List, Literal, Optional
 
-import numpy as np
-import pkg_resources
 from semantic_version import SimpleSpec, Version
 
 from spey.base import BackendBase, ConverterBase
@@ -90,15 +89,37 @@ def version() -> str:
     return __version__
 
 
-def _get_backend_entrypoints() -> Dict[str, pkg_resources.EntryPoint]:
+def _get_entry_points(group: str, name: Optional[str] = None) -> Iterable[EntryPoint]:
+    """
+    Get entry points for a given group and optional name.
+    Compatible with Python 3.8 → 3.13.
+
+    Args:
+        group (``Text``): entry point group name
+        name (``Optional[Text]``): entry point name, if None, returns all in group
+    Returns:
+        ``Iterable[EntryPoint]``: list of entry points
+    """
+    if sys.version_info < (3, 10):
+        # Python 3.8–3.9: entry_points() returns a dict-like mapping
+        eps = entry_points().get(group, [])
+        if name is not None:
+            eps = [ep for ep in eps if ep.name == name]
+    else:
+        # Python 3.10+: entry_points() returns EntryPoints object with .select()
+        if name is not None:
+            eps = entry_points().select(group=group, name=name)
+        else:
+            eps = entry_points().select(group=group)
+    return eps
+
+
+def _get_backend_entrypoints() -> Dict[str, EntryPoint]:
     """Collect plugin entries"""
-    return {
-        entry.name: entry
-        for entry in pkg_resources.iter_entry_points("spey.backend.plugins")
-    }
+    return {entry.name: entry for entry in _get_entry_points("spey.backend.plugins")}
 
 
-_backend_entries: Dict[str, pkg_resources.EntryPoint] = _get_backend_entrypoints()
+_backend_entries: Dict[str, EntryPoint] = _get_backend_entrypoints()
 # ! Preinitialise backends, it might be costly to scan the system everytime
 
 
