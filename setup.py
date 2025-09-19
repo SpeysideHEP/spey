@@ -49,7 +49,7 @@ setup(
     packages=find_packages(where="src"),
     entry_points={"spey.backend.plugins": backend_plugins},
     install_requires=requirements,
-    python_requires=">=3.8, <3.13",
+    python_requires=">=3.8, <3.14",
     classifiers=[
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: MIT License",
@@ -62,6 +62,7 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
     ],
     extras_require={
         "dev": ["pytest>=7.1.2", "pytest-cov>=3.0.0", "twine>=3.7.1", "wheel>=0.37.1"],

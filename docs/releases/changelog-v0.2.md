@@ -24,6 +24,9 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 * Some errors are reduced to warnings in chi2 test to reduce the verbosity.
   ([#54](https://github.com/SpeysideHEP/spey/pull/54))
 
+* Enable compatibility for Python 3.13, and the deprecation of `pkg_resources` has been addressed.
+  ([#56](https://github.com/SpeysideHEP/spey/pull/56))
+
 ## Bug Fixes
 
 * Control mechanism added in case of infinite determinant in covariance matrix.
