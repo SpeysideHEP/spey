@@ -372,8 +372,9 @@ def cite() -> List[str]:
     try:
         arxiv = get_bibtex("inspire/arxiv", "2307.06996")
         zenodo = get_bibtex("zenodo", "10156353")
-        linker = re.search("@software{(.+?),\n", zenodo).group(1)
-        zenodo = zenodo.replace(linker, "spey_zenodo")
+        linker = re.search("@software{(.+?),\n", zenodo)
+        if linker is not None:
+            zenodo = zenodo.replace(linker.group(1), "spey_zenodo")
         return arxiv + "\n\n" + zenodo
     except ConnectionError as err:
         log.error("Can not connect to the internet. Please check your connection.")
