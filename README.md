@@ -14,6 +14,7 @@
 [![GitHub License](https://img.shields.io/github/license/SpeysideHEP/spey?style=plastic)](https://github.com/SpeysideHEP/spey/blob/main/LICENSE)
 
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/spey?style=plastic)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/spey?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/spey)
 
 ## Outline
 

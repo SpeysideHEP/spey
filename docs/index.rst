@@ -24,6 +24,11 @@ Welcome to the documentation of Spey
     :alt: Zenodo DOI
     :target: https://zenodo.org/badge/latestdoi/549515208
 
+.. raw:: html
+
+    <a href="https://pepy.tech/projects/spey"><img src="https://static.pepy.tech/personalized-badge/spey?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads" alt="PyPI Downloads"></a>
+
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
