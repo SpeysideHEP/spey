@@ -13,9 +13,9 @@ log = logging.getLogger("Spey")
 class ValidateOpts:
     """Validate optimiser options"""
 
-    opt_list: list[str]
-    must_list: list[str] = None
-    remove_list: list[str] = None
+    opt_list: List[str]
+    must_list: List[str] = None
+    remove_list: List[str] = None
 
     def __post_init__(self):
         self.must_list = [] if self.must_list is None else self.must_list
