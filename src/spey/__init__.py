@@ -160,7 +160,6 @@ def register_backend(
         ... # 'my_local_model']
 
     """
-    # assert func.name == name, "Model name should be the same as registry name."
     assert issubclass(model, (BackendBase, ConverterBase)), "Invalid model structure."
 
     name = getattr(model, "name", "__unknown_model__")
