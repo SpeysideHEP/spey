@@ -142,7 +142,7 @@ def register_backend(
         :obj:`~spey.BackendBase` or :obj:`~spey.ConverterBase`: the original function wrapped
             with backend registration logic.
 
-    ** Example: **
+    **Example:**
 
     .. code:: python3
 
