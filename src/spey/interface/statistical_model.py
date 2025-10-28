@@ -829,6 +829,9 @@ def statistical_model_wrapper(
         """
     )
 
-    wrapper.__doc__ += docstring
+    if wrapper.__doc__ is not None:
+        wrapper.__doc__ += docstring
+    else:
+        wrapper.__doc__ = docstring
 
     return wrapper
