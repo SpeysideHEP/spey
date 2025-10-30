@@ -27,29 +27,19 @@ def about() -> None:
 
     plugin_devices = _get_entry_points("spey.backend.plugins")
     for d in plugin_devices:
-        if sys.version_info < (3, 10):
-            print(f"- {d.name} ({d.dist.project_name}-{d.dist.version})")
-            if d.dist.project_name not in shown:
-                print(
-                    check_output(
-                        [sys.executable, "-m", "pip", "show", d.dist.project_name]
-                    ).decode()
-                )
-                shown.append(d.dist.project_name)
-        else:
+        print(
+            f"- {d.name} ({d.dist.metadata.json['name']}-{d.dist.metadata.json['version']})"
+        )
+        if d.dist.metadata.json["name"] not in shown:
             print(
-                f"- {d.name} ({d.dist.metadata.json['name']}-{d.dist.metadata.json['version']})"
+                check_output(
+                    [
+                        sys.executable,
+                        "-m",
+                        "pip",
+                        "show",
+                        d.dist.metadata.json["name"],
+                    ]
+                ).decode()
             )
-            if d.dist.metadata.json["name"] not in shown:
-                print(
-                    check_output(
-                        [
-                            sys.executable,
-                            "-m",
-                            "pip",
-                            "show",
-                            d.dist.metadata.json["name"],
-                        ]
-                    ).decode()
-                )
-                shown.append(d.dist.metadata.json["name"])
+            shown.append(d.dist.metadata.json["name"])
