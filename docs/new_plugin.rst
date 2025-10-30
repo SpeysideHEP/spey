@@ -144,7 +144,24 @@ Other available functions that can be implemented are shown in the table below.
 
         \mathcal{L}(\mu) = \prod_{i\in{\rm bins}}{\rm Poiss}(n^i|\mu n_s^i + n_b^i)
 
+In order to make this model recognised by Spey, the class must be registered as an entry point or by a decorator. The former is
+explained in the next section, while the latter can be done by using the :func:`~spey.register_backend` decorator as follows;
 
+.. code-block:: python3
+    :linenos:
+
+    >>> import spey
+
+    >>> @spey.register_backend
+    >>> class MyStatisticalModel(spey.BackendBase):
+    >>>     name = "my_stat_model"
+    >>>     ...
+    >>>     # rest of the implementation
+    >>>     ...
+
+Notice that this method does not require a ``setup.py`` file, but the statistical model will only be
+available if the module is imported before calling :func:`~spey.AvailableBackends`. Hence if the goal is to create a package that
+can be installed and used as a plugin, the entry point method is preferred.
 
 Identifying and installing your statistical model
 -------------------------------------------------
