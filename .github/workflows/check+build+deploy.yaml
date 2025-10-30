@@ -1,11 +1,11 @@
 name: Check/Build/Deploy
 
 on:
-  release:
-    types: [published]
-  push:
-    branches: ["releases/**"]
-  workflow_dispatch:
+    release:
+        types: [published]
+    push:
+        branches: ["releases/**"]
+    workflow_dispatch:
 
 jobs:
     check:
@@ -13,69 +13,69 @@ jobs:
         runs-on: ${{ matrix.os }}
 
         strategy:
-          fail-fast: false
-          matrix:
-            python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
-            os: [ubuntu-latest, macos-latest]
+            fail-fast: false
+            matrix:
+                python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+                os: [ubuntu-latest, macos-latest]
 
         steps:
-        - uses: actions/checkout@v3
-        - name: Set up Python ${{ matrix.python-version }}
-          uses: actions/setup-python@v3
-          with:
-            python-version: ${{ matrix.python-version }}
-        - name: Install dependencies
-          run: |
-            python -m pip install --upgrade pip
-            python -m pip install pytest pytest-cov
-            python -m pip install -e .
-        - name: Test with pytest
-          run: |
-            python -c 'import spey;spey.about()'
-            pytest --cov=spey tests/*py #--cov-fail-under 99
+            - uses: actions/checkout@v3
+            - name: Set up Python ${{ matrix.python-version }}
+              uses: actions/setup-python@v3
+              with:
+                  python-version: ${{ matrix.python-version }}
+            - name: Install dependencies
+              run: |
+                  python -m pip install --upgrade pip
+                  python -m pip install pytest pytest-cov
+                  python -m pip install -e .
+            - name: Test with pytest
+              run: |
+                  python -c 'import spey;spey.about()'
+                  pytest --cov=spey tests/*py #--cov-fail-under 99
 
     build:
         name: Build wheel
         runs-on: ubuntu-latest
         needs: check
         steps:
-          - name: Checkout git repository
-            uses: actions/checkout@v4
+            - name: Checkout git repository
+              uses: actions/checkout@v4
 
-          - name: Build Spey wheel
-            run: |
-              python -m pip install --upgrade pip
-              python -m pip install wheel
-              python setup.py bdist_wheel
+            - name: Build Spey wheel
+              run: |
+                  python -m pip install --upgrade pip
+                  python -m pip install wheel
+                  python setup.py bdist_wheel
 
-          - name: Upload wheels as artifacts
-            uses: actions/upload-artifact@v4
-            with:
-              name: wheel
-              path: ./dist/*.whl
+            - name: Upload wheels as artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                  name: wheel
+                  path: ./dist/*.whl
 
     deploy:
-        if:  ${{ !github.event.release.prerelease && !contains(github.ref, '-rc') && !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') }}
+        if: ${{ !github.event.release.prerelease && !contains(github.ref, '-rc') && !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') }}
         runs-on: ubuntu-latest
         needs: build
         environment:
-          name: pypi
-          url: https://pypi.org/project/spey/
+            name: pypi
+            url: https://pypi.org/project/spey/
         permissions:
-          id-token: write
+            id-token: write
         steps:
-          - uses: actions/download-artifact@v4
-            with:
-              pattern: wheel
-              merge-multiple: true
-              path: dist
+            - uses: actions/download-artifact@v4
+              with:
+                  pattern: wheel
+                  merge-multiple: true
+                  path: dist
 
-          - name: Debug
-            run: ls -l dist
+            - name: Debug
+              run: ls -l dist
 
-          - name: Publish package distributions to PyPI
-            uses: pypa/gh-action-pypi-publish@v1.13.0
-            with:
-              user:     ${{ secrets.TWINE_USERNAME }}
-              password: ${{ secrets.TWINE_PSSWRD }}
-              verbose: true
+            - name: Publish package distributions to PyPI
+              uses: pypa/gh-action-pypi-publish@v1.13.0
+              with:
+                  user: ${{ secrets.TWINE_USERNAME }}
+                  password: ${{ secrets.TWINE_PSSWRD }}
+                  verbose: true

@@ -2,13 +2,8 @@
 
 import platform
 import sys
+from importlib.metadata import distribution, version
 from subprocess import check_output
-
-import numpy
-import scipy
-import semantic_version
-import tqdm
-from pkg_resources import get_distribution, iter_entry_points
 
 
 def about() -> None:
@@ -19,22 +14,36 @@ def about() -> None:
     print(
         f"Python version:           {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}"
     )
-    print(f"Numpy version:            {numpy.__version__}")
-    print(f"Scipy version:            {scipy.__version__}")
-    print(f"Autograd version:         {get_distribution('autograd').version}")
-    print(f"tqdm version:             {tqdm.__version__}")
-    print(f"semantic_version version: {semantic_version.__version__}")
+    print(f"Numpy version:            {version('numpy')}")
+    print(f"Scipy version:            {version('scipy')}")
+    print(f"Autograd version:         {version('autograd')}")
+    print(f"tqdm version:             {version('tqdm')}")
+    print(f"semantic_version version: {version('semantic_version')}")
 
     print("\nInstalled backend plug-ins:\n")
 
     shown = ["spey"]
-    plugin_devices = iter_entry_points("spey.backend.plugins")
+    from spey import _get_entry_points
+
+    plugin_devices = _get_entry_points("spey.backend.plugins")
     for d in plugin_devices:
-        print(f"- {d.name} ({d.dist.project_name}-{d.dist.version})")
-        if d.dist.project_name not in shown:
+        try:
+            dist_name = d.dist.name
+            dist_version = d.dist.version
+        except AttributeError:
+            dist_name = d.value.split(":")[0].split(".")[0]
+            dist_version = distribution(dist_name).version
+        print(f"- {d.name} ({dist_name}-{dist_version})")
+        if dist_name not in shown:
             print(
                 check_output(
-                    [sys.executable, "-m", "pip", "show", d.dist.project_name]
+                    [
+                        sys.executable,
+                        "-m",
+                        "pip",
+                        "show",
+                        d.dist.metadata.json["name"],
+                    ]
                 ).decode()
             )
-            shown.append(d.dist.project_name)
+            shown.append(d.dist.metadata.json["name"])

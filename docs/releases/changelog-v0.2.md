@@ -7,6 +7,9 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 * Ability to compute two-sided tests added.
   ([#45](https://github.com/SpeysideHEP/spey/pull/45))
 
+* Add plug-in registry that does not require creating an entire package.
+  ([#60](https://github.com/SpeysideHEP/spey/pull/60))
+
 ## Improvements
 
 * Autograd has been upgraded to v1.7 which supports numpy 2.0

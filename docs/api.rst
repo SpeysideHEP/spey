@@ -18,6 +18,7 @@ Top-Level
     about
     check_updates
     ExpectationType
+    register_backend
     AvailableBackends
     get_backend
     get_backend_metadata

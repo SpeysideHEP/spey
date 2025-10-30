@@ -3,10 +3,9 @@ import os
 import re
 import sys
 import textwrap
-import warnings
 from functools import lru_cache
 from importlib.metadata import EntryPoint, entry_points
-from typing import Any, Callable, Dict, Iterable, List, Literal, Optional
+from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Union
 
 from semantic_version import SimpleSpec, Version
 
@@ -14,7 +13,7 @@ from spey.base import BackendBase, ConverterBase
 from spey.combiner import UnCorrStatisticsCombiner
 from spey.interface.statistical_model import StatisticalModel, statistical_model_wrapper
 from spey.system import logger
-from spey.system.exceptions import PluginError
+from spey.system.exceptions import AbstractModel, MissingMetaData, PluginError
 from spey.system.webutils import ConnectionError, check_updates, get_bibtex
 
 from ._version import __version__
@@ -102,7 +101,7 @@ def _get_entry_points(group: str, name: Optional[str] = None) -> Iterable[EntryP
     """
     if sys.version_info < (3, 10):
         # Python 3.8–3.9: entry_points() returns a dict-like mapping
-        eps = entry_points().get(group, [])
+        eps = entry_points().get(group, [])  # pylint: disable=no-member
         if name is not None:
             eps = [ep for ep in eps if ep.name == name]
     else:
@@ -125,7 +124,75 @@ _backend_entries: Dict[str, EntryPoint] = _get_backend_entrypoints()
 
 def reset_backend_entries() -> None:
     """Scan the system for backends and reset the entries"""
-    _backend_entries = _get_backend_entrypoints()
+    _backend_entries.update(_get_backend_entrypoints())
+
+
+def register_backend(
+    model: Union[BackendBase, ConverterBase]
+) -> Union[BackendBase, ConverterBase]:
+    """
+    A local backend registry for statistical models.
+
+    .. versionadded:: 0.2.6
+
+    Args:
+        func (:obj:`~spey.BackendBase` or :obj:`~spey.ConverterBase`): statistical model
+            object.
+
+    Raises:
+        `MissingMetaData`: If model does not include `name` and `spey_requires` metadata.
+        `PluginError`: If model requires spey with different version.
+        `ValueError`: If the model name is already registered.
+        `AbstractModel`: If the model is abstract.
+
+    Returns:
+        :obj:`~spey.BackendBase` or :obj:`~spey.ConverterBase`: the original function wrapped
+            with backend registration logic.
+
+    **Example:**
+
+    .. code:: python3
+
+        >>> import spey
+
+        >>> @spey.register_backend
+        >>> class Model(spey.BackendBase):
+        >>>     name = "my_local_model"
+        >>>     ...
+
+        >>> print(spey.AvailableBackends())
+        >>> # ['default.correlated_background', 'default.effective_sigma',
+        ... # 'default.multivariate_normal', 'default.normal', 'default.poisson',
+        ... # 'default.third_moment_expansion', 'default.uncorrelated_background',
+        ... # 'my_local_model']
+
+    """
+    assert issubclass(model, (BackendBase, ConverterBase)), "Invalid model structure."
+    required_meta = ["spey_requires", "name"]
+    if bool(getattr(model, "__abstractmethods__", False)):
+        raise AbstractModel(
+            "Can not register abstract models. Please fill the missing method(s): "
+            + ", ".join(getattr(model, "__abstractmethods__"))
+        )
+
+    if all(hasattr(model, meta) for meta in required_meta):
+        raise MissingMetaData("Required metadata missing: " + ", ".join(required_meta))
+
+    name = getattr(model, "name", "__unknown_model__")
+    if name in _backend_entries:
+        raise ValueError(f"Backend name `{name}`, is already registered.")
+    if name == "__unknown_model__":
+        log.warning("Model does not have a name, registring as `__unknown_model__`")
+
+    if Version(__version__) not in SimpleSpec(model.spey_requires):
+        raise PluginError(
+            f"The backend {name}, requires spey version {model.spey_requires}. "
+            f"However the current spey version is {__version__}."
+        )
+
+    # Register the model with the backend
+    _backend_entries[name] = model
+    return model
 
 
 def AvailableBackends() -> List[str]:  # pylint: disable=C0103
@@ -198,28 +265,10 @@ def get_backend(name: str) -> Callable[[Any], StatisticalModel]:
         the backend it self which is in this particular example
         :obj:`~spey.backends.simplifiedlikelihood_backend.interface.SimplifiedLikelihoodInterface`.
     """
-    deprecated = [
-        "default_pdf.correlated_background",
-        "default_pdf.effective_sigma",
-        "default_pdf.multivariate_normal",
-        "default_pdf.normal",
-        "default_pdf.poisson",
-        "default_pdf.third_moment_expansion",
-        "default_pdf.uncorrelated_background",
-    ]
-    if name in deprecated:
-        # pylint: disable=logging-fstring-interpolation
-        message = (
-            f"`{name}` has been deprecated, please use `{name.replace('default_pdf', 'default')}` instead."
-            + " This will be removed in the future."
-        )
-        warnings.warn(message, DeprecationWarning, stacklevel=2)
-        log.warning(message)
-        name = name.replace("default_pdf", "default")
     backend = _backend_entries.get(name, False)
 
     if backend:
-        statistical_model = backend.load()
+        statistical_model = backend.load() if isinstance(backend, EntryPoint) else backend
 
         assert hasattr(
             statistical_model, "spey_requires"
@@ -238,8 +287,14 @@ def get_backend(name: str) -> Callable[[Any], StatisticalModel]:
                 f"However the current spey version is {__version__}."
             )
 
+        if bool(getattr(statistical_model, "__abstractmethods__", False)):
+            raise AbstractModel(
+                f"The backend {name} is an abstract model. Please fill the missing method(s): "
+                + ", ".join(getattr(statistical_model, "__abstractmethods__"))
+            )
+
         # Initialise converter base models
-        if ConverterBase in statistical_model.mro():
+        if issubclass(statistical_model, ConverterBase):
             statistical_model = statistical_model()
 
         return statistical_model_wrapper(statistical_model)

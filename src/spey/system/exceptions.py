@@ -116,3 +116,11 @@ class AsimovTestStatZero(Exception):
         "lack of evidence for a signal or deviation from a null hypothesis.",
     ):
         super().__init__(message)
+
+
+class MissingMetaData(Exception):
+    """Missing metadata error"""
+
+
+class AbstractModel(Exception):
+    """Abstract model error"""
