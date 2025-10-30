@@ -3,8 +3,7 @@ import os
 import re
 import sys
 import textwrap
-import warnings
-from functools import lru_cache, wraps
+from functools import lru_cache
 from importlib.metadata import EntryPoint, entry_points
 from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Union
 
@@ -14,7 +13,7 @@ from spey.base import BackendBase, ConverterBase
 from spey.combiner import UnCorrStatisticsCombiner
 from spey.interface.statistical_model import StatisticalModel, statistical_model_wrapper
 from spey.system import logger
-from spey.system.exceptions import PluginError
+from spey.system.exceptions import AbstractModel, MissingMetaData, PluginError
 from spey.system.webutils import ConnectionError, check_updates, get_bibtex
 
 from ._version import __version__
@@ -134,9 +133,17 @@ def register_backend(
     """
     A local backend registry for statistical models.
 
+    .. versionadded:: 0.2.6
+
     Args:
         func (:obj:`~spey.BackendBase` or :obj:`~spey.ConverterBase`): statistical model
             object.
+
+    Raises:
+        `MissingMetaData`: If model does not include `name` and `spey_requires` metadata.
+        `PluginError`: If model requires spey with different version.
+        `ValueError`: If the model name is already registered.
+        `AbstractModel`: If the model is abstract.
 
     Returns:
         :obj:`~spey.BackendBase` or :obj:`~spey.ConverterBase`: the original function wrapped
@@ -161,12 +168,27 @@ def register_backend(
 
     """
     assert issubclass(model, (BackendBase, ConverterBase)), "Invalid model structure."
+    required_meta = ["spey_requires", "name"]
+    if bool(getattr(model, "__abstractmethods__", False)):
+        raise AbstractModel(
+            "Can not register abstract models. Please fill the missing method(s): "
+            + ", ".join(getattr(model, "__abstractmethods__"))
+        )
+
+    if all(hasattr(model, meta) for meta in required_meta):
+        raise MissingMetaData("Required metadata missing: " + ", ".join(required_meta))
 
     name = getattr(model, "name", "__unknown_model__")
     if name in _backend_entries:
         raise ValueError(f"Backend name `{name}`, is already registered.")
     if name == "__unknown_model__":
         log.warning("Model does not have a name, registring as `__unknown_model__`")
+
+    if Version(__version__) not in SimpleSpec(model.spey_requires):
+        raise PluginError(
+            f"The backend {name}, requires spey version {model.spey_requires}. "
+            f"However the current spey version is {__version__}."
+        )
 
     # Register the model with the backend
     _backend_entries[name] = model
@@ -263,6 +285,12 @@ def get_backend(name: str) -> Callable[[Any], StatisticalModel]:
             raise PluginError(
                 f"The backend {name}, requires spey version {statistical_model.spey_requires}. "
                 f"However the current spey version is {__version__}."
+            )
+
+        if bool(getattr(statistical_model, "__abstractmethods__", False)):
+            raise AbstractModel(
+                f"The backend {name} is an abstract model. Please fill the missing method(s): "
+                + ", ".join(getattr(statistical_model, "__abstractmethods__"))
             )
 
         # Initialise converter base models
