@@ -2,7 +2,7 @@
 
 import platform
 import sys
-from importlib.metadata import version
+from importlib.metadata import distribution, version
 from subprocess import check_output
 
 
@@ -27,10 +27,14 @@ def about() -> None:
 
     plugin_devices = _get_entry_points("spey.backend.plugins")
     for d in plugin_devices:
-        print(
-            f"- {d.name} ({d.dist.metadata.json['name']}-{d.dist.metadata.json['version']})"
-        )
-        if d.dist.metadata.json["name"] not in shown:
+        try:
+            dist_name = d.dist.name
+            dist_version = d.dist.version
+        except AttributeError:
+            dist_name = d.value.split(":")[0].split(".")[0]
+            dist_version = distribution(dist_name).version
+        print(f"- {d.name} ({dist_name}-{dist_version})")
+        if dist_name not in shown:
             print(
                 check_output(
                     [
