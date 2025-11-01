@@ -66,7 +66,11 @@ def get_bibtex(
             return ""
         response.encoding = "utf-8"
         return response.text
-    except (requests.ConnectionError, requests.ConnectTimeout) as err:
+    except (
+        requests.ConnectionError,
+        requests.ConnectTimeout,
+        requests.exceptions.ReadTimeout,
+    ) as err:
         raise ConnectionError(
             "Can not retreive BibTeX information: No internet connection."
         ) from err
