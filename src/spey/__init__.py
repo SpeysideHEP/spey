@@ -268,7 +268,11 @@ def get_backend(name: str) -> Callable[[Any], StatisticalModel]:
     backend = _backend_entries.get(name, False)
 
     if backend:
-        statistical_model = backend.load() if isinstance(backend, EntryPoint) else backend
+        statistical_model = (
+            backend
+            if isinstance(backend, (BackendBase, ConverterBase))
+            else backend.load()
+        )
 
         assert hasattr(
             statistical_model, "spey_requires"
