@@ -121,7 +121,7 @@ html_theme_options = {
     "use_download_button": True,  # add a 'Download' button
     "home_page_in_toc": False,
     "repository_branch": "main",
-    "announcement": "Attention: Future releases of Spey will not support Python 3.8.",
+    # "announcement": "Attention: Future releases of Spey will not support Python 3.8.",
     "path_to_docs": "docs",
     "use_edit_page_button": True,
     "use_fullscreen_button": True,
