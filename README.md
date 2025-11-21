@@ -12,6 +12,7 @@
 ![tests workflow](https://github.com/SpeysideHEP/spey/actions/workflows/tests.yml/badge.svg?branch=main&style=plastic)
 [![Documentation Status](https://readthedocs.org/projects/spey/badge/?style=plastic&version=main)](https://spey.readthedocs.io/)
 [![GitHub License](https://img.shields.io/github/license/SpeysideHEP/spey?style=plastic)](https://github.com/SpeysideHEP/spey/blob/main/LICENSE)
+[![codecov](https://codecov.io/gh/SpeysideHEP/spey/graph/badge.svg?token=78Q76XFPTF)](https://codecov.io/gh/SpeysideHEP/spey)
 
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/spey?style=plastic)
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/spey?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/spey)
