@@ -36,4 +36,10 @@ jobs:
             - name: Test with pytest
               run: |
                   python -c 'import spey;spey.about()'
-                  pytest --cov=spey tests/*py #--cov-fail-under 99
+                  pytest --cov --cov-branch --cov-report=xml tests/*py #--cov-fail-under 99
+
+            - name: Upload coverage reports to Codecov
+              uses: codecov/codecov-action@v5
+              with:
+                  token: ${{ secrets.CODECOV_TOKEN }}
+                  slug: SpeysideHEP/spey
