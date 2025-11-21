@@ -65,5 +65,6 @@ setup(
     ],
     extras_require={
         "dev": ["pytest>=7.1.2", "pytest-cov>=3.0.0", "twine>=3.7.1", "wheel>=0.37.1"],
+        "iminuit": ["iminuit"],
     },
 )

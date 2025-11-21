@@ -7,14 +7,21 @@ from typing import Callable, Dict, List, Tuple
 import numpy as np
 import scipy
 
+from . import ValidateOpts
+
 # pylint: disable=W1201, W1203, R0913
 
 log = logging.getLogger("Spey")
+
+_scipy_opts = ValidateOpts(
+    opt_list=["method", "maxiter", "disp", "tol", "ntrials"], must_list=["poi_index"]
+)
 
 
 def minimize(
     func: Callable[[np.ndarray], float],
     init_pars: List[float],
+    fixed_vals: list[bool],
     do_grad: bool = False,
     hessian: Callable[[np.ndarray], np.ndarray] = None,
     bounds: List[Tuple[float, float]] = None,
@@ -42,6 +49,8 @@ def minimize(
     """
     assert "poi_index" in list(options), "Please include `poi_index` in the options."
 
+    options = _scipy_opts(options)
+
     method = options.pop("method", "SLSQP")
     tol = options.pop("tol", 1e-6)
     ntrials = max(options.pop("ntrials", 1), 1)
@@ -49,6 +58,23 @@ def minimize(
 
     options.update({"maxiter": options.get("maxiter", 10000)})
     options.update({"disp": options.get("disp", False)})
+
+    def make_constraint(index: int, value: float) -> Callable[[np.ndarray], float]:
+        def func(vector: np.ndarray) -> float:
+            return vector[index] - value
+
+        return func
+
+    constraints = [] if constraints is None else constraints
+    for idx, isfixed in enumerate(fixed_vals):
+        if isfixed:
+            log.debug(f"Constraining {idx} to value {init_pars[idx]}")
+            constraints.append(
+                {
+                    "type": "eq",
+                    "fun": make_constraint(idx, init_pars[idx]),
+                }
+            )
 
     ntrial = 0
     while ntrial < ntrials:
