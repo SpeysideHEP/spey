@@ -16,6 +16,7 @@
 
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/spey?style=plastic)
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/spey?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/spey)
+[![codecov](https://codecov.io/gh/SpeysideHEP/spey/graph/badge.svg?token=78Q76XFPTF)](https://codecov.io/gh/SpeysideHEP/spey)
 
 ## Outline
 
