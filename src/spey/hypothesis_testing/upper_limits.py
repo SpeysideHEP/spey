@@ -9,6 +9,7 @@ import scipy
 
 from spey.hypothesis_testing.test_statistics import compute_teststatistics
 from spey.system.exceptions import AsimovTestStatZero
+from spey.system.logger import disable_logging
 from spey.utils import ExpectationType
 
 from .asymptotic_calculator import compute_asymptotic_confidence_level
@@ -232,16 +233,17 @@ def find_poi_upper_limit(
             result.append(np.inf)
             continue
 
-        x0, r = scipy.optimize.toms748(
-            comp,
-            low.get_value(-1),
-            hig.get_value(-1),
-            k=2,
-            xtol=2e-12,
-            rtol=1e-4,
-            full_output=True,
-            maxiter=maxiter,
-        )
+        with disable_logging():
+            x0, r = scipy.optimize.toms748(
+                comp,
+                low.get_value(-1),
+                hig.get_value(-1),
+                k=2,
+                xtol=2e-12,
+                rtol=1e-4,
+                full_output=True,
+                maxiter=maxiter,
+            )
 
         if not r.converged:
             log.warning(f"Optimiser did not converge.\n{r}")

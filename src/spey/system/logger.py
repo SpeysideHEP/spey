@@ -1,6 +1,7 @@
 """Logging style for spey"""
 import logging
 import sys
+from contextlib import contextmanager
 
 # pylint: disable=C0103
 
@@ -50,3 +51,19 @@ def init(LoggerStream=sys.stdout):
     hdlr.setFormatter(fmt)
     SpeyLogger.addHandler(hdlr)
     SpeyLogger.propagate = False
+
+
+@contextmanager
+def disable_logging(highest_level: int = logging.CRITICAL):
+    """
+    Temporary disable logging implementation, this should move into Spey
+
+    Args:
+        highest_level (``int``, default ``logging.CRITICAL``): highest level to be set in logging
+    """
+    previous_level = logging.root.manager.disable
+    logging.disable(highest_level)
+    try:
+        yield
+    finally:
+        logging.disable(previous_level)
