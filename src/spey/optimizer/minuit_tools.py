@@ -62,5 +62,5 @@ def minimize(
     #     corr = hess_inv.correlation()
     #     log.debug(f"corr: {corr}")
 
-    log.debug(f"unc: {opt.errors}")
-    return opt.fval, opt.values
+    log.debug("unc: %s", opt.errors)
+    return float(opt.fval), np.array(opt.values)

@@ -459,6 +459,33 @@ def log_once(msg: str, log_type: Literal["warning", "error", "info", "debug"]) -
     }.get(log_type, log.info)(msg)
 
 
+def set_optimiser(name: str) -> None:
+    """
+    Set optimiser for fitting interface
+
+    Args:
+        name (``str``): name of the optimiser, `scipy` or `minuit`.
+    """
+    log.debug(
+        "Currently optimiser is set to: `%s`", os.environ.get("SPEY_OPTIMISER", "scipy")
+    )
+    if name == "minuit":
+        if find_spec("iminuit") is not None:
+            os.environ["SPEY_OPTIMISER"] = "minuit"
+            log.debug("Optimiser set to minuit.")
+        else:
+            log.error("iminuit package is not available.")
+    if name == "scipy":
+        os.environ["SPEY_OPTIMISER"] = "scipy"
+        log.debug("Optimiser set to scipy.")
+    else:
+        log.error(
+            "Unknown optimiser: %s, optimiser is set to %s",
+            name,
+            os.environ.get("SPEY_OPTIMISER", "scipy"),
+        )
+
+
 if int(os.environ.get("SPEY_LOGLEVEL", -1)) >= 0:
     set_log_level(int(os.environ.get("SPEY_LOGLEVEL")))
 
