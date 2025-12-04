@@ -5,6 +5,7 @@ import sys
 import textwrap
 from functools import lru_cache
 from importlib.metadata import EntryPoint, entry_points
+from importlib.util import find_spec
 from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Union
 
 from semantic_version import SimpleSpec, Version
