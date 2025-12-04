@@ -465,7 +465,7 @@ def set_optimiser(name: str) -> None:
     Set optimiser for fitting interface
 
     Args:
-        name (``str``): name of the optimiser, `scipy` or `minuit`.
+        name (``str``): name of the optimiser, ``scipy`` or ``minuit``.
     """
     log.debug(
         "Currently optimiser is set to: `%s`", os.environ.get("SPEY_OPTIMISER", "scipy")
@@ -476,7 +476,7 @@ def set_optimiser(name: str) -> None:
             log.debug("Optimiser set to minuit.")
         else:
             log.error("iminuit package is not available.")
-    if name == "scipy":
+    elif name == "scipy":
         os.environ["SPEY_OPTIMISER"] = "scipy"
         log.debug("Optimiser set to scipy.")
     else:

@@ -20,6 +20,7 @@ Top-Level
     ExpectationType
     register_backend
     AvailableBackends
+    set_optimiser
     get_backend
     get_backend_metadata
     get_backend_bibtex
