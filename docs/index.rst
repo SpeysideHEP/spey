@@ -28,6 +28,17 @@ Welcome to the documentation of Spey
 
     <a href="https://pepy.tech/projects/spey"><img src="https://static.pepy.tech/personalized-badge/spey?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads" alt="PyPI Downloads"></a>
 
+What is Spey?
+-------------
+
+Spey is a plug-in-based statistics framework designed to unify all likelihood models under a single, **backend-agnostic interface**. Its aim is to offer a common workspace where users can freely combine, analyse, and interpret statistical models built on entirely different backends. By standardising how likelihoods are accessed and evaluated, Spey facilitates seamless statistical inference across frameworks that would otherwise remain isolated.
+
+At the core of Spey’s design lies a dedication to the `FAIR principles <https://www.nature.com/articles/sdata201618>`_, **ensuring that statistical models and tools are Findable, Accessible, Interoperable, and Reusable**. Spey only requires one key component from any model: the ability to compute the log-probability. Given this, it can carry out the full range of statistical tasks, including but not limited to fitting, calculating exclusion limits, computing :math:`\chi^2`, and running samplers, without being dependent on any specific backend.
+
+This interoperability is made possible through Spey’s modular plug-in architecture. Developers can contribute their own statistical model prescriptions without modifying the Spey codebase. By publishing an independent Spey plug-in, following the guidelines detailed in the documentation, your model becomes automatically discoverable and usable by any Spey installation. The framework also provides built-in citation tools via metadata, ensuring contributors receive proper credit for their plug-ins.
+
+With its flexible architecture, FAIR-driven approach, and emphasis on long-term sustainability, Spey provides a contemporary ecosystem for statistical inference that connects communities and tools across high-energy physics and beyond.
+
 
 .. toctree::
    :maxdepth: 2
