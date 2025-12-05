@@ -1,7 +1,7 @@
 import logging
 from typing import Callable, Dict, List, Tuple
 
-import iminuit
+from iminuit import Minuit
 import numpy as np
 
 from . import ValidateOpts
@@ -11,7 +11,8 @@ from . import ValidateOpts
 log = logging.getLogger("Spey")
 
 _minuit_opts = ValidateOpts(
-    opt_list=["errordef", "maxiter", "disp", "tol", "strategy"], remove_list=["poi_index"]
+    opt_list=["errordef", "maxiter", "disp", "tol", "strategy", "method"],
+    remove_list=["poi_index"],
 )
 
 
@@ -27,6 +28,7 @@ def minimize(
 ) -> Tuple[float, np.ndarray]:
 
     options = _minuit_opts(options)
+    method = options.get("method", "migrad")
 
     if do_grad:
         objective = lambda pars: func(pars)[0]
@@ -35,18 +37,30 @@ def minimize(
         objective = func
         grad = None
 
-    opt = iminuit.Minuit(objective, np.atleast_1d(init_pars), grad=grad)
+    opt = Minuit(objective, np.atleast_1d(init_pars), grad=grad)
     opt.limits = bounds
     opt.fixed = fixed_vals
-    opt.print_level = options.get("disp", False)
-    opt.errordef = options.get("errordef", 1)
-    opt.strategy = options.get("strategy", int(do_grad))
+    opt.print_level = options.get("disp", 0)
+    opt.errordef = options.get("errordef", Minuit.LIKELIHOOD)
+    opt.strategy = options.get("strategy", 0)
     opt.tol = options.get("tol", 1e-6)
-    opt.migrad(ncall=options.get("maxiter", 10000))
+    ncall = options.get("maxiter", 10000)
+    if method == "migrad":
+        opt.migrad(ncall=ncall)
+    elif method == "simplex":
+        opt.simplex(ncall=ncall)
+    else:
+        raise ValueError(f"Unknown method: {method}")
 
-    # https://github.com/scikit-hep/iminuit/blob/23bad7697e39d363f259ca8349684df939b1b2e6/src/iminuit/_minimize.py#L111-L130
-    message = "Optimization terminated successfully."
-    if not opt.valid:
+    # https://github.com/scikit-hep/iminuit/blob/1fb039cba09417cdf5a4f67749f58e9030dc619b/src/iminuit/minimize.py#L124C1-L136C67
+    if opt.valid:
+        message = "Optimization terminated successfully"
+        if opt.accurate:
+            message += "."
+        else:
+            message += ", but uncertainties are unrealiable."
+            log.debug(message)
+    else:
         message = "Optimization failed."
         fmin = opt.fmin
         if fmin.has_reached_call_limit:
