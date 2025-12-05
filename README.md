@@ -40,9 +40,17 @@ python -m pip install --upgrade "git+https://github.com/SpeysideHEP/spey"
 
 **Note that `main` branch may not be the stable version.**
 
+To install a specific branch with pip, use the following command:
+
+```bash
+python -m pip install git+https://github.com/SpeysideHEP/spey@<BRANCH>
+```
+
+**Please be aware that non-released branches are not stable.**
+
 ## What is Spey?
 
-Spey is a plug-in-based statistics tool that aims to collect all likelihood prescriptions under one roof. This provides users with the workspace to freely combine different statistical models and study them through a single interface. In order to achieve a module that can be used both with statistical model prescriptions, which has been proposed in the past and will be used in the future, Spey uses a so-called plug-in system where developers can propose their statistical model prescriptions and allow Spey to use them.
+Spey is a plug-in-based statistics framework designed to be fully backend-agnostic, providing a unified environment where all likelihood prescriptions can be compiled and accessed in one place. This enables users to flexibly combine diverse statistical models and analyse them through a single, coherent interface. In line with the **FAIR principles, ensuring that models are findable, accessible, interoperable, and reusable**, Spey adopts a modular plug-in system allowing developers to contribute statistical model prescriptions in a transparent and future-proof manner, ensuring compatibility with both current and evolving standards.
 
 ### What a plugin provides
 
