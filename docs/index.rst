@@ -39,6 +39,8 @@ This interoperability is made possible through Spey’s modular plug-in architec
 
 With its flexible architecture, FAIR-driven approach, and emphasis on long-term sustainability, Spey provides a contemporary ecosystem for statistical inference that connects communities and tools across high-energy physics and beyond.
 
+Finally, the name "Spey" originally comes from the Spey River, a river in the mid-Highlands of Scotland. The area "Speyside" is famous for its smooth whisky.
+
 
 .. toctree::
    :maxdepth: 2
