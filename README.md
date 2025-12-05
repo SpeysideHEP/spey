@@ -61,7 +61,7 @@ A quick intro on the terminology of spey plugins in this section:
 * Depending on the scope of the plugin, you may wish to provide additional (custom) operations and differentiability through various autodif packages such as ``autograd``
   or ``jax``. As long as they are implemented through a set of predefined function names spey can automatically detect and use them within the interface.
 
-Finally, the name "Spey" originally comes from the Spey River, a river in the mid-Highlands of Scotland. The area "Speyside" is famous for its smooth whiskey.
+Finally, the name "Spey" originally comes from the Spey River, a river in the mid-Highlands of Scotland. The area "Speyside" is famous for its smooth whisky.
 
 ### Currently available plug-ins
 
