@@ -28,6 +28,7 @@ from spey.system.exceptions import (
     MethodNotAvailable,
     warning_tracker,
 )
+from spey.system.logger import capture_logs
 from spey.utils import ExpectationType
 
 __all__ = ["HypothesisTestingBase"]
@@ -930,41 +931,43 @@ class HypothesisTestingBase(ABC):
             ]
 
         optimiser_arguments = optimiser_arguments or {}
-        (
-            maximum_likelihood,
-            logpdf,
-            maximum_asimov_likelihood,
-            logpdf_asimov,
-        ) = self._prepare_for_hypotest(
-            expected=expected,
-            test_statistics="qtilde",
-            **optimiser_arguments,
-        )
 
-        if None in [low_init, hig_init]:
-            muhat = maximum_likelihood[0] if maximum_likelihood[0] > 0.0 else 0.0
-            sigma_mu = (
-                self.sigma_mu(muhat, expected=expected)
-                if not np.isclose(muhat, 0.0)
-                else 1.0
+        with capture_logs(level=log.level):
+            (
+                maximum_likelihood,
+                logpdf,
+                maximum_asimov_likelihood,
+                logpdf_asimov,
+            ) = self._prepare_for_hypotest(
+                expected=expected,
+                test_statistics="qtilde",
+                **optimiser_arguments,
             )
-            low_init = np.clip(low_init or muhat + 1.5 * sigma_mu, 1e-10, None)
-            hig_init = np.clip(hig_init or muhat + 2.5 * sigma_mu, 1e-10, None)
-            log.debug(f"new low_init = {low_init}, new hig_init = {hig_init}")
 
-        return find_poi_upper_limit(
-            maximum_likelihood=maximum_likelihood,
-            logpdf=logpdf,
-            maximum_asimov_likelihood=maximum_asimov_likelihood,
-            asimov_logpdf=logpdf_asimov,
-            expected=expected,
-            confidence_level=confidence_level,
-            allow_negative_signal=False,
-            low_init=low_init,
-            hig_init=hig_init,
-            expected_pvalue=expected_pvalue,
-            maxiter=maxiter,
-        )
+            if None in [low_init, hig_init]:
+                muhat = maximum_likelihood[0] if maximum_likelihood[0] > 0.0 else 0.0
+                sigma_mu = (
+                    self.sigma_mu(muhat, expected=expected)
+                    if not np.isclose(muhat, 0.0)
+                    else 1.0
+                )
+                low_init = np.clip(low_init or muhat + 1.5 * sigma_mu, 1e-10, None)
+                hig_init = np.clip(hig_init or muhat + 2.5 * sigma_mu, 1e-10, None)
+                log.debug(f"new low_init = {low_init}, new hig_init = {hig_init}")
+
+            return find_poi_upper_limit(
+                maximum_likelihood=maximum_likelihood,
+                logpdf=logpdf,
+                maximum_asimov_likelihood=maximum_asimov_likelihood,
+                asimov_logpdf=logpdf_asimov,
+                expected=expected,
+                confidence_level=confidence_level,
+                allow_negative_signal=False,
+                low_init=low_init,
+                hig_init=hig_init,
+                expected_pvalue=expected_pvalue,
+                maxiter=maxiter,
+            )
 
     def chi2_test(
         self,

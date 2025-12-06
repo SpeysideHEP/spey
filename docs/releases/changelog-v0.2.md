@@ -10,6 +10,9 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 * Add plug-in registry that does not require creating an entire package.
   ([#60](https://github.com/SpeysideHEP/spey/pull/60))
 
+* Iminuit is available to be used for optimisation as alternative to scipy.
+  ([#59](https://github.com/SpeysideHEP/spey/pull/59))
+
 ## Improvements
 
 * Autograd has been upgraded to v1.7 which supports numpy 2.0
@@ -29,6 +32,9 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 
 * Enable compatibility for Python 3.13, and the deprecation of `pkg_resources` has been addressed.
   ([#56](https://github.com/SpeysideHEP/spey/pull/56))
+
+* Multivariate Normal distribution now supports callable covariance matrix function.
+  ([#59](https://github.com/SpeysideHEP/spey/pull/59))
 
 ## Bug Fixes
 

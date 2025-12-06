@@ -3,6 +3,7 @@
 import platform
 import sys
 from importlib.metadata import distribution, version
+from importlib.util import find_spec
 from subprocess import check_output
 
 
@@ -16,6 +17,8 @@ def about() -> None:
     )
     print(f"Numpy version:            {version('numpy')}")
     print(f"Scipy version:            {version('scipy')}")
+    if find_spec("iminuit") is not None:
+        print(f"iminuit version:          {version('iminuit')}")
     print(f"Autograd version:         {version('autograd')}")
     print(f"tqdm version:             {version('tqdm')}")
     print(f"semantic_version version: {version('semantic_version')}")

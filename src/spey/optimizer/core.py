@@ -1,15 +1,31 @@
 import logging
+import os
+from importlib.util import find_spec
 from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
 from spey.base.model_config import ModelConfig
 
-from .scipy_tools import minimize
-
 # pylint: disable=W1203
 
 log = logging.getLogger("Spey")
+
+
+def _get_minimizer(name: str):
+    from .scipy_tools import minimize
+
+    if name == "scipy":
+        return minimize
+    elif name == "minuit":
+        if find_spec("iminuit") is not None:
+            from .minuit_tools import minimize as minuit_opt
+
+            return minuit_opt
+
+        log.warning("minuit optimiser is not available, using scipy")
+        return minimize
+    raise ValueError(f"{name} is not availabe.")
 
 
 def fit(
@@ -56,45 +72,34 @@ def fit(
     init_pars = [*(initial_parameters or model_configuration.suggested_init)]
     par_bounds = [*(bounds or model_configuration.fixed_poi_bounds(fixed_poi_value))]
 
-    def make_constraint(index: int, value: float) -> Callable[[np.ndarray], float]:
-        def func(vector: np.ndarray) -> float:
-            return vector[index] - value
+    minimizer_opt = options.pop(
+        "minimizer", os.environ.get("SPEY_OPTIMISER", "scipy").lower()
+    )
+    if minimizer_opt not in ["scipy", "minuit"]:
+        log.warning(f"Invalid minimizer: {minimizer_opt}, using scipy")
+        minimizer_opt = "scipy"
+    log.debug(f"Minimiser: {minimizer_opt}")
 
-        return func
-
-    constraints = [] if constraints is None else constraints
+    fixed_vals = [False] * len(init_pars)
     if fixed_poi_value is not None:
         init_pars[model_configuration.poi_index] = fixed_poi_value
-        log.debug(
-            f"Fixing POI index at: {model_configuration.poi_index} to value {fixed_poi_value}"
-        )
-        constraints.append(
-            {
-                "type": "eq",
-                "fun": make_constraint(model_configuration.poi_index, fixed_poi_value),
-            }
-        )
+        fixed_vals[model_configuration.poi_index] = True
 
     if model_configuration.suggested_fixed is not None:
         for idx, isfixed in enumerate(model_configuration.suggested_fixed):
             if isfixed:
-                log.debug(f"Constraining {idx} to value {init_pars[idx]}")
-                constraints.append(
-                    {
-                        "type": "eq",
-                        "fun": make_constraint(idx, init_pars[idx]),
-                    }
-                )
+                fixed_vals[idx] = True
 
     options.update({"poi_index": model_configuration.poi_index})
 
-    fun, x = minimize(
+    fun, x = _get_minimizer(minimizer_opt)(
         func=func,
         init_pars=init_pars,
+        fixed_vals=fixed_vals,
         do_grad=do_grad,
         hessian=hessian,
         bounds=par_bounds,
-        constraints=constraints,
+        constraints=[] if constraints is None else constraints,
         **options,
     )
 

@@ -420,11 +420,41 @@ class MultivariateNormal(SimplePDFBase):
 
     .. versionadded:: 0.1.9
 
+    ``covariance_matrix`` can also take callable function as an input where
+    function takes nuisance parameters as inputs and return a new covariance matrix as output.
+
+    **Example:**
+
+    .. code:: python3
+
+        >>> import spey
+        >>> import numpy as np
+
+        >>> signal_yields = np.array([12.0, 15.0])
+        >>> background_yields = np.array([50.0, 48.0])
+        >>> data = np.array([36., 33.])
+        >>> covariance_matrix = np.array([[144.0, 13.0], [25.0, 256.0]])
+        >>> covariance_signal = np.array([[5.0, 1.0], [2.0, 3.0]])
+
+        >>> def cov_matrix(pars: np.ndarray) -> np.ndarray:
+        >>>     return covariance_matrix + covariance_signal * pars[0]**2
+
+        >>> pdf_wrapper = spey.get_backend('default.multivariate_normal')
+        >>> model = pdf_wrapper(
+        ...     signal_yields=signal_yields,
+        ...     background_yields=background_yields,
+        ...     data=data,
+        ...     covariance_matrix=cov_matrix,
+        ... )
+
+    .. versionchanged:: 0.2.6
+        The ability to input a callable covariance matrix has been added.
+
     Args:
         signal_yields (``List[float]``): signal yields
         background_yields (``List[float]``): background yields
         data (``List[int]``): data
-        covariance_matrix (``List[List[float]]``): covariance matrix (square matrix)
+        covariance_matrix (``List[List[float]] | callable``): covariance matrix (square matrix)
 
           * If you have correlation matrix and absolute uncertainties please use
             :func:`~spey.helper_functions.correlation_to_covariance`
@@ -447,19 +477,22 @@ class MultivariateNormal(SimplePDFBase):
         signal_yields: List[float],
         background_yields: List[float],
         data: List[int],
-        covariance_matrix: List[List[float]],
+        covariance_matrix: Union[List[List[float]], callable],
     ):
         super().__init__(
             signal_yields=signal_yields, background_yields=background_yields, data=data
         )
-        self.covariance_matrix = np.array(covariance_matrix, dtype=np.float64)
-        if (
-            self.covariance_matrix.shape[0] != len(self.background_yields)
-            and len(self.covariance_matrix.shape) == 2
-        ):
-            raise InvalidInput(
-                "Dimensionality of the covariance matrix should match to the background"
-            )
+        if not callable(covariance_matrix):
+            self.covariance_matrix = np.array(covariance_matrix, dtype=np.float64)
+            if (
+                self.covariance_matrix.shape[0] != len(self.background_yields)
+                and len(self.covariance_matrix.shape) == 2
+            ):
+                raise InvalidInput(
+                    "Dimensionality of the covariance matrix should match to the background"
+                )
+        else:
+            self.covariance_matrix = covariance_matrix
 
         self._main_kwargs = {
             "cov": self.covariance_matrix,
