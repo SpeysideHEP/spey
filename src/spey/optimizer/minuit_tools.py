@@ -1,8 +1,8 @@
 import logging
 from typing import Callable, Dict, List, Tuple
 
-from iminuit import Minuit
 import numpy as np
+from iminuit import Minuit
 
 from . import ValidateOpts
 

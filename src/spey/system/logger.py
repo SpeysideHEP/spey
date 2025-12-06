@@ -56,7 +56,7 @@ def init(LoggerStream=sys.stdout):
 @contextmanager
 def disable_logging(highest_level: int = logging.CRITICAL):
     """
-    Temporary disable logging implementation, this should move into Spey
+    Temporary disable logging implementation
 
     Args:
         highest_level (``int``, default ``logging.CRITICAL``): highest level to be set in logging
