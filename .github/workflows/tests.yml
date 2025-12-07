@@ -3,7 +3,7 @@ name: Tests
 on:
     pull_request:
         branches: ["main", "releases/**"]
-        types: [review_requested, opened]
+        types: [opened, review_requested, ready_for_review, synchronize]
         paths: ["src/**.py", "tests/**.py", "tests.yml"]
     push:
         branches: ["main", "releases/**"]
