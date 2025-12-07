@@ -5,7 +5,7 @@ from scipy.optimize import minimize_scalar
 from scipy.stats import chi2, multivariate_normal, norm, poisson
 
 import spey
-from spey.helper_functions import merge_correlated_bins
+from spey.helper_functions import merge_correlated_bins, covariance_to_correlation
 
 
 def test_uncorrelated_background():
@@ -13,20 +13,34 @@ def test_uncorrelated_background():
 
     pdf_wrapper = spey.get_backend("default.uncorrelated_background")
 
-    data = [36, 33]
-    signal_yields = [12.0, 15.0]
-    background_yields = [50.0, 48.0]
-    background_unc = [12.0, 16.0]
+    data = np.array([36, 33])
+    signal_yields = np.array([12.0, 15.0])
+    background_yields = np.array([50.0, 48.0])
+    background_unc = np.array([12.0, 16.0])
 
     stat_model = pdf_wrapper(
         signal_yields=signal_yields,
         background_yields=background_yields,
         data=data,
         absolute_uncertainties=background_unc,
-        analysis="multi_bin",
-        xsection=0.123,
+    )
+    model_nll = stat_model.backend.get_logpdf_func()(np.array([1.0, 1.0, 1.0]))
+
+    def logprob(param, data):
+        return poisson.logpmf(
+            data,
+            param[0] * signal_yields + background_yields + background_unc * param[1:],
+        )
+
+    normal = norm(loc=[0, 0], scale=[1, 1])
+
+    exact_nll = (
+        logprob(np.array([1.0, 1.0, 1.0]), data).sum() + normal.logpdf([1.0, 1.0]).sum()
     )
 
+    assert np.isclose(
+        model_nll, exact_nll, rtol=0.00001
+    ), f"Correlated background NLL is wrong. {model_nll=}, {exact_nll=}"
     assert np.isclose(stat_model.poi_upper_limit(), 0.8563345655114185), "POI is wrong."
     assert np.isclose(
         stat_model.exclusion_confidence_level()[0], 0.9701795436411219
@@ -36,16 +50,41 @@ def test_uncorrelated_background():
 def test_correlated_background():
     """tester for correlated background"""
 
+    signal_yields = np.array([12.0, 15.0])
+    background_yields = np.array([50.0, 48.0])
+    data = np.array([36, 33])
+    covariance_matrix = np.array([[144.0, 13.0], [25.0, 256.0]])
+
     pdf_wrapper = spey.get_backend("default.correlated_background")
     statistical_model = pdf_wrapper(
-        signal_yields=[12.0, 15.0],
-        background_yields=[50.0, 48.0],
-        data=[36, 33],
-        covariance_matrix=[[144.0, 13.0], [25.0, 256.0]],
+        signal_yields=signal_yields,
+        background_yields=background_yields,
+        data=data,
+        covariance_matrix=covariance_matrix,
         analysis="example",
         xsection=0.123,
     )
+    model_nll = statistical_model.backend.get_logpdf_func()(np.array([1.0, 1.0, 1.0]))
 
+    multivar_norm = multivariate_normal(
+        mean=[0, 0], cov=covariance_to_correlation(covariance_matrix)
+    )
+
+    def logprob(param, data):
+        return poisson.logpmf(
+            data,
+            param[0] * signal_yields
+            + background_yields
+            + np.sqrt(np.diag(covariance_matrix)) * param[1:],
+        )
+
+    exact_nll = sum(logprob(np.array([1.0, 1.0, 1.0]), data)) + multivar_norm.logpdf(
+        [1, 1]
+    )
+
+    assert np.isclose(
+        model_nll, exact_nll, rtol=0.001
+    ), f"Correlated background NLL is wrong. {model_nll=}, {exact_nll=}"
     assert np.isclose(statistical_model.poi_upper_limit(), 0.907104376899138), "POI wrong"
     assert np.isclose(
         statistical_model.exclusion_confidence_level()[0], 0.9635100547173434

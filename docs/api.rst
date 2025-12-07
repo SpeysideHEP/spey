@@ -20,6 +20,7 @@ Top-Level
     ExpectationType
     register_backend
     AvailableBackends
+    set_optimiser
     get_backend
     get_backend_metadata
     get_backend_bibtex
@@ -44,17 +45,27 @@ Main Classes
 Base Classes
 ------------
 
+Backend Base
+~~~~~~~~~~~~
+
 .. autoclass:: spey.BackendBase
     :members:
     :undoc-members:
+
+Hypothesis Testing Base
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. autoclass:: spey.base.hypotest_base.HypothesisTestingBase
     :members:
     :undoc-members:
 
+Model Configuration
+~~~~~~~~~~~~~~~~~~~
+
 .. autoclass:: spey.base.model_config.ModelConfig
     :members:
     :undoc-members:
+
 
 Statistical Model Combiner
 --------------------------
@@ -142,9 +153,11 @@ Simple PDFs
     simple_pdf.Gaussian
     simple_pdf.MultivariateNormal
 
+Developer Tools
+---------------
 
 Exceptions
-----------
+~~~~~~~~~~
 
 .. currentmodule:: spey.system.exceptions
 
@@ -162,3 +175,15 @@ Exceptions
     CanNotFindRoots
     UnknownComputer
     CombinerNotAvailable
+
+Logging
+~~~~~~~
+
+.. currentmodule:: spey.system.logger
+
+.. autosummary::
+    :toctree: _generated/
+    :nosignatures:
+
+    disable_logging
+    capture_logs

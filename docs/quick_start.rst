@@ -24,6 +24,14 @@ Python >=3.8 is required. spey heavily relies on `numpy <https://numpy.org/doc/s
 which are all packaged during the installation with the necessary versions. Note that some
 versions may be restricted due to numeric stability and validation.
 
+To install spey with `iminuit <https://scikit-hep.org/iminuit/>`_, use
+
+.. code-block:: bash
+
+    >>> pip install spey[iminuit]
+
+and iminuit functionality can be activated by :func:`~spey.set_optimiser` function.
+
 What is Spey?
 -------------
 

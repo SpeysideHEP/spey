@@ -5,7 +5,7 @@ of different statistical models for hypothesis testing
 
 import logging
 import warnings
-from typing import Dict, Iterator, List, Optional, Text, Tuple, Union
+from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
 

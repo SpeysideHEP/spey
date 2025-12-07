@@ -3,7 +3,7 @@ name: Tests
 on:
     pull_request:
         branches: ["main", "releases/**"]
-        types: [review_requested, opened]
+        types: [opened, review_requested, ready_for_review, synchronize]
         paths: ["src/**.py", "tests/**.py", "tests.yml"]
     push:
         branches: ["main", "releases/**"]
@@ -32,8 +32,20 @@ jobs:
                   python -m pip install --upgrade pip
                   python -m pip install pytest pytest-cov
                   if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-                  python -m pip install -e .
+                  python -m pip install -e .[iminuit]
             - name: Test with pytest
               run: |
                   python -c 'import spey;spey.about()'
-                  pytest --cov=spey tests/*py #--cov-fail-under 99
+                  pytest --cov --cov-branch --junitxml=junit.xml -o junit_family=legacy --cov-report=xml tests/*py #--cov-fail-under 99
+
+            - name: Upload coverage reports to Codecov
+              uses: codecov/codecov-action@v5
+              with:
+                  token: ${{ secrets.CODECOV_TOKEN }}
+                  slug: SpeysideHEP/spey
+
+            - name: Upload test results to Codecov
+              if: ${{ !cancelled() }}
+              uses: codecov/test-results-action@v1
+              with:
+                  token: ${{ secrets.CODECOV_TOKEN }}
