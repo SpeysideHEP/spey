@@ -38,7 +38,7 @@ def minimize(
         grad = None
 
     opt = Minuit(objective, np.atleast_1d(init_pars), grad=grad)
-    opt.limits = bounds
+    opt.limits = [(None, None)] * len(init_pars) if bounds is None else bounds
     opt.fixed = fixed_vals
     opt.print_level = options.get("disp", 0)
     opt.errordef = options.get("errordef", Minuit.LIKELIHOOD)

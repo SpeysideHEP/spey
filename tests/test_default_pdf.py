@@ -13,20 +13,34 @@ def test_uncorrelated_background():
 
     pdf_wrapper = spey.get_backend("default.uncorrelated_background")
 
-    data = [36, 33]
-    signal_yields = [12.0, 15.0]
-    background_yields = [50.0, 48.0]
-    background_unc = [12.0, 16.0]
+    data = np.array([36, 33])
+    signal_yields = np.array([12.0, 15.0])
+    background_yields = np.array([50.0, 48.0])
+    background_unc = np.array([12.0, 16.0])
 
     stat_model = pdf_wrapper(
         signal_yields=signal_yields,
         background_yields=background_yields,
         data=data,
         absolute_uncertainties=background_unc,
-        analysis="multi_bin",
-        xsection=0.123,
+    )
+    model_nll = stat_model.backend.get_logpdf_func()(np.array([1.0, 1.0, 1.0]))
+
+    def logprob(param, data):
+        return poisson.logpmf(
+            data,
+            param[0] * signal_yields + background_yields + background_unc * param[1:],
+        )
+
+    normal = norm(loc=[0, 0], scale=[1, 1])
+
+    exact_nll = (
+        logprob(np.array([1.0, 1.0, 1.0]), data).sum() + normal.logpdf([1.0, 1.0]).sum()
     )
 
+    assert np.isclose(
+        model_nll, exact_nll, rtol=0.00001
+    ), f"Correlated background NLL is wrong. {model_nll=}, {exact_nll=}"
     assert np.isclose(stat_model.poi_upper_limit(), 0.8563345655114185), "POI is wrong."
     assert np.isclose(
         stat_model.exclusion_confidence_level()[0], 0.9701795436411219
