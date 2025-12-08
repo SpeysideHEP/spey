@@ -49,4 +49,5 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 This release contains contributions from (in alphabetical order):
 
 * [Jack Araz](https://github.com/jackaraz)
+* [Jon Butterworth](https://github.com/jonbutterworth)
 * [Joe Egan](https://github.com/joes-git)
