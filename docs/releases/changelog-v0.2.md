@@ -44,6 +44,9 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 * Error during signal uncertainty insertion due to valid domain has been fixed.
   ([#51](https://github.com/SpeysideHEP/spey/pull/51))
 
+* A python version depended bug fixed in `about` function. This bug only effected python v3.9 and below.
+  ([#61](https://github.com/SpeysideHEP/spey/pull/61))
+
 ## Contributors
 
 This release contains contributions from (in alphabetical order):

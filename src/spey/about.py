@@ -36,17 +36,8 @@ def about() -> None:
         except AttributeError:
             dist_name = d.value.split(":")[0].split(".")[0]
             dist_version = distribution(dist_name).version
-        print(f"- {d.name} ({dist_name}-{dist_version})")
         if dist_name not in shown:
-            print(
-                check_output(
-                    [
-                        sys.executable,
-                        "-m",
-                        "pip",
-                        "show",
-                        d.dist.metadata.json["name"],
-                    ]
-                ).decode()
-            )
-            shown.append(d.dist.metadata.json["name"])
+            print()
+            print(check_output([sys.executable, "-m", "pip", "show", dist_name]).decode())
+            shown.append(dist_name)
+        print(f"- {d.name} ({dist_name}-{dist_version})")
