@@ -1,8 +1,8 @@
 {
     "description": "smooth inference for reinterpretation studies",
     "license": "MIT",
-    "title": "SpeysideHEP/spey: v0.2.6",
-    "version": "v0.2.6",
+    "title": "SpeysideHEP/spey: v0.2.7",
+    "version": "v0.2.7",
     "upload_type": "software",
     "creators": [
         {
@@ -31,7 +31,7 @@
         },
         {
             "scheme": "url",
-            "identifier": "https://github.com/SpeysideHEP/spey/tree/v0.2.6",
+            "identifier": "https://github.com/SpeysideHEP/spey/tree/v0.2.7",
             "relation": "isSupplementTo"
         },
         {
