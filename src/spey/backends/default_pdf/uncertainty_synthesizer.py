@@ -1,147 +1,88 @@
-from typing import Any, Dict, List, Tuple
+from functools import partial, reduce
+from typing import Dict, List, Tuple, Union
 
 import autograd.numpy as np
-
-from spey.helper_functions import correlation_to_covariance
-
-from .third_moment import third_moment_expansion
 
 # pylint: disable=E1101,E1120
 
 
-def constraint_from_corr(
-    correlation_matrix: List[List[float]], size: int, domain: slice
-) -> List[Dict[str, Any]]:
-    """
-    Derive constraints from inputs
-
-    Args:
-        correlation_matrix (``List[List[float]]``): correlation matrix
-        size (``int``): size of the signal vector
-        domain (``slice``): domain of the nuisances
-
-    Returns:
-        ``List[Dict[Text, Any]]``:
-    """
-    if correlation_matrix is not None:
-        corr = np.array(correlation_matrix)
-        constraint_term = [
-            {
-                "distribution_type": "multivariatenormal",
-                "args": [np.zeros(size), corr],
-                "kwargs": {"domain": domain},
-            }
-        ]
-    else:
-        constraint_term = [
-            {
-                "distribution_type": "normal",
-                "args": [np.zeros(size), np.ones(size)],
-                "kwargs": {"domain": domain},
-            }
-        ]
-
-    return constraint_term
-
-
 def signal_uncertainty_synthesizer(
     signal_yields: List[float],
-    absolute_uncertainties: List[float] = None,
-    absolute_uncertainty_envelops: List[Tuple[float, float]] = None,
-    correlation_matrix: List[List[float]] = None,
-    third_moments: List[float] = None,
-    domain: slice = None,
+    modifiers: List[Union[List[float], List[Tuple[float, float]]]],
 ) -> Dict[str, np.ndarray]:
     """
     Synthesize signal uncertainties
 
     Args:
-        signal_yields (``List[float]``): signal yields
-        absolute_uncertainties (``List[float]``, default ``None``): absolute uncertainties
-        absolute_uncertainty_envelops (``List[Tuple[float, float]]``, default ``None``):
-            asymmetric uncertainty envelops (upper, lower)
-        correlation_matrix (``List[List[float]]``, default ``None``): correlation matrix
-        third_moments (``List[float]``, default ``None``): third moments
-        domain (``slice``, default ``None``): domain of the nuisances
+        signal_yields (`List[float]`): List of signal yields per bin
+        modifiers (`List[Union[List[float], List[Tuple[float, float]]]]`):
+            List of uncertainty modifiers, each can be either:
+            - A list of floats representing symmetric uncertainties per bin
+            - A list of tuples representing asymmetric uncertainties (up, down) per bin
 
     Raises:
-        ``ValueError``: if inconsistent number of input has been provided
+        ValueError: If the number of bins in modifiers does not match signal_yields
+        AssertionError: If the number of bins in modifiers is inconsistent
 
     Returns:
-        ``Dict[Text, np.ndarray]``:
-        Inputs for the main model and the constraint term
+        A dictionary with:
+            - "lambda": A callable that computes the modified signal yields given parameters
+            - "constraint": A list of constraint dictionaries for each uncertainty modifier
     """
-    assert domain is not None, "Invalid domain"
-    signal_yields = np.array(signal_yields)
 
-    if absolute_uncertainties is not None and third_moments is None:
-        absolute_uncertainties = np.array(absolute_uncertainties)
+    nnui = len(modifiers)
+    lambdas = []
+    constraints = []
+    domain = np.r_[len(signal_yields) + 1 : len(signal_yields) + 1 + nnui]
 
-        def lam_signal(pars: np.ndarray) -> np.ndarray:
-            return absolute_uncertainties * pars[domain]
+    for idx, values in enumerate(modifiers):
+        assert len(values) == len(
+            signal_yields
+        ), f"Inconsistent number of bins, expected {len(signal_yields)}, got {len(values)}"
 
-        constraint_term = constraint_from_corr(
-            correlation_matrix, len(absolute_uncertainties), domain
-        )
+        if values.ndim == 1:
+            values = np.array(values) / np.clip(np.array(signal_yields), 1e-5, None)
 
-    elif absolute_uncertainty_envelops is not None:
-        sigma_plus, sigma_minus = [], []
-        for upper, lower in absolute_uncertainty_envelops:
-            sigma_plus.append(abs(upper))
-            sigma_minus.append(abs(lower))
-        sigma_plus = np.array(sigma_plus)
-        sigma_minus = np.array(sigma_minus)
+            def lam_signal(param: np.ndarray, values: np.ndarray, idx: int) -> np.ndarray:
+                return 1.0 + values * param[domain[idx]]
 
-        # arXiv:pyhsics/0406120 eq. 18-19
-        def effective_sigma(pars: np.ndarray) -> np.ndarray:
-            """Compute effective sigma"""
-            return np.sqrt(
-                sigma_plus * sigma_minus
-                + (sigma_plus - sigma_minus) * (pars[domain] - signal_yields)
+            lambdas.append(partial(lam_signal, values=values, idx=idx))
+            constraints.append(
+                {
+                    "distribution_type": "normal",
+                    "args": [np.zeros(1), np.ones(1)],
+                    "kwargs": {"domain": np.r_[domain[idx]]},
+                }
             )
 
-        def lam_signal(pars: np.ndarray) -> np.ndarray:
-            """Compute lambda for Main model"""
-            return effective_sigma(pars) * pars[domain]
+        elif values.ndim == 2:
+            values = (
+                np.array(values) / np.clip(np.array(signal_yields), 1e-5, None)[:, None]
+            )
 
-        constraint_term = constraint_from_corr(
-            correlation_matrix, len(sigma_plus), domain
-        )
+            def lam_signal(param: np.ndarray, values: np.ndarray, idx: int) -> np.ndarray:
+                if np.all(np.greater_equal(domain[idx], 0.0)):
+                    return 1.0 + values[:, 0] * param[domain[idx]]
+                return 1.0 + values[:, 1] * param[domain[idx]]
 
-    elif all(
-        x is not None for x in [third_moments, correlation_matrix, absolute_uncertainties]
-    ):
-        correlation_matrix = np.array(correlation_matrix)
-        absolute_uncertainties = np.array(absolute_uncertainties)
-        third_moments = np.array(third_moments)
-        cov = correlation_to_covariance(correlation_matrix, absolute_uncertainties)
+            lambdas.append(partial(lam_signal, values=values, idx=idx))
+            constraints.append(
+                {
+                    "distribution_type": "normal",
+                    "args": [np.zeros(1), np.ones(1)],
+                    "kwargs": {"domain": np.r_[domain[idx]]},
+                }
+            )
 
-        A, B, C, corr = third_moment_expansion(signal_yields, cov, third_moments, True)
+        else:
+            raise ValueError(
+                f"Unsupported number of uncertainty modifiers: {values.ndim}, expected 1 or 2"
+            )
 
-        def lam_signal(pars: np.ndarray) -> np.ndarray:
-            """
-            Compute lambda for Main model with third moment expansion.
-            For details see above eq 2.6 in :xref:`1809.05548`
+    if len(lambdas) == 1:
+        return {"lambda": lambdas[0], "constraint": constraints}
 
-            Args:
-                pars (``np.ndarray``): nuisance parameters
+    def lam_signal_total(param: np.ndarray) -> np.ndarray:
+        return reduce(lambda x, y: x * y, (lam(param) for lam in lambdas))
 
-            Returns:
-                ``np.ndarray``:
-                expectation value of the poisson distribution with respect to
-                nuisance parameters.
-            """
-            return A + B * pars[domain] + C * np.square(pars[domain])
-
-        constraint_term = [
-            {
-                "distribution_type": "multivariatenormal",
-                "args": [np.zeros(len(signal_yields)), corr],
-                "kwargs": {"domain": domain},
-            }
-        ]
-
-    else:
-        raise ValueError("Inconsistent input.")
-
-    return {"lambda": lam_signal, "constraint": constraint_term}
+    return {"lambda": lam_signal_total, "constraint": constraints}
