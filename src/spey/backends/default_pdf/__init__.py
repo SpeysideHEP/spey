@@ -112,7 +112,7 @@ class DefaultPDFBase(BackendBase):
         self._config = ModelConfig(
             poi_index=0,
             minimum_poi=minimum_poi,
-            suggested_init=[1.0] * (len(data) + 1) + ([1.0] * len(modifiers)),
+            suggested_init=[1.0] * (len(data) + 1) + [1.0] * len(modifiers),
             suggested_bounds=[(minimum_poi, 10.0)]
             + [(None, None)] * len(data)
             + [(None, None)] * len(modifiers),
@@ -192,7 +192,8 @@ class DefaultPDFBase(BackendBase):
                     nuisance parameters.
                 """
                 return (
-                    pars[0] * self.signal_yields * signal_unc(pars)
+                    pars[0] * self.signal_yields
+                    + signal_unc(pars)
                     + A
                     + B * pars[slice(1, len(B) + 1)]
                 )
@@ -493,7 +494,8 @@ class UncorrelatedBackground(DefaultPDFBase):
             return (
                 self.background_yields
                 + pars[slice(1, len(B) + 1)] * B
-                + pars[0] * self.signal_yields * signal_unc(pars)
+                + pars[0] * self.signal_yields
+                + signal_unc(pars)
             )
 
         def constraint(pars: np.ndarray) -> np.ndarray:
@@ -700,7 +702,7 @@ class ThirdMomentExpansion(DefaultPDFBase):
                 + B * pars[slice(1, len(B) + 1)]
                 + C * np.square(pars[slice(1, len(B) + 1)])
             )
-            return pars[0] * self.signal_yields * signal_unc(pars) + nI
+            return pars[0] * self.signal_yields + signal_unc(pars) + nI
 
         def constraint(pars: np.ndarray) -> np.ndarray:
             """Compute constraint term"""
@@ -853,7 +855,8 @@ class EffectiveSigma(DefaultPDFBase):
             return (
                 A
                 + effective_sigma(pars) * pars[slice(1, len(A) + 1)]
-                + pars[0] * self.signal_yields * signal_unc(pars)
+                + pars[0] * self.signal_yields
+                + signal_unc(pars)
             )
 
         def constraint(pars: np.ndarray) -> np.ndarray:
