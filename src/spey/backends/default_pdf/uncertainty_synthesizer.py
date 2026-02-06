@@ -9,6 +9,22 @@ from spey.system.exceptions import InvalidUncertaintyDefinition
 # pylint: disable=E1101,E1120
 
 
+def nonlinear_interp(
+    alpha: np.ndarray, delta_up: np.ndarray, delta_dn: np.ndarray
+) -> np.ndarray:
+    """
+    nonlinear interpolator
+
+    Args:
+        alpha (``np.ndarray``): nuisance parameter
+        delta_up (``np.ndarray``): upper deviation
+        delta_dn (``np.ndarray``): lower deviation
+    """
+    if alpha >= 0:
+        return delta_up**alpha
+    return delta_dn ** (-alpha)
+
+
 def signal_uncertainty_synthesizer(
     signal_yields: List[float],
     modifiers: List[Union[List[float], List[Tuple[float, float]]]],
@@ -56,20 +72,26 @@ def signal_uncertainty_synthesizer(
 
         with warnings.catch_warnings(record=True):
             if values.ndim == 1:
-                beta = (signal_yields + values) / (signal_yields - values)
+                delta_up = (signal_yields + values) / signal_yields
+                delta_dn = (signal_yields - values) / signal_yields
             elif values.ndim == 2:
-                beta = (signal_yields + values[:, 0]) / (signal_yields - values[:, 1])
+                delta_up = (signal_yields + values[:, 0]) / signal_yields
+                delta_dn = (signal_yields - values[:, 1]) / signal_yields
             else:
                 raise InvalidUncertaintyDefinition(
                     f"Unsupported number of uncertainty modifiers: {values.ndim}, "
                     "expected 1 for symmetric or 2 for asymmetric uncertainties"
                 )
 
-        def lam_signal(param: np.ndarray, values: np.ndarray, idx: int) -> np.ndarray:
-            return np.exp(param[domain[idx]] * values)
+        delta_up = np.where(np.isnan(delta_up), 0.0, delta_up)
+        delta_dn = np.where(np.isnan(delta_dn), 0.0, delta_dn)
 
-        beta = 0.5 * np.log(np.where(np.isnan(beta), 1.0, beta))
-        lambdas.append(partial(lam_signal, values=beta, idx=idx))
+        def lam_signal(
+            param: np.ndarray, up: np.ndarray, dn: np.ndarray, idx: int
+        ) -> np.ndarray:
+            return nonlinear_interp(param[domain[idx]], up, dn)
+
+        lambdas.append(partial(lam_signal, up=delta_up, dn=delta_dn, idx=idx))
 
     if nnui == 1:
         return {"lambda": lambdas[0], "constraint": constraints}

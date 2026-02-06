@@ -3,6 +3,7 @@ import pytest
 from scipy.stats import multivariate_normal, norm, poisson
 
 import spey
+from spey.backends.default_pdf.uncertainty_synthesizer import nonlinear_interp
 from spey.helper_functions import covariance_to_correlation
 
 
@@ -33,16 +34,18 @@ def test_uncorrelated_background():
 
     model_nll = stat_model.backend.get_logpdf_func()(nui)
 
-    beta_scale = 0.5 * np.log((signal_yields + scale_unc) / (signal_yields - scale_unc))
-    beta_pdf = 0.5 * np.log((signal_yields + pdf_up) / (signal_yields - pdf_dn))
+    delta_up_scale = (signal_yields + scale_unc) / signal_yields
+    delta_dn_scale = (signal_yields - scale_unc) / signal_yields
+    delta_up_pdf = (signal_yields + pdf_up) / signal_yields
+    delta_dn_pdf = (signal_yields - pdf_dn) / signal_yields
 
     def logprob(param, data):
         return poisson.logpmf(
             data,
             param[0]
             * signal_yields
-            * np.exp(param[3] * beta_scale)
-            * np.exp(param[4] * beta_pdf)
+            * nonlinear_interp(param[3], delta_up_scale, delta_dn_scale)
+            * nonlinear_interp(param[4], delta_up_pdf, delta_dn_pdf)
             + background_yields
             + background_unc * param[1:-2],
         )
@@ -52,7 +55,7 @@ def test_uncorrelated_background():
     exact_nll = logprob(nui, data).sum() + normal.logpdf(nui[1:]).sum()
 
     assert (
-        pytest.approx(model_nll) == exact_nll
+        pytest.approx(exact_nll) == model_nll
     ), "Model llhd does not match with analytic."
 
 
@@ -77,8 +80,10 @@ def test_correlated_background():
         modifiers=[scale_unc, pdf_unc],
     )
 
-    beta_scale = 0.5 * np.log((signal_yields + scale_unc) / (signal_yields - scale_unc))
-    beta_pdf = 0.5 * np.log((signal_yields + pdf_up) / (signal_yields - pdf_dn))
+    delta_up_scale = (signal_yields + scale_unc) / signal_yields
+    delta_dn_scale = (signal_yields - scale_unc) / signal_yields
+    delta_up_pdf = (signal_yields + pdf_up) / signal_yields
+    delta_dn_pdf = (signal_yields - pdf_dn) / signal_yields
 
     for p in [1.0, 2.0, 3.0]:
         nui = np.array([p, 1.0, 2.0, 3.0, 4.0])
@@ -90,8 +95,8 @@ def test_correlated_background():
                 data,
                 param[0]
                 * signal_yields
-                * np.exp(param[3] * beta_scale)
-                * np.exp(param[4] * beta_pdf)
+                * nonlinear_interp(param[3], delta_up_scale, delta_dn_scale)
+                * nonlinear_interp(param[4], delta_up_pdf, delta_dn_pdf)
                 + background_yields
                 + np.sqrt(np.diag(covariance_matrix)) * param[1:-2],
             )
@@ -107,6 +112,8 @@ def test_correlated_background():
             + normal.logpdf(nui[3:]).sum()
         )
 
+        # NOTE: The difference is due to the handling of covariance matrix in scipy
+        # see `spey.backends.distributions.MultivariateNormal.log_prob` for details
         assert (
-            pytest.approx(model_nll, 2e-2) == exact_nll
+            pytest.approx(exact_nll, 2e-2) == model_nll
         ), f"Model llhd does not match with analytic at poi={p}."
