@@ -175,7 +175,7 @@ class DefaultPDFBase(BackendBase):
             B = np.sqrt(np.diag(self.covariance_matrix))
 
             signal_unc = self.signal_uncertainty_configuration.get(
-                "lambda", lambda pars: 0.0
+                "lambda", lambda pars: 1.0
             )
 
             def poiss_lamb(pars: np.ndarray) -> np.ndarray:
@@ -192,8 +192,7 @@ class DefaultPDFBase(BackendBase):
                     nuisance parameters.
                 """
                 return (
-                    pars[0] * self.signal_yields
-                    + signal_unc(pars)
+                    pars[0] * self.signal_yields * signal_unc(pars)
                     + A
                     + B * pars[slice(1, len(B) + 1)]
                 )
@@ -487,15 +486,14 @@ class UncorrelatedBackground(DefaultPDFBase):
             + self.signal_uncertainty_configuration.get("constraint", [])
         )
 
-        signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 0.0)
+        signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 1.0)
 
         def poiss_lamb(pars: np.ndarray) -> np.ndarray:
             """Compute lambda for Main model"""
             return (
                 self.background_yields
                 + pars[slice(1, len(B) + 1)] * B
-                + pars[0] * self.signal_yields
-                + signal_unc(pars)
+                + pars[0] * self.signal_yields * signal_unc(pars)
             )
 
         def constraint(pars: np.ndarray) -> np.ndarray:
@@ -682,7 +680,7 @@ class ThirdMomentExpansion(DefaultPDFBase):
             self.background_yields, self.covariance_matrix, third_moments, True
         )
 
-        signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 0.0)
+        signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 1.0)
 
         def poiss_lamb(pars: np.ndarray) -> np.ndarray:
             """
@@ -702,7 +700,7 @@ class ThirdMomentExpansion(DefaultPDFBase):
                 + B * pars[slice(1, len(B) + 1)]
                 + C * np.square(pars[slice(1, len(B) + 1)])
             )
-            return pars[0] * self.signal_yields + signal_unc(pars) + nI
+            return pars[0] * self.signal_yields * signal_unc(pars) + nI
 
         def constraint(pars: np.ndarray) -> np.ndarray:
             """Compute constraint term"""
@@ -834,7 +832,7 @@ class EffectiveSigma(DefaultPDFBase):
 
         A = self.background_yields
 
-        signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 0.0)
+        signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 1.0)
 
         # arXiv:pyhsics/0406120 eq. 18-19
         def effective_sigma(pars: np.ndarray) -> np.ndarray:
@@ -855,8 +853,7 @@ class EffectiveSigma(DefaultPDFBase):
             return (
                 A
                 + effective_sigma(pars) * pars[slice(1, len(A) + 1)]
-                + pars[0] * self.signal_yields
-                + signal_unc(pars)
+                + pars[0] * self.signal_yields * signal_unc(pars)
             )
 
         def constraint(pars: np.ndarray) -> np.ndarray:

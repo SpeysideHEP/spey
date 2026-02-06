@@ -1,7 +1,9 @@
+import warnings
 from functools import partial, reduce
 from typing import Dict, List, Tuple, Union
 
 import autograd.numpy as np
+
 from spey.system.exceptions import InvalidUncertaintyDefinition
 
 # pylint: disable=E1101,E1120
@@ -22,7 +24,8 @@ def signal_uncertainty_synthesizer(
             - A list of tuples representing asymmetric uncertainties (up, down) per bin
 
     Raises:
-        InvalidUncertaintyDefinition: If the number of bins in modifiers does not match signal_yields
+        InvalidUncertaintyDefinition: If the number of bins in modifiers does not match
+            `signal_yields`
         AssertionError: If the number of bins in modifiers is inconsistent
 
     Returns:
@@ -51,32 +54,27 @@ def signal_uncertainty_synthesizer(
             }
         )
 
-        if values.ndim == 1:
-
-            def lam_signal(param: np.ndarray, values: np.ndarray, idx: int) -> np.ndarray:
-                return 1.0 + values * param[domain[idx]]
-
-        elif values.ndim == 2:
-
-            def lam_signal(param: np.ndarray, values: np.ndarray, idx: int) -> np.ndarray:
-                return 1.0 + (
-                    values[:, 0 if param[domain[idx]] >= 0.0 else 1] * param[domain[idx]]
+        with warnings.catch_warnings(record=True):
+            if values.ndim == 1:
+                beta = (signal_yields + values) / (signal_yields - values)
+            elif values.ndim == 2:
+                beta = (signal_yields + values[:, 0]) / (signal_yields - values[:, 1])
+            else:
+                raise InvalidUncertaintyDefinition(
+                    f"Unsupported number of uncertainty modifiers: {values.ndim}, "
+                    "expected 1 for symmetric or 2 for asymmetric uncertainties"
                 )
 
-        else:
-            raise InvalidUncertaintyDefinition(
-                f"Unsupported number of uncertainty modifiers: {values.ndim}, "
-                "expected 1 for symmetric or 2 for asymmetric uncertainties"
-            )
+        def lam_signal(param: np.ndarray, values: np.ndarray, idx: int) -> np.ndarray:
+            return np.exp(param[domain[idx]] * values)
 
-        lambdas.append(partial(lam_signal, values=values, idx=idx))
+        beta = 0.5 * np.log(np.where(np.isnan(beta), 1.0, beta))
+        lambdas.append(partial(lam_signal, values=beta, idx=idx))
 
     if nnui == 1:
         return {"lambda": lambdas[0], "constraint": constraints}
 
     def lam_signal_total(param: np.ndarray) -> np.ndarray:
-        return (
-            reduce(lambda x, y: x * y, (lam(param) for lam in lambdas)) - 1.0
-        ) * param[0]
+        return reduce(lambda x, y: x * y, (lam(param) for lam in lambdas))
 
     return {"lambda": lam_signal_total, "constraint": constraints}

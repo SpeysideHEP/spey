@@ -33,11 +33,16 @@ def test_uncorrelated_background():
 
     model_nll = stat_model.backend.get_logpdf_func()(nui)
 
+    beta_scale = 0.5 * np.log((signal_yields + scale_unc) / (signal_yields - scale_unc))
+    beta_pdf = 0.5 * np.log((signal_yields + pdf_up) / (signal_yields - pdf_dn))
+
     def logprob(param, data):
         return poisson.logpmf(
             data,
-            param[0] * signal_yields
-            + ((1 + param[3] * scale_unc) * (1 + param[4] * pdf_unc[:, 0]) - 1) * param[0]
+            param[0]
+            * signal_yields
+            * np.exp(param[3] * beta_scale)
+            * np.exp(param[4] * beta_pdf)
             + background_yields
             + background_unc * param[1:-2],
         )
@@ -72,6 +77,9 @@ def test_correlated_background():
         modifiers=[scale_unc, pdf_unc],
     )
 
+    beta_scale = 0.5 * np.log((signal_yields + scale_unc) / (signal_yields - scale_unc))
+    beta_pdf = 0.5 * np.log((signal_yields + pdf_up) / (signal_yields - pdf_dn))
+
     for p in [1.0, 2.0, 3.0]:
         nui = np.array([p, 1.0, 2.0, 3.0, 4.0])
 
@@ -80,9 +88,10 @@ def test_correlated_background():
         def logprob(param, data):
             return poisson.logpmf(
                 data,
-                param[0] * signal_yields
-                + ((1 + param[3] * scale_unc) * (1 + param[4] * pdf_unc[:, 0]) - 1)
-                * param[0]
+                param[0]
+                * signal_yields
+                * np.exp(param[3] * beta_scale)
+                * np.exp(param[4] * beta_pdf)
                 + background_yields
                 + np.sqrt(np.diag(covariance_matrix)) * param[1:-2],
             )
