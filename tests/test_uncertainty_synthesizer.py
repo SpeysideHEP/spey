@@ -36,10 +36,8 @@ def test_uncorrelated_background():
     def logprob(param, data):
         return poisson.logpmf(
             data,
-            param[0]
-            * signal_yields
-            * (1 + param[3] * scale_unc / signal_yields)
-            * (1 + param[4] * pdf_unc[:, 0] / signal_yields)
+            param[0] * signal_yields
+            + ((1 + param[3] * scale_unc) * (1 + param[4] * pdf_unc[:, 0]) - 1) * param[0]
             + background_yields
             + background_unc * param[1:-2],
         )
@@ -82,10 +80,9 @@ def test_correlated_background():
         def logprob(param, data):
             return poisson.logpmf(
                 data,
-                param[0]
-                * signal_yields
-                * (1 + param[3] * scale_unc / signal_yields)
-                * (1 + param[4] * pdf_unc[:, 0] / signal_yields)
+                param[0] * signal_yields
+                + ((1 + param[3] * scale_unc) * (1 + param[4] * pdf_unc[:, 0]) - 1)
+                * param[0]
                 + background_yields
                 + np.sqrt(np.diag(covariance_matrix)) * param[1:-2],
             )

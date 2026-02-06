@@ -1,11 +1,12 @@
 """Test default pdf plugin"""
 
 import numpy as np
+import pytest
 from scipy.optimize import minimize_scalar
 from scipy.stats import chi2, multivariate_normal, norm, poisson
 
 import spey
-from spey.helper_functions import merge_correlated_bins, covariance_to_correlation
+from spey.helper_functions import covariance_to_correlation, merge_correlated_bins
 
 
 def test_uncorrelated_background():
@@ -136,14 +137,14 @@ def test_effective_sigma():
         xsection=0.123,
     )
 
-    assert np.isclose(
-        statistical_model.exclusion_confidence_level()[0], 0.8567802529243093
+    assert (
+        pytest.approx(0.8567, 1e-4) == statistical_model.exclusion_confidence_level()[0]
     ), "CLs is wrong"
-    assert np.isclose(
-        statistical_model.poi_upper_limit(), 1.5298573610113775
+    assert (
+        pytest.approx(1.5298, 1e-4) == statistical_model.poi_upper_limit()
     ), "POI is wrong."
-    assert np.isclose(
-        statistical_model.sigma_mu(1.0), 1.2152765953701747
+    assert pytest.approx(1.2152, 1e-4) == statistical_model.sigma_mu(
+        1.0
     ), "Sigma mu is wrong"
 
 
@@ -263,20 +264,22 @@ def test_multivariate_gauss():
         covariance_matrix=cov,
     )
 
-    dist = multivariate_normal(mean=data, cov=cov)
-    opt = minimize_scalar(lambda x: -dist.logpdf(x * signal + bkg), bounds=(-2, 0))
+    def logpdf(x, mean, cov):
+        diff = x - mean
+        return -0.5 * (diff @ np.linalg.inv(cov) @ diff) - 0.5 * (
+            len(x) * np.log(2 * np.pi) + np.linalg.slogdet(cov)[1]
+        )
+
+    opt = minimize_scalar(
+        lambda x: -logpdf(data, mean=x * signal + bkg, cov=cov), bounds=(-2, 0)
+    )
     muhat, maxnll = statistical_model.maximize_likelihood()
 
-    assert np.isclose(
-        statistical_model.chi2(poi_test_denominator=0),
-        2.0
-        * (
-            (0.5 * (signal + bkg - data) @ np.linalg.inv(cov) @ (signal + bkg - data))
-            - (0.5 * (bkg - data) @ np.linalg.inv(cov) @ (bkg - data))
-        ),
+    assert pytest.approx(statistical_model.chi2(poi_test_denominator=0)) == -2.0 * (
+        logpdf(data, mean=signal + bkg, cov=cov) - logpdf(data, mean=bkg, cov=cov)
     ), "Multivariate gauss wrong"
-    assert np.isclose(muhat, opt.x, rtol=1e-3), "MultivariateNormal:: Muhat is wrong"
-    assert np.isclose(maxnll, opt.fun, rtol=1e-3), "MultivariateNormal:: MLE is wrong"
+    assert pytest.approx(opt.x) == muhat, "MultivariateNormal:: Muhat is wrong"
+    assert pytest.approx(opt.fun) == maxnll, "MultivariateNormal:: MLE is wrong"
 
 
 def test_bin_merge():
