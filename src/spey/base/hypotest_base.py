@@ -428,13 +428,14 @@ class HypothesisTestingBase(ABC):
             (:math:`\hat\mu_A`, :math:`\arg\min(-\log\mathcal{L}_A)`), :math:`\log\mathcal{L_A(\mu, \theta_\mu)}`
         """
         allow_negative_signal = test_statistics in ["q" or "qmu"]
-
+        log.debug("Computing max-llhd")
         muhat, nll = self.maximize_likelihood(
             expected=expected,
             allow_negative_signal=allow_negative_signal,
             **kwargs,
         )
         log.debug(f"muhat: {muhat}, nll: {nll}")
+        log.debug("Computing max-llhd for Asimov data")
         muhatA, nllA = self.maximize_asimov_likelihood(
             expected=expected,
             test_statistics=test_statistics,
@@ -670,6 +671,10 @@ class HypothesisTestingBase(ABC):
             )
 
             try:
+                log.debug("[asymptotic] - Computing test statistic")
+                log.debug(
+                    f"[asymptotic] - {maximum_likelihood=}, {maximum_asimov_likelihood=}"
+                )
                 _, sqrt_qmuA, delta_teststat = compute_teststatistics(
                     poi_test,
                     maximum_likelihood,
@@ -678,14 +683,13 @@ class HypothesisTestingBase(ABC):
                     logpdf_asimov,
                     test_stat,
                 )
-                log.debug(
-                    f"<asymptotic> sqrt_qmuA = {sqrt_qmuA}, test statistic = {delta_teststat}"
-                )
 
                 pvalues, expected_pvalues = compute_asymptotic_confidence_level(
                     sqrt_qmuA, delta_teststat, test_stat
                 )
-                log.debug(f"pval = {pvalues}, expected pval = {expected_pvalues}")
+                log.debug(
+                    f"[asymptotic] pval = {pvalues}, expected pval = {expected_pvalues}"
+                )
             except AsimovTestStatZero as err:
                 log.error(str(err))
                 pvalues, expected_pvalues = [1.0], [1.0] * 5

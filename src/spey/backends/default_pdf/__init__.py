@@ -175,7 +175,7 @@ class DefaultPDFBase(BackendBase):
             B = np.sqrt(np.diag(self.covariance_matrix))
 
             signal_unc = self.signal_uncertainty_configuration.get(
-                "lambda", lambda pars: 1.0
+                "lambda", lambda pars: 0.0
             )
 
             def poiss_lamb(pars: np.ndarray) -> np.ndarray:
@@ -487,7 +487,7 @@ class UncorrelatedBackground(DefaultPDFBase):
             + self.signal_uncertainty_configuration.get("constraint", [])
         )
 
-        signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 1.0)
+        signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 0.0)
 
         def poiss_lamb(pars: np.ndarray) -> np.ndarray:
             """Compute lambda for Main model"""
@@ -682,7 +682,7 @@ class ThirdMomentExpansion(DefaultPDFBase):
             self.background_yields, self.covariance_matrix, third_moments, True
         )
 
-        signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 1.0)
+        signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 0.0)
 
         def poiss_lamb(pars: np.ndarray) -> np.ndarray:
             """
@@ -834,7 +834,7 @@ class EffectiveSigma(DefaultPDFBase):
 
         A = self.background_yields
 
-        signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 1.0)
+        signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 0.0)
 
         # arXiv:pyhsics/0406120 eq. 18-19
         def effective_sigma(pars: np.ndarray) -> np.ndarray:
