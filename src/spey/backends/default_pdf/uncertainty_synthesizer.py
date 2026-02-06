@@ -83,8 +83,8 @@ def signal_uncertainty_synthesizer(
                     "expected 1 for symmetric or 2 for asymmetric uncertainties"
                 )
 
-        delta_up = np.where(np.isnan(delta_up), 0.0, delta_up)
-        delta_dn = np.where(np.isnan(delta_dn), 0.0, delta_dn)
+        delta_up = np.where(np.isnan(delta_up), 1.0, delta_up)
+        delta_dn = np.where(np.isnan(delta_dn), 1.0, delta_dn)
 
         def lam_signal(
             param: np.ndarray, up: np.ndarray, dn: np.ndarray, idx: int
