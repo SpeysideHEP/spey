@@ -5,6 +5,7 @@ tools to compute exclusion limits and POI upper limits
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from functools import partial
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
@@ -310,7 +311,7 @@ class HypothesisTestingBase(ABC):
 
     def chi2(
         self,
-        poi_test: float = 1.0,
+        poi_test: Union[float, list[float]] = 1.0,
         poi_test_denominator: Optional[float] = None,
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = False,
@@ -333,7 +334,8 @@ class HypothesisTestingBase(ABC):
         model with the background only model.
 
         Args:
-            poi_test (``float``, default ``1.0``): parameter of interest, :math:`\mu`.
+            poi_test (``float`` or ``list[float]``, default ``1.0``): parameter of interest, :math:`\mu`. If `poi_test`
+                is an iterable object, :math:`\chi^2` will be computed for each element in `poi_test`.
             poi_test_denominator (``float``, default ``None``): parameter of interest for the denominator, :math:`\mu`.
                 If ``None`` maximum likelihood will be computed.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
@@ -366,9 +368,19 @@ class HypothesisTestingBase(ABC):
             )
         log.debug(f"denominator: {denominator}")
 
-        return 2.0 * (
-            self.likelihood(poi_test=poi_test, expected=expected, **kwargs) - denominator
-        )
+        if isinstance(poi_test, Iterable):
+            with capture_logs(logging.INFO) as _:
+                llhd = np.fromiter(
+                    (
+                        self.likelihood(poi_test=float(p), expected=expected, **kwargs)
+                        for p in np.atleast_1d(poi_test)
+                    ),
+                    np.float32,
+                )
+        else:
+            llhd = self.likelihood(poi_test=poi_test, expected=expected, **kwargs)
+
+        return 2.0 * (llhd - denominator)
 
     def _prepare_for_hypotest(
         self,
