@@ -3,7 +3,6 @@ import pytest
 from scipy.stats import multivariate_normal, norm, poisson
 
 import spey
-from spey.backends.default_pdf.uncertainty_synthesizer import nonlinear_interp
 from spey.helper_functions import covariance_to_correlation
 
 
@@ -34,18 +33,20 @@ def test_uncorrelated_background():
 
     model_nll = stat_model.backend.get_logpdf_func()(nui)
 
-    delta_up_scale = (signal_yields + scale_unc) / signal_yields
-    delta_dn_scale = (signal_yields - scale_unc) / signal_yields
-    delta_up_pdf = (signal_yields + pdf_up) / signal_yields
-    delta_dn_pdf = (signal_yields - pdf_dn) / signal_yields
+    delta_up_scale = 1.0 + scale_unc / signal_yields
+    delta_dn_scale = 1.0 + scale_unc / signal_yields
+    delta_up_pdf = 1.0 + pdf_up / signal_yields
+    delta_dn_pdf = 1.0 + pdf_dn / signal_yields
 
     def logprob(param, data):
         return poisson.logpmf(
             data,
             param[0]
             * signal_yields
-            * nonlinear_interp(param[3], delta_up_scale, delta_dn_scale)
-            * nonlinear_interp(param[4], delta_up_pdf, delta_dn_pdf)
+            * np.exp(
+                param[3] * np.log(delta_up_scale if param[3] > 0 else delta_dn_scale)
+            )
+            * np.exp(param[4] * np.log(delta_up_pdf if param[4] > 0 else delta_dn_pdf))
             + background_yields
             + background_unc * param[1:-2],
         )
@@ -80,10 +81,10 @@ def test_correlated_background():
         modifiers=[scale_unc, pdf_unc],
     )
 
-    delta_up_scale = (signal_yields + scale_unc) / signal_yields
-    delta_dn_scale = (signal_yields - scale_unc) / signal_yields
-    delta_up_pdf = (signal_yields + pdf_up) / signal_yields
-    delta_dn_pdf = (signal_yields - pdf_dn) / signal_yields
+    delta_up_scale = 1.0 + scale_unc / signal_yields
+    delta_dn_scale = 1.0 + scale_unc / signal_yields
+    delta_up_pdf = 1.0 + pdf_up / signal_yields
+    delta_dn_pdf = 1.0 + pdf_dn / signal_yields
 
     for p in [1.0, 2.0, 3.0]:
         nui = np.array([p, 1.0, 2.0, 3.0, 4.0])
@@ -95,8 +96,12 @@ def test_correlated_background():
                 data,
                 param[0]
                 * signal_yields
-                * nonlinear_interp(param[3], delta_up_scale, delta_dn_scale)
-                * nonlinear_interp(param[4], delta_up_pdf, delta_dn_pdf)
+                * np.exp(
+                    param[3] * np.log(delta_up_scale if param[3] > 0 else delta_dn_scale)
+                )
+                * np.exp(
+                    param[4] * np.log(delta_up_pdf if param[4] > 0 else delta_dn_pdf)
+                )
                 + background_yields
                 + np.sqrt(np.diag(covariance_matrix)) * param[1:-2],
             )
