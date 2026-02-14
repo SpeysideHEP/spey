@@ -13,8 +13,51 @@ def signal_uncertainty_synthesizer(
     signal_yields: List[float],
     modifiers: List[Union[List[float], List[Tuple[float, float]]]],
 ) -> Dict[str, np.ndarray]:
-    """
+    r"""
     Synthesize signal uncertainties
+
+    .. versionchanged:: 0.2.7
+
+    .. math::
+
+        f_{i,k}(\theta_{i,k}) = e^{\theta_{i,k} \log\left( 1+\Delta_{i,k}(\theta_{i,k}) \right)}
+
+    where :math:`i` are the bin and :math:`k` are the uncertainty indices defined within the
+    `list` given in the `modifiers` argument. :math:`\Delta_{i,k} = \sigma^{(s)}_{i,k}/n^{(s)}_i`.
+    The upper and lower uncertainties are used within :math:`\Delta_{i,k}` as follows
+
+    .. math::
+
+        \Delta_{i,k}(\theta_{i,k}) = \begin{cases}
+            \Delta_k^+, & {\rm if }\ \theta_{i,k} \geq 0 \\
+            \Delta_k^-, & \text{otherwise}
+        \end{cases}
+
+    Additionally, the constraint term is extended with a normal distribution
+    :math:`\mathcal{N}(\theta_{i,k}|0,1)`.
+
+    .. note::
+
+        Symmetric uncertainties are expected to be given as ``list[float]`` within
+        the list of ``modifiers``, the assymmetric uncertainties are expected as
+        ``list[tuple[float,float]]``.
+
+    **Example:**
+
+    For a single bin scenario with :math:`3\pm2^{+1}_{-1.5}` provides two distinctive
+    uncertainties, one symmetric and other assymetric. In such scenario the input is
+    expected to be as follows
+
+    .. code:: python3
+
+        >>> signal_uncertainty_synthesizer([3.0], [[2.0], [(1.0, 1.5)]])
+        >>> # {'constraint': [{'args': [array([0.]), array([1.])],
+        ... #                  'distribution_type': 'normal',
+        ... #                  'kwargs': {'domain': array([2])}},
+        ... #                 {'args': [array([0.]), array([1.])],
+        ... #                  'distribution_type': 'normal',
+        ... #                  'kwargs': {'domain': array([3])}}],
+        ... #  'lambda': <function signal_uncertainty_synthesizer.<locals>.lam_signal_total at 0x14f530c10>}
 
     Args:
         signal_yields (`List[float]`): List of signal yields per bin
