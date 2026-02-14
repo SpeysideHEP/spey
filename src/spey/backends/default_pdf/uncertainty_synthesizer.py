@@ -91,8 +91,9 @@ def signal_uncertainty_synthesizer(
         signal_yields (`List[float]`): List of signal yields per bin
         modifiers (`List[Union[List[float], List[Tuple[float, float]]]]`):
             List of uncertainty modifiers, each can be either:
-            - A list of floats representing symmetric uncertainties per bin
-            - A list of tuples representing asymmetric uncertainties (up, down) per bin
+
+            * A list of floats representing symmetric uncertainties per bin
+            * A list of tuples representing asymmetric uncertainties (up, down) per bin
 
     Raises:
         InvalidUncertaintyDefinition: If the number of bins in modifiers does not match
@@ -100,9 +101,11 @@ def signal_uncertainty_synthesizer(
         AssertionError: If the number of bins in modifiers is inconsistent
 
     Returns:
-        A dictionary with:
-            - "lambda": A callable that computes the modified signal yields given parameters
-            - "constraint": A list of constraint dictionaries for each uncertainty modifier
+        A dictionary with
+
+        * "lambda" A callable that computes the modified signal yields given parameters
+        * "constraint" A list of constraint dictionaries for each uncertainty modifier.
+
     """
 
     nnui = len(modifiers)
