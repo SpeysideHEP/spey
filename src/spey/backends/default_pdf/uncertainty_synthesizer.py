@@ -18,35 +18,63 @@ def signal_uncertainty_synthesizer(
 
     .. versionchanged:: 0.2.7
 
-    .. math::
-
-        f_{i,k}(\theta_{i,k}) = e^{\theta_{i,k} \log\left( 1+\Delta_{i,k}(\theta_{i,k}) \right)}
-
-    where :math:`i` are the bin and :math:`k` are the uncertainty indices defined within the
-    `list` given in the `modifiers` argument. :math:`\Delta_{i,k} = \sigma^{(s)}_{i,k}/n^{(s)}_i`.
-    The upper and lower uncertainties are used within :math:`\Delta_{i,k}` as follows
+    This function applies per-bin signal uncertainty modifiers through a
+    multiplicative morphing factor defined as
 
     .. math::
 
-        \Delta_{i,k}(\theta_{i,k}) = \begin{cases}
-            \Delta_k^+, & {\rm if }\ \theta_{i,k} \geq 0 \\
-            \Delta_k^-, & \text{otherwise}
+        f_{i,k}(\theta_{i,k}) = \exp\!\left[
+            \theta_{i,k} \log\!\bigl(1+\Delta_{i,k}(\theta_{i,k})\bigr)
+        \right].
+
+    Here :math:`i` indexes histogram bins and :math:`k` labels the uncertainty
+    sources defined in the ``modifiers`` argument. The fractional signal variation
+    is defined as
+
+    .. math::
+
+        \Delta_{i,k} = \frac{\sigma^{(s)}_{i,k}}{n^{(s)}_i},
+
+    where :math:`n^{(s)}_i` is the nominal signal yield and
+    :math:`\sigma^{(s)}_{i,k}` is the absolute uncertainty associated with source
+    :math:`k` in bin :math:`i`.
+
+    For asymmetric uncertainties the variation depends on the sign of the nuisance
+    parameter:
+
+    .. math::
+
+        \Delta_{i,k}(\theta_{i,k}) =
+        \begin{cases}
+            \Delta_{i,k}^{+}, & \theta_{i,k} \ge 0 \\
+            \Delta_{i,k}^{-}, & \theta_{i,k} < 0
         \end{cases}
 
-    Additionally, the constraint term is extended with a normal distribution
-    :math:`\mathcal{N}(\theta_{i,k}|0,1)`.
+    Each nuisance parameter is constrained by a standard normal prior,
+
+    .. math::
+
+        \mathcal{N}(\theta_{i,k}\mid 0,1).
 
     .. note::
 
-        Symmetric uncertainties are expected to be given as ``list[float]`` within
-        the list of ``modifiers``, the assymmetric uncertainties are expected as
-        ``list[tuple[float,float]]``.
+        Symmetric uncertainties must be provided as ``list[float]`` entries in
+        ``modifiers``. Asymmetric uncertainties must be provided as
+        ``list[tuple[float, float]]``, corresponding to ``(down, up)`` variations.
 
     **Example:**
 
-    For a single bin scenario with :math:`3\pm2^{+1}_{-1.5}` provides two distinctive
-    uncertainties, one symmetric and other assymetric. In such scenario the input is
-    expected to be as follows
+    Consider a single-bin signal yield
+
+    .. math::
+
+        n^{(s)} = 3 \pm 2^{+1}_{-1.5},
+
+    which contains two independent uncertainty sources:
+    one symmetric (:math:`\pm2`) and one asymmetric (:math:`^{+1}_{-1.5}`).
+
+    The corresponding ``modifiers`` input should therefore contain
+    one float entry and one tuple entry representing these two sources.
 
     .. code:: python3
 
