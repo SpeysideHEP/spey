@@ -1,6 +1,6 @@
 import warnings
 from functools import partial, reduce
-from typing import Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import autograd.numpy as np
 
@@ -12,7 +12,7 @@ from spey.system.exceptions import InvalidUncertaintyDefinition
 def signal_uncertainty_synthesizer(
     signal_yields: List[float],
     modifiers: List[Union[List[float], List[Tuple[float, float]]]],
-) -> Dict[str, np.ndarray]:
+) -> Dict[str, Any]:
     r"""
     Synthesize signal uncertainties
 
