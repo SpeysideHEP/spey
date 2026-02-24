@@ -10,6 +10,9 @@ Talks
    * - Date
      - Event
      - Location
+   * - Feb 11, 2026
+     - `MadGraph General Meeting 2026 <https://indico.cern.ch/event/1594393/contributions/6884169/>`_
+     - Institut für Theoretische Physik, Universität Heidelberg, Germany
    * - Nov 25, 2025
      - `MC&I XPAG Meeting <https://indico.cern.ch/event/1614906/>`_
      - CERN
