@@ -15,7 +15,11 @@ from spey.system.exceptions import (
 )
 from spey.utils import ExpectationType
 
-__all__ = ["StatisticalModel", "statistical_model_wrapper"]
+#: Type alias for ``poi_test``: either a single :obj:`float` or a :obj:`dict`
+#: mapping POI indices / names to their fixed values.
+PoiTest = Union[float, Dict[Union[int, str], float]]
+
+__all__ = ["StatisticalModel", "statistical_model_wrapper", "PoiTest"]
 
 
 def __dir__():
@@ -191,6 +195,16 @@ class StatisticalModel(HypothesisTestingBase):
         """
         return self.excluded_cross_section(ExpectationType.observed)
 
+    def _resolve_poi_test(self, poi_test: PoiTest) -> Union[float, Dict[int, float]]:
+        """Resolve a ``poi_test`` dict with string or int keys to ``{index: value}``.
+
+        When ``poi_test`` is a plain ``float`` it is returned unchanged so the
+        existing single-POI code paths stay untouched.
+        """
+        if not isinstance(poi_test, dict):
+            return poi_test
+        return self.backend.config().resolve_poi_indices(poi_test)
+
     def prepare_for_fit(
         self,
         data: Optional[Union[List[float], np.ndarray]] = None,
@@ -254,7 +268,7 @@ class StatisticalModel(HypothesisTestingBase):
 
     def likelihood(
         self,
-        poi_test: float = 1.0,
+        poi_test: PoiTest = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
         data: Optional[Union[List[float], np.ndarray]] = None,
@@ -297,6 +311,7 @@ class StatisticalModel(HypothesisTestingBase):
         if (
             fit_opts["model_configuration"].npar == 1
             and fit_opts["model_configuration"].poi_index is not None
+            and isinstance(poi_test, float)
         ):
             logpdf = fit_opts["logpdf"]([poi_test])
         else:
@@ -304,7 +319,7 @@ class StatisticalModel(HypothesisTestingBase):
                 **fit_opts,
                 initial_parameters=init_pars,
                 bounds=par_bounds,
-                fixed_poi_value=poi_test,
+                fixed_poi_value=self._resolve_poi_test(poi_test),
             )
 
         return -logpdf if return_nll else np.exp(logpdf)
@@ -384,7 +399,7 @@ class StatisticalModel(HypothesisTestingBase):
 
     def asimov_likelihood(
         self,
-        poi_test: float = 1.0,
+        poi_test: PoiTest = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
         test_statistics: str = "qtilde",
@@ -589,7 +604,7 @@ class StatisticalModel(HypothesisTestingBase):
 
     def fixed_poi_sampler(
         self,
-        poi_test: float,
+        poi_test: PoiTest,
         size: Optional[int] = None,
         expected: ExpectationType = ExpectationType.observed,
         init_pars: Optional[List[float]] = None,
@@ -633,16 +648,15 @@ class StatisticalModel(HypothesisTestingBase):
         if (
             fit_opts["model_configuration"].npar == 1
             and fit_opts["model_configuration"].poi_index is not None
+            and isinstance(poi_test, float)
         ):
-            fit_param = np.array(
-                poi_test if isinstance(poi_test, (list, np.ndarray)) else [poi_test]
-            )
+            fit_param = np.array([poi_test])
         else:
             _, fit_param = fit(
                 **fit_opts,
                 initial_parameters=init_pars,
                 bounds=par_bounds,
-                fixed_poi_value=poi_test,
+                fixed_poi_value=self._resolve_poi_test(poi_test),
             )
 
         log.debug(f"fit parameters: {fit_param}")
@@ -657,7 +671,7 @@ class StatisticalModel(HypothesisTestingBase):
 
     def sigma_mu_from_hessian(
         self,
-        poi_test: float,
+        poi_test: PoiTest,
         expected: ExpectationType = ExpectationType.observed,
         init_pars: Optional[List[float]] = None,
         par_bounds: Optional[List[Tuple[float, float]]] = None,
@@ -705,7 +719,7 @@ class StatisticalModel(HypothesisTestingBase):
             **fit_opts,
             initial_parameters=init_pars,
             bounds=par_bounds,
-            fixed_poi_value=poi_test,
+            fixed_poi_value=self._resolve_poi_test(poi_test),
         )
         log.debug(f"fit parameters: {fit_param}")
 

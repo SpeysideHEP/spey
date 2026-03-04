@@ -11,7 +11,7 @@ import numpy as np
 
 from spey.base.hypotest_base import HypothesisTestingBase
 from spey.base.model_config import ModelConfig
-from spey.interface.statistical_model import StatisticalModel
+from spey.interface.statistical_model import PoiTest, StatisticalModel
 from spey.optimizer.core import fit
 from spey.system.exceptions import AnalysisQueryError, NegativeExpectedYields
 from spey.utils import ExpectationType
@@ -198,7 +198,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
 
     def likelihood(
         self,
-        poi_test: float = 1.0,
+        poi_test: PoiTest = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
         data: Optional[Dict[str, List[float]]] = None,
@@ -358,7 +358,7 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
 
     def asimov_likelihood(
         self,
-        poi_test: float = 1.0,
+        poi_test: PoiTest = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
         test_statistics: str = "qtilde",

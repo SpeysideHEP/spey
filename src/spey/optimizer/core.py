@@ -1,7 +1,7 @@
 import logging
 import os
 from importlib.util import find_spec
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -35,7 +35,7 @@ def fit(
     hessian: Optional[Callable[[np.ndarray], np.ndarray]] = None,
     initial_parameters: Optional[np.ndarray] = None,
     bounds: Optional[List[Tuple[float, float]]] = None,
-    fixed_poi_value: Optional[float] = None,
+    fixed_poi_value: Optional[Union[float, Dict[int, float]]] = None,
     logpdf: Optional[Callable[[List[float]], float]] = None,
     constraints: Optional[List[Dict]] = None,
     **options,
@@ -70,7 +70,13 @@ def fit(
     """
 
     init_pars = [*(initial_parameters or model_configuration.suggested_init)]
-    par_bounds = [*(bounds or model_configuration.fixed_poi_bounds(fixed_poi_value))]
+
+    if bounds is not None:
+        par_bounds = [*bounds]
+    elif isinstance(fixed_poi_value, dict):
+        par_bounds = [*model_configuration.fixed_poi_bounds_multi(fixed_poi_value)]
+    else:
+        par_bounds = [*model_configuration.fixed_poi_bounds(fixed_poi_value)]
 
     minimizer_opt = options.pop(
         "minimizer", os.environ.get("SPEY_OPTIMISER", "scipy").lower()
@@ -82,8 +88,13 @@ def fit(
 
     fixed_vals = [False] * len(init_pars)
     if fixed_poi_value is not None:
-        init_pars[model_configuration.poi_index] = fixed_poi_value
-        fixed_vals[model_configuration.poi_index] = True
+        if isinstance(fixed_poi_value, dict):
+            for idx, val in fixed_poi_value.items():
+                init_pars[idx] = val
+                fixed_vals[idx] = True
+        else:
+            init_pars[model_configuration.poi_index] = fixed_poi_value
+            fixed_vals[model_configuration.poi_index] = True
 
     if model_configuration.suggested_fixed is not None:
         for idx, isfixed in enumerate(model_configuration.suggested_fixed):

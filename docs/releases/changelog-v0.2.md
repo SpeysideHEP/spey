@@ -4,6 +4,31 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 
 ## New features since the last release
 
+* Multi-parameter-of-interest support: `poi_test` now accepts a
+  `Dict[Union[int, str], float]` in addition to a plain `float`.
+  When a dictionary is supplied, every entry fixes the corresponding
+  parameter (identified by index or by name as recorded in
+  `ModelConfig.parameter_names`) during the fit, while the remaining
+  parameters are optimised freely.  A plain `float` retains exactly the
+  previous single-POI behaviour.  The new type alias `PoiTest` is
+  exported from `spey.interface.statistical_model` for type-annotation
+  convenience.  Affected interfaces: `StatisticalModel.likelihood`,
+  `StatisticalModel.asimov_likelihood`,
+  `StatisticalModel.fixed_poi_sampler`,
+  `StatisticalModel.sigma_mu_from_hessian`,
+  `HypothesisTestingBase.chi2`, `HypothesisTestingBase.sigma_mu`,
+  `HypothesisTestingBase.exclusion_confidence_level`, and the
+  corresponding methods in `UnCorrStatisticsCombiner`.
+
+* `ModelConfig` gains two new helpers: `resolve_poi_indices` (converts a
+  `poi_test` value to a `{param_index: value}` mapping) and
+  `fixed_poi_bounds_multi` (generalises `fixed_poi_bounds` to multiple
+  simultaneously fixed parameters).
+
+* `optimizer.fit` extended to accept `fixed_poi_value` as a
+  `Dict[int, float]`, fixing an arbitrary set of parameters in a single
+  optimisation call.
+
 * Ability to compute two-sided tests added.
   ([#45](https://github.com/SpeysideHEP/spey/pull/45))
 

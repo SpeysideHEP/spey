@@ -8,6 +8,8 @@ from abc import ABC, abstractmethod
 from functools import partial
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
+PoiTest = Union[float, Dict[Union[int, str], float]]
+
 import numpy as np
 import tqdm
 from scipy.optimize import toms748
@@ -87,7 +89,7 @@ class HypothesisTestingBase(ABC):
     @abstractmethod
     def likelihood(
         self,
-        poi_test: float = 1.0,
+        poi_test: PoiTest = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
         data: Optional[Union[List[float], np.ndarray]] = None,
@@ -162,7 +164,7 @@ class HypothesisTestingBase(ABC):
     @abstractmethod
     def asimov_likelihood(
         self,
-        poi_test: float = 1.0,
+        poi_test: PoiTest = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
         test_statistics: Literal["qtilde", "q", "q0"] = "qtilde",
@@ -267,7 +269,7 @@ class HypothesisTestingBase(ABC):
 
     def fixed_poi_sampler(
         self,
-        poi_test: float,
+        poi_test: PoiTest,
         size: Optional[int] = None,
         expected: ExpectationType = ExpectationType.observed,
         init_pars: Optional[List[float]] = None,
@@ -278,8 +280,8 @@ class HypothesisTestingBase(ABC):
         Sample data from the statistical model with fixed parameter of interest.
 
         Args:
-            poi_test (``float``, default ``1.0``): parameter of interest or signal strength,
-              :math:`\mu`.
+            poi_test (:obj:`PoiTest`): parameter of interest or signal strength, :math:`\mu`.
+              Either a single ``float`` or a ``dict`` mapping POI indices/names to values.
             size (``int``, default ``None``): sample size. If ``None`` a callable function
               will be returned which takes sample size as input.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
@@ -310,8 +312,8 @@ class HypothesisTestingBase(ABC):
 
     def chi2(
         self,
-        poi_test: float = 1.0,
-        poi_test_denominator: Optional[float] = None,
+        poi_test: PoiTest = 1.0,
+        poi_test_denominator: Optional[PoiTest] = None,
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = False,
         **kwargs,
@@ -461,7 +463,7 @@ class HypothesisTestingBase(ABC):
 
     def sigma_mu(
         self,
-        poi_test: float,
+        poi_test: PoiTest,
         expected: ExpectationType = ExpectationType.observed,
         test_statistics: Literal["qtilde", "q", "q0"] = "qtilde",
         **kwargs,
@@ -552,7 +554,7 @@ class HypothesisTestingBase(ABC):
     @warning_tracker
     def exclusion_confidence_level(
         self,
-        poi_test: float = 1.0,
+        poi_test: PoiTest = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = False,
         calculator: Literal["asymptotic", "toy", "chi_square"] = "asymptotic",
