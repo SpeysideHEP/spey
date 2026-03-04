@@ -440,8 +440,9 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
         initial_muhat_value: Optional[float] = None,
         par_bounds: Optional[List[Tuple[float, float]]] = None,
         statistical_model_options: Optional[Dict[str, Dict]] = None,
+        poi_indices: Optional[List[Union[int, str]]] = None,
         **optimiser_options,
-    ) -> Tuple[float, float]:
+    ) -> Tuple[Union[float, Dict[Union[int, str], float]], float]:
         r"""
         Find the maximum of the likelihood.
 
@@ -555,7 +556,10 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
             **optimiser_options,
         )
 
-        return fit_params[0], twice_nll / 2.0 if return_nll else np.exp(-twice_nll / 2.0)
+        nll = twice_nll / 2.0 if return_nll else np.exp(-twice_nll / 2.0)
+        if poi_indices is None:
+            return fit_params[0], nll
+        return {key: float(fit_params[0]) for key in poi_indices}, nll
 
     def maximize_asimov_likelihood(
         self,
@@ -565,8 +569,9 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
         initial_muhat_value: Optional[float] = None,
         par_bounds: Optional[List[Tuple[float, float]]] = None,
         statistical_model_options: Optional[Dict[str, Dict]] = None,
+        poi_indices: Optional[List[Union[int, str]]] = None,
         **optimiser_options,
-    ) -> Tuple[float, float]:
+    ) -> Tuple[Union[float, Dict[Union[int, str], float]], float]:
         r"""
         Find the maximum of the likelihood which computed with respect to Asimov data.
 
@@ -657,7 +662,10 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
             **optimiser_options,
         )
 
-        return fit_params[0], twice_nll / 2.0 if return_nll else np.exp(-twice_nll / 2.0)
+        nll = twice_nll / 2.0 if return_nll else np.exp(-twice_nll / 2.0)
+        if poi_indices is None:
+            return fit_params[0], nll
+        return {key: float(fit_params[0]) for key in poi_indices}, nll
 
     def __matmul__(self, other: StatisticalModel):
         new_model = UnCorrStatisticsCombiner(*self._statistical_models)

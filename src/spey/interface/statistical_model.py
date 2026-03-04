@@ -277,11 +277,16 @@ class StatisticalModel(HypothesisTestingBase):
         **kwargs,
     ) -> float:
         r"""
-        Compute the likelihood of the statistical model at a fixed parameter of interest
+        Compute the likelihood of the statistical model at a fixed parameter of interest.
 
         Args:
-            poi_test (``float``, default ``1.0``): parameter of interest or signal strength,
-              :math:`\mu`.
+            poi_test (:obj:`~spey.interface.statistical_model.PoiTest`, default ``1.0``):
+              Parameter of interest, :math:`\mu`. Can be a single ``float`` (fixes the primary
+              POI identified by :attr:`~spey.base.model_config.ModelConfig.poi_index`) or a
+              ``dict`` mapping POI indices (``int``) or names (``str``) to their fixed values.
+              String keys are resolved via
+              :attr:`~spey.base.model_config.ModelConfig.parameter_names`.
+              When a ``float`` is given, behaviour is identical to previous versions.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
 
@@ -412,7 +417,11 @@ class StatisticalModel(HypothesisTestingBase):
         Compute likelihood of the statistical model generated with the Asimov data.
 
         Args:
-            poi_test (``float``, default ``1.0``): parameter of interest, :math:`\mu`.
+            poi_test (:obj:`~spey.interface.statistical_model.PoiTest`, default ``1.0``):
+              Parameter of interest, :math:`\mu`. Accepts the same formats as
+              :func:`~spey.StatisticalModel.likelihood`: a plain ``float`` fixes the primary POI,
+              while a ``dict`` of ``{index_or_name: value}`` fixes multiple parameters
+              simultaneously.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
 
@@ -482,8 +491,9 @@ class StatisticalModel(HypothesisTestingBase):
         data: Optional[Union[List[float], np.ndarray]] = None,
         init_pars: Optional[List[float]] = None,
         par_bounds: Optional[List[Tuple[float, float]]] = None,
+        poi_indices: Optional[List[Union[int, str]]] = None,
         **kwargs,
-    ) -> Tuple[float, float]:
+    ) -> Tuple[Union[float, Dict[Union[int, str], float]], float]:
         r"""
         Find the maximum of the likelihood.
 
@@ -509,11 +519,19 @@ class StatisticalModel(HypothesisTestingBase):
             init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
             par_bounds (``List[Tuple[float, float]]``, default  ``None``): parameter bounds for
               the optimiser.
+            poi_indices (``List[Union[int, str]]``, default ``None``): If ``None``, returns a
+              single ``float`` for the primary POI (identified by
+              :attr:`~spey.base.model_config.ModelConfig.poi_index`). If a list of parameter
+              indices (``int``) or names (``str``) is provided, returns a ``dict`` mapping each
+              requested key to its fitted value. String keys are resolved via
+              :attr:`~spey.base.model_config.ModelConfig.parameter_names`.
             kwargs: keyword arguments for the optimiser.
 
         Returns:
-            ``Tuple[float, float]``:
-            :math:`\hat\mu` value and maximum value of the likelihood.
+            ``Tuple[Union[float, Dict[Union[int, str], float]], float]``:
+            When ``poi_indices=None``: :math:`\hat\mu` (``float``) and the (negative)
+            log-likelihood. When ``poi_indices`` is provided: a ``dict`` of
+            ``{index_or_name: fitted_value}`` and the (negative) log-likelihood.
         """
         fit_opts = self.prepare_for_fit(
             expected=expected,
@@ -527,8 +545,24 @@ class StatisticalModel(HypothesisTestingBase):
         )
         log.debug(f"fit parameters:\n\t {fit_param}")
 
-        muhat = fit_param[self.backend.config().poi_index]
-        return muhat, -logpdf if return_nll else np.exp(logpdf)
+        nll = -logpdf if return_nll else np.exp(logpdf)
+        if poi_indices is None:
+            muhat = fit_param[self.backend.config().poi_index]
+            return muhat, nll
+
+        config = self.backend.config()
+        result: Dict[Union[int, str], float] = {}
+        for key in poi_indices:
+            if isinstance(key, str):
+                if config.parameter_names is None:
+                    raise ValueError(
+                        "Cannot resolve POI name: parameter_names not set in ModelConfig."
+                    )
+                idx = config.parameter_names.index(key)
+            else:
+                idx = int(key)
+            result[key] = float(fit_param[idx])
+        return result, nll
 
     def maximize_asimov_likelihood(
         self,
@@ -537,8 +571,9 @@ class StatisticalModel(HypothesisTestingBase):
         test_statistics: str = "qtilde",
         init_pars: Optional[List[float]] = None,
         par_bounds: Optional[List[Tuple[float, float]]] = None,
+        poi_indices: Optional[List[Union[int, str]]] = None,
         **kwargs,
-    ) -> Tuple[float, float]:
+    ) -> Tuple[Union[float, Dict[Union[int, str], float]], float]:
         r"""
         Find the maximum of the likelihood which computed with respect to Asimov data.
 
@@ -579,11 +614,18 @@ class StatisticalModel(HypothesisTestingBase):
             init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
             par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
               the optimiser.
+            poi_indices (``List[Union[int, str]]``, default ``None``): If ``None``, returns the
+              primary POI value as a single ``float``. If a list of parameter indices (``int``) or
+              names (``str``) is provided, returns a ``dict`` mapping each requested key to its
+              fitted value. Passed directly to
+              :func:`~spey.StatisticalModel.maximize_likelihood`.
             kwargs: keyword arguments for the optimiser.
 
         Returns:
-            ``Tuple[float, float]``:
-            :math:`\hat\mu` value and maximum value of the likelihood.
+            ``Tuple[Union[float, Dict[Union[int, str], float]], float]``:
+            When ``poi_indices=None``: :math:`\hat\mu` (``float``) and the (negative)
+            log-likelihood. When ``poi_indices`` is provided: a ``dict`` of
+            ``{index_or_name: fitted_value}`` and the (negative) log-likelihood.
         """
         allow_negative_signal: bool = True if test_statistics in ["q", "qmu"] else False
 
@@ -600,6 +642,7 @@ class StatisticalModel(HypothesisTestingBase):
             ),
             init_pars=init_pars,
             par_bounds=par_bounds,
+            poi_indices=poi_indices,
             **kwargs,
         )
 
@@ -616,8 +659,9 @@ class StatisticalModel(HypothesisTestingBase):
         Sample data from the statistical model with fixed parameter of interest.
 
         Args:
-            poi_test (``float``, default ``1.0``): parameter of interest or signal strength,
-              :math:`\mu`.
+            poi_test (:obj:`~spey.interface.statistical_model.PoiTest`):
+              Parameter of interest, :math:`\mu`. A plain ``float`` fixes the primary POI;
+              a ``dict`` of ``{index_or_name: value}`` fixes multiple parameters at once.
             size (``int``, default ``None``): sample size. If ``None`` a callable function
               will be returned which takes sample size as input.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
@@ -682,8 +726,9 @@ class StatisticalModel(HypothesisTestingBase):
         Compute variance of :math:`\mu` from inverse Hessian. See eq. (27-28) in :xref:`1007.1727`.
 
         Args:
-            poi_test (``float``, default ``1.0``): parameter of interest or signal strength,
-              :math:`\mu`.
+            poi_test (:obj:`~spey.interface.statistical_model.PoiTest`):
+              Parameter of interest, :math:`\mu`. A plain ``float`` fixes the primary POI;
+              a ``dict`` of ``{index_or_name: value}`` fixes multiple parameters simultaneously.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
 

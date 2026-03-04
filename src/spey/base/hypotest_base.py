@@ -9,8 +9,6 @@ from collections.abc import Iterable
 from functools import partial
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
-PoiTest = Union[float, Dict[Union[int, str], float]]
-
 import numpy as np
 import tqdm
 from scipy.optimize import toms748
@@ -33,6 +31,8 @@ from spey.system.exceptions import (
 )
 from spey.system.logger import capture_logs
 from spey.utils import ExpectationType
+
+PoiTest = Union[float, Dict[Union[int, str], float]]
 
 __all__ = ["HypothesisTestingBase"]
 
@@ -100,7 +100,12 @@ class HypothesisTestingBase(ABC):
         Compute likelihood of the statistical model
 
         Args:
-            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest, :math:`\mu`.
+            poi_test (:obj:`PoiTest`, default :obj:`1.0`): Parameter of interest, :math:`\mu`.
+              Can be a single ``float`` (fixes the primary POI identified by
+              :attr:`~spey.base.model_config.ModelConfig.poi_index`) or a ``dict`` mapping
+              POI indices (``int``) or names (``str``) to their fixed values.
+              String keys are resolved via
+              :attr:`~spey.base.model_config.ModelConfig.parameter_names`.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
 
@@ -131,8 +136,9 @@ class HypothesisTestingBase(ABC):
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = True,
         data: Optional[Union[List[float], np.ndarray]] = None,
+        poi_indices: Optional[List[Union[int, str]]] = None,
         **kwargs,
-    ) -> Tuple[float, float]:
+    ) -> Tuple[Union[float, Dict[Union[int, str], float]], float]:
         r"""
         Compute maximum of the likelihood.
 
@@ -155,11 +161,16 @@ class HypothesisTestingBase(ABC):
               value will be allowed to be negative.
             data (``Union[List[float], np.ndarray]``, default ``None``): input data that to fit. If
               ``None`` data will be set according to ``expected`` input.
+            poi_indices (``List[Union[int, str]]``, default ``None``): If ``None``, returns the
+              primary POI value as a single ``float``. If a list of parameter indices (``int``) or
+              names (``str``) is provided, returns a ``dict`` mapping each key to its fitted value.
             kwargs: keyword arguments for the optimiser.
 
         Returns:
-            :obj:`Tuple[float, float]`:
-            value of :math:`\hat\mu` and maximum likelihood.
+            :obj:`Tuple[Union[float, Dict[Union[int, str], float]], float]`:
+            When ``poi_indices=None``: :math:`\hat\mu` and maximum likelihood.
+            When ``poi_indices`` is set: a ``dict`` of ``{index_or_name: fitted_value}``
+            and maximum likelihood.
         """
 
     @abstractmethod
@@ -175,7 +186,9 @@ class HypothesisTestingBase(ABC):
         Compute likelihood at fixed :math:`\mu` for Asimov data
 
         Args:
-            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest, :math:`\mu`.
+            poi_test (:obj:`PoiTest`, default :obj:`1.0`): Parameter of interest, :math:`\mu`.
+              Accepts the same formats as :func:`likelihood`: a plain ``float`` or a ``dict``
+              of ``{index_or_name: value}`` to fix multiple parameters simultaneously.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
 
@@ -222,8 +235,9 @@ class HypothesisTestingBase(ABC):
         return_nll: bool = True,
         expected: ExpectationType = ExpectationType.observed,
         test_statistics: Literal["qtilde", "q", "q0"] = "qtilde",
+        poi_indices: Optional[List[Union[int, str]]] = None,
         **kwargs,
-    ) -> Tuple[float, float]:
+    ) -> Tuple[Union[float, Dict[Union[int, str], float]], float]:
         r"""
         Compute maximum of the likelihood for Asimov data.
 
@@ -261,11 +275,16 @@ class HypothesisTestingBase(ABC):
               * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
                 of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
 
+            poi_indices (``List[Union[int, str]]``, default ``None``): If ``None``, returns the
+              primary POI value as a single ``float``. If a list of parameter indices (``int``) or
+              names (``str``) is provided, returns a ``dict`` mapping each key to its fitted value.
             kwargs: keyword arguments for the optimiser.
 
         Returns:
-            :obj:`Tuple[float, float]`:
-            value of :math:`\hat\mu` and maximum likelihood.
+            :obj:`Tuple[Union[float, Dict[Union[int, str], float]], float]`:
+            When ``poi_indices=None``: :math:`\hat\mu` and maximum likelihood.
+            When ``poi_indices`` is set: a ``dict`` of ``{index_or_name: fitted_value}``
+            and maximum likelihood.
         """
 
     def fixed_poi_sampler(
@@ -336,10 +355,14 @@ class HypothesisTestingBase(ABC):
         model with the background only model.
 
         Args:
-            poi_test (``float`` or ``list[float]``, default ``1.0``): parameter of interest, :math:`\mu`. If `poi_test`
-                is an iterable object, :math:`\chi^2` will be computed for each element in `poi_test`.
-            poi_test_denominator (``float``, default ``None``): parameter of interest for the denominator, :math:`\mu`.
-                If ``None`` maximum likelihood will be computed.
+            poi_test (:obj:`PoiTest` or ``list[float]``, default ``1.0``): Parameter of interest,
+              :math:`\mu`. A plain ``float`` (or iterable of floats) fixes the primary POI —
+              when iterable, :math:`\chi^2` is computed for each element. Alternatively, a
+              ``dict`` of ``{index_or_name: value}`` fixes multiple parameters simultaneously
+              (iterating over dicts is not supported).
+            poi_test_denominator (:obj:`PoiTest`, default ``None``): Parameter of interest for the
+              denominator. Accepts the same formats as ``poi_test``.
+              If ``None`` the maximum likelihood is computed instead.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
 
