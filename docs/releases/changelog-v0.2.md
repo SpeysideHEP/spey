@@ -61,6 +61,20 @@ Specific upgrades for the latest release can be found [here](https://github.com/
 * Multivariate Normal distribution now supports callable covariance matrix function.
   ([#59](https://github.com/SpeysideHEP/spey/pull/59))
 
+* `MultivariateNormal` backend now accepts `signal_yields` as a callable with signature
+  `(extra_pars: np.ndarray) -> np.ndarray` in addition to a plain array.  A companion
+  keyword argument `n_signal_parameters` (default `0`) declares how many free parameters
+  beyond :math:`\mu` the callable requires; they are appended to the optimiser parameter
+  vector as `signal_par_0`, `signal_par_1`, … and are included in `ModelConfig` with
+  `(None, None)` bounds.  The plain-array path is unchanged.
+
+* `maximize_likelihood` and `maximize_asimov_likelihood` gain a new optional keyword
+  argument `poi_indices` (`Optional[List[Union[int, str]]]`, default `None`).  When
+  `None` the methods return the usual `(muhat, nll)` tuple.  When a list of parameter
+  indices or names is provided they return `(Dict[Union[int, str], float], nll)` with
+  the fitted values for each requested parameter.  Supported on `StatisticalModel` and
+  `UnCorrStatisticsCombiner`.
+
 ## Bug Fixes
 
 * Control mechanism added in case of infinite determinant in covariance matrix.
