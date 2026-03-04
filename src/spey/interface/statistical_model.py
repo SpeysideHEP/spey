@@ -315,12 +315,13 @@ class StatisticalModel(HypothesisTestingBase):
         ):
             logpdf = fit_opts["logpdf"]([poi_test])
         else:
-            logpdf, _ = fit(
+            logpdf, fit_param = fit(
                 **fit_opts,
                 initial_parameters=init_pars,
                 bounds=par_bounds,
                 fixed_poi_value=self._resolve_poi_test(poi_test),
             )
+            log.debug(f"fit parameters : \n\t{fit_param}")
 
         return -logpdf if return_nll else np.exp(logpdf)
 
@@ -393,7 +394,7 @@ class StatisticalModel(HypothesisTestingBase):
             bounds=par_bounds,
             fixed_poi_value=1.0 if test_statistic == "q0" else 0.0,
         )
-        log.debug(f"fit parameters: {fit_pars}")
+        log.debug(f"fit parameters:\n\t {fit_pars}")
 
         return self.backend.expected_data(fit_pars)
 
@@ -524,7 +525,7 @@ class StatisticalModel(HypothesisTestingBase):
         logpdf, fit_param = fit(
             **fit_opts, initial_parameters=init_pars, bounds=par_bounds
         )
-        log.debug(f"fit parameters: {fit_param}")
+        log.debug(f"fit parameters:\n\t {fit_param}")
 
         muhat = fit_param[self.backend.config().poi_index]
         return muhat, -logpdf if return_nll else np.exp(logpdf)
@@ -659,7 +660,7 @@ class StatisticalModel(HypothesisTestingBase):
                 fixed_poi_value=self._resolve_poi_test(poi_test),
             )
 
-        log.debug(f"fit parameters: {fit_param}")
+        log.debug(f"fit parameters:\n\t {fit_param}")
         try:
             sampler = self.backend.get_sampler(fit_param)
         except NotImplementedError as exc:
@@ -721,7 +722,7 @@ class StatisticalModel(HypothesisTestingBase):
             bounds=par_bounds,
             fixed_poi_value=self._resolve_poi_test(poi_test),
         )
-        log.debug(f"fit parameters: {fit_param}")
+        log.debug(f"fit parameters:\n\t {fit_param}")
 
         hessian = -1.0 * hessian_func(fit_param)
         log.debug(f"full hessian: {hessian}")

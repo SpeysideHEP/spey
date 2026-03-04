@@ -81,7 +81,7 @@ class ModelConfig:
         if not bounds[self.poi_index][0] < poi_value < bounds[self.poi_index][1]:
             bounds[self.poi_index] = (
                 self.minimum_poi if poi_value < 0.0 else 0.0,
-                poi_value + 1,
+                max([poi_value + 1, self.minimum_poi if poi_value < 0.0 else 0.0]),
             )
         return bounds
 

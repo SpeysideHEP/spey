@@ -124,3 +124,7 @@ class MissingMetaData(Exception):
 
 class AbstractModel(Exception):
     """Abstract model error"""
+
+
+class InvalidUncertaintyDefinition(Exception):
+    """Uncertainty definition error"""

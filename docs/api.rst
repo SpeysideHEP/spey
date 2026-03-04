@@ -142,6 +142,7 @@ Default PDFs
     EffectiveSigma
     third_moment.third_moment_expansion
     third_moment.compute_third_moments
+    uncertainty_synthesizer.signal_uncertainty_synthesizer
 
 Simple PDFs
 ~~~~~~~~~~~

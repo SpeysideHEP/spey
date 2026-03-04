@@ -5,6 +5,7 @@ tools to compute exclusion limits and POI upper limits
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from functools import partial
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
@@ -335,7 +336,8 @@ class HypothesisTestingBase(ABC):
         model with the background only model.
 
         Args:
-            poi_test (``float``, default ``1.0``): parameter of interest, :math:`\mu`.
+            poi_test (``float`` or ``list[float]``, default ``1.0``): parameter of interest, :math:`\mu`. If `poi_test`
+                is an iterable object, :math:`\chi^2` will be computed for each element in `poi_test`.
             poi_test_denominator (``float``, default ``None``): parameter of interest for the denominator, :math:`\mu`.
                 If ``None`` maximum likelihood will be computed.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
@@ -368,9 +370,19 @@ class HypothesisTestingBase(ABC):
             )
         log.debug(f"denominator: {denominator}")
 
-        return 2.0 * (
-            self.likelihood(poi_test=poi_test, expected=expected, **kwargs) - denominator
-        )
+        if isinstance(poi_test, Iterable):
+            with capture_logs(logging.INFO) as _:
+                llhd = np.fromiter(
+                    (
+                        self.likelihood(poi_test=float(p), expected=expected, **kwargs)
+                        for p in np.atleast_1d(poi_test)
+                    ),
+                    np.float32,
+                )
+        else:
+            llhd = self.likelihood(poi_test=poi_test, expected=expected, **kwargs)
+
+        return 2.0 * (llhd - denominator)
 
     def _prepare_for_hypotest(
         self,
@@ -430,13 +442,14 @@ class HypothesisTestingBase(ABC):
             (:math:`\hat\mu_A`, :math:`\arg\min(-\log\mathcal{L}_A)`), :math:`\log\mathcal{L_A(\mu, \theta_\mu)}`
         """
         allow_negative_signal = test_statistics in ["q" or "qmu"]
-
+        log.debug("Computing max-llhd")
         muhat, nll = self.maximize_likelihood(
             expected=expected,
             allow_negative_signal=allow_negative_signal,
             **kwargs,
         )
         log.debug(f"muhat: {muhat}, nll: {nll}")
+        log.debug("Computing max-llhd for Asimov data")
         muhatA, nllA = self.maximize_asimov_likelihood(
             expected=expected,
             test_statistics=test_statistics,
@@ -672,6 +685,10 @@ class HypothesisTestingBase(ABC):
             )
 
             try:
+                log.debug("[asymptotic] - Computing test statistic")
+                log.debug(
+                    f"[asymptotic] - {maximum_likelihood=}, {maximum_asimov_likelihood=}"
+                )
                 _, sqrt_qmuA, delta_teststat = compute_teststatistics(
                     poi_test,
                     maximum_likelihood,
@@ -680,14 +697,13 @@ class HypothesisTestingBase(ABC):
                     logpdf_asimov,
                     test_stat,
                 )
-                log.debug(
-                    f"<asymptotic> sqrt_qmuA = {sqrt_qmuA}, test statistic = {delta_teststat}"
-                )
 
                 pvalues, expected_pvalues = compute_asymptotic_confidence_level(
                     sqrt_qmuA, delta_teststat, test_stat
                 )
-                log.debug(f"pval = {pvalues}, expected pval = {expected_pvalues}")
+                log.debug(
+                    f"[asymptotic] pval = {pvalues}, expected pval = {expected_pvalues}"
+                )
             except AsimovTestStatZero as err:
                 log.error(str(err))
                 pvalues, expected_pvalues = [1.0], [1.0] * 5

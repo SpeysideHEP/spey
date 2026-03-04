@@ -1,17 +1,17 @@
 """Interface for default PDF sets"""
 
 import logging
-from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
-from autograd import value_and_grad, hessian, jacobian
+from autograd import hessian, jacobian
 from autograd import numpy as np
+from autograd import value_and_grad
 from scipy.optimize import NonlinearConstraint
 
 from spey._version import __version__
 from spey.backends.distributions import ConstraintModel, MainModel
 from spey.base import BackendBase, ModelConfig
 from spey.helper_functions import covariance_to_correlation
-from spey.optimizer import fit
 from spey.utils import ExpectationType
 
 from .third_moment import third_moment_expansion
@@ -40,14 +40,13 @@ class DefaultPDFBase(BackendBase):
             uncertainties. In case of uncorralated bins user should provide a diagonal matrix
             with squared background uncertainties.
 
-        signal_uncertainty_configuration (``Dict[Text, Any]]``, default ``None``): Configuration
-          input for signal uncertainties
+        modifiers (``list[Union[List[float], List[Tuple[float, float]]]]``, default ``None``):
+            List of uncertainty modifiers for the signal sample. Each modifier should be a
+            dictionary with either of the following keys:
 
-          * absolute_uncertainties (``List[float]``): Absolute uncertainties for the signal
-          * absolute_uncertainty_envelops (``List[Tuple[float, float]]``): upper and lower
-              uncertainty envelops
-          * correlation_matrix (``List[List[float]]``): Correlation matrix
-          * third_moments (``List[float]``): diagonal elemetns of the third moment
+            - absolute_uncertainties (``List[float]``): Absolute uncertainties for the signal
+            - absolute_uncertainty_envelops (``List[Tuple[float, float]]``): upper and lower
+                uncertainty envelops
 
     .. note::
 
@@ -77,10 +76,8 @@ class DefaultPDFBase(BackendBase):
         signal_yields: np.ndarray,
         background_yields: np.ndarray,
         data: np.ndarray,
-        covariance_matrix: Optional[
-            Union[np.ndarray, Callable[[np.ndarray], np.ndarray]]
-        ] = None,
-        signal_uncertainty_configuration: Optional[Dict[str, Any]] = None,
+        covariance_matrix: Union[np.ndarray, Callable[[np.ndarray], np.ndarray]] = None,
+        modifiers: list[Union[List[float], List[Tuple[float, float]]]] = None,
     ):
         self.data = np.array(data, dtype=np.float64)
         self.signal_yields = np.array(signal_yields, dtype=np.float64)
@@ -90,13 +87,13 @@ class DefaultPDFBase(BackendBase):
             if not callable(covariance_matrix) and covariance_matrix is not None
             else covariance_matrix
         )
-        if signal_uncertainty_configuration is None:
+        if modifiers is None:
+            modifiers = []
             self.signal_uncertainty_configuration = {}
         else:
             self.signal_uncertainty_configuration = signal_uncertainty_synthesizer(
                 signal_yields=self.signal_yields,
-                **signal_uncertainty_configuration,
-                domain=slice(len(background_yields) + 1, None),
+                modifiers=modifiers,
             )
 
         minimum_poi = -np.inf
@@ -115,13 +112,10 @@ class DefaultPDFBase(BackendBase):
         self._config = ModelConfig(
             poi_index=0,
             minimum_poi=minimum_poi,
-            suggested_init=[1.0] * (len(data) + 1)
-            + (signal_uncertainty_configuration is not None)
-            * ([1.0] * len(signal_yields)),
-            suggested_bounds=[(minimum_poi, 10)]
+            suggested_init=[1.0] * (len(data) + 1) + [1.0] * len(modifiers),
+            suggested_bounds=[(minimum_poi, 10.0)]
             + [(None, None)] * len(data)
-            + (signal_uncertainty_configuration is not None)
-            * ([(None, None)] * len(signal_yields)),
+            + [(None, None)] * len(modifiers),
         )
 
     @property
@@ -138,7 +132,7 @@ class DefaultPDFBase(BackendBase):
         Args:
             allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
               value will be allowed to be negative.
-            poi_upper_bound (``float``, default ``40.0``): upper bound for parameter
+            poi_upper_bound (``float``, default ``10.0``): upper bound for parameter
               of interest, :math:`\mu`.
 
         Returns:
@@ -180,7 +174,11 @@ class DefaultPDFBase(BackendBase):
             A = self.background_yields
             B = np.sqrt(np.diag(self.covariance_matrix))
 
-            def lam(pars: np.ndarray) -> np.ndarray:
+            signal_unc = self.signal_uncertainty_configuration.get(
+                "lambda", lambda pars: 1.0
+            )
+
+            def poiss_lamb(pars: np.ndarray) -> np.ndarray:
                 """
                 Compute lambda for Main model with third moment expansion.
                 For details see above eq 2.6 in :xref:`1809.05548`
@@ -193,7 +191,11 @@ class DefaultPDFBase(BackendBase):
                     expectation value of the poisson distribution with respect to
                     nuisance parameters.
                 """
-                return pars[0] * self.signal_yields + A + B * pars[slice(1, len(B) + 1)]
+                return (
+                    pars[0] * self.signal_yields * signal_unc(pars)
+                    + A
+                    + B * pars[slice(1, len(B) + 1)]
+                )
 
             def constraint(pars: np.ndarray) -> np.ndarray:
                 """Compute constraint term"""
@@ -204,16 +206,6 @@ class DefaultPDFBase(BackendBase):
             self.constraints.append(
                 NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
             )
-
-            if self.signal_uncertainty_configuration.get("lambda", None) is not None:
-                signal_lambda = self.signal_uncertainty_configuration["lambda"]
-
-                def poiss_lamb(pars: np.ndarray) -> np.ndarray:
-                    """combined lambda expression"""
-                    return lam(pars) + signal_lambda(pars)
-
-            else:
-                poiss_lamb = lam
 
             self._main_model = MainModel(poiss_lamb)
 
@@ -424,14 +416,13 @@ class UncorrelatedBackground(DefaultPDFBase):
         background_yields (``List[float]``): background yields
         data (``List[int]``): observations
         absolute_uncertainties (``List[float]``): absolute uncertainties on the background
-        signal_uncertainty_configuration (``Dict[Text, Any]]``, default ``None``): Configuration
-          input for signal uncertainties
+        modifiers (``list[Union[List[float], List[Tuple[float, float]]]]``, default ``None``):
+            List of uncertainty modifiers for the signal sample. Each modifier should be a
+            dictionary with either of the following keys:
 
-          * absolute_uncertainties (``List[float]``): Absolute uncertainties for the signal
-          * absolute_uncertainty_envelops (``List[Tuple[float, float]]``): upper and lower
-              uncertainty envelops
-          * correlation_matrix (``List[List[float]]``): Correlation matrix
-          * third_moments (``List[float]``): diagonal elemetns of the third moment
+            - absolute_uncertainties (``List[float]``): Absolute uncertainties for the signal
+            - absolute_uncertainty_envelops (``List[Tuple[float, float]]``): upper and lower
+                uncertainty envelops
 
     .. note::
 
@@ -472,14 +463,14 @@ class UncorrelatedBackground(DefaultPDFBase):
         background_yields: List[float],
         data: List[int],
         absolute_uncertainties: List[float],
-        signal_uncertainty_configuration: Optional[Dict[str, Any]] = None,
+        modifiers: list[Union[List[float], List[Tuple[float, float]]]] = None,
     ):
         super().__init__(
             signal_yields=signal_yields,
             background_yields=background_yields,
             data=data,
             covariance_matrix=None,
-            signal_uncertainty_configuration=signal_uncertainty_configuration,
+            modifiers=modifiers,
         )
 
         B = np.array(absolute_uncertainties)
@@ -495,12 +486,14 @@ class UncorrelatedBackground(DefaultPDFBase):
             + self.signal_uncertainty_configuration.get("constraint", [])
         )
 
-        def lam(pars: np.ndarray) -> np.ndarray:
+        signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 1.0)
+
+        def poiss_lamb(pars: np.ndarray) -> np.ndarray:
             """Compute lambda for Main model"""
             return (
                 self.background_yields
                 + pars[slice(1, len(B) + 1)] * B
-                + pars[0] * self.signal_yields
+                + pars[0] * self.signal_yields * signal_unc(pars)
             )
 
         def constraint(pars: np.ndarray) -> np.ndarray:
@@ -512,16 +505,6 @@ class UncorrelatedBackground(DefaultPDFBase):
         self.constraints.append(
             NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
         )
-
-        if self.signal_uncertainty_configuration.get("lambda", None) is not None:
-            signal_lambda = self.signal_uncertainty_configuration["lambda"]
-
-            def poiss_lamb(pars: np.ndarray) -> np.ndarray:
-                """combined lambda expression"""
-                return lam(pars) + signal_lambda(pars)
-
-        else:
-            poiss_lamb = lam
 
         self._main_model = MainModel(poiss_lamb)
 
@@ -553,14 +536,13 @@ class CorrelatedBackground(DefaultPDFBase):
         background_yields (``np.ndarray``): background yields
         data (``np.ndarray``): observations
         covariance_matrix (``np.ndarray``): covariance matrix (square matrix)
-        signal_uncertainty_configuration (``Dict[Text, Any]]``, default ``None``): Configuration
-          input for signal uncertainties
+        modifiers (``list[Union[List[float], List[Tuple[float, float]]]]``, default ``None``):
+            List of uncertainty modifiers for the signal sample. Each modifier should be a
+            dictionary with either of the following keys:
 
-          * absolute_uncertainties (``List[float]``): Absolute uncertainties for the signal
-          * absolute_uncertainty_envelops (``List[Tuple[float, float]]``): upper and lower
-              uncertainty envelops
-          * correlation_matrix (``List[List[float]]``): Correlation matrix
-          * third_moments (``List[float]``): diagonal elemetns of the third moment
+            - absolute_uncertainties (``List[float]``): Absolute uncertainties for the signal
+            - absolute_uncertainty_envelops (``List[Tuple[float, float]]``): upper and lower
+                uncertainty envelops
 
     .. note::
 
@@ -601,14 +583,14 @@ class CorrelatedBackground(DefaultPDFBase):
         background_yields: np.ndarray,
         data: np.ndarray,
         covariance_matrix: np.ndarray,
-        signal_uncertainty_configuration: Optional[Dict[str, Any]] = None,
+        modifiers: list[Union[List[float], List[Tuple[float, float]]]] = None,
     ):
         super().__init__(
             signal_yields=signal_yields,
             background_yields=background_yields,
             data=data,
             covariance_matrix=covariance_matrix,
-            signal_uncertainty_configuration=signal_uncertainty_configuration,
+            modifiers=modifiers,
         )
 
         assert self.main_model is not None, "Unable to build the main model"
@@ -645,14 +627,13 @@ class ThirdMomentExpansion(DefaultPDFBase):
         data (``np.ndarray``): observations
         covariance_matrix (``np.ndarray``): covariance matrix (square matrix)
         third_moment (``np.ndarray``): third moment for each region.
-        signal_uncertainty_configuration (``Dict[Text, Any]]``, default ``None``): Configuration
-          input for signal uncertainties
+        modifiers (``list[Union[List[float], List[Tuple[float, float]]]]``, default ``None``):
+            List of uncertainty modifiers for the signal sample. Each modifier should be a
+            dictionary with either of the following keys:
 
-          * absolute_uncertainties (``List[float]``): Absolute uncertainties for the signal
-          * absolute_uncertainty_envelops (``List[Tuple[float, float]]``): upper and lower
-              uncertainty envelops
-          * correlation_matrix (``List[List[float]]``): Correlation matrix
-          * third_moments (``List[float]``): diagonal elemetns of the third moment
+            - absolute_uncertainties (``List[float]``): Absolute uncertainties for the signal
+            - absolute_uncertainty_envelops (``List[Tuple[float, float]]``): upper and lower
+                uncertainty envelops
 
     .. note::
 
@@ -683,7 +664,7 @@ class ThirdMomentExpansion(DefaultPDFBase):
         data: np.ndarray,
         covariance_matrix: np.ndarray,
         third_moment: np.ndarray,
-        signal_uncertainty_configuration: Optional[Dict[str, Any]] = None,
+        modifiers: list[Union[List[float], List[Tuple[float, float]]]] = None,
     ):
         third_moments = np.array(third_moment)
 
@@ -692,14 +673,16 @@ class ThirdMomentExpansion(DefaultPDFBase):
             background_yields=background_yields,
             data=data,
             covariance_matrix=covariance_matrix,
-            signal_uncertainty_configuration=signal_uncertainty_configuration,
+            modifiers=modifiers,
         )
 
         A, B, C, corr = third_moment_expansion(
             self.background_yields, self.covariance_matrix, third_moments, True
         )
 
-        def lam(pars: np.ndarray) -> np.ndarray:
+        signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 1.0)
+
+        def poiss_lamb(pars: np.ndarray) -> np.ndarray:
             """
             Compute lambda for Main model with third moment expansion.
             For details see above eq 2.6 in :xref:`1809.05548`
@@ -717,7 +700,7 @@ class ThirdMomentExpansion(DefaultPDFBase):
                 + B * pars[slice(1, len(B) + 1)]
                 + C * np.square(pars[slice(1, len(B) + 1)])
             )
-            return pars[0] * self.signal_yields + nI
+            return pars[0] * self.signal_yields * signal_unc(pars) + nI
 
         def constraint(pars: np.ndarray) -> np.ndarray:
             """Compute constraint term"""
@@ -732,16 +715,6 @@ class ThirdMomentExpansion(DefaultPDFBase):
         self.constraints.append(
             NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
         )
-
-        if self.signal_uncertainty_configuration.get("lambda", None) is not None:
-            signal_lambda = self.signal_uncertainty_configuration["lambda"]
-
-            def poiss_lamb(pars: np.ndarray) -> np.ndarray:
-                """combined lambda expression"""
-                return lam(pars) + signal_lambda(pars)
-
-        else:
-            poiss_lamb = lam
 
         self._main_model = MainModel(poiss_lamb)
         self._constraint_model = ConstraintModel(
@@ -793,14 +766,13 @@ class EffectiveSigma(DefaultPDFBase):
         correlation_matrix (``np.ndarray``): correlations between regions
         absolute_uncertainty_envelops (``List[Tuple[float, float]]``): upper and lower uncertainty
           envelops for each background yield.
-        signal_uncertainty_configuration (``Dict[Text, Any]]``, default ``None``): Configuration
-          input for signal uncertainties
+        modifiers (``list[Union[List[float], List[Tuple[float, float]]]]``, default ``None``):
+            List of uncertainty modifiers for the signal sample. Each modifier should be a
+            dictionary with either of the following keys:
 
-          * absolute_uncertainties (``List[float]``): Absolute uncertainties for the signal
-          * absolute_uncertainty_envelops (``List[Tuple[float, float]]``): upper and lower
-              uncertainty envelops
-          * correlation_matrix (``List[List[float]]``): Correlation matrix
-          * third_moments (``List[float]``): diagonal elemetns of the third moment
+            - absolute_uncertainties (``List[float]``): Absolute uncertainties for the signal
+            - absolute_uncertainty_envelops (``List[Tuple[float, float]]``): upper and lower
+                uncertainty envelops
     """
 
     name: str = "default.effective_sigma"
@@ -823,7 +795,7 @@ class EffectiveSigma(DefaultPDFBase):
         data: np.ndarray,
         correlation_matrix: np.ndarray,
         absolute_uncertainty_envelops: List[Tuple[float, float]],
-        signal_uncertainty_configuration: Optional[Dict[str, Any]] = None,
+        modifiers: list[Union[List[float], List[Tuple[float, float]]]] = None,
     ):
         assert len(absolute_uncertainty_envelops) == len(
             background_yields
@@ -844,7 +816,7 @@ class EffectiveSigma(DefaultPDFBase):
             signal_yields=signal_yields,
             background_yields=background_yields,
             data=data,
-            signal_uncertainty_configuration=signal_uncertainty_configuration,
+            modifiers=modifiers,
         )
 
         self._constraint_model: ConstraintModel = ConstraintModel(
@@ -860,6 +832,8 @@ class EffectiveSigma(DefaultPDFBase):
 
         A = self.background_yields
 
+        signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 1.0)
+
         # arXiv:pyhsics/0406120 eq. 18-19
         def effective_sigma(pars: np.ndarray) -> np.ndarray:
             """Compute effective sigma"""
@@ -874,12 +848,12 @@ class EffectiveSigma(DefaultPDFBase):
                 )
             )
 
-        def lam(pars: np.ndarray) -> np.ndarray:
+        def poiss_lamb(pars: np.ndarray) -> np.ndarray:
             """Compute lambda for Main model"""
             return (
                 A
                 + effective_sigma(pars) * pars[slice(1, len(A) + 1)]
-                + pars[0] * self.signal_yields
+                + pars[0] * self.signal_yields * signal_unc(pars)
             )
 
         def constraint(pars: np.ndarray) -> np.ndarray:
@@ -890,14 +864,5 @@ class EffectiveSigma(DefaultPDFBase):
         self.constraints.append(
             NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
         )
-        if self.signal_uncertainty_configuration.get("lambda", None) is not None:
-            signal_lambda = self.signal_uncertainty_configuration["lambda"]
-
-            def poiss_lamb(pars: np.ndarray) -> np.ndarray:
-                """combined lambda expression"""
-                return lam(pars) + signal_lambda(pars)
-
-        else:
-            poiss_lamb = lam
 
         self._main_model = MainModel(poiss_lamb)
