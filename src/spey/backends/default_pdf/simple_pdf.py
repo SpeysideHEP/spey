@@ -491,7 +491,6 @@ class MultivariateNormal(SimplePDFBase):
 
         >>> import spey
         >>> import numpy as np
-        >>> from spey.backends.default_pdf.simple_pdf import MultivariateNormal
 
         >>> background_yields = np.array([50.0, 48.0])
         >>> data = np.array([36., 33.])
