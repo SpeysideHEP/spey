@@ -39,12 +39,15 @@ class SimplePDFBase(BackendBase):
 
     def __init__(
         self,
-        signal_yields: List[float],
+        signal_yields: Union[List[float], Callable[[np.ndarray], np.ndarray]],
         background_yields: List[float],
         data: List[int],
     ):
         self.data = np.array(data, dtype=np.float64)
-        self.signal_yields = np.array(signal_yields, dtype=np.float64)
+        if callable(signal_yields):
+            self.signal_yields = signal_yields
+        else:
+            self.signal_yields = np.array(signal_yields, dtype=np.float64)
         self.background_yields = np.array(background_yields, dtype=np.float64)
         self._main_model = None
         """main model"""
@@ -54,11 +57,9 @@ class SimplePDFBase(BackendBase):
         """Constraints to be used during optimisation process"""
 
         minimum_poi = -np.inf
-        if self.is_alive:
-            minimum_poi = -np.min(
-                self.background_yields[self.signal_yields > 0.0]
-                / self.signal_yields[self.signal_yields > 0.0]
-            )
+        if self.is_alive and not callable(self.signal_yields):
+            sig = self.signal_yields
+            minimum_poi = -np.min(self.background_yields[sig > 0.0] / sig[sig > 0.0])
 
         self._config = ModelConfig(
             poi_index=0,
@@ -69,7 +70,15 @@ class SimplePDFBase(BackendBase):
 
     @property
     def is_alive(self) -> bool:
-        """Returns True if at least one bin has non-zero signal yield."""
+        """
+        Returns True if at least one bin has non-zero signal yield.
+
+        .. versionchanged:: 0.2.7
+            When ``signal_yields`` is a callable, always returns ``True`` since the
+            actual yields are not known until evaluation time.
+        """
+        if callable(self.signal_yields):
+            return True
         return np.any(self.signal_yields > 0.0)
 
     def config(
@@ -88,20 +97,37 @@ class SimplePDFBase(BackendBase):
             ~spey.base.ModelConfig:
             Model configuration. Information regarding the position of POI in
             parameter list, suggested input and bounds.
+
+        .. versionchanged:: 0.2.7
+            When the model has extra signal or nuisance parameters (e.g. added by
+            subclasses via :attr:`n_signal_parameters`), those additional bounds and
+            :attr:`~spey.base.ModelConfig.parameter_names` are now correctly preserved
+            when ``allow_negative_signal`` is ``False`` or ``poi_upper_bound`` differs
+            from the default.
         """
         if allow_negative_signal and poi_upper_bound == 10.0:
             return self._config
 
+        extra_bounds = self._config.suggested_bounds[1:]
         return ModelConfig(
             self._config.poi_index,
             self._config.minimum_poi,
             self._config.suggested_init,
-            [(0, poi_upper_bound)],
+            [(0, poi_upper_bound)] + extra_bounds,
+            parameter_names=self._config.parameter_names,
         )
 
     @property
     def main_model(self) -> MainModel:
-        """retreive the main model distribution"""
+        r"""
+        Retrieve the main model distribution.
+
+        .. versionchanged:: 0.2.7
+            The internal ``lam`` function now supports a callable ``signal_yields``.
+            When ``signal_yields`` is callable, it is evaluated as
+            ``signal_yields(pars[1:])`` so that the extra signal parameters (beyond
+            :math:`\mu` at index 0) are forwarded to the function at each evaluation.
+        """
         if self._main_model is None:
 
             def lam(pars: np.ndarray) -> np.ndarray:
@@ -117,7 +143,12 @@ class SimplePDFBase(BackendBase):
                     expectation value of the poisson distribution with respect to
                     nuisance parameters.
                 """
-                return pars[0] * self.signal_yields + self.background_yields
+                sig = (
+                    self.signal_yields(pars[1:])
+                    if callable(self.signal_yields)
+                    else self.signal_yields
+                )
+                return pars[0] * sig + self.background_yields
 
             self._main_model = MainModel(lam, **self._main_kwargs)
 
@@ -423,7 +454,7 @@ class MultivariateNormal(SimplePDFBase):
     ``covariance_matrix`` can also take callable function as an input where
     function takes nuisance parameters as inputs and return a new covariance matrix as output.
 
-    **Example:**
+    **Example — callable covariance matrix:**
 
     .. code:: python3
 
@@ -447,17 +478,71 @@ class MultivariateNormal(SimplePDFBase):
         ...     covariance_matrix=cov_matrix,
         ... )
 
+    **Example — callable signal yields with additional parameters:**
+
+    ``signal_yields`` can be a callable that accepts extra parameters beyond :math:`\mu`
+    and returns the per-bin signal yields as a ``np.ndarray``. The number of extra
+    parameters must be declared via ``n_signal_parameters`` so that the optimiser can
+    construct the correct parameter vector. The first element of the parameter vector is
+    always :math:`\mu`; the remaining elements (``pars[1:]``) are forwarded to the
+    callable at each function evaluation.
+
+    .. code:: python3
+
+        >>> import spey
+        >>> import numpy as np
+        >>> from spey.backends.default_pdf.simple_pdf import MultivariateNormal
+
+        >>> background_yields = np.array([50.0, 48.0])
+        >>> data = np.array([36., 33.])
+        >>> covariance_matrix = np.array([[144.0, 13.0], [25.0, 256.0]])
+        >>> base_signal = np.array([12.0, 15.0])
+
+        >>> # signal_yields is a function of one extra parameter (signal_par_0)
+        >>> def signal_yields(extra_pars: np.ndarray) -> np.ndarray:
+        ...     return base_signal * (1.0 + extra_pars[0])
+
+        >>> pdf_wrapper = spey.get_backend('default.multivariate_normal')
+        >>> model = pdf_wrapper(
+        ...     signal_yields=signal_yields,
+        ...     background_yields=background_yields,
+        ...     data=data,
+        ...     covariance_matrix=covariance_matrix,
+        ...     n_signal_parameters=1,
+        ... )
+
+        >>> muhat, nll = model.maximize_likelihood()
+
+        The resulting :class:`~spey.base.ModelConfig` will contain two parameters:
+        ``["mu", "signal_par_0"]``.
+
     .. versionchanged:: 0.2.6
         The ability to input a callable covariance matrix has been added.
 
-    Args:
-        signal_yields (``List[float]``): signal yields
-        background_yields (``List[float]``): background yields
-        data (``List[int]``): data
-        covariance_matrix (``List[List[float]] | callable``): covariance matrix (square matrix)
+    .. versionchanged:: 0.2.7
+        ``signal_yields`` now accepts a callable with signature
+        ``(extra_pars: np.ndarray) -> np.ndarray`` in addition to a plain array.
+        The companion argument ``n_signal_parameters`` (default ``0``) declares how many
+        extra parameters the callable expects; they are appended to the parameter vector
+        after :math:`\mu` and their names are automatically set to
+        ``signal_par_0``, ``signal_par_1``, …
 
-          * If you have correlation matrix and absolute uncertainties please use
+    Args:
+        signal_yields (``List[float] | Callable[[np.ndarray], np.ndarray]``): signal yields
+          per bin, or a callable that takes the extra signal parameters (``pars[1:]``) and
+          returns the signal yields as a ``np.ndarray``.
+        background_yields (``List[float]``): background yields per bin.
+        data (``List[int]``): observed data per bin.
+        covariance_matrix (``List[List[float]] | callable``): covariance matrix (square matrix),
+          or a callable that takes the full parameter vector and returns a covariance matrix.
+
+          * If you have a correlation matrix and absolute uncertainties please use
             :func:`~spey.helper_functions.correlation_to_covariance`
+
+        n_signal_parameters (``int``, default ``0``): number of additional free parameters
+          to pass to a callable ``signal_yields``.  Has no effect when ``signal_yields``
+          is a plain array.  When greater than zero the optimiser parameter vector is
+          extended to ``[mu, signal_par_0, ..., signal_par_{n-1}]``.
 
     """
 
@@ -470,18 +555,21 @@ class MultivariateNormal(SimplePDFBase):
     spey_requires: str = SimplePDFBase.spey_requires
     """Spey version required for the backend"""
 
-    __slots__ = ["covariance_matrix"]
+    __slots__ = ["covariance_matrix", "n_signal_parameters"]
 
     def __init__(
         self,
-        signal_yields: List[float],
+        signal_yields: Union[List[float], Callable[[np.ndarray], np.ndarray]],
         background_yields: List[float],
         data: List[int],
         covariance_matrix: Union[List[List[float]], callable],
+        n_signal_parameters: int = 0,
     ):
         super().__init__(
             signal_yields=signal_yields, background_yields=background_yields, data=data
         )
+        self.n_signal_parameters = n_signal_parameters
+
         if not callable(covariance_matrix):
             self.covariance_matrix = np.array(covariance_matrix, dtype=np.float64)
             if (
@@ -498,3 +586,14 @@ class MultivariateNormal(SimplePDFBase):
             "cov": self.covariance_matrix,
             "pdf_type": "multivariategauss",
         }
+
+        if n_signal_parameters > 0:
+            self._config = ModelConfig(
+                poi_index=0,
+                minimum_poi=self._config.minimum_poi,
+                suggested_init=[1.0] + [1.0] * n_signal_parameters,
+                suggested_bounds=[(self._config.minimum_poi, 10)]
+                + [(None, None)] * n_signal_parameters,
+                parameter_names=["mu"]
+                + [f"signal_par_{i}" for i in range(n_signal_parameters)],
+            )

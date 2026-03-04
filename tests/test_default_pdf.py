@@ -282,6 +282,176 @@ def test_multivariate_gauss():
     assert pytest.approx(opt.fun) == maxnll, "MultivariateNormal:: MLE is wrong"
 
 
+def test_multivariate_gauss_array_signal_yields_is_alive():
+    """Array signal_yields: is_alive reflects non-zero bins."""
+    from spey.backends.default_pdf.simple_pdf import MultivariateNormal
+
+    bkg = np.array([50.0, 48.0])
+    data = np.array([36.0, 33.0])
+    cov = np.array([[144.0, 13.0], [25.0, 256.0]])
+
+    m_alive = MultivariateNormal(
+        signal_yields=np.array([12.0, 15.0]),
+        background_yields=bkg,
+        data=data,
+        covariance_matrix=cov,
+    )
+    assert m_alive.is_alive
+
+    m_dead = MultivariateNormal(
+        signal_yields=np.array([0.0, 0.0]),
+        background_yields=bkg,
+        data=data,
+        covariance_matrix=cov,
+    )
+    assert not m_dead.is_alive
+
+
+def test_multivariate_gauss_callable_signal_yields_is_always_alive():
+    """Callable signal_yields: is_alive always returns True."""
+    from spey.backends.default_pdf.simple_pdf import MultivariateNormal
+
+    bkg = np.array([50.0, 48.0])
+    data = np.array([36.0, 33.0])
+    cov = np.array([[144.0, 13.0], [25.0, 256.0]])
+
+    # even a callable that would return zeros must report is_alive=True
+    model = MultivariateNormal(
+        signal_yields=lambda pars: np.zeros(2),
+        background_yields=bkg,
+        data=data,
+        covariance_matrix=cov,
+        n_signal_parameters=1,
+    )
+    assert model.is_alive
+
+
+def test_multivariate_gauss_callable_signal_yields_model_config():
+    """Callable signal_yields: ModelConfig has correct npar and parameter_names."""
+    from spey.backends.default_pdf.simple_pdf import MultivariateNormal
+
+    bkg = np.array([50.0, 48.0])
+    data = np.array([36.0, 33.0])
+    cov = np.array([[144.0, 13.0], [25.0, 256.0]])
+
+    model = MultivariateNormal(
+        signal_yields=lambda pars: np.array([12.0, 15.0]),
+        background_yields=bkg,
+        data=data,
+        covariance_matrix=cov,
+        n_signal_parameters=2,
+    )
+    cfg = model.config()
+
+    assert cfg.npar == 3, f"Expected npar=3, got {cfg.npar}"
+    assert cfg.parameter_names == ["mu", "signal_par_0", "signal_par_1"]
+    assert len(cfg.suggested_init) == 3
+    assert len(cfg.suggested_bounds) == 3
+    # extra-parameter bounds should be (None, None)
+    assert cfg.suggested_bounds[1] == (None, None)
+    assert cfg.suggested_bounds[2] == (None, None)
+
+
+def test_multivariate_gauss_n_signal_parameters_zero_no_extra_params():
+    """n_signal_parameters=0 (default) keeps the single-parameter config."""
+    from spey.backends.default_pdf.simple_pdf import MultivariateNormal
+
+    bkg = np.array([50.0, 48.0])
+    data = np.array([36.0, 33.0])
+    cov = np.array([[144.0, 13.0], [25.0, 256.0]])
+
+    model = MultivariateNormal(
+        signal_yields=np.array([12.0, 15.0]),
+        background_yields=bkg,
+        data=data,
+        covariance_matrix=cov,
+    )
+    cfg = model.config()
+
+    assert cfg.npar == 1
+    assert cfg.parameter_names is None
+
+
+def test_multivariate_gauss_callable_signal_yields_logpdf_matches_array():
+    """Callable that returns constant signal must give same logpdf as array."""
+    from spey.backends.default_pdf.simple_pdf import MultivariateNormal
+
+    signal = np.array([12.0, 15.0])
+    bkg = np.array([50.0, 48.0])
+    data = np.array([36.0, 33.0])
+    cov = np.array([[144.0, 13.0], [25.0, 256.0]])
+
+    model_array = MultivariateNormal(
+        signal_yields=signal, background_yields=bkg, data=data, covariance_matrix=cov
+    )
+    # callable that ignores its argument and returns the same fixed signal
+    model_callable = MultivariateNormal(
+        signal_yields=lambda pars: signal,
+        background_yields=bkg,
+        data=data,
+        covariance_matrix=cov,
+        n_signal_parameters=1,
+    )
+
+    logpdf_array = model_array.get_logpdf_func()(np.array([1.0]))
+    # for callable model pars = [mu=1.0, signal_par_0=0.0]
+    logpdf_callable = model_callable.get_logpdf_func()(np.array([1.0, 0.0]))
+
+    assert np.isclose(
+        logpdf_array, logpdf_callable
+    ), f"logpdf mismatch: array={logpdf_array}, callable={logpdf_callable}"
+
+
+def test_multivariate_gauss_callable_signal_yields_maximize_likelihood():
+    """Callable signal_yields: maximize_likelihood converges and muhat is finite."""
+    from spey.backends.default_pdf.simple_pdf import MultivariateNormal
+
+    base_signal = np.array([12.0, 15.0])
+    bkg = np.array([50.0, 48.0])
+    data = np.array([36.0, 33.0])
+    cov = np.array([[144.0, 13.0], [25.0, 256.0]])
+
+    def signal_yields(extra_pars):
+        # scale signal by (1 + extra_pars[0])
+        return base_signal * (1.0 + extra_pars[0])
+
+    model = MultivariateNormal(
+        signal_yields=signal_yields,
+        background_yields=bkg,
+        data=data,
+        covariance_matrix=cov,
+        n_signal_parameters=1,
+    )
+    stat_model = spey.StatisticalModel(backend=model, analysis="callable_test")
+    muhat, nll = stat_model.maximize_likelihood()
+
+    assert np.isfinite(muhat), f"muhat not finite: {muhat}"
+    assert np.isfinite(nll), f"nll not finite: {nll}"
+
+
+def test_multivariate_gauss_config_preserves_extra_bounds_when_allow_negative_signal_false():
+    """config(allow_negative_signal=False) preserves extra signal-parameter bounds."""
+    from spey.backends.default_pdf.simple_pdf import MultivariateNormal
+
+    bkg = np.array([50.0, 48.0])
+    data = np.array([36.0, 33.0])
+    cov = np.array([[144.0, 13.0], [25.0, 256.0]])
+
+    model = MultivariateNormal(
+        signal_yields=lambda pars: np.array([12.0, 15.0]) * (1.0 + pars[0]),
+        background_yields=bkg,
+        data=data,
+        covariance_matrix=cov,
+        n_signal_parameters=1,
+    )
+    cfg = model.config(allow_negative_signal=False, poi_upper_bound=5.0)
+
+    assert cfg.npar == 2
+    assert cfg.suggested_bounds[0] == (0, 5.0)
+    assert cfg.suggested_bounds[1] == (None, None)
+    assert cfg.parameter_names == ["mu", "signal_par_0"]
+
+
 def test_bin_merge():
     """Test merging of correlated bins in a histogram/cutflow."""
     results = merge_correlated_bins(
