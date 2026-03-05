@@ -9,5 +9,6 @@ Kitchen Sink
    tutorials/histogram
    tutorials/gradients
    tutorials/signal_unc
+   tutorials/multiparameter_contour
    tuto_plugin
    Introduction to Spey (PyHEP 2023) <https://github.com/SpeysideHEP/PyHEP-2023>

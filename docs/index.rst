@@ -51,6 +51,7 @@ Finally, the name "Spey" originally comes from the Spey River, a river in the mi
    plugins
    comb
    new_plugin
+   multiparam
    tutorials
    api
    citations
