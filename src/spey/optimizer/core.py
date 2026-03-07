@@ -69,7 +69,11 @@ def fit(
         value and the parameters. log-probability value will be returned if `logpdf` argument is provided.
     """
 
-    init_pars = [*(initial_parameters or model_configuration.suggested_init)]
+    init_pars = (
+        initial_parameters
+        if isinstance(initial_parameters, (list, tuple, np.ndarray))
+        else model_configuration.suggested_init
+    )
 
     if bounds is not None:
         par_bounds = [*bounds]
