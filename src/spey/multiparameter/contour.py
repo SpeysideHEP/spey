@@ -153,6 +153,7 @@ import autograd
 import autograd.numpy as anp
 import numpy as np
 from joblib import Parallel, cpu_count, delayed
+from scipy.optimize import minimize as _sp_minimize
 from scipy.optimize import root_scalar
 from scipy.stats import chi2 as chi2_dist
 from tqdm import tqdm
@@ -527,7 +528,6 @@ def find_contour(
 
         # Prepare the fit once to access the model configuration (bounds,
         # suggested_init) and any backend constraints.
-        from scipy.optimize import minimize as _sp_minimize  # noqa: PLC0415
 
         _spey_fit_args = stat_model.prepare_for_fit()
         _model_cfg = _spey_fit_args["model_configuration"]
