@@ -1,4 +1,11 @@
-"""Statistical Model wrapper class"""
+"""
+This module defines :class:`~spey.StatisticalModel`, the central user-facing object in
+``spey``.  It wraps any backend that inherits :class:`~spey.BackendBase` and provides a
+unified API for likelihood evaluation, hypothesis testing, upper-limit extraction, and
+model combination.  The module also exposes :func:`statistical_model_wrapper`, the
+decorator that backends are registered with, and the :data:`PoiTest` type alias used
+throughout.
+"""
 import logging
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -33,31 +40,113 @@ log = logging.getLogger("Spey")
 
 class StatisticalModel(HypothesisTestingBase):
     r"""
-    Statistical model base. This class wraps around the various statistical model backends available
-    through `spey`'s plugin system. Each backend has to inherit :class:`~spey.BackendBase` which sets
-    certain requirements on the available functionality to be used for hypothesis testing. These
-    requirements are such as accessibility to log-likelihood, :math:`\log\mathcal{L}`, it's derivative
-    with respect to :math:`\mu` and nuisance parameters, :math:`\partial_\theta\log\mathcal{L}`,
-    its Hessian and Assimov data generation. Depending on availablility :class:`~spey.StatisticalModel`
-    will take propriate action to perform requested computation. The goal of this class is to collect
-    all different backends under same roof in order to perform combination of different likelihood
-    recipies.
+    Unified interface to any ``spey`` statistical model backend.
+
+    :class:`~spey.StatisticalModel` is the central user-facing object in ``spey``.  It
+    wraps any backend that inherits :class:`~spey.BackendBase`, giving every backend a
+    consistent API for:
+
+    * evaluating the (negative) log-likelihood :math:`-\log\mathcal{L}(\mu,\hat{\theta}_\mu)`;
+    * maximising the likelihood to obtain :math:`\hat\mu` and
+      :math:`\hat{\theta}`;
+    * computing p-values, CLs values, and upper limits via asymptotic, toy-based,
+      or :math:`\chi^2` calculators;
+    * generating Asimov data;
+    * combining two models with the ``@`` operator.
+
+    Instances are normally obtained through :func:`spey.get_backend` rather than
+    constructed directly:
+
+    .. code-block:: python
+
+        import spey
+
+        # Obtain a backend constructor wrapped as StatisticalModel
+        pdf_wrapper = spey.get_backend("default.poisson")
+
+        # Build the statistical model
+        model = pdf_wrapper(
+            signal_yields=[12.0, 15.0],
+            background_yields=[50.0, 60.0],
+            data=[48, 63],
+            analysis="my_analysis",
+            xsection=0.05,  # pb
+        )
+
+    **Likelihood evaluation**
+
+    .. code-block:: python
+
+        # Negative log-likelihood at mu = 1
+        nll = model.likelihood(poi_test=1.0)
+
+        # Profile likelihood ratio test statistic
+        nll_free, _ = model.maximize_likelihood()
+
+        # Asimov (expected) likelihood
+        nll_asimov = model.asimov_likelihood(poi_test=1.0)
+
+    **Hypothesis testing**
+
+    .. code-block:: python
+
+        # Observed CLs value
+        cls_obs = model.exclusion_confidence_level(poi_test=1.0)
+
+        # Expected (apriori) CLs value
+        cls_exp = model.exclusion_confidence_level(
+            poi_test=1.0, expected=spey.ExpectationType.apriori
+        )
+
+        # One-sided 95 % CL upper limit on the signal strength
+        mu_ul = model.poi_upper_limit(confidence_level=0.95)
+
+        # Upper limit on the cross section (requires xsection to be set)
+        xsec_ul = model.s95obs
+
+    **Multi-parameter fits**
+
+    When a backend exposes more than one parameter of interest, ``poi_test`` and
+    ``poi_indices`` accept either an ``int`` index, a ``str`` parameter name, or a
+    ``dict`` mapping indices / names to values:
+
+    .. code-block:: python
+
+        # Fix mu_0 = 1.0, mu_1 = 0.5
+        nll = model.likelihood(poi_test={0: 1.0, 1: 0.5})
+
+        # Retrieve fitted values of two named POIs
+        muhat_dict, nll = model.maximize_likelihood(poi_indices=[0, 1])
+
+    **Model combination**
+
+    .. code-block:: python
+
+        combined = model_a @ model_b          # uses the @ operator
+        # or equivalently:
+        combined = model_a.combine(model_b)
 
     Args:
-        backend (~spey.BackendBase): Statistical model backend
-        analysis (``Text``): Unique identifier of the statistical model. This attribue will be used
-          for book keeping purposes.
-        xsection (``float``, default ``np.nan``): cross section, unit is determined by the user.
-          Cross section value is only used for computing upper limit on excluded cross-section value.
-        ntoys (``int``, default ``1000``): Number of toy samples for hypothesis testing. (Only used for
-          toy-based hypothesis testing)
+        backend (~spey.BackendBase): Statistical model backend.  Must be an instance of
+          a class that inherits :class:`~spey.BackendBase`.
+        analysis (``str``): Unique identifier of the statistical model used for
+          book-keeping purposes.
+        xsection (``float``, default ``np.nan``): Signal cross section in units chosen
+          by the user.  Only required for
+          :func:`~spey.StatisticalModel.excluded_cross_section`,
+          :attr:`~spey.StatisticalModel.s95obs`, and
+          :attr:`~spey.StatisticalModel.s95exp`.
+        ntoys (``int``, default ``1000``): Number of pseudo-experiments (toys) used by
+          the toy-based hypothesis-testing calculator.  Ignored when the asymptotic or
+          :math:`\chi^2` calculator is used.
 
     Raises:
-        :obj:`AssertionError`: If the given backend does not inherit :class:`~spey.BackendBase`
+        :obj:`AssertionError`: If ``backend`` does not inherit :class:`~spey.BackendBase`.
 
     Returns:
         ~spey.StatisticalModel:
-        General statistical model object that wraps around different likelihood prescriptions.
+        A statistical model object wrapping the given backend with a unified hypothesis-
+        testing interface.
     """
 
     __slots__ = ["_backend", "xsection", "analysis"]
@@ -93,17 +182,46 @@ class StatisticalModel(HypothesisTestingBase):
 
     @property
     def backend(self) -> BackendBase:
-        """Accessor to the backend"""
+        """
+        The underlying backend instance.
+
+        Returns:
+            ~spey.BackendBase:
+            The backend object that was supplied at construction time.  All likelihood
+            and sampling calls are delegated to this object.
+        """
         return self._backend
 
     @property
     def backend_type(self) -> str:
-        """Return type of the backend"""
+        """
+        Human-readable name of the backend.
+
+        Returns the value of the backend's ``name`` attribute when present, and falls
+        back to the class name otherwise.
+
+        Returns:
+            ``str``:
+            Backend identifier string (e.g. ``"default.poisson"``).
+        """
         return getattr(self.backend, "name", self.backend.__class__.__name__)
 
     @property
     def is_asymptotic_calculator_available(self) -> bool:
-        """Check if Asymptotic calculator is available for the backend"""
+        """
+        Whether the asymptotic calculator can be used with this backend.
+
+        The asymptotic calculator requires either:
+
+        * a working :func:`~spey.BackendBase.expected_data` implementation, **or**
+        * both :func:`~spey.BackendBase.asimov_negative_loglikelihood` and
+          :func:`~spey.BackendBase.minimize_asimov_negative_loglikelihood` to be
+          overridden by the backend.
+
+        Returns:
+            ``bool``:
+            ``True`` if the asymptotic calculator is available.
+        """
         return self.backend.expected_data != BackendBase.expected_data or (
             self.backend.asimov_negative_loglikelihood
             != BackendBase.asimov_negative_loglikelihood
@@ -113,19 +231,43 @@ class StatisticalModel(HypothesisTestingBase):
 
     @property
     def is_toy_calculator_available(self) -> bool:
-        """Check if Toy calculator is available for the backend"""
+        """
+        Whether the toy (pseudo-experiment) calculator can be used with this backend.
+
+        Requires the backend to override :func:`~spey.BackendBase.get_sampler`.
+
+        Returns:
+            ``bool``:
+            ``True`` if the toy calculator is available.
+        """
         return self.backend.get_sampler != BackendBase.get_sampler
 
     @property
     def is_chi_square_calculator_available(self) -> bool:
-        """Check if chi-square calculator is available for the backend"""
+        r"""
+        Whether the :math:`\chi^2` calculator can be used with this backend.
+
+        The :math:`\chi^2` calculator only requires the negative log-likelihood, which
+        every backend must implement, so this property always returns ``True``.
+
+        Returns:
+            ``bool``:
+            Always ``True``.
+        """
         return True
 
     @property
     def available_calculators(self) -> List[str]:
         """
-        Retruns available calculator names i.e. ``'toy'``,
-        ``'asymptotic'`` and ``'chi_square'``.
+        Returns available calculator names.
+
+        Possible entries are ``'toy'``, ``'asymptotic'``, and ``'chi_square'``,
+        depending on what the underlying backend supports.
+
+        Returns:
+            ``List[str]``:
+            Subset of ``['toy', 'asymptotic', 'chi_square']`` listing the calculators
+            that are available for this model.
         """
         calc = ["toy"] * self.is_toy_calculator_available
         calc += ["asymptotic"] * self.is_asymptotic_calculator_available
@@ -148,10 +290,10 @@ class StatisticalModel(HypothesisTestingBase):
               p-values to be computed.
 
               * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
+                prescription which means that the experimental data will be assumed to be the truth
                 (default).
               * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
+                post-fit prescription which means that the experimental data will be assumed to be
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
@@ -174,24 +316,40 @@ class StatisticalModel(HypothesisTestingBase):
     @property
     def s95exp(self) -> float:
         """
-        Compute excluded cross section value at 95% CL with :obj:`~spey.ExpectationType.apriori`
-        expectation. See :func:`~spey.StatisticalModel.excluded_cross_section`
-        for reference.
+        Expected excluded cross section at 95% CL (pre-fit / *a-priori* expectation).
+
+        Shorthand for ``excluded_cross_section(ExpectationType.apriori)``.  The result
+        represents the cross-section value that would be excluded at the 95% confidence
+        level if no signal were present (SM hypothesis), expressed in the same units as
+        :attr:`~spey.StatisticalModel.xsection`.
 
         Raises:
-            ~spey.system.exceptions.UnknownCrossSection: If the cross-section is ``nan``.
+            ~spey.system.exceptions.UnknownCrossSection: If
+              :attr:`~spey.StatisticalModel.xsection` has not been set (i.e. is ``nan``).
+
+        Returns:
+            ``float``:
+            Expected 95% CL excluded cross section value in user-defined units.
         """
         return self.excluded_cross_section(ExpectationType.apriori)
 
     @property
     def s95obs(self) -> float:
         """
-        Compute excluded cross section value at 95% CL with :obj:`~spey.ExpectationType.observed`
-        expectation. See :func:`~spey.StatisticalModel.excluded_cross_section`
-        for reference.
+        Observed excluded cross section at 95% CL (post-fit / *observed* expectation).
+
+        Shorthand for ``excluded_cross_section(ExpectationType.observed)``.  The result
+        represents the cross-section value excluded at the 95% confidence level using the
+        actual observed data, expressed in the same units as
+        :attr:`~spey.StatisticalModel.xsection`.
 
         Raises:
-            ~spey.system.exceptions.UnknownCrossSection: If the cross-section is ``nan``.
+            ~spey.system.exceptions.UnknownCrossSection: If
+              :attr:`~spey.StatisticalModel.xsection` has not been set (i.e. is ``nan``).
+
+        Returns:
+            ``float``:
+            Observed 95% CL excluded cross section value in user-defined units.
         """
         return self.excluded_cross_section(ExpectationType.observed)
 
@@ -221,10 +379,10 @@ class StatisticalModel(HypothesisTestingBase):
               p-values to be computed.
 
               * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
+                prescription which means that the experimental data will be assumed to be the truth
                 (default).
               * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
+                post-fit prescription which means that the experimental data will be assumed to be
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
@@ -291,10 +449,10 @@ class StatisticalModel(HypothesisTestingBase):
               p-values to be computed.
 
               * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
+                prescription which means that the experimental data will be assumed to be the truth
                 (default).
               * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
+                post-fit prescription which means that the experimental data will be assumed to be
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
@@ -343,7 +501,7 @@ class StatisticalModel(HypothesisTestingBase):
         (nuisance and poi i.e. :math:`\theta` and :math:`\mu`) with respect to ``test_statistic`` input
         which determines the value of :math:`\mu` i.e. if ``test_statistic="q0"`` :math:`\mu=1` and 0 for
         anything else. The objective function is used to optimize the statistical model to find the fit
-        parameters for fixed poi optimisation. Then fit parameters are used to retreive the expected
+        parameters for fixed poi optimisation. Then fit parameters are used to retrieve the expected
         data through :func:`~spey.BackendBase.expected_data` function.
 
         Args:
@@ -351,10 +509,10 @@ class StatisticalModel(HypothesisTestingBase):
               p-values to be computed.
 
               * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
+                prescription which means that the experimental data will be assumed to be the truth
                 (default).
               * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
+                post-fit prescription which means that the experimental data will be assumed to be
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
@@ -426,10 +584,10 @@ class StatisticalModel(HypothesisTestingBase):
               p-values to be computed.
 
               * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
+                prescription which means that the experimental data will be assumed to be the truth
                 (default).
               * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
+                post-fit prescription which means that the experimental data will be assumed to be
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
@@ -504,10 +662,10 @@ class StatisticalModel(HypothesisTestingBase):
               p-values to be computed.
 
               * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
+                prescription which means that the experimental data will be assumed to be the truth
                 (default).
               * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
+                post-fit prescription which means that the experimental data will be assumed to be
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
@@ -584,10 +742,10 @@ class StatisticalModel(HypothesisTestingBase):
               p-values to be computed.
 
               * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
+                prescription which means that the experimental data will be assumed to be the truth
                 (default).
               * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
+                post-fit prescription which means that the experimental data will be assumed to be
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
@@ -668,10 +826,10 @@ class StatisticalModel(HypothesisTestingBase):
               p-values to be computed.
 
               * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
+                prescription which means that the experimental data will be assumed to be the truth
                 (default).
               * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
+                post-fit prescription which means that the experimental data will be assumed to be
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
@@ -681,7 +839,7 @@ class StatisticalModel(HypothesisTestingBase):
             kwargs: keyword arguments for the optimiser.
 
         Raises:
-            ~spey.system.exceptions.MethodNotAvailable: If bacend does not have sampler implementation.
+            ~spey.system.exceptions.MethodNotAvailable: If backend does not have sampler implementation.
 
         Returns:
             ``Union[np.ndarray, Callable[[int], np.ndarray]]``:
@@ -733,10 +891,10 @@ class StatisticalModel(HypothesisTestingBase):
               p-values to be computed.
 
               * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
+                prescription which means that the experimental data will be assumed to be the truth
                 (default).
               * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
+                post-fit prescription which means that the experimental data will be assumed to be
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
@@ -745,7 +903,7 @@ class StatisticalModel(HypothesisTestingBase):
               the optimiser.
             kwargs: keyword arguments for the optimiser.
         Raises:
-            ~spey.system.exceptions.MethodNotAvailable: If bacend does not have Hessian implementation.
+            ~spey.system.exceptions.MethodNotAvailable: If backend does not have Hessian implementation.
 
         Returns:
             ``float``:
@@ -813,8 +971,26 @@ class StatisticalModel(HypothesisTestingBase):
 
     def __matmul__(self, other):
         """
-        Combination routine between two statistical models.
-        See :func:`~spey.StatisticalModel.combine` function for details.
+        Combine two statistical models using the ``@`` operator.
+
+        Equivalent to calling :func:`~spey.StatisticalModel.combine`.  The combined
+        model inherits its analysis label from both operands:
+
+        .. code-block:: python
+
+            combined = model_a @ model_b
+            # same as: combined = model_a.combine(model_b)
+
+        Args:
+            other (:obj:`~spey.StatisticalModel`): Statistical model to combine with.
+
+        Raises:
+            ~spey.system.exceptions.CombinerNotAvailable: If this model's backend does
+              not implement a combination routine.
+
+        Returns:
+            :obj:`~spey.StatisticalModel`:
+            A new combined statistical model.
         """
         return self.combine(other)
 
@@ -823,30 +999,51 @@ def statistical_model_wrapper(
     func: BackendBase,
 ) -> Callable[[Any], StatisticalModel]:
     """
-    Backend wrapper for :class:`~spey.StatisticalModel`. This function allows a universal
-    integration of each backend to the :obj:`spey` environment. :func:`~spey.get_backend` function
-    automatically wraps the backend with :func:`~spey.statistical_model_wrapper` before returning
-    the object.
+    Decorator that promotes a :class:`~spey.BackendBase` constructor into a
+    :class:`~spey.StatisticalModel` factory.
+
+    :func:`~spey.get_backend` applies this decorator automatically before returning a
+    backend to the user, so direct use is only required when registering a custom
+    backend outside of ``spey``'s plugin system.
+
+    The returned callable accepts all backend-specific positional and keyword arguments
+    plus the three universal keyword arguments documented below, and returns a fully
+    initialised :class:`~spey.StatisticalModel`.
+
+    Example usage for custom backend registration:
+
+    .. code-block:: python
+
+        from spey.interface.statistical_model import statistical_model_wrapper
+        from my_package import MyBackend
+
+        MyModel = statistical_model_wrapper(MyBackend)
+        model = MyModel(
+            *backend_args,
+            analysis="my_analysis",
+            xsection=0.05,
+        )
 
     Args:
-        func (~spey.BackendBase): Desired backend to be used for statistical analysis.
+        func (~spey.BackendBase): Backend class (or callable) whose constructor will be
+          wrapped.  Must produce an instance that inherits :class:`~spey.BackendBase`.
 
     Raises:
-        :obj:`AssertionError`: If the input function does not inherit :obj:`~spey.BackendBase`
+        :obj:`AssertionError`: If the object returned by ``func`` does not inherit
+          :class:`~spey.BackendBase`.
 
     Returns:
         ``Callable[[Any], StatisticalModel]``:
-        Wrapper that takes the following inputs
+        A wrapper callable that accepts the following inputs:
 
-        * **args**: Backend specific arguments.
-        * **analysis** (``Text``, default ``"__unknown_analysis__"``): Unique identifier of the
-          statistical model. This attribue will be used for book keeping purposes.
-        * **xsection** (``float``, default ``nan``): cross section, unit is determined by the
-          user. Cross section value is only used for computing upper limit on excluded
-          cross-section value.
-        * **ntoys** (``int``, default ``1000``): Number of toy samples for hypothesis testing.
-            (Only used for toy-based hypothesis testing)
-        * **other keyword arguments**: Backend specific keyword inputs.
+        * **\\*args**: Backend-specific positional arguments forwarded to ``func``.
+        * **analysis** (``str``, default ``"__unknown_analysis__"``): Unique identifier
+          of the statistical model used for book-keeping purposes.
+        * **xsection** (``float``, default ``nan``): Signal cross section in user-defined
+          units.  Only required for cross-section upper-limit computations.
+        * **ntoys** (``int``, default ``1000``): Number of toy pseudo-experiments for
+          toy-based hypothesis testing.
+        * **\\*\\*kwargs**: Backend-specific keyword arguments forwarded to ``func``.
     """
 
     @wraps(func)
@@ -869,23 +1066,25 @@ def statistical_model_wrapper(
         + "<>" * 30
         + "\n\n"
         + """
-        Optional arguments:
+        Universal keyword arguments added by :func:`~spey.statistical_model_wrapper`:
 
         Args:
-            analysis (``Text``, default ``"__unknown_analysis__"``): Unique identifier of the
-              statistical model. This attribue will be used for book keeping purposes.
-            xsection (``float``, default ``nan``): cross section, unit is determined by the
-              user. Cross section value is only used for computing upper limit on excluded
-              cross-section value.
-            ntoys (``int``, default ``1000``): Number of toy samples for hypothesis testing.
-              (Only used for toy-based hypothesis testing)
+            analysis (``str``, default ``"__unknown_analysis__"``): Unique identifier of the
+              statistical model used for book-keeping purposes.
+            xsection (``float``, default ``nan``): Signal cross section in user-defined units.
+              Only required for cross-section upper-limit computations (e.g.
+              :attr:`~spey.StatisticalModel.s95obs`).
+            ntoys (``int``, default ``1000``): Number of toy pseudo-experiments used by the
+              toy-based hypothesis-testing calculator.  Ignored for asymptotic and
+              :math:`\\chi^2` calculators.
 
         Raises:
-            :obj:`AssertionError`: If the model input does not inherit :class:`~spey.DataBase`.
+            :obj:`AssertionError`: If the backend instance does not inherit
+              :class:`~spey.BackendBase`.
 
         Returns:
             ~spey.StatisticalModel:
-            Backend wraped with statistical model interface.
+            Backend wrapped with the unified :class:`~spey.StatisticalModel` interface.
         """
     )
 
