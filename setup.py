@@ -14,6 +14,7 @@ requirements = [
     "tqdm>=4.64.0",
     "requests>=2.31.0",
     "setuptools",
+    "joblib",
 ]
 
 backend_plugins = [
