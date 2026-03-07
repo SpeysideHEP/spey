@@ -99,6 +99,18 @@ Hypothesis testing
     asymptotic_calculator.compute_asymptotic_confidence_level
     toy_calculator.compute_toy_confidence_level
 
+Multi-Parameter Confidence Contours
+-----------------------------------
+
+.. currentmodule:: spey.multiparameter
+
+.. autosummary::
+    :toctree: _generated/
+
+    contour.find_contour
+    contour.ContourResult
+
+
 Gradient Tools
 --------------
 

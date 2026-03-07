@@ -1,6 +1,4 @@
 r"""
-Multi-dimensional chi-squared confidence contour finder.
-
 This module implements a two-stage algorithm for mapping the boundary of the
 :math:`(1-\alpha)` confidence region in the full parameter space of a
 :class:`~spey.StatisticalModel` whose backend is
@@ -208,31 +206,6 @@ class ContourResult:
     confidence_level: float
     dof: int
 
-    def chi2_at(self, theta: np.ndarray) -> float:
-        r"""
-        Return :math:`\chi^2(\theta) = 2[\mathrm{NLL}(\theta) - \mathrm{NLL}(\hat\theta)]`
-        for an arbitrary point **theta**.
-
-        This requires a separate NLL evaluation and is provided for
-        convenience checking only; contour points are guaranteed to satisfy
-        :math:`\chi^2 \approx \Delta_\alpha` up to numerical tolerance.
-
-        Args:
-            theta (``np.ndarray``): Parameter vector, shape ``(k,)``.
-
-        Returns:
-            ``float``: The :math:`\chi^2` value at *theta*.
-        """
-        raise NotImplementedError(
-            "chi2_at requires the NLL function; use find_contour's returned "
-            "nll_min and evaluate NLL externally."
-        )
-
-
-# ---------------------------------------------------------------------------
-# Public entry point
-# ---------------------------------------------------------------------------
-
 
 def find_contour(
     stat_model,
@@ -277,6 +250,8 @@ def find_contour(
        Hamiltonian Monte Carlo chain that walks along the constraint manifold
        :math:`\mathrm{NLL}(\theta) = T`, projecting both position and momentum
        at every step.
+
+    .. versionadded:: 0.2.7
 
     Args:
         stat_model: A :class:`~spey.StatisticalModel` whose backend is
@@ -329,11 +304,10 @@ def find_contour(
             worker processes for the RATTLE HMC chains (Stage 4).  Each
             chain is independent and runs in a separate process via
             ``joblib.Parallel``.  Pass ``1`` to disable parallelism.
-            Values ``≤ 0`` are clamped to ``1``.  Note: parallel execution
+            Values :math:`\le 0` are clamped to ``1``.  Note: parallel execution
             requires the NLL and gradient closures to be picklable; if
             pickling fails, fall back to ``n_jobs=1``.
-        bounds (``Optional[List[Tuple[Optional[float], Optional[float]]]]``,
-            default ``None``): Parameter bounds for each signal parameter
+        bounds (default ``None``): Parameter bounds for each signal parameter
             (i.e. every parameter accepted by ``signal_yields``, in the same
             order).  Each element is a ``(lower, upper)`` pair where either
             value may be ``None`` to indicate no bound on that side.  For
@@ -358,15 +332,21 @@ def find_contour(
             neighbourhood; smaller values focus on very localised gaps.
             Must satisfy ``coverage_knn >= 1``.
 
+
     Returns:
-        :class:`ContourResult`:
-        A dataclass containing :attr:`~ContourResult.theta_mle`,
-        :attr:`~ContourResult.nll_min`, :attr:`~ContourResult.threshold`,
-        :attr:`~ContourResult.contour_points`, and associated metadata.
+        :class:`~spey.multiparameter.contour.ContourResult`
+            A dataclass containing
+            :attr:`~spey.multiparameter.contour.ContourResult.theta_mle`,
+            :attr:`~spey.multiparameter.contour.ContourResult.nll_min`,
+            :attr:`~spey.multiparameter.contour.ContourResult.threshold`,
+            :attr:`~spey.multiparameter.contour.ContourResult.contour_points`,
+            and associated metadata.
+
 
     Raises:
         ValueError: If the model has fewer than one parameter.
         RuntimeError: If the MLE optimisation fails to converge.
+
 
     Examples:
         .. code:: python3
@@ -385,17 +365,26 @@ def find_contour(
 
             pdf_wrapper = spey.get_backend('default.multivariate_normal')
             stat_model = pdf_wrapper(
-                signal_yields=signal, background_yields=bkg,
-                data=data, covariance_matrix=cov, n_signal_parameters=1,
+                signal_yields=signal,
+                background_yields=bkg,
+                data=data,
+                covariance_matrix=cov,
+                n_signal_parameters=1,
                 analysis="demo",
             )
 
-            result = find_contour(stat_model, confidence_level=0.95,
-                                  n_radial=200, n_hmc_chains=5, random_seed=42)
+            result = find_contour(
+                stat_model,
+                confidence_level=0.95,
+                n_radial=200,
+                n_hmc_chains=5,
+                random_seed=42
+            )
 
             print("MLE :", result.theta_mle)
             print("NLL min :", result.nll_min)
             print("Contour points:", result.contour_points.shape)
+
     """
     if confidence_level <= 0.0 or confidence_level >= 1.0:
         raise ValueError(f"confidence_level must be in (0, 1); got {confidence_level}.")

@@ -1,5 +1,5 @@
-Multi-POI Fit
-=============
+Multi-dimensional chi-squared confidence contour finder
+=======================================================
 
 .. currentmodule:: spey.multiparameter.contour
 
