@@ -1,3 +1,88 @@
+r"""
+Signal Uncertainty Synthesizer
+================================
+
+This module implements the **log-normal morphing** scheme used to propagate signal
+systematic uncertainties through the simplified-likelihood backends.
+
+Motivation
+----------
+
+Simplified likelihood backends parametrise background uncertainties through nuisance
+parameters :math:`\boldsymbol{\theta}` that enter the Poisson mean :math:`\lambda_i`.
+Signal yields, however, are often treated as fixed.  When the signal itself carries
+non-negligible uncertainties (e.g. from theoretical scale variations, PDF
+uncertainties, or detector modelling), those uncertainties must also be profiled.
+
+The synthesizer introduces one additional nuisance parameter :math:`\theta_k` per
+uncertainty *source* :math:`k` and applies a multiplicative correction to the signal
+yields.  This keeps the signal positive for all nuisance values and is consistent
+with the log-normal morphing conventions widely used in HEP (e.g. HistFactory).
+
+Log-normal morphing
+-------------------
+
+For each uncertainty source :math:`k` and bin :math:`i`, a fractional variation
+:math:`\Delta_{i,k}` is defined as
+
+.. math::
+
+    \Delta_{i,k} = \frac{\sigma^{(s)}_{i,k}}{n^{(s)}_i},
+
+where :math:`n^{(s)}_i` is the nominal signal yield and :math:`\sigma^{(s)}_{i,k}`
+is the absolute uncertainty from source :math:`k` in bin :math:`i`.
+
+The morphing factor for source :math:`k` is then
+
+.. math::
+
+    f_{i,k}(\theta_k)
+    = \exp\!\left[\theta_k \ln\!\bigl(1 + \Delta_{i,k}(\theta_k)\bigr)\right],
+
+where the effective variation depends on the sign of :math:`\theta_k`:
+
+.. math::
+
+    \Delta_{i,k}(\theta_k) =
+    \begin{cases}
+        \Delta_{i,k}^{+}, & \theta_k \geq 0 \\
+        \Delta_{i,k}^{-}, & \theta_k < 0
+    \end{cases}
+
+(symmetric uncertainties use :math:`\Delta^+ = \Delta^-`).
+
+When multiple sources are present the total signal modifier is the product of the
+individual morphing factors:
+
+.. math::
+
+    f_i(\boldsymbol{\theta}_{\rm sig})
+    = \prod_k f_{i,k}(\theta_k)
+    = \exp\!\left[\sum_k \theta_k \ln\!\bigl(1 + \Delta_{i,k}(\theta_k)\bigr)\right].
+
+The effective signal yield in bin :math:`i` thus becomes
+:math:`\mu\, n^{(s)}_i \cdot f_i(\boldsymbol{\theta}_{\rm sig})`.
+
+Each nuisance parameter :math:`\theta_k` is constrained by a standard normal prior
+:math:`\mathcal{N}(\theta_k \mid 0, 1)`, which is added to the constraint model
+of the calling backend.
+
+Parameter layout
+----------------
+
+Signal uncertainty parameters are appended to the end of the parameter vector after
+the background nuisance parameters::
+
+    pars = [μ, θ₁, …, θ_N,  θ_{sig,1}, …, θ_{sig,K}]
+
+The ``domain`` field in each constraint dictionary records the index of the
+corresponding parameter in this vector.
+
+Bins with zero nominal signal yield (:math:`n^{(s)}_i = 0`) produce
+:math:`\Delta_{i,k} = \mathrm{NaN}`, which is replaced by 1 (no modification)
+so the exponential evaluates to 1 for those bins.
+"""
+
 import warnings
 from functools import partial, reduce
 from typing import Any, Dict, List, Tuple, Union
@@ -85,7 +170,7 @@ def signal_uncertainty_synthesizer(
         ... #                 {'args': [array([0.]), array([1.])],
         ... #                  'distribution_type': 'normal',
         ... #                  'kwargs': {'domain': array([3])}}],
-        ... #  'lambda': <function signal_uncertainty_synthesizer.<locals>.lam_signal_total at 0x14f530c10>}
+        ... #  'lambda': <function ...lam_signal_total at 0x...>}
 
     Args:
         signal_yields (`List[float]`): List of signal yields per bin

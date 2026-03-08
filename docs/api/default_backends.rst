@@ -1,6 +1,53 @@
 Default Backends
 ----------------
 
+.. automodule:: spey.backends.default_pdf
+
+.. currentmodule:: spey.backends.default_pdf
+
+.. autosummary::
+    :toctree: ../_generated/
+
+    DefaultPDFBase
+    UncorrelatedBackground
+    CorrelatedBackground
+    ThirdMomentExpansion
+    EffectiveSigma
+
+.. automodule:: spey.backends.default_pdf.third_moment
+
+.. currentmodule:: spey.backends.default_pdf.third_moment
+
+.. autosummary::
+    :toctree: ../_generated/
+
+    third_moment_expansion
+    compute_third_moments
+
+.. automodule:: spey.backends.default_pdf.uncertainty_synthesizer
+
+.. currentmodule:: spey.backends.default_pdf.uncertainty_synthesizer
+
+.. autosummary::
+    :toctree: ../_generated/
+
+    signal_uncertainty_synthesizer
+
+Simple PDFs
+~~~~~~~~~~~
+
+.. automodule:: spey.backends.default_pdf.simple_pdf
+
+.. currentmodule:: spey.backends.default_pdf.simple_pdf
+
+.. autosummary::
+    :toctree: ../_generated/
+
+    Poisson
+    Gaussian
+    MultivariateNormal
+
+
 Distributions
 ~~~~~~~~~~~~~
 
@@ -14,30 +61,3 @@ Distributions
     MultivariateNormal
     MainModel
     ConstraintModel
-
-Default PDFs
-~~~~~~~~~~~~
-
-.. currentmodule:: spey.backends.default_pdf
-
-.. autosummary::
-    :toctree: ../_generated/
-
-    DefaultPDFBase
-    UncorrelatedBackground
-    CorrelatedBackground
-    ThirdMomentExpansion
-    EffectiveSigma
-    third_moment.third_moment_expansion
-    third_moment.compute_third_moments
-    uncertainty_synthesizer.signal_uncertainty_synthesizer
-
-Simple PDFs
-~~~~~~~~~~~
-
-.. autosummary::
-    :toctree: ../_generated/
-
-    simple_pdf.Poisson
-    simple_pdf.Gaussian
-    simple_pdf.MultivariateNormal
