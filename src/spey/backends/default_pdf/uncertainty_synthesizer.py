@@ -97,6 +97,8 @@ from spey.system.exceptions import InvalidUncertaintyDefinition
 def signal_uncertainty_synthesizer(
     signal_yields: List[float],
     modifiers: List[Union[List[float], List[Tuple[float, float]]]],
+    n_signal_parameters: int = 0,
+    domain: np.ndarray = None,
 ) -> Dict[str, Any]:
     r"""
     Synthesize signal uncertainties
@@ -147,6 +149,20 @@ def signal_uncertainty_synthesizer(
         ``modifiers``. Asymmetric uncertainties must be provided as
         ``list[tuple[float, float]]``, corresponding to ``(down, up)`` variations.
 
+    **Parameter layout with** ``n_signal_parameters``
+
+    When the calling backend uses a callable ``signal_yields`` that accepts
+    ``n_signal_parameters`` additional free parameters, those parameters occupy
+    indices ``1 … n_signal_parameters`` in the full parameter vector and push
+    the background nuisance parameters (and therefore the signal-uncertainty
+    parameters) to higher indices::
+
+        pars = [μ, sig_par_0, …, sig_par_{n-1}, θ_bkg_1, …, θ_bkg_N, θ_sig_1, …]
+
+    Pass ``n_signal_parameters`` so that the domain indices are shifted
+    accordingly.  Alternatively, supply ``domain`` directly to override the
+    auto-computed indices.
+
     **Example:**
 
     Consider a single-bin signal yield
@@ -173,12 +189,26 @@ def signal_uncertainty_synthesizer(
         ... #  'lambda': <function ...lam_signal_total at 0x...>}
 
     Args:
-        signal_yields (`List[float]`): List of signal yields per bin
+        signal_yields (`List[float]`): List of nominal signal yields per bin.  Used
+            to compute the fractional variation :math:`\Delta_{i,k}`.
         modifiers (`List[Union[List[float], List[Tuple[float, float]]]]`):
             List of uncertainty modifiers, each can be either:
 
             * A list of floats representing symmetric uncertainties per bin
             * A list of tuples representing asymmetric uncertainties (up, down) per bin
+
+        n_signal_parameters (`int`, default ``0``): Number of additional free
+            parameters that a callable ``signal_yields`` function accepts.  These
+            parameters are placed *before* the background nuisance parameters in the
+            parameter vector (immediately after :math:`\mu`), so the domain indices
+            of the signal-uncertainty parameters are shifted by this amount.
+            Has no effect when ``domain`` is supplied explicitly.
+        domain (`np.ndarray`, default ``None``): Explicit array of parameter-vector
+            indices at which the signal-uncertainty nuisance parameters live.  When
+            ``None`` the indices are computed automatically as
+            ``[1 + n_signal_parameters + N, …, 1 + n_signal_parameters + N + K - 1]``
+            where :math:`N` is the number of bins and :math:`K` is the number of
+            modifiers.
 
     Raises:
         InvalidUncertaintyDefinition: If the number of bins in modifiers does not match
@@ -196,7 +226,11 @@ def signal_uncertainty_synthesizer(
     nnui = len(modifiers)
     lambdas = []
     constraints = []
-    domain = np.r_[len(signal_yields) + 1 : len(signal_yields) + 1 + nnui]
+    if domain is None:
+        start = 1 + n_signal_parameters + len(signal_yields)
+        domain = np.r_[start : start + nnui]
+    else:
+        domain = np.asarray(domain)
 
     for idx, values in enumerate(modifiers):
         values = np.array(values)

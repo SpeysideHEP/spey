@@ -169,8 +169,17 @@ class DefaultPDFBase(BackendBase):
     constraint distribution.
 
     Args:
-        signal_yields (``np.ndarray``): Per-bin signal yields
-          :math:`\{n^s_i\}`.
+        signal_yields (``np.ndarray | Callable[[np.ndarray], np.ndarray]``): Per-bin
+          signal yields :math:`\{n^s_i\}`, or a callable that accepts the extra signal
+          parameters ``pars[1 : 1 + n_signal_parameters]`` and returns the per-bin
+          yields as a ``np.ndarray``.  When a callable is supplied ``n_signal_parameters``
+          must be set to the number of extra parameters the function expects.
+
+          .. note::
+
+              When ``signal_yields`` is callable the minimum POI is set to
+              :math:`-\infty` and ``modifiers`` cannot be used simultaneously.
+
         background_yields (``np.ndarray``): Per-bin expected background yields
           :math:`\{n^b_i\}`.
         data (``np.ndarray``): Per-bin observed counts :math:`\{n^{\rm obs}_i\}`.
@@ -194,6 +203,23 @@ class DefaultPDFBase(BackendBase):
             uncertainties on the signal.
           - ``absolute_uncertainty_envelops`` (``List[Tuple[float, float]]``):
             asymmetric upper/lower envelopes on the signal.
+
+          Not supported when ``signal_yields`` is a callable.
+
+        n_signal_parameters (``int``, default ``0``): Number of additional free
+          parameters that a callable ``signal_yields`` function accepts.  These
+          parameters are inserted into the parameter vector *after* :math:`\mu` and
+          *before* the background nuisance parameters::
+
+              pars = [μ, sig_par_0, …, sig_par_{n-1}, θ_bkg_1, …, θ_bkg_N, θ_sig_1, …]
+
+          Has no effect when ``signal_yields`` is a plain array.
+        signal_parameter_bounds (``List[Tuple[Optional[float], Optional[float]]] | None``,
+          default ``None``): Optimiser bounds for each of the ``n_signal_parameters``
+          extra signal parameters.  Each entry is a ``(lower, upper)`` pair; use
+          ``None`` for either element to leave that side unbounded.  When the argument
+          itself is ``None`` every extra signal parameter receives ``(None, None)``.
+          Must have exactly ``n_signal_parameters`` entries when provided.
 
     .. note::
 
@@ -221,31 +247,46 @@ class DefaultPDFBase(BackendBase):
 
     def __init__(
         self,
-        signal_yields: np.ndarray,
+        signal_yields: Union[np.ndarray, Callable[[np.ndarray], np.ndarray]],
         background_yields: np.ndarray,
         data: np.ndarray,
         covariance_matrix: Union[np.ndarray, Callable[[np.ndarray], np.ndarray]] = None,
         modifiers: list[Union[List[float], List[Tuple[float, float]]]] = None,
+        n_signal_parameters: int = 0,
+        signal_parameter_bounds: Optional[
+            List[Tuple[Optional[float], Optional[float]]]
+        ] = None,
     ):
         self.data = np.array(data, dtype=np.float64)
-        self.signal_yields = np.array(signal_yields, dtype=np.float64)
+        if callable(signal_yields):
+            self.signal_yields = signal_yields
+        else:
+            self.signal_yields = np.array(signal_yields, dtype=np.float64)
         self.background_yields = np.array(background_yields, dtype=np.float64)
         self.covariance_matrix = (
             np.array(covariance_matrix, dtype=np.float64)
             if not callable(covariance_matrix) and covariance_matrix is not None
             else covariance_matrix
         )
+        self.n_signal_parameters = n_signal_parameters
+
         if modifiers is None:
             modifiers = []
             self.signal_uncertainty_configuration = {}
         else:
+            if callable(self.signal_yields):
+                raise ValueError(
+                    "modifiers cannot be combined with a callable signal_yields. "
+                    "Provide signal_yields as a plain array when using modifiers."
+                )
             self.signal_uncertainty_configuration = signal_uncertainty_synthesizer(
                 signal_yields=self.signal_yields,
                 modifiers=modifiers,
+                n_signal_parameters=n_signal_parameters,
             )
 
         minimum_poi = -np.inf
-        if self.is_alive:
+        if not callable(self.signal_yields) and self.is_alive:
             minimum_poi = -np.min(
                 self.background_yields[self.signal_yields > 0.0]
                 / self.signal_yields[self.signal_yields > 0.0]
@@ -257,18 +298,58 @@ class DefaultPDFBase(BackendBase):
         self.constraints = []
         """Constraints to be used during optimisation process"""
 
+        n_bkg_pars = len(data)
+        n_sig_unc_pars = len(modifiers)
+        parameter_names = None
+        if n_signal_parameters > 0:
+            parameter_names = (
+                ["mu"]
+                + [f"signal_par_{i}" for i in range(n_signal_parameters)]
+                + [f"theta_bkg_{i}" for i in range(n_bkg_pars)]
+                + [f"theta_sig_{i}" for i in range(n_sig_unc_pars)]
+            )
+
+        if signal_parameter_bounds is None:
+            _sig_par_bounds = [(None, None)] * n_signal_parameters
+        else:
+            if len(signal_parameter_bounds) != n_signal_parameters:
+                raise ValueError(
+                    f"signal_parameter_bounds has {len(signal_parameter_bounds)} entries "
+                    f"but n_signal_parameters is {n_signal_parameters}."
+                )
+            _sig_par_bounds = [
+                b if b is not None else (None, None) for b in signal_parameter_bounds
+            ]
+
         self._config = ModelConfig(
             poi_index=0,
             minimum_poi=minimum_poi,
-            suggested_init=[1.0] * (len(data) + 1) + [1.0] * len(modifiers),
-            suggested_bounds=[(minimum_poi, 10.0)]
-            + [(None, None)] * len(data)
-            + [(None, None)] * len(modifiers),
+            suggested_init=(
+                [1.0]
+                + [1.0] * n_signal_parameters
+                + [1.0] * n_bkg_pars
+                + [1.0] * n_sig_unc_pars
+            ),
+            suggested_bounds=(
+                [(minimum_poi, 10.0)]
+                + _sig_par_bounds
+                + [(None, None)] * n_bkg_pars
+                + [(None, None)] * n_sig_unc_pars
+            ),
+            parameter_names=parameter_names,
         )
 
     @property
     def is_alive(self) -> bool:
-        """Returns True if at least one bin has non-zero signal yield."""
+        """
+        Returns True if at least one bin has non-zero signal yield.
+
+        .. versionchanged:: 0.2.7
+            When ``signal_yields`` is callable, always returns ``True`` since the
+            actual yields are not known at construction time.
+        """
+        if callable(self.signal_yields):
+            return True
         return np.any(self.signal_yields > 0.0)
 
     def config(
@@ -296,6 +377,7 @@ class DefaultPDFBase(BackendBase):
             self._config.minimum_poi,
             self._config.suggested_init,
             [(0, poi_upper_bound)] + self._config.suggested_bounds[1:],
+            parameter_names=self._config.parameter_names,
         )
 
     @property
@@ -321,12 +403,13 @@ class DefaultPDFBase(BackendBase):
         """
         if self._constraint_model is None:
             corr = covariance_to_correlation(self.covariance_matrix)
+            nsp = self.n_signal_parameters
             self._constraint_model = ConstraintModel(
                 [
                     {
                         "distribution_type": "multivariatenormal",
                         "args": [np.zeros(len(self.data)), corr],
-                        "kwargs": {"domain": slice(1, corr.shape[0] + 1)},
+                        "kwargs": {"domain": slice(1 + nsp, 1 + nsp + corr.shape[0])},
                     }
                 ]
                 + self.signal_uncertainty_configuration.get("constraint", [])
@@ -360,14 +443,23 @@ class DefaultPDFBase(BackendBase):
         if self._main_model is None:
             A = self.background_yields
             B = np.sqrt(np.diag(self.covariance_matrix))
+            nsp = self.n_signal_parameters
 
             signal_unc = self.signal_uncertainty_configuration.get(
                 "lambda", lambda pars: 1.0
             )
 
+            if callable(self.signal_yields):
+                _sig = lambda pars: self.signal_yields(pars[1 : 1 + nsp])  # noqa: E731
+            else:
+                _yields = self.signal_yields
+
+                def _sig(_, _y=_yields):
+                    return _y
+
             def poiss_lamb(pars: np.ndarray) -> np.ndarray:
                 """
-                Compute lambda for Main model with third moment expansion.
+                Compute lambda for Main model.
                 For details see above eq 2.6 in :xref:`1809.05548`
 
                 Args:
@@ -379,14 +471,14 @@ class DefaultPDFBase(BackendBase):
                     nuisance parameters.
                 """
                 return (
-                    pars[0] * self.signal_yields * signal_unc(pars)
+                    pars[0] * _sig(pars) * signal_unc(pars)
                     + A
-                    + B * pars[slice(1, len(B) + 1)]
+                    + B * pars[slice(1 + nsp, 1 + nsp + len(B))]
                 )
 
             def constraint(pars: np.ndarray) -> np.ndarray:
                 """Compute constraint term"""
-                return A + B * pars[slice(1, len(B) + 1)]
+                return A + B * pars[slice(1 + nsp, 1 + nsp + len(B))]
 
             jac_constr = jacobian(constraint)
 
@@ -666,8 +758,10 @@ class UncorrelatedBackground(DefaultPDFBase):
     over bins, making this the fastest backend for quick estimates.
 
     Args:
-        signal_yields (``List[float]``): Per-bin signal yields
-          :math:`\{n^s_i\}`.
+        signal_yields (``List[float] | Callable[[np.ndarray], np.ndarray]``): Per-bin
+          signal yields :math:`\{n^s_i\}`, or a callable that accepts the extra signal
+          parameters ``pars[1 : 1 + n_signal_parameters]`` and returns the per-bin
+          yields as a ``np.ndarray``.
         background_yields (``List[float]``): Per-bin expected background yields
           :math:`\{n^b_i\}`.
         data (``List[int]``): Per-bin observed counts
@@ -676,7 +770,17 @@ class UncorrelatedBackground(DefaultPDFBase):
           uncertainties :math:`\{\sigma_i\}`.  Must have the same length as the
           other array inputs.
         modifiers (``list``, default ``None``): Optional signal-uncertainty modifiers;
-          see :class:`DefaultPDFBase` for the accepted format.
+          see :class:`DefaultPDFBase` for the accepted format.  Not supported when
+          ``signal_yields`` is callable.
+        n_signal_parameters (``int``, default ``0``): Number of additional free
+          parameters accepted by a callable ``signal_yields``.  Has no effect when
+          ``signal_yields`` is a plain array.  See :class:`DefaultPDFBase` for the
+          parameter-vector layout.
+        signal_parameter_bounds (``List[Tuple[Optional[float], Optional[float]]] | None``,
+          default ``None``): Optimiser bounds for each extra signal parameter.  Each entry
+          is a ``(lower, upper)`` pair; use ``None`` for an unbounded side.  When
+          ``None``, every extra signal parameter receives ``(None, None)``.  Must have
+          exactly ``n_signal_parameters`` entries when provided.
 
     .. note::
 
@@ -709,11 +813,15 @@ class UncorrelatedBackground(DefaultPDFBase):
 
     def __init__(
         self,
-        signal_yields: List[float],
+        signal_yields: Union[List[float], Callable[[np.ndarray], np.ndarray]],
         background_yields: List[float],
         data: List[int],
         absolute_uncertainties: List[float],
         modifiers: list[Union[List[float], List[Tuple[float, float]]]] = None,
+        n_signal_parameters: int = 0,
+        signal_parameter_bounds: Optional[
+            List[Tuple[Optional[float], Optional[float]]]
+        ] = None,
     ):
         super().__init__(
             signal_yields=signal_yields,
@@ -721,16 +829,19 @@ class UncorrelatedBackground(DefaultPDFBase):
             data=data,
             covariance_matrix=None,
             modifiers=modifiers,
+            n_signal_parameters=n_signal_parameters,
+            signal_parameter_bounds=signal_parameter_bounds,
         )
 
         B = np.array(absolute_uncertainties)
+        nsp = self.n_signal_parameters
 
         self._constraint_model: ConstraintModel = ConstraintModel(
             [
                 {
                     "distribution_type": "normal",
                     "args": [np.zeros(len(self.data)), np.ones(len(B))],
-                    "kwargs": {"domain": slice(1, len(B) + 1)},
+                    "kwargs": {"domain": slice(1 + nsp, 1 + nsp + len(B))},
                 }
             ]
             + self.signal_uncertainty_configuration.get("constraint", [])
@@ -738,17 +849,23 @@ class UncorrelatedBackground(DefaultPDFBase):
 
         signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 1.0)
 
+        if callable(self.signal_yields):
+            _sig = lambda pars: self.signal_yields(pars[1 : 1 + nsp])  # noqa: E731
+        else:
+            _yields = self.signal_yields
+            _sig = lambda pars: _yields  # noqa: E731
+
         def poiss_lamb(pars: np.ndarray) -> np.ndarray:
             """Compute lambda for Main model"""
             return (
                 self.background_yields
-                + pars[slice(1, len(B) + 1)] * B
-                + pars[0] * self.signal_yields * signal_unc(pars)
+                + pars[slice(1 + nsp, 1 + nsp + len(B))] * B
+                + pars[0] * _sig(pars) * signal_unc(pars)
             )
 
         def constraint(pars: np.ndarray) -> np.ndarray:
             """Compute the constraint term"""
-            return self.background_yields + pars[slice(1, len(B) + 1)] * B
+            return self.background_yields + pars[slice(1 + nsp, 1 + nsp + len(B))] * B
 
         jac_constr = jacobian(constraint)
 
@@ -789,8 +906,10 @@ class CorrelatedBackground(DefaultPDFBase):
     is enforced during optimisation.
 
     Args:
-        signal_yields (``np.ndarray``): Per-bin signal yields
-          :math:`\{n^s_i\}`.
+        signal_yields (``np.ndarray | Callable[[np.ndarray], np.ndarray]``): Per-bin
+          signal yields :math:`\{n^s_i\}`, or a callable that accepts the extra signal
+          parameters ``pars[1 : 1 + n_signal_parameters]`` and returns the per-bin
+          yields as a ``np.ndarray``.
         background_yields (``np.ndarray``): Per-bin expected background yields
           :math:`\{n^b_i\}`.
         data (``np.ndarray``): Per-bin observed counts :math:`\{n^{\rm obs}_i\}`.
@@ -798,7 +917,17 @@ class CorrelatedBackground(DefaultPDFBase):
           matrix :math:`\Sigma`.  Diagonal entries are squared absolute uncertainties
           :math:`\sigma_i^2`.
         modifiers (``list``, default ``None``): Optional signal-uncertainty modifiers;
-          see :class:`DefaultPDFBase` for the accepted format.
+          see :class:`DefaultPDFBase` for the accepted format.  Not supported when
+          ``signal_yields`` is callable.
+        n_signal_parameters (``int``, default ``0``): Number of additional free
+          parameters accepted by a callable ``signal_yields``.  Has no effect when
+          ``signal_yields`` is a plain array.  See :class:`DefaultPDFBase` for the
+          parameter-vector layout.
+        signal_parameter_bounds (``List[Tuple[Optional[float], Optional[float]]] | None``,
+          default ``None``): Optimiser bounds for each extra signal parameter.  Each entry
+          is a ``(lower, upper)`` pair; use ``None`` for an unbounded side.  When
+          ``None``, every extra signal parameter receives ``(None, None)``.  Must have
+          exactly ``n_signal_parameters`` entries when provided.
 
     .. note::
 
@@ -832,11 +961,15 @@ class CorrelatedBackground(DefaultPDFBase):
 
     def __init__(
         self,
-        signal_yields: np.ndarray,
+        signal_yields: Union[np.ndarray, Callable[[np.ndarray], np.ndarray]],
         background_yields: np.ndarray,
         data: np.ndarray,
         covariance_matrix: np.ndarray,
         modifiers: list[Union[List[float], List[Tuple[float, float]]]] = None,
+        n_signal_parameters: int = 0,
+        signal_parameter_bounds: Optional[
+            List[Tuple[Optional[float], Optional[float]]]
+        ] = None,
     ):
         super().__init__(
             signal_yields=signal_yields,
@@ -844,6 +977,8 @@ class CorrelatedBackground(DefaultPDFBase):
             data=data,
             covariance_matrix=covariance_matrix,
             modifiers=modifiers,
+            n_signal_parameters=n_signal_parameters,
+            signal_parameter_bounds=signal_parameter_bounds,
         )
 
         assert self.main_model is not None, "Unable to build the main model"
@@ -902,7 +1037,10 @@ class ThirdMomentExpansion(DefaultPDFBase):
     the standard simplified likelihood.
 
     Args:
-        signal_yields (``np.ndarray``): Per-bin signal yields :math:`\{n^s_i\}`.
+        signal_yields (``np.ndarray | Callable[[np.ndarray], np.ndarray]``): Per-bin
+          signal yields :math:`\{n^s_i\}`, or a callable that accepts the extra signal
+          parameters ``pars[1 : 1 + n_signal_parameters]`` and returns the per-bin
+          yields as a ``np.ndarray``.
         background_yields (``np.ndarray``): Per-bin expected background yields
           :math:`\{m^{(1)}_i\}`.
         data (``np.ndarray``): Per-bin observed counts.
@@ -911,7 +1049,17 @@ class ThirdMomentExpansion(DefaultPDFBase):
         third_moment (``np.ndarray``): Per-bin diagonal third-moment values
           :math:`\{m^{(3)}_i\}`.  Must have length :math:`N`.
         modifiers (``list``, default ``None``): Optional signal-uncertainty modifiers;
-          see :class:`DefaultPDFBase` for the accepted format.
+          see :class:`DefaultPDFBase` for the accepted format.  Not supported when
+          ``signal_yields`` is callable.
+        n_signal_parameters (``int``, default ``0``): Number of additional free
+          parameters accepted by a callable ``signal_yields``.  Has no effect when
+          ``signal_yields`` is a plain array.  See :class:`DefaultPDFBase` for the
+          parameter-vector layout.
+        signal_parameter_bounds (``List[Tuple[Optional[float], Optional[float]]] | None``,
+          default ``None``): Optimiser bounds for each extra signal parameter.  Each entry
+          is a ``(lower, upper)`` pair; use ``None`` for an unbounded side.  When
+          ``None``, every extra signal parameter receives ``(None, None)``.  Must have
+          exactly ``n_signal_parameters`` entries when provided.
 
     .. note::
 
@@ -937,12 +1085,16 @@ class ThirdMomentExpansion(DefaultPDFBase):
 
     def __init__(
         self,
-        signal_yields: np.ndarray,
+        signal_yields: Union[np.ndarray, Callable[[np.ndarray], np.ndarray]],
         background_yields: np.ndarray,
         data: np.ndarray,
         covariance_matrix: np.ndarray,
         third_moment: np.ndarray,
         modifiers: list[Union[List[float], List[Tuple[float, float]]]] = None,
+        n_signal_parameters: int = 0,
+        signal_parameter_bounds: Optional[
+            List[Tuple[Optional[float], Optional[float]]]
+        ] = None,
     ):
         third_moments = np.array(third_moment)
 
@@ -952,13 +1104,24 @@ class ThirdMomentExpansion(DefaultPDFBase):
             data=data,
             covariance_matrix=covariance_matrix,
             modifiers=modifiers,
+            n_signal_parameters=n_signal_parameters,
+            signal_parameter_bounds=signal_parameter_bounds,
         )
 
         A, B, C, corr = third_moment_expansion(
             self.background_yields, self.covariance_matrix, third_moments, True
         )
 
+        nsp = self.n_signal_parameters
         signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 1.0)
+
+        if callable(self.signal_yields):
+            _sig = lambda pars: self.signal_yields(pars[1 : 1 + nsp])  # noqa: E731
+        else:
+            _yields = self.signal_yields
+
+            def _sig(_, _y=_yields):
+                return _y
 
         def poiss_lamb(pars: np.ndarray) -> np.ndarray:
             """
@@ -975,17 +1138,17 @@ class ThirdMomentExpansion(DefaultPDFBase):
             """
             nI = (
                 A
-                + B * pars[slice(1, len(B) + 1)]
-                + C * np.square(pars[slice(1, len(B) + 1)])
+                + B * pars[slice(1 + nsp, 1 + nsp + len(B))]
+                + C * np.square(pars[slice(1 + nsp, 1 + nsp + len(B))])
             )
-            return pars[0] * self.signal_yields * signal_unc(pars) + nI
+            return pars[0] * _sig(pars) * signal_unc(pars) + nI
 
         def constraint(pars: np.ndarray) -> np.ndarray:
             """Compute constraint term"""
             return (
                 A
-                + B * pars[slice(1, len(B) + 1)]
-                + C * np.square(pars[slice(1, len(B) + 1)])
+                + B * pars[slice(1 + nsp, 1 + nsp + len(B))]
+                + C * np.square(pars[slice(1 + nsp, 1 + nsp + len(B))])
             )
 
         jac_constr = jacobian(constraint)
@@ -1000,7 +1163,7 @@ class ThirdMomentExpansion(DefaultPDFBase):
                 {
                     "distribution_type": "multivariatenormal",
                     "args": [np.zeros(len(self.data)), corr],
-                    "kwargs": {"domain": slice(1, len(B) + 1)},
+                    "kwargs": {"domain": slice(1 + nsp, 1 + nsp + len(B))},
                 }
             ]
             + self.signal_uncertainty_configuration.get("constraint", [])
@@ -1054,7 +1217,10 @@ class EffectiveSigma(DefaultPDFBase):
     :class:`CorrelatedBackground` result.
 
     Args:
-        signal_yields (``np.ndarray``): Per-bin signal yields :math:`\{n^s_i\}`.
+        signal_yields (``np.ndarray | Callable[[np.ndarray], np.ndarray]``): Per-bin
+          signal yields :math:`\{n^s_i\}`, or a callable that accepts the extra signal
+          parameters ``pars[1 : 1 + n_signal_parameters]`` and returns the per-bin
+          yields as a ``np.ndarray``.
         background_yields (``np.ndarray``): Per-bin expected background yields
           :math:`\{n^b_i\}`.
         data (``np.ndarray``): Per-bin observed counts :math:`\{n^{\rm obs}_i\}`.
@@ -1064,7 +1230,17 @@ class EffectiveSigma(DefaultPDFBase):
           :math:`(\sigma^+_i, \sigma^-_i)` of upper and lower absolute background
           uncertainties.  Both values are taken as absolute (sign is ignored).
         modifiers (``list``, default ``None``): Optional signal-uncertainty modifiers;
-          see :class:`DefaultPDFBase` for the accepted format.
+          see :class:`DefaultPDFBase` for the accepted format.  Not supported when
+          ``signal_yields`` is callable.
+        n_signal_parameters (``int``, default ``0``): Number of additional free
+          parameters accepted by a callable ``signal_yields``.  Has no effect when
+          ``signal_yields`` is a plain array.  See :class:`DefaultPDFBase` for the
+          parameter-vector layout.
+        signal_parameter_bounds (``List[Tuple[Optional[float], Optional[float]]] | None``,
+          default ``None``): Optimiser bounds for each extra signal parameter.  Each entry
+          is a ``(lower, upper)`` pair; use ``None`` for an unbounded side.  When
+          ``None``, every extra signal parameter receives ``(None, None)``.  Must have
+          exactly ``n_signal_parameters`` entries when provided.
 
     References:
         Barlow, R., *Asymmetric Errors*, :xref:`physics/0406120` Sec. 3.6, eqs. 18–19.
@@ -1085,12 +1261,16 @@ class EffectiveSigma(DefaultPDFBase):
 
     def __init__(
         self,
-        signal_yields: np.ndarray,
+        signal_yields: Union[np.ndarray, Callable[[np.ndarray], np.ndarray]],
         background_yields: np.ndarray,
         data: np.ndarray,
         correlation_matrix: np.ndarray,
         absolute_uncertainty_envelops: List[Tuple[float, float]],
         modifiers: list[Union[List[float], List[Tuple[float, float]]]] = None,
+        n_signal_parameters: int = 0,
+        signal_parameter_bounds: Optional[
+            List[Tuple[Optional[float], Optional[float]]]
+        ] = None,
     ):
         assert len(absolute_uncertainty_envelops) == len(
             background_yields
@@ -1112,22 +1292,33 @@ class EffectiveSigma(DefaultPDFBase):
             background_yields=background_yields,
             data=data,
             modifiers=modifiers,
+            n_signal_parameters=n_signal_parameters,
+            signal_parameter_bounds=signal_parameter_bounds,
         )
+
+        A = self.background_yields
+        nsp = self.n_signal_parameters
 
         self._constraint_model: ConstraintModel = ConstraintModel(
             [
                 {
                     "distribution_type": "multivariatenormal",
                     "args": [np.zeros(len(self.data)), correlation_matrix],
-                    "kwargs": {"domain": slice(1, None)},
+                    "kwargs": {"domain": slice(1 + nsp, 1 + nsp + len(A))},
                 }
             ]
             + self.signal_uncertainty_configuration.get("constraint", [])
         )
 
-        A = self.background_yields
-
         signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 1.0)
+
+        if callable(self.signal_yields):
+            _sig = lambda pars: self.signal_yields(pars[1 : 1 + nsp])  # noqa: E731
+        else:
+            _yields = self.signal_yields
+
+            def _sig(_, _y=_yields):
+                return _y
 
         # arXiv:pyhsics/0406120 eq. 18-19
         def effective_sigma(pars: np.ndarray) -> np.ndarray:
@@ -1137,7 +1328,8 @@ class EffectiveSigma(DefaultPDFBase):
             return np.sqrt(
                 np.clip(
                     sigma_plus * sigma_minus
-                    + (sigma_plus - sigma_minus) * (pars[slice(1, len(A) + 1)] - A),
+                    + (sigma_plus - sigma_minus)
+                    * (pars[slice(1 + nsp, 1 + nsp + len(A))] - A),
                     1e-10,
                     None,
                 )
@@ -1147,13 +1339,13 @@ class EffectiveSigma(DefaultPDFBase):
             """Compute lambda for Main model"""
             return (
                 A
-                + effective_sigma(pars) * pars[slice(1, len(A) + 1)]
-                + pars[0] * self.signal_yields * signal_unc(pars)
+                + effective_sigma(pars) * pars[slice(1 + nsp, 1 + nsp + len(A))]
+                + pars[0] * _sig(pars) * signal_unc(pars)
             )
 
         def constraint(pars: np.ndarray) -> np.ndarray:
             """Compute the constraint term"""
-            return A + effective_sigma(pars) * pars[slice(1, len(A) + 1)]
+            return A + effective_sigma(pars) * pars[slice(1 + nsp, 1 + nsp + len(A))]
 
         jac_constr = jacobian(constraint)
         self.constraints.append(

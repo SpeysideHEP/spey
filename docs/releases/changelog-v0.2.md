@@ -75,6 +75,18 @@ Specific upgrades for the latest release can be found [here](https://github.com/
   the fitted values for each requested parameter.  Supported on `StatisticalModel` and
   `UnCorrStatisticsCombiner`.
 
+* All default-PDF backends (`DefaultPDFBase`, `UncorrelatedBackground`,
+  `CorrelatedBackground`, `ThirdMomentExpansion`, `EffectiveSigma`) now accept a
+  `signal_parameter_bounds` keyword argument
+  (`Optional[List[Tuple[Optional[float], Optional[float]]]]`, default `None`).  When
+  provided, each entry supplies the `(lower, upper)` optimiser bound for the
+  corresponding extra signal parameter (indexed by position in the parameter vector
+  immediately after :math:`\mu`); a `None` element leaves that side unbounded.  When
+  the argument is `None` (the previous behaviour), every extra signal parameter
+  continues to receive `(None, None)` bounds.  The list must have exactly
+  `n_signal_parameters` entries.  These bounds are stored in `ModelConfig.suggested_bounds`
+  and propagated to the optimiser automatically.
+
 ## Bug Fixes
 
 * Control mechanism added in case of infinite determinant in covariance matrix.

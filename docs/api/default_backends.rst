@@ -43,6 +43,7 @@ Simple PDFs
 .. autosummary::
     :toctree: ../_generated/
 
+    SimplePDFBase
     Poisson
     Gaussian
     MultivariateNormal

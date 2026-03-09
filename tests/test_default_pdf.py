@@ -2,7 +2,7 @@
 
 import numpy as np
 import pytest
-from scipy.optimize import minimize_scalar
+from scipy.optimize import minimize, minimize_scalar
 from scipy.stats import chi2, multivariate_normal, norm, poisson
 
 import spey
@@ -450,6 +450,463 @@ def test_multivariate_gauss_config_preserves_extra_bounds_when_allow_negative_si
     assert cfg.suggested_bounds[0] == (0, 5.0)
     assert cfg.suggested_bounds[1] == (None, None)
     assert cfg.parameter_names == ["mu", "signal_par_0"]
+
+
+# ---------------------------------------------------------------------------
+# Tests for callable signal_yields (new feature) — all four default backends
+# ---------------------------------------------------------------------------
+
+
+def _analytic_loglike_uncorr(
+    mu, scale, data, signal_yields, background_yields, background_unc
+):
+    """
+    Analytic log-likelihood for UncorrelatedBackground with nuisances profiled out.
+
+    L(mu, theta) = prod_i Poiss(n_obs_i | mu*s_i*scale + b_i + sigma_i*theta_i)
+                   * prod_i N(theta_i | 0, 1)
+
+    At fixed mu, the nuisance parameters are at their constraint centres (theta=0)
+    for evaluating the likelihood at a specific point.
+    """
+    lam = mu * signal_yields * scale + background_yields
+    log_main = np.sum(poisson.logpmf(data, lam))
+    log_constraint = np.sum(norm.logpdf(np.zeros_like(background_unc), 0.0, 1.0))
+    return log_main + log_constraint
+
+
+def test_uncorrelated_background_callable_signal_yields_logpdf():
+    """
+    UncorrelatedBackground: callable signal_yields with one extra parameter.
+
+    The callable s(p) = base_signal * (1 + p[0]) introduces a linear scale factor.
+    At p[0]=0 the result must equal the array-based model at the same mu.
+    At a general point (mu, p[0], theta_1, theta_2) the NLL must match the
+    analytic expression computed by hand.
+    """
+    from spey.backends.default_pdf import UncorrelatedBackground
+
+    base_signal = np.array([12.0, 15.0])
+    background_yields = np.array([50.0, 48.0])
+    data = np.array([36, 33])
+    background_unc = np.array([12.0, 16.0])
+
+    # array model (baseline)
+    model_array = UncorrelatedBackground(
+        signal_yields=base_signal,
+        background_yields=background_yields,
+        data=data,
+        absolute_uncertainties=background_unc,
+    )
+
+    # callable model: extra parameter p[0] scales the signal
+    def signal_yields_fn(extra):
+        return base_signal * (1.0 + extra[0])
+
+    model_callable = UncorrelatedBackground(
+        signal_yields=signal_yields_fn,
+        background_yields=background_yields,
+        data=data,
+        absolute_uncertainties=background_unc,
+        n_signal_parameters=1,
+    )
+
+    # --- parameter-vector layout check ---
+    cfg = model_callable.config()
+    assert (
+        cfg.npar == 4
+    ), f"Expected 4 parameters [mu, sig_par_0, theta_0, theta_1], got {cfg.npar}"
+    assert cfg.parameter_names == ["mu", "signal_par_0", "theta_bkg_0", "theta_bkg_1"]
+
+    # --- at p[0]=0 logpdf must match the array model ---
+    pars_array = np.array([1.0, 0.5, -0.3])  # [mu, theta_0, theta_1]
+    pars_callable = np.array([1.0, 0.0, 0.5, -0.3])  # [mu, sig_par_0=0, theta_0, theta_1]
+
+    ll_array = model_array.get_logpdf_func()(pars_array)
+    ll_callable = model_callable.get_logpdf_func()(pars_callable)
+    assert np.isclose(
+        ll_array, ll_callable, rtol=1e-6
+    ), f"logpdf mismatch at sig_par=0: array={ll_array}, callable={ll_callable}"
+
+    # --- analytic check at a non-trivial point ---
+    # pars = [mu=1.0, sig_par_0=0.5, theta_0=0.0, theta_1=0.0]
+    mu_test, scale_test = 1.0, 1.5  # signal_yields = base * (1 + 0.5)
+    pars_test = np.array([mu_test, 0.5, 0.0, 0.0])
+
+    ll_model = model_callable.get_logpdf_func()(pars_test)
+
+    # analytic: nuisances at theta=0 → constraint term = sum log N(0|0,1)
+    lam = mu_test * base_signal * scale_test + background_yields
+    ll_analytic = np.sum(poisson.logpmf(data, lam)) + np.sum(
+        norm.logpdf([0.0, 0.0], 0.0, 1.0)
+    )
+    assert np.isclose(
+        ll_model, ll_analytic, rtol=1e-6
+    ), f"analytic mismatch: model={ll_model}, analytic={ll_analytic}"
+
+    # --- maximize_likelihood converges ---
+    stat_model = spey.StatisticalModel(backend=model_callable, analysis="unc_callable")
+    muhat, nll = stat_model.maximize_likelihood()
+    assert np.isfinite(muhat), f"muhat not finite: {muhat}"
+    assert np.isfinite(nll), f"nll not finite: {nll}"
+
+
+def test_uncorrelated_background_callable_signal_yields_modifiers_raises():
+    """UncorrelatedBackground: callable + modifiers must raise ValueError."""
+    from spey.backends.default_pdf import UncorrelatedBackground
+
+    with pytest.raises(ValueError, match="modifiers cannot be combined"):
+        UncorrelatedBackground(
+            signal_yields=lambda p: np.array([12.0, 15.0]),
+            background_yields=[50.0, 48.0],
+            data=[36, 33],
+            absolute_uncertainties=[12.0, 16.0],
+            modifiers=[[[2.0, 3.0]]],
+            n_signal_parameters=1,
+        )
+
+
+def test_correlated_background_callable_signal_yields_logpdf():
+    """
+    CorrelatedBackground: callable signal_yields with two extra parameters.
+
+    The callable s(p) = [p[0]*12, p[1]*15] lets the optimiser scale each
+    bin's signal independently.  At (p[0]=1, p[1]=1, theta=0) the result
+    must reproduce the analytic log-likelihood for the standard model.
+    """
+    from spey.backends.default_pdf import CorrelatedBackground
+
+    signal_yields = np.array([12.0, 15.0])
+    background_yields = np.array([50.0, 48.0])
+    data = np.array([36, 33])
+    covariance_matrix = np.array([[144.0, 13.0], [25.0, 256.0]])
+
+    sigma = np.sqrt(np.diag(covariance_matrix))
+    corr = covariance_to_correlation(covariance_matrix)
+
+    # callable: p = [scale_0, scale_1] → signal per bin
+    def signal_fn(extra):
+        return signal_yields * extra  # element-wise scale
+
+    model_callable = CorrelatedBackground(
+        signal_yields=signal_fn,
+        background_yields=background_yields,
+        data=data,
+        covariance_matrix=covariance_matrix,
+        n_signal_parameters=2,
+    )
+
+    # --- parameter-vector layout ---
+    cfg = model_callable.config()
+    assert cfg.npar == 5, f"Expected 5 parameters, got {cfg.npar}"
+    # pars = [mu, sig_par_0, sig_par_1, theta_0, theta_1]
+    assert cfg.parameter_names == [
+        "mu",
+        "signal_par_0",
+        "signal_par_1",
+        "theta_bkg_0",
+        "theta_bkg_1",
+    ]
+
+    # --- analytic check at (mu=1, scale=[1,1], theta=[0,0]) ---
+    # This matches the plain array model at (mu=1, theta=[0,0])
+    pars_test = np.array([1.0, 1.0, 1.0, 0.0, 0.0])
+    ll_model = model_callable.get_logpdf_func()(pars_test)
+
+    mv_norm = multivariate_normal(mean=[0, 0], cov=corr)
+    lam = (
+        1.0 * signal_yields * np.array([1.0, 1.0])
+        + background_yields
+        + sigma * np.array([0.0, 0.0])
+    )
+    ll_analytic = np.sum(poisson.logpmf(data, lam)) + mv_norm.logpdf([0.0, 0.0])
+    # rtol=0.001 matches the tolerance in test_correlated_background: spey uses a
+    # slightly different log-determinant computation than scipy.
+    assert np.isclose(
+        ll_model, ll_analytic, rtol=0.001
+    ), f"analytic mismatch: model={ll_model}, analytic={ll_analytic}"
+
+    # --- at p=(mu=1, scale=[0.5, 2.0], theta=[0.3, -0.2]) ---
+    scales = np.array([0.5, 2.0])
+    thetas = np.array([0.3, -0.2])
+    pars_test2 = np.concatenate([[1.0], scales, thetas])
+    ll_model2 = model_callable.get_logpdf_func()(pars_test2)
+
+    lam2 = 1.0 * signal_yields * scales + background_yields + sigma * thetas
+    ll_analytic2 = np.sum(poisson.logpmf(data, lam2)) + mv_norm.logpdf(thetas)
+    assert np.isclose(
+        ll_model2, ll_analytic2, rtol=0.001
+    ), f"analytic mismatch (non-trivial point): model={ll_model2}, analytic={ll_analytic2}"
+
+    # --- maximize_likelihood converges ---
+    stat_model = spey.StatisticalModel(backend=model_callable, analysis="corr_callable")
+    muhat, nll = stat_model.maximize_likelihood()
+    assert np.isfinite(muhat), f"muhat not finite: {muhat}"
+    assert np.isfinite(nll), f"nll not finite: {nll}"
+
+
+def test_third_moment_expansion_callable_signal_yields_logpdf():
+    """
+    ThirdMomentExpansion: callable signal_yields with one extra parameter.
+
+    The callable s(p) = base_signal * p[0] allows a free per-event signal scale.
+    At p[0]=1, theta=0 the result must match the analytic NLL for the
+    third-moment-expanded background.
+    """
+    from spey.backends.default_pdf import ThirdMomentExpansion
+    from spey.backends.default_pdf.third_moment import third_moment_expansion
+
+    base_signal = np.array([12.0, 15.0])
+    background_yields = np.array([50.0, 48.0])
+    data = np.array([36, 33])
+    covariance_matrix = np.array([[144.0, 13.0], [25.0, 256.0]])
+    third_moment = np.array([0.5, 0.8])
+
+    def signal_fn(extra):
+        return base_signal * extra[0]
+
+    model_callable = ThirdMomentExpansion(
+        signal_yields=signal_fn,
+        background_yields=background_yields,
+        data=data,
+        covariance_matrix=covariance_matrix,
+        third_moment=third_moment,
+        n_signal_parameters=1,
+    )
+
+    cfg = model_callable.config()
+    assert cfg.npar == 4, f"Expected 4 parameters, got {cfg.npar}"
+    assert cfg.parameter_names == ["mu", "signal_par_0", "theta_bkg_0", "theta_bkg_1"]
+
+    # Compute A, B, C, corr from the third-moment expansion to build the analytic expression
+    A, B, C, corr = third_moment_expansion(
+        background_yields, covariance_matrix, third_moment, True
+    )
+    mv_norm = multivariate_normal(mean=[0, 0], cov=corr)
+
+    # at (mu=1, scale=1, theta=[0,0])
+    pars_test = np.array([1.0, 1.0, 0.0, 0.0])
+    ll_model = model_callable.get_logpdf_func()(pars_test)
+
+    thetas = np.array([0.0, 0.0])
+    lam = 1.0 * base_signal * 1.0 + A + B * thetas + C * thetas**2
+    ll_analytic = np.sum(poisson.logpmf(data, lam)) + mv_norm.logpdf(thetas)
+    assert np.isclose(
+        ll_model, ll_analytic, rtol=1e-5
+    ), f"analytic mismatch at theta=0: model={ll_model}, analytic={ll_analytic}"
+
+    # at (mu=0.5, scale=2.0, theta=[0.4, -0.3])
+    pars_test2 = np.array([0.5, 2.0, 0.4, -0.3])
+    ll_model2 = model_callable.get_logpdf_func()(pars_test2)
+
+    thetas2 = np.array([0.4, -0.3])
+    lam2 = 0.5 * base_signal * 2.0 + A + B * thetas2 + C * thetas2**2
+    ll_analytic2 = np.sum(poisson.logpmf(data, lam2)) + mv_norm.logpdf(thetas2)
+    assert np.isclose(
+        ll_model2, ll_analytic2, rtol=1e-5
+    ), f"analytic mismatch (non-trivial): model={ll_model2}, analytic={ll_analytic2}"
+
+    # maximize_likelihood must converge
+    stat_model = spey.StatisticalModel(backend=model_callable, analysis="tme_callable")
+    muhat, nll = stat_model.maximize_likelihood()
+    assert np.isfinite(muhat), f"muhat not finite: {muhat}"
+    assert np.isfinite(nll), f"nll not finite: {nll}"
+
+
+def test_effective_sigma_callable_signal_yields_logpdf():
+    """
+    EffectiveSigma: callable signal_yields with one extra parameter.
+
+    The callable s(p) = base_signal * (1 + p[0]).  At p[0]=0, theta=0 the
+    log-likelihood must match the analytic expression built from the
+    effective-sigma formula (arXiv:physics/0406120, eqs. 18-19).
+    """
+    from spey.backends.default_pdf import EffectiveSigma
+
+    base_signal = np.array([12.0, 15.0])
+    background_yields = np.array([50.0, 48.0])
+    data = np.array([36, 33])
+    correlation_matrix = np.array([[1.0, 0.06770833], [0.13020833, 1.0]])
+    envelops = [(10.0, 15.0), (13.0, 18.0)]  # (sigma_plus, sigma_minus) per bin
+
+    sigma_plus = np.array([10.0, 13.0])
+    sigma_minus = np.array([15.0, 18.0])
+
+    def signal_fn(extra):
+        return base_signal * (1.0 + extra[0])
+
+    model_callable = EffectiveSigma(
+        signal_yields=signal_fn,
+        background_yields=background_yields,
+        data=data,
+        correlation_matrix=correlation_matrix,
+        absolute_uncertainty_envelops=envelops,
+        n_signal_parameters=1,
+    )
+
+    cfg = model_callable.config()
+    assert cfg.npar == 4, f"Expected 4 parameters, got {cfg.npar}"
+    assert cfg.parameter_names == ["mu", "signal_par_0", "theta_bkg_0", "theta_bkg_1"]
+
+    # analytic effective sigma at theta=0
+    def sigma_eff(thetas):
+        return np.sqrt(
+            np.clip(
+                sigma_plus * sigma_minus
+                + (sigma_plus - sigma_minus) * (thetas - background_yields),
+                1e-10,
+                None,
+            )
+        )
+
+    mv_norm = multivariate_normal(mean=[0, 0], cov=correlation_matrix)
+
+    # at (mu=1, sig_par=0, theta=[0,0])
+    thetas = np.array([0.0, 0.0])
+    pars_test = np.array([1.0, 0.0, 0.0, 0.0])
+    ll_model = model_callable.get_logpdf_func()(pars_test)
+
+    lam = background_yields + sigma_eff(thetas) * thetas + 1.0 * base_signal * 1.0
+    ll_analytic = np.sum(poisson.logpmf(data, lam)) + mv_norm.logpdf(thetas)
+    # rtol=0.001 to allow for spey's log-det convention vs scipy (same as correlated test)
+    assert np.isclose(
+        ll_model, ll_analytic, rtol=0.001
+    ), f"analytic mismatch at theta=0: model={ll_model}, analytic={ll_analytic}"
+
+    # at (mu=0.8, sig_par=0.5, theta=[0.2, -0.1])
+    thetas2 = np.array([0.2, -0.1])
+    pars_test2 = np.array([0.8, 0.5, 0.2, -0.1])
+    ll_model2 = model_callable.get_logpdf_func()(pars_test2)
+
+    lam2 = background_yields + sigma_eff(thetas2) * thetas2 + 0.8 * base_signal * 1.5
+    ll_analytic2 = np.sum(poisson.logpmf(data, lam2)) + mv_norm.logpdf(thetas2)
+    assert np.isclose(
+        ll_model2, ll_analytic2, rtol=0.001
+    ), f"analytic mismatch (non-trivial): model={ll_model2}, analytic={ll_analytic2}"
+
+    # maximize_likelihood must converge
+    stat_model = spey.StatisticalModel(backend=model_callable, analysis="es_callable")
+    muhat, nll = stat_model.maximize_likelihood()
+    assert np.isfinite(muhat), f"muhat not finite: {muhat}"
+    assert np.isfinite(nll), f"nll not finite: {nll}"
+
+
+def test_callable_signal_yields_is_alive_default_backends():
+    """is_alive returns True for all backends when signal_yields is callable."""
+    from spey.backends.default_pdf import (
+        CorrelatedBackground,
+        EffectiveSigma,
+        ThirdMomentExpansion,
+        UncorrelatedBackground,
+    )
+
+    sig_fn = lambda p: np.zeros(2)  # noqa: E731
+    bkg = [50.0, 48.0]
+    data = [36, 33]
+    cov = [[144.0, 13.0], [25.0, 256.0]]
+
+    assert UncorrelatedBackground(
+        signal_yields=sig_fn,
+        background_yields=bkg,
+        data=data,
+        absolute_uncertainties=[12.0, 16.0],
+        n_signal_parameters=1,
+    ).is_alive
+
+    assert CorrelatedBackground(
+        signal_yields=sig_fn,
+        background_yields=bkg,
+        data=data,
+        covariance_matrix=cov,
+        n_signal_parameters=1,
+    ).is_alive
+
+    assert ThirdMomentExpansion(
+        signal_yields=sig_fn,
+        background_yields=bkg,
+        data=data,
+        covariance_matrix=cov,
+        third_moment=[0.5, 0.8],
+        n_signal_parameters=1,
+    ).is_alive
+
+    assert EffectiveSigma(
+        signal_yields=sig_fn,
+        background_yields=bkg,
+        data=data,
+        correlation_matrix=[[1.0, 0.07], [0.13, 1.0]],
+        absolute_uncertainty_envelops=[(10.0, 15.0), (13.0, 18.0)],
+        n_signal_parameters=1,
+    ).is_alive
+
+
+def test_uncertainty_synthesizer_n_signal_parameters_domain_shift():
+    """
+    signal_uncertainty_synthesizer: n_signal_parameters shifts constraint domains.
+
+    With N=2 bins, 1 modifier, and n_signal_parameters=2:
+      domain = 1 + 2 + 2 = 5  →  [5]
+    With n_signal_parameters=0 (default):
+      domain = 1 + 0 + 2 = 3  →  [3]
+    """
+    from spey.backends.default_pdf.uncertainty_synthesizer import (
+        signal_uncertainty_synthesizer,
+    )
+
+    signal_yields = [10.0, 20.0]
+    modifiers = [[1.0, 2.0]]  # one symmetric modifier
+
+    result_default = signal_uncertainty_synthesizer(signal_yields, modifiers)
+    result_shifted = signal_uncertainty_synthesizer(
+        signal_yields, modifiers, n_signal_parameters=2
+    )
+    result_explicit = signal_uncertainty_synthesizer(
+        signal_yields, modifiers, domain=np.array([7])
+    )
+
+    domain_default = result_default["constraint"][0]["kwargs"]["domain"]
+    domain_shifted = result_shifted["constraint"][0]["kwargs"]["domain"]
+    domain_explicit = result_explicit["constraint"][0]["kwargs"]["domain"]
+
+    assert domain_default[0] == 3, f"Expected domain index 3, got {domain_default[0]}"
+    assert domain_shifted[0] == 5, f"Expected domain index 5, got {domain_shifted[0]}"
+    assert domain_explicit[0] == 7, f"Expected domain index 7, got {domain_explicit[0]}"
+
+
+def test_correlated_background_modifiers_with_n_signal_parameters_zero():
+    """
+    With n_signal_parameters=0 and modifiers, existing modifier behavior is preserved.
+    The signal-uncertainty nuisance parameters are placed after the background
+    nuisances (at index N+1 = 3 for 2 bins).
+    """
+    from spey.backends.default_pdf import CorrelatedBackground
+
+    signal_yields = np.array([12.0, 15.0])
+    background_yields = np.array([50.0, 48.0])
+    data = np.array([36, 33])
+    covariance_matrix = np.array([[144.0, 13.0], [25.0, 256.0]])
+
+    model = CorrelatedBackground(
+        signal_yields=signal_yields,
+        background_yields=background_yields,
+        data=data,
+        covariance_matrix=covariance_matrix,
+        modifiers=[[2.0, 3.0]],  # one symmetric modifier: values per bin for one source
+    )
+
+    cfg = model.config()
+    # pars = [mu, theta_bkg_0, theta_bkg_1, theta_sig_0]
+    assert cfg.npar == 4, f"Expected 4 parameters, got {cfg.npar}"
+
+    # signal-uncertainty constraint domain must be index 3 (= 1 + 0 + 2)
+    sig_unc_constraint = model.signal_uncertainty_configuration["constraint"][0]
+    domain = sig_unc_constraint["kwargs"]["domain"]
+    assert domain[0] == 3, f"Expected signal-unc domain index 3, got {domain[0]}"
+
+    # logpdf must be finite at the nominal point
+    pars = np.array([1.0, 0.0, 0.0, 0.0])
+    ll = model.get_logpdf_func()(pars)
+    assert np.isfinite(ll), f"logpdf not finite: {ll}"
 
 
 def test_bin_merge():
