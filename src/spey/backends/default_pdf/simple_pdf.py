@@ -34,6 +34,11 @@ Available backends
         \mathrm{Poiss}\!\left(n^{\rm obs}_i \,\big|\,
         \mu n^s_i + n^b_i + \theta_i \sigma_i\right).
 
+    .. autosummary::
+        :toctree: ../_generated/
+
+        Poisson
+
 ``default.normal`` — :class:`Gaussian`
     Product of independent Gaussians (uncorrelated):
 
@@ -46,6 +51,11 @@ Available backends
 
     This is appropriate when the expected counts are large enough that Poisson
     statistics can be well approximated by a Gaussian.
+
+    .. autosummary::
+        :toctree: ../_generated/
+
+        Gaussian
 
 ``default.multivariate_normal`` — :class:`MultivariateNormal`
     Multivariate Gaussian with an arbitrary (possibly :math:`\mu`-dependent)
@@ -62,6 +72,11 @@ Available backends
     where :math:`\lambda_i(\mu) = \mu n^s_i + n^b_i`.  The covariance matrix
     :math:`\Sigma` may be a constant array or a callable of the full parameter
     vector, enabling :math:`\mu`-dependent uncertainties.
+
+    .. autosummary::
+        :toctree: ../_generated/
+
+        MultivariateNormal
 
 Parameter layout
 ----------------

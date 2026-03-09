@@ -9,10 +9,6 @@ Default Backends
     :toctree: ../_generated/
 
     DefaultPDFBase
-    UncorrelatedBackground
-    CorrelatedBackground
-    ThirdMomentExpansion
-    EffectiveSigma
 
 .. automodule:: spey.backends.default_pdf.third_moment
 
@@ -36,17 +32,14 @@ Default Backends
 Simple PDFs
 ~~~~~~~~~~~
 
-.. automodule:: spey.backends.default_pdf.simple_pdf
-
 .. currentmodule:: spey.backends.default_pdf.simple_pdf
+
+.. automodule:: spey.backends.default_pdf.simple_pdf
 
 .. autosummary::
     :toctree: ../_generated/
 
     SimplePDFBase
-    Poisson
-    Gaussian
-    MultivariateNormal
 
 
 Distributions

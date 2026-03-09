@@ -42,6 +42,11 @@ Available Backends
     The constraint :math:`n^b_i + \theta_i \sigma_i \geq 0` is enforced during
     optimisation.
 
+    .. autosummary::
+        :toctree: ../_generated/
+
+        UncorrelatedBackground
+
 ``default.correlated_background`` — :class:`CorrelatedBackground`
     Simplified likelihood :xref:`1809.05548` with a multivariate normal constraint that
     captures inter-bin background correlations.
@@ -55,6 +60,11 @@ Available Backends
     uncertainties and :math:`\rho` is the correlation matrix derived from the
     user-supplied covariance matrix :math:`\Sigma`.
 
+    .. autosummary::
+        :toctree: ../_generated/
+
+        CorrelatedBackground
+
 ``default.third_moment_expansion`` — :class:`ThirdMomentExpansion`
     Extends the simplified likelihood by including third-moment (skewness) information
     to better describe asymmetric uncertainties :xref:`1809.05548`.  The
@@ -67,6 +77,11 @@ Available Backends
     with :math:`A_i`, :math:`B_i`, :math:`C_i` derived from the first three moments
     of the background distribution, and :math:`\rho` is modified accordingly.  See
     :class:`ThirdMomentExpansion` for the full expressions.
+
+    .. autosummary::
+        :toctree: ../_generated/
+
+        ThirdMomentExpansion
 
 ``default.effective_sigma`` — :class:`EffectiveSigma`
     Variable-Gaussian (effective-:math:`\sigma`) approach inspired by
@@ -84,6 +99,11 @@ Available Backends
 
     The constraint model is a multivariate normal with a user-supplied correlation
     matrix.
+
+    .. autosummary::
+        :toctree: ../_generated/
+
+        EffectiveSigma
 
 Parameter layout
 ----------------
@@ -169,7 +189,7 @@ class DefaultPDFBase(BackendBase):
     constraint distribution.
 
     Args:
-        signal_yields (``np.ndarray | Callable[[np.ndarray], np.ndarray]``): Per-bin
+        signal_yields (:code:`np.ndarray | Callable[[np.ndarray], np.ndarray]`): Per-bin
           signal yields :math:`\{n^s_i\}`, or a callable that accepts the extra signal
           parameters ``pars[1 : 1 + n_signal_parameters]`` and returns the per-bin
           yields as a ``np.ndarray``.  When a callable is supplied ``n_signal_parameters``
@@ -214,8 +234,8 @@ class DefaultPDFBase(BackendBase):
               pars = [μ, sig_par_0, …, sig_par_{n-1}, θ_bkg_1, …, θ_bkg_N, θ_sig_1, …]
 
           Has no effect when ``signal_yields`` is a plain array.
-        signal_parameter_bounds (``List[Tuple[Optional[float], Optional[float]]] | None``,
-          default ``None``): Optimiser bounds for each of the ``n_signal_parameters``
+        signal_parameter_bounds (:code:`List[Tuple[Optional[float], Optional[float]]] | None`):
+          Optimiser bounds for each of the ``n_signal_parameters``
           extra signal parameters.  Each entry is a ``(lower, upper)`` pair; use
           ``None`` for either element to leave that side unbounded.  When the argument
           itself is ``None`` every extra signal parameter receives ``(None, None)``.
@@ -758,7 +778,7 @@ class UncorrelatedBackground(DefaultPDFBase):
     over bins, making this the fastest backend for quick estimates.
 
     Args:
-        signal_yields (``List[float] | Callable[[np.ndarray], np.ndarray]``): Per-bin
+        signal_yields (:code:`np.ndarray | Callable[[np.ndarray], np.ndarray]`): Per-bin
           signal yields :math:`\{n^s_i\}`, or a callable that accepts the extra signal
           parameters ``pars[1 : 1 + n_signal_parameters]`` and returns the per-bin
           yields as a ``np.ndarray``.
@@ -776,8 +796,8 @@ class UncorrelatedBackground(DefaultPDFBase):
           parameters accepted by a callable ``signal_yields``.  Has no effect when
           ``signal_yields`` is a plain array.  See :class:`DefaultPDFBase` for the
           parameter-vector layout.
-        signal_parameter_bounds (``List[Tuple[Optional[float], Optional[float]]] | None``,
-          default ``None``): Optimiser bounds for each extra signal parameter.  Each entry
+        signal_parameter_bounds (:code:`List[Tuple[Optional[float], Optional[float]]] | None`):
+          Optimiser bounds for each extra signal parameter.  Each entry
           is a ``(lower, upper)`` pair; use ``None`` for an unbounded side.  When
           ``None``, every extra signal parameter receives ``(None, None)``.  Must have
           exactly ``n_signal_parameters`` entries when provided.
@@ -906,10 +926,10 @@ class CorrelatedBackground(DefaultPDFBase):
     is enforced during optimisation.
 
     Args:
-        signal_yields (``np.ndarray | Callable[[np.ndarray], np.ndarray]``): Per-bin
-          signal yields :math:`\{n^s_i\}`, or a callable that accepts the extra signal
-          parameters ``pars[1 : 1 + n_signal_parameters]`` and returns the per-bin
-          yields as a ``np.ndarray``.
+        signal_yields (:code:`np.ndarray | Callable[[np.ndarray], np.ndarray]`):
+          Per-bin signal yields :math:`\{n^s_i\}`, or a callable that accepts
+          the extra signal parameters ``pars[1 : 1 + n_signal_parameters]``
+          and returns the per-bin yields as a :code:`np.ndarray`.
         background_yields (``np.ndarray``): Per-bin expected background yields
           :math:`\{n^b_i\}`.
         data (``np.ndarray``): Per-bin observed counts :math:`\{n^{\rm obs}_i\}`.
@@ -923,8 +943,8 @@ class CorrelatedBackground(DefaultPDFBase):
           parameters accepted by a callable ``signal_yields``.  Has no effect when
           ``signal_yields`` is a plain array.  See :class:`DefaultPDFBase` for the
           parameter-vector layout.
-        signal_parameter_bounds (``List[Tuple[Optional[float], Optional[float]]] | None``,
-          default ``None``): Optimiser bounds for each extra signal parameter.  Each entry
+        signal_parameter_bounds (:code:`List[Tuple[Optional[float], Optional[float]]] | None`):
+          Optimiser bounds for each extra signal parameter.  Each entry
           is a ``(lower, upper)`` pair; use ``None`` for an unbounded side.  When
           ``None``, every extra signal parameter receives ``(None, None)``.  Must have
           exactly ``n_signal_parameters`` entries when provided.
@@ -1037,7 +1057,7 @@ class ThirdMomentExpansion(DefaultPDFBase):
     the standard simplified likelihood.
 
     Args:
-        signal_yields (``np.ndarray | Callable[[np.ndarray], np.ndarray]``): Per-bin
+        signal_yields (:code:`np.ndarray | Callable[[np.ndarray], np.ndarray]`): Per-bin
           signal yields :math:`\{n^s_i\}`, or a callable that accepts the extra signal
           parameters ``pars[1 : 1 + n_signal_parameters]`` and returns the per-bin
           yields as a ``np.ndarray``.
@@ -1055,8 +1075,8 @@ class ThirdMomentExpansion(DefaultPDFBase):
           parameters accepted by a callable ``signal_yields``.  Has no effect when
           ``signal_yields`` is a plain array.  See :class:`DefaultPDFBase` for the
           parameter-vector layout.
-        signal_parameter_bounds (``List[Tuple[Optional[float], Optional[float]]] | None``,
-          default ``None``): Optimiser bounds for each extra signal parameter.  Each entry
+        signal_parameter_bounds (:code:`List[Tuple[Optional[float], Optional[float]]] | None`):
+          Optimiser bounds for each extra signal parameter.  Each entry
           is a ``(lower, upper)`` pair; use ``None`` for an unbounded side.  When
           ``None``, every extra signal parameter receives ``(None, None)``.  Must have
           exactly ``n_signal_parameters`` entries when provided.
@@ -1217,7 +1237,7 @@ class EffectiveSigma(DefaultPDFBase):
     :class:`CorrelatedBackground` result.
 
     Args:
-        signal_yields (``np.ndarray | Callable[[np.ndarray], np.ndarray]``): Per-bin
+        signal_yields (:code:`np.ndarray | Callable[[np.ndarray], np.ndarray]`): Per-bin
           signal yields :math:`\{n^s_i\}`, or a callable that accepts the extra signal
           parameters ``pars[1 : 1 + n_signal_parameters]`` and returns the per-bin
           yields as a ``np.ndarray``.
@@ -1236,8 +1256,8 @@ class EffectiveSigma(DefaultPDFBase):
           parameters accepted by a callable ``signal_yields``.  Has no effect when
           ``signal_yields`` is a plain array.  See :class:`DefaultPDFBase` for the
           parameter-vector layout.
-        signal_parameter_bounds (``List[Tuple[Optional[float], Optional[float]]] | None``,
-          default ``None``): Optimiser bounds for each extra signal parameter.  Each entry
+        signal_parameter_bounds (:code:`List[Tuple[Optional[float], Optional[float]]] | None`):
+          Optimiser bounds for each extra signal parameter.  Each entry
           is a ``(lower, upper)`` pair; use ``None`` for an unbounded side.  When
           ``None``, every extra signal parameter receives ``(None, None)``.  Must have
           exactly ``n_signal_parameters`` entries when provided.
