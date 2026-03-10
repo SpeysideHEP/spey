@@ -174,6 +174,10 @@ class SimplePDFBase(BackendBase):
         signal_yields: Union[List[float], Callable[[np.ndarray], np.ndarray]],
         background_yields: List[float],
         data: List[int],
+        n_signal_parameters: int = 0,
+        signal_parameter_bounds: Optional[
+            List[Tuple[Optional[float], Optional[float]]]
+        ] = None,
     ):
         self.data = np.array(data, dtype=np.float64)
         if callable(signal_yields):
@@ -187,17 +191,33 @@ class SimplePDFBase(BackendBase):
         """Keyword arguments for main model"""
         self.constraints = []
         """Constraints to be used during optimisation process"""
+        self.n_signal_parameters = n_signal_parameters
+        """Number of signal parameters"""
 
         minimum_poi = -np.inf
         if self.is_alive and not callable(self.signal_yields):
             sig = self.signal_yields
             minimum_poi = -np.min(self.background_yields[sig > 0.0] / sig[sig > 0.0])
 
+        if signal_parameter_bounds is None:
+            _sig_par_bounds = [(None, None)] * n_signal_parameters
+        else:
+            if len(signal_parameter_bounds) != n_signal_parameters:
+                raise ValueError(
+                    f"signal_parameter_bounds has {len(signal_parameter_bounds)} entries "
+                    f"but n_signal_parameters is {n_signal_parameters}."
+                )
+            _sig_par_bounds = [
+                b if b is not None else (None, None) for b in signal_parameter_bounds
+            ]
+
         self._config = ModelConfig(
             poi_index=0,
             minimum_poi=minimum_poi,
-            suggested_init=[1.0],
-            suggested_bounds=[(minimum_poi, 10)],
+            suggested_init=[1.0] + [1.0] * n_signal_parameters,
+            suggested_bounds=[(minimum_poi, 10)] + _sig_par_bounds,
+            parameter_names=["mu"]
+            + [f"signal_par_{i}" for i in range(n_signal_parameters)],
         )
 
     @property
@@ -624,6 +644,15 @@ class Gaussian(SimplePDFBase):
         data (``List[int]``): Per-bin observed counts :math:`\{n^{\rm obs}_i\}`.
         absolute_uncertainties (``List[float]``): Per-bin absolute uncertainties
           :math:`\{\sigma_i\}` that enter the Gaussian widths.
+        n_signal_parameters (``int``, default ``0``): number of additional free parameters
+          to pass to a callable ``signal_yields``.  Has no effect when ``signal_yields``
+          is a plain array.  When greater than zero the optimiser parameter vector is
+          extended to ``[mu, signal_par_0, ..., signal_par_{n-1}]``.
+        signal_parameter_bounds (:code:`List[Tuple[Optional[float], Optional[float]]] | None`):
+          Optimiser bounds for each extra signal parameter.  Each entry
+          is a ``(lower, upper)`` pair; use ``None`` for an unbounded side.  When
+          ``None``, every extra signal parameter receives ``(None, None)``.  Must have
+          exactly ``n_signal_parameters`` entries when provided.
     """
 
     name: str = "default.normal"
@@ -639,13 +668,21 @@ class Gaussian(SimplePDFBase):
 
     def __init__(
         self,
-        signal_yields: List[float],
+        signal_yields: Union[List[float], Callable[[np.ndarray], np.ndarray]],
         background_yields: List[float],
         data: List[int],
         absolute_uncertainties: List[float],
+        n_signal_parameters: int = 0,
+        signal_parameter_bounds: Optional[
+            List[Tuple[Optional[float], Optional[float]]]
+        ] = None,
     ):
         super().__init__(
-            signal_yields=signal_yields, background_yields=background_yields, data=data
+            signal_yields=signal_yields,
+            background_yields=background_yields,
+            data=data,
+            n_signal_parameters=n_signal_parameters,
+            signal_parameter_bounds=signal_parameter_bounds,
         )
         self.absolute_uncertainties = np.array(absolute_uncertainties, dtype=np.float64)
         """absolute uncertainties on the background"""
@@ -780,6 +817,11 @@ class MultivariateNormal(SimplePDFBase):
           to pass to a callable ``signal_yields``.  Has no effect when ``signal_yields``
           is a plain array.  When greater than zero the optimiser parameter vector is
           extended to ``[mu, signal_par_0, ..., signal_par_{n-1}]``.
+        signal_parameter_bounds (:code:`List[Tuple[Optional[float], Optional[float]]] | None`):
+          Optimiser bounds for each extra signal parameter.  Each entry
+          is a ``(lower, upper)`` pair; use ``None`` for an unbounded side.  When
+          ``None``, every extra signal parameter receives ``(None, None)``.  Must have
+          exactly ``n_signal_parameters`` entries when provided.
 
     """
 
@@ -801,11 +843,17 @@ class MultivariateNormal(SimplePDFBase):
         data: List[int],
         covariance_matrix: Union[List[List[float]], callable],
         n_signal_parameters: int = 0,
+        signal_parameter_bounds: Optional[
+            List[Tuple[Optional[float], Optional[float]]]
+        ] = None,
     ):
         super().__init__(
-            signal_yields=signal_yields, background_yields=background_yields, data=data
+            signal_yields=signal_yields,
+            background_yields=background_yields,
+            data=data,
+            n_signal_parameters=n_signal_parameters,
+            signal_parameter_bounds=signal_parameter_bounds,
         )
-        self.n_signal_parameters = n_signal_parameters
 
         if not callable(covariance_matrix):
             self.covariance_matrix = np.array(covariance_matrix, dtype=np.float64)
@@ -823,14 +871,3 @@ class MultivariateNormal(SimplePDFBase):
             "cov": self.covariance_matrix,
             "pdf_type": "multivariategauss",
         }
-
-        if n_signal_parameters > 0:
-            self._config = ModelConfig(
-                poi_index=0,
-                minimum_poi=self._config.minimum_poi,
-                suggested_init=[1.0] + [1.0] * n_signal_parameters,
-                suggested_bounds=[(self._config.minimum_poi, 10)]
-                + [(None, None)] * n_signal_parameters,
-                parameter_names=["mu"]
-                + [f"signal_par_{i}" for i in range(n_signal_parameters)],
-            )
