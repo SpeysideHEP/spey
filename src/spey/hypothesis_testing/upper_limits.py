@@ -91,17 +91,13 @@ def find_root_limits(
     low, hig = low_ini, hig_ini
 
     low_computer = ComputerWrapper(computer)
-    while low_computer(low) > loc:
-        low *= 0.5
-        if low < low_bound:
-            break
+    while low_computer(low) > loc and low > low_bound:
+        low = max(low * 0.2, low_bound)
     log.debug(f"Low results: {low_computer._results}")
 
     hig_computer = ComputerWrapper(computer)
-    while hig_computer(hig) < loc:
-        hig *= 2.0
-        if hig > hig_bound:
-            break
+    while hig_computer(hig) < loc and hig < hig_bound:
+        hig = min(hig * 5.0, hig_bound)
     log.debug(f"High results: {hig_computer._results}")
 
     return low_computer, hig_computer
@@ -245,6 +241,7 @@ def find_poi_upper_limit(
             full_output=True,
             maxiter=maxiter,
         )
+        del low, hig
 
         if not r.converged:
             log.warning(f"Optimiser did not converge.\n{r}")
