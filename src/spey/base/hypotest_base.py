@@ -225,6 +225,7 @@ class HypothesisTestingBase(ABC):
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
         data: Optional[Union[List[float], np.ndarray]] = None,
+        return_parameters: bool = False,
         **kwargs,
     ) -> float:
         r"""
@@ -255,6 +256,7 @@ class HypothesisTestingBase(ABC):
               likelihood :math:`\mathcal{L}`.
             data (``Union[List[float], np.ndarray]``, default ``None``): Explicit
               dataset to condition on.  When provided, overrides ``expected``.
+            return_parameters (``bool``, default ``False``): Return fit parameters.
             kwargs: Additional keyword arguments forwarded to the optimiser.
 
         Returns:

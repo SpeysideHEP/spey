@@ -430,10 +430,11 @@ class StatisticalModel(HypothesisTestingBase):
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
         data: Optional[Union[List[float], np.ndarray]] = None,
+        return_parameters: bool = False,
         init_pars: Optional[List[float]] = None,
         par_bounds: Optional[List[Tuple[float, float]]] = None,
         **kwargs,
-    ) -> float:
+    ) -> Union[float, Tuple[float, np.ndarray]]:
         r"""
         Compute the likelihood of the statistical model at a fixed parameter of interest.
 
@@ -460,6 +461,7 @@ class StatisticalModel(HypothesisTestingBase):
               if ``False`` returns likelihood value.
             data (``Union[List[float], np.ndarray]``, default ``None``): input data that to fit. If
               ``None`` data will be set according to ``expected`` input.
+            return_parameters (``bool``, default ``False``): Return fit parameters.
             init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
             par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
               the optimiser.
@@ -476,7 +478,8 @@ class StatisticalModel(HypothesisTestingBase):
             and fit_opts["model_configuration"].poi_index is not None
             and isinstance(poi_test, float)
         ):
-            logpdf = fit_opts["logpdf"]([poi_test])
+            fit_param = np.array([poi_test])
+            logpdf = fit_opts["logpdf"](fit_param)
         else:
             logpdf, fit_param = fit(
                 **fit_opts,
@@ -486,7 +489,11 @@ class StatisticalModel(HypothesisTestingBase):
             )
             log.debug(f"fit parameters : \n\t{fit_param}")
 
-        return -logpdf if return_nll else np.exp(logpdf)
+        out = -logpdf if return_nll else np.exp(logpdf)
+        if return_parameters:
+            return out, fit_param
+
+        return out
 
     def generate_asimov_data(
         self,
