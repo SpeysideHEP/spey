@@ -10,15 +10,9 @@ Default Backends
 
     DefaultPDFBase
 
-.. automodule:: spey.backends.default_pdf.third_moment
-
 .. currentmodule:: spey.backends.default_pdf.third_moment
 
-.. autosummary::
-    :toctree: ../_generated/
-
-    third_moment_expansion
-    compute_third_moments
+.. automodule:: spey.backends.default_pdf.third_moment
 
 .. automodule:: spey.backends.default_pdf.uncertainty_synthesizer
 

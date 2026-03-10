@@ -21,6 +21,7 @@ def about() -> None:
         print(f"iminuit version:          {version('iminuit')}")
     print(f"Autograd version:         {version('autograd')}")
     print(f"tqdm version:             {version('tqdm')}")
+    print(f"joblib version:           {version('joblib')}")
     print(f"semantic_version version: {version('semantic_version')}")
 
     print("\nInstalled backend plug-ins:\n")

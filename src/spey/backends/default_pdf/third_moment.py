@@ -60,6 +60,11 @@ for each bin.  Bins that violate this condition are treated with :math:`C_i = 0`
 When :math:`m^{(3)}_i = 0` for all bins the expansion reduces identically to the
 standard simplified likelihood (:class:`~spey.backends.default_pdf.CorrelatedBackground`).
 
+.. autosummary::
+    :toctree: ../_generated/
+
+    third_moment_expansion
+
 Computing third moments from asymmetric uncertainties
 ------------------------------------------------------
 
@@ -90,12 +95,17 @@ The third central moment of this distribution is
 which is computed numerically by :func:`compute_third_moments`.
 See :xref:`2602.18611` for a usecase.
 
+.. autosummary::
+    :toctree: ../_generated/
+
+    compute_third_moments
+
 References
 ----------
 * CMS Collaboration, *Simplified likelihood for the re-interpretation of public CMS
   results*, :xref:`1809.05548`, Sec. 2.
 * CMS Collaboration, *Combined measurements and interpretations of Higgs boson
-  production and decay in proton-proton collisions at :math:`\sqrt{s} = 13` TeV*,
+  production and decay in proton-proton collisions at* :math:`\sqrt{s} = 13` TeV,
   :xref:`2602.18611`
 """
 import logging
