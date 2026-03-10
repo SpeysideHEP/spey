@@ -151,6 +151,17 @@ class ModelConfig:
                 )
         return bounds
 
+    def change_parameter_names(self, name_map: dict[str, str]) -> None:
+        """Change the parameter names"""
+        new_names = []
+        for old, new in name_map.items():
+            if old not in self.parameter_names:
+                raise ValueError(f"Parameter '{old}' does not exist.")
+            if new in new_names:
+                raise ValueError("Each name has to be unique.")
+            new_names.append(new)
+            self.parameter_names[self.parameter_names.index(old)] = new
+
     def rescale_poi_bounds(
         self, allow_negative_signal: bool = True, poi_upper_bound: Optional[float] = None
     ) -> List[Tuple[float, float]]:
