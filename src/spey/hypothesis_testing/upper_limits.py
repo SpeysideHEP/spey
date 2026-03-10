@@ -40,6 +40,9 @@ class ComputerWrapper:
     def __call__(self, value: float) -> float:
         """Compute the input function and return its value"""
         self._results.append((value, self.computer(value)))
+        if len(self._results) > 10:
+            # Do not keep more than 10 values at a time
+            self._results = self._results[-10:]
         return self[-1]
 
     def __getitem__(self, item: int) -> float:
