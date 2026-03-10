@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
-from spey.base.backend_base import BackendBase
+from spey.base.backend_base import BackendBase, ModelConfig
 from spey.base.hypotest_base import HypothesisTestingBase
 from spey.optimizer.core import fit
 from spey.system.exceptions import (
@@ -205,6 +205,11 @@ class StatisticalModel(HypothesisTestingBase):
             Backend identifier string (e.g. ``"default.poisson"``).
         """
         return getattr(self.backend, "name", self.backend.__class__.__name__)
+
+    @property
+    def config(self) -> ModelConfig:
+        """Retreive model configuration"""
+        return self.backend.config
 
     @property
     def is_asymptotic_calculator_available(self) -> bool:
