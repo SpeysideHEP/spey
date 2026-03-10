@@ -140,6 +140,17 @@ the sparsely covered neighbourhood.  This pass is repeated
 that are geometrically sparse on the contour even when they are not easily
 detected as angular gaps from the MLE.
 
+.. currentmodule:: spey.multiparameter
+
+Functions
+---------
+
+.. autosummary::
+    :toctree: ../_generated/
+
+    contour.find_contour
+    contour.ContourResult
+
 """
 
 import logging
