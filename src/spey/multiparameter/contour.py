@@ -406,9 +406,10 @@ def find_contour(
     # ------------------------------------------------------------------
     # Introspect the model
     # ------------------------------------------------------------------
-    cfg = stat_model.backend.config()
+    cfg = stat_model.config()
     k_total: int = cfg.npar  # total number of model parameters
     poi_idx: int = cfg.poi_index  # index of the signal-strength parameter mu
+    cfg_bounds: list[tuple[float, float]] = cfg.suggested_bounds
 
     # All non-mu parameter indices, sorted ascending.
     all_signal_indices: List[int] = [i for i in range(k_total) if i != poi_idx]
@@ -440,6 +441,8 @@ def find_contour(
             f"bounds must have one entry per signal parameter (expected {k}, "
             f"got {len(bounds)})."
         )
+    if bounds is None:
+        bounds = [cfg_bounds[idx] for idx in contour_indices]
 
     # Parameter names for the contour subspace only (mu excluded)
     _all_names: Optional[List[str]] = cfg.parameter_names
