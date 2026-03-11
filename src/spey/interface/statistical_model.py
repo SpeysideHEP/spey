@@ -127,7 +127,7 @@ class StatisticalModel(HypothesisTestingBase):
         combined = model_a.combine(model_b)
 
     Args:
-        backend (~spey.BackendBase): Statistical model backend.  Must be an instance of
+        backend (:class:`~spey.BackendBase`): Statistical model backend.  Must be an instance of
           a class that inherits :class:`~spey.BackendBase`.
         analysis (``str``): Unique identifier of the statistical model used for
           book-keeping purposes.
@@ -144,12 +144,12 @@ class StatisticalModel(HypothesisTestingBase):
         :obj:`AssertionError`: If ``backend`` does not inherit :class:`~spey.BackendBase`.
 
     Returns:
-        ~spey.StatisticalModel:
+        :class:`~spey.StatisticalModel`:
         A statistical model object wrapping the given backend with a unified hypothesis-
         testing interface.
     """
 
-    __slots__ = ["_backend", "xsection", "analysis"]
+    __slots__ = ["xsection", "analysis"]
 
     def __init__(
         self,
@@ -158,13 +158,11 @@ class StatisticalModel(HypothesisTestingBase):
         xsection: float = np.nan,
         ntoys: int = 1000,
     ):
-        assert isinstance(backend, BackendBase), "Invalid backend"
-        self._backend: BackendBase = backend
+        super().__init__(backend=backend, ntoys=ntoys)
         self.xsection: float = xsection
         """Value of the cross section, unit is defined by the user."""
         self.analysis: str = analysis
         """Unique identifier as analysis name"""
-        super().__init__(ntoys=ntoys)
 
     def __repr__(self):
         calc = f"calculators={self.available_calculators}"

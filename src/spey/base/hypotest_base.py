@@ -45,6 +45,9 @@ from spey.system.exceptions import (
 from spey.system.logger import capture_logs
 from spey.utils import ExpectationType
 
+from .backend_base import BackendBase
+from .utils import resolve_parameter_index
+
 PoiTest = Union[float, Dict[Union[int, str], float]]
 
 __all__ = ["HypothesisTestingBase"]
@@ -149,16 +152,21 @@ class HypothesisTestingBase(ABC):
         mu_lo, mu_hi = model.chi2_test(confidence_level=0.68, limit_type="two-sided")
 
     Args:
+        backend (:class:`~spey.BackendBase`): Statistical model backend.  Must be an instance of
+          a class that inherits :class:`~spey.BackendBase`.
         ntoys (``int``, default ``1000``): Number of pseudo-experiments (toys) used by
           the toy-based calculator.  Ignored when the asymptotic or :math:`\chi^2`
           calculator is selected.
     """
 
-    __slots__ = ["ntoys"]
+    __slots__ = ["ntoys", "_backend"]
 
-    def __init__(self, ntoys: int = 1000):
+    def __init__(self, backend: BackendBase, ntoys: int = 1000):
+        assert isinstance(backend, BackendBase), "Invalid backend"
         self.ntoys = ntoys
         """Number of toy pseudo-experiments used by the toy-based calculator."""
+        self._backend: BackendBase = backend
+        """Statistical Model backend"""
 
     @property
     @abstractmethod
@@ -1161,49 +1169,6 @@ class HypothesisTestingBase(ABC):
                 maxiter=maxiter,
             )
 
-    def _resolve_parameter_index(self, parameter: Union[int, str], cfg) -> int:
-        r"""
-        Validate and convert a nuisance-parameter identifier to its integer index.
-
-        Args:
-            parameter (``int`` or ``str``): Parameter index or name.
-            cfg (:obj:`~spey.base.model_config.ModelConfig`): Model configuration.
-
-        Raises:
-            :obj:`ValueError`: If the model has fewer than 2 parameters, if the index
-              is out of range, if the index refers to the POI, or if the name is not
-              found in :attr:`~spey.base.model_config.ModelConfig.parameter_names`.
-
-        Returns:
-            ``int``: Resolved parameter index.
-        """
-        if cfg.npar < 2:
-            raise ValueError(
-                "Nuisance-parameter profiling requires at least 2 model parameters "
-                f"(POI + at least one nuisance), but this model has only {cfg.npar}."
-            )
-        if isinstance(parameter, str):
-            if cfg.parameter_names is None:
-                raise ValueError(
-                    "Cannot resolve parameter name: parameter_names is not set in ModelConfig."
-                )
-            if parameter not in cfg.parameter_names:
-                raise ValueError(
-                    f"Parameter '{parameter}' not found in parameter_names: {cfg.parameter_names}"
-                )
-            return cfg.parameter_names.index(parameter)
-        param_idx = int(parameter)
-        if not 0 <= param_idx < cfg.npar:
-            raise ValueError(
-                f"Parameter index {param_idx} is out of range [0, {cfg.npar})."
-            )
-        if param_idx == cfg.poi_index:
-            raise ValueError(
-                f"Parameter index {param_idx} refers to the primary POI. "
-                "Leave parameter=None to profile the POI instead."
-            )
-        return param_idx
-
     def chi2_test(
         self,
         expected: ExpectationType = ExpectationType.observed,
@@ -1352,8 +1317,8 @@ class HypothesisTestingBase(ABC):
             }
         else:
             # -- Nuisance-parameter profiling --------------------------------
-            cfg = self.backend.config()
-            param_idx = self._resolve_parameter_index(parameter, cfg)
+            cfg = self._backend.config()
+            param_idx = resolve_parameter_index(parameter, cfg)
 
             _, mllhd = self.maximize_likelihood(
                 expected=expected, allow_negative_signal=True
