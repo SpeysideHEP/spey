@@ -369,7 +369,7 @@ def test_multivariate_gauss_n_signal_parameters_zero_no_extra_params():
     cfg = model.config()
 
     assert cfg.npar == 1
-    assert cfg.parameter_names is None
+    assert cfg.parameter_names == ["mu"]
 
 
 def test_multivariate_gauss_callable_signal_yields_logpdf_matches_array():
