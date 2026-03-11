@@ -149,7 +149,7 @@ class StatisticalModel(HypothesisTestingBase):
         testing interface.
     """
 
-    __slots__ = ["xsection", "analysis"]
+    __slots__ = ["xsection", "analysis", "_backend"]
 
     def __init__(
         self,
@@ -158,7 +158,9 @@ class StatisticalModel(HypothesisTestingBase):
         xsection: float = np.nan,
         ntoys: int = 1000,
     ):
-        super().__init__(backend=backend, ntoys=ntoys)
+        super().__init__(ntoys=ntoys)
+        assert isinstance(backend, BackendBase), "Invalid backend"
+        self._backend: BackendBase = backend
         self.xsection: float = xsection
         """Value of the cross section, unit is defined by the user."""
         self.analysis: str = analysis

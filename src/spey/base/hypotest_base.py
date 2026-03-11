@@ -45,7 +45,6 @@ from spey.system.exceptions import (
 from spey.system.logger import capture_logs
 from spey.utils import ExpectationType
 
-from .backend_base import BackendBase
 from .utils import resolve_parameter_index
 
 PoiTest = Union[float, Dict[Union[int, str], float]]
@@ -152,21 +151,16 @@ class HypothesisTestingBase(ABC):
         mu_lo, mu_hi = model.chi2_test(confidence_level=0.68, limit_type="two-sided")
 
     Args:
-        backend (:class:`~spey.BackendBase`): Statistical model backend.  Must be an instance of
-          a class that inherits :class:`~spey.BackendBase`.
         ntoys (``int``, default ``1000``): Number of pseudo-experiments (toys) used by
           the toy-based calculator.  Ignored when the asymptotic or :math:`\chi^2`
           calculator is selected.
     """
 
-    __slots__ = ["ntoys", "_backend"]
+    __slots__ = ["ntoys"]
 
-    def __init__(self, backend: BackendBase, ntoys: int = 1000):
-        assert isinstance(backend, BackendBase), "Invalid backend"
+    def __init__(self, ntoys: int = 1000):
         self.ntoys = ntoys
         """Number of toy pseudo-experiments used by the toy-based calculator."""
-        self._backend: BackendBase = backend
-        """Statistical Model backend"""
 
     @property
     @abstractmethod
@@ -1317,7 +1311,12 @@ class HypothesisTestingBase(ABC):
             }
         else:
             # -- Nuisance-parameter profiling --------------------------------
-            cfg = self._backend.config()
+            backend = getattr(self, "backend", None)
+            if backend is None:
+                raise NotImplementedError(
+                    "`chi2_test` is not available for this backend."
+                )
+            cfg = backend.config()  # pylint: disable = no-member
             param_idx = resolve_parameter_index(parameter, cfg)
 
             _, mllhd = self.maximize_likelihood(
