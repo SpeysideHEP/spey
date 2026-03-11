@@ -2,7 +2,7 @@
 
 import logging
 from functools import partial
-from typing import Callable, List, Literal, Tuple, Union
+from typing import Callable, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import scipy
@@ -247,3 +247,85 @@ def find_poi_upper_limit(
             log.warning(f"Optimiser did not converge.\n{r}")
         result.append(x0)
     return result if len(result) > 1 else result[0]
+
+
+def bracket_and_solve(
+    computer: Callable[[float], float],
+    inner: float,
+    outer: float,
+    expand: Callable[[float], float],
+    contract: Callable[[float], float],
+    outer_stop: Callable[[float], bool],
+    inner_stop: Callable[[float], bool],
+    *,
+    retry_inner: Optional[float] = None,
+    retry_stop: Optional[Callable[[float], bool]] = None,
+    debug_tag: str = "",
+) -> Tuple[float, float, float]:
+    r"""
+    Bracket a root of ``computer`` and solve with :func:`~scipy.optimize.toms748`.
+
+    Starting from ``outer`` (far from the likelihood peak), calls ``expand``
+    repeatedly until ``computer(outer) > 0`` or ``outer_stop(outer)``.
+    Starting from ``inner`` (near the peak), calls ``contract`` repeatedly until
+    ``computer(inner) < 0`` or ``inner_stop(inner)``.  When ``retry_inner`` is
+    given and both bounds share the same sign, a second contraction from
+    ``retry_inner`` is attempted (used in the POI case when :math:`\hat\mu` is
+    far from zero).
+
+    Args:
+        computer: Function whose sign changes at the interval boundary.
+            ``computer(val) < 0`` inside the confidence interval and ``> 0`` outside.
+        inner: Initial value near the peak (expected to give ``computer < 0``).
+        outer: Initial value far from the peak (expected to give ``computer > 0``).
+        expand: Moves ``outer`` further from the peak.
+        contract: Moves ``inner`` closer to the peak.
+        outer_stop: Returns ``True`` when ``outer`` has reached the absolute bound.
+        inner_stop: Returns ``True`` when ``inner`` is too close to the peak.
+        retry_inner: Alternative start for a second contraction attempt.
+        retry_stop: Stop condition for the retry contraction.
+        debug_tag: Label used in debug-level log messages.
+
+    Returns:
+        ``Tuple[float, float, float]``:
+        ``(final_inner, final_outer, root)`` — ``root`` is ``nan`` when no
+        bracket with opposite signs was found.
+    """
+    outer_cw = ComputerWrapper(computer)
+    while outer_cw(outer) < 0.0 and not outer_stop(outer):
+        outer = expand(outer)
+
+    inner_cw = ComputerWrapper(computer)
+    while inner_cw(inner) > 0.0 and not inner_stop(inner):
+        inner = contract(inner)
+
+    log.debug(
+        f"[{debug_tag}] inner f({inner:.5e})={inner_cw[-1]:.5e},"
+        f" outer f({outer:.5e})={outer_cw[-1]:.5e}"
+    )
+
+    if np.sign(inner_cw[-1]) == np.sign(outer_cw[-1]) and retry_inner is not None:
+        inner = retry_inner
+        inner_cw = ComputerWrapper(computer)
+        while inner_cw(inner) > 0.0 and not retry_stop(inner):
+            inner = contract(inner)
+        log.debug(
+            f"[{debug_tag} retry] inner f({inner:.5e})={inner_cw[-1]:.5e},"
+            f" outer f({outer:.5e})={outer_cw[-1]:.5e}"
+        )
+
+    if np.sign(inner_cw[-1]) != np.sign(outer_cw[-1]):
+        a, b = min(inner, outer), max(inner, outer)
+        x0, _ = scipy.optimize.toms748(
+            computer,
+            a,
+            b,
+            k=2,
+            xtol=2e-12,
+            rtol=1e-4,
+            full_output=True,
+            maxiter=10000,
+        )
+        return inner, outer, x0
+
+    return inner, outer, float("nan")

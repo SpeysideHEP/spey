@@ -25,7 +25,6 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import tqdm
-from scipy.optimize import toms748
 from scipy.stats import chi2
 
 from spey.hypothesis_testing.asymptotic_calculator import (
@@ -36,7 +35,7 @@ from spey.hypothesis_testing.test_statistics import (
     get_test_statistic,
 )
 from spey.hypothesis_testing.toy_calculator import compute_toy_confidence_level
-from spey.hypothesis_testing.upper_limits import ComputerWrapper, find_poi_upper_limit
+from spey.hypothesis_testing.upper_limits import bracket_and_solve, find_poi_upper_limit
 from spey.system.exceptions import (
     AsimovTestStatZero,
     CalculatorNotAvailable,
@@ -1162,51 +1161,126 @@ class HypothesisTestingBase(ABC):
                 maxiter=maxiter,
             )
 
+    def _resolve_parameter_index(self, parameter: Union[int, str], cfg) -> int:
+        r"""
+        Validate and convert a nuisance-parameter identifier to its integer index.
+
+        Args:
+            parameter (``int`` or ``str``): Parameter index or name.
+            cfg (:obj:`~spey.base.model_config.ModelConfig`): Model configuration.
+
+        Raises:
+            :obj:`ValueError`: If the model has fewer than 2 parameters, if the index
+              is out of range, if the index refers to the POI, or if the name is not
+              found in :attr:`~spey.base.model_config.ModelConfig.parameter_names`.
+
+        Returns:
+            ``int``: Resolved parameter index.
+        """
+        if cfg.npar < 2:
+            raise ValueError(
+                "Nuisance-parameter profiling requires at least 2 model parameters "
+                f"(POI + at least one nuisance), but this model has only {cfg.npar}."
+            )
+        if isinstance(parameter, str):
+            if cfg.parameter_names is None:
+                raise ValueError(
+                    "Cannot resolve parameter name: parameter_names is not set in ModelConfig."
+                )
+            if parameter not in cfg.parameter_names:
+                raise ValueError(
+                    f"Parameter '{parameter}' not found in parameter_names: {cfg.parameter_names}"
+                )
+            return cfg.parameter_names.index(parameter)
+        param_idx = int(parameter)
+        if not 0 <= param_idx < cfg.npar:
+            raise ValueError(
+                f"Parameter index {param_idx} is out of range [0, {cfg.npar})."
+            )
+        if param_idx == cfg.poi_index:
+            raise ValueError(
+                f"Parameter index {param_idx} refers to the primary POI. "
+                "Leave parameter=None to profile the POI instead."
+            )
+        return param_idx
+
     def chi2_test(
         self,
         expected: ExpectationType = ExpectationType.observed,
         confidence_level: float = 0.95,
         limit_type: Literal["right", "left", "two-sided"] = "two-sided",
         allow_negative_signal: bool = None,
+        parameter: Optional[Union[int, str]] = None,
+        poi_value: float = 1.0,
     ) -> List[float]:
         r"""
-        Determine the parameter of interest (POI) value(s) that constrain the
-        :math:`\chi^2` distribution at a specified confidence level.
+        Determine parameter value(s) that constrain the :math:`\chi^2` distribution at a
+        specified confidence level via 1D profiling.
+
+        When ``parameter=None`` (default), the method profiles the primary POI and finds
+        the POI values where the profile :math:`\chi^2` equals the threshold
+        ``chi2.isf(alpha, df=1)``.
+
+        When ``parameter`` is set to a nuisance parameter index or name, the POI is fixed
+        to ``poi_value`` (default ``1.0``) and the method profiles the chosen nuisance
+        parameter instead, locating the nuisance value(s) at the same :math:`\chi^2`
+        threshold.  This is useful for setting 1D confidence intervals on any model
+        parameter.
 
         .. versionadded:: 0.2.0
 
         .. attention::
 
-            The degrees of freedom are set to one, referring to the POI. Currently, spey does not
-            support multiple POIs, but this feature is planned for future releases.
+            The degrees of freedom are set to one, referring to the single profiled
+            parameter (either the POI or the selected nuisance parameter).
 
         Args:
-            expected (~spey.ExpectationType): Specifies the type of expectation for the fitting
-              algorithm and p-value computation.
+            expected (~spey.ExpectationType): Specifies the type of expectation for the
+              fitting algorithm and p-value computation.
 
-              * :obj:`~spey.ExpectationType.observed`: Computes p-values using post-fit prescription,
-                assuming experimental data as the truth.
-              * :obj:`~spey.ExpectationType.apriori`: Computes expected p-values using pre-fit
-                prescription, assuming the Standard Model (SM) as the truth.
+              * :obj:`~spey.ExpectationType.observed`: Computes p-values using post-fit
+                prescription, assuming experimental data as the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes expected p-values using
+                pre-fit prescription, assuming the Standard Model (SM) as the truth.
 
-            confidence_level (``float``, default ``0.95``): The confidence level for the upper limit.
-              Must be between 0 and 1. This refers to the total inner area under the bell curve. Noted
-              as :math:`CL` below.
+            confidence_level (``float``, default ``0.95``): The confidence level for the
+              interval.  Must be between 0 and 1.  This refers to the total inner area
+              under the bell curve, noted as :math:`CL` below.
 
-            limit_type (``'right'``, ``'left'`` or ``'two-sided'``, default ``"two-sided"``): Specifies
-              which side of the :math:`\chi^2` distribution should be constrained. For two-sided limits,
-              the inner area of the :math:`\chi^2` distribution is set to ``confidence_level``, making the
-              threshold :math:`\alpha=(1-CL)/2`, where CL is the `confidence_level`. For left or right
-              limits alone, :math:`\alpha=1-CL`. The :math:`\chi^2`-threshold is calculated using
-              inverse survival function at :math:`\alpha`.
+            limit_type (``'right'``, ``'left'`` or ``'two-sided'``, default
+              ``"two-sided"``): Specifies which side of the :math:`\chi^2` distribution
+              should be constrained.  For two-sided limits the inner area is set to
+              ``confidence_level``, making the threshold :math:`\alpha=(1-CL)/2`.  For
+              one-sided limits :math:`\alpha=1-CL`.  The :math:`\chi^2`-threshold is
+              computed via the inverse survival function at :math:`\alpha`.
 
-            allow_negative_signal (``bool``, default ``None``): Controls whether the signal can be
-              negative. If ``None``, it will be set to ``True`` for two-sided and left limits, and
-              ``False`` for right limits. Otherwise, user can control this behaviour.
+            allow_negative_signal (``bool``, default ``None``): Controls whether the POI
+              can be negative during the global unconstrained maximisation.  If ``None``,
+              it is set to ``True`` for two-sided and left limits, and ``False`` for right
+              limits.  Ignored when ``parameter`` is not ``None`` (the global fit is
+              always unconstrained in that case).
+
+            parameter (``int`` or ``str``, default ``None``): Index or name of the
+              nuisance parameter to profile.  When ``None`` (default) the primary POI is
+              profiled (existing behaviour).  When set, the POI is fixed to ``poi_value``
+              and the selected nuisance parameter is scanned instead.  String values are
+              resolved via
+              :attr:`~spey.base.model_config.ModelConfig.parameter_names`.
+
+            poi_value (``float``, default ``1.0``): Fixed value of the primary POI when
+              profiling a nuisance parameter (i.e. when ``parameter`` is not ``None``).
+              Has no effect when ``parameter=None``.
 
         Returns:
             ``List[float]``:
-            POI value(s) that constrain the :math:`\chi^2` distribution at the given threshold.
+            Parameter value(s) at which the profile :math:`\chi^2` equals the threshold.
+            Returns one value for one-sided limits and two values for two-sided limits.
+
+        Raises:
+            :obj:`ValueError`: If ``parameter`` refers to the POI index, if the parameter
+              name is not found in the model config, if the parameter index is out of
+              range, or if the model has only one parameter (no nuisance parameters to
+              profile).
         """
         assert (
             0.0 <= confidence_level <= 1.0
@@ -1217,125 +1291,146 @@ class HypothesisTestingBase(ABC):
             "two-sided",
         ], f"Invalid limit type: {limit_type}"
 
-        # Two sided test statistic need to be halfed, total area within
-        # two sides should be equal to confidence_level
+        # Two-sided threshold halves alpha so the total inner area equals CL.
         alpha = (1.0 - confidence_level) * (0.5 if limit_type == "two-sided" else 1.0)
+        chi2_threshold = chi2.isf(alpha, df=1)  # DoF = 1 (single profiled parameter)
 
-        # DoF = # POI
-        chi2_threshold = chi2.isf(alpha, df=1)
-        allow_negative_signal = allow_negative_signal or limit_type in [
-            "two-sided",
-            "left",
-        ]
+        # ------------------------------------------------------------------ #
+        # Build the profile computer and per-side bracket parameters          #
+        # ------------------------------------------------------------------ #
+        if parameter is None:
+            # -- POI profiling (original behaviour) -------------------------
+            allow_negative_signal = allow_negative_signal or limit_type in [
+                "two-sided",
+                "left",
+            ]
+            muhat, mllhd = self.maximize_likelihood(
+                expected=expected, allow_negative_signal=allow_negative_signal
+            )
 
-        muhat, mllhd = self.maximize_likelihood(
-            expected=expected, allow_negative_signal=allow_negative_signal
-        )
+            def computer(val: float) -> float:
+                return (
+                    2.0 * (self.likelihood(poi_test=val, expected=expected) - mllhd)
+                    - chi2_threshold
+                )
 
-        def computer(poi_test: float) -> float:
-            """Compute chi^2 - chi^2 threshold"""
-            llhd = self.likelihood(poi_test=poi_test, expected=expected)
-            return 2.0 * (llhd - mllhd) - chi2_threshold
+            try:
+                sigma = self.sigma_mu(muhat, expected=expected)
+            except MethodNotAvailable:
+                sigma = 1.0
 
-        try:
-            sigma_muhat = self.sigma_mu(muhat, expected=expected)
-        except MethodNotAvailable:
-            sigma_muhat = 1.0
+            is_gt0 = np.isclose(muhat, 0.0) or muhat > 0.0
+            is_le0 = np.isclose(muhat, 0.0) or muhat < 0.0
+            # Expand/contract via doubling (works for signed POI values).
+            expand = lambda h: h * 2.0
+            contract = lambda l: l * 0.5
+            sides = {
+                "left": dict(
+                    inner=-1.0 if is_gt0 else muhat - 1.5 * sigma,
+                    outer=-1.0 if is_gt0 else muhat - 2.5 * sigma,
+                    expand=expand,
+                    contract=contract,
+                    outer_stop=lambda h: h <= -1e5,
+                    inner_stop=lambda l: l >= -1e-5,
+                    retry_inner=muhat if muhat > 0 else None,
+                    retry_stop=(lambda l: l <= 1e-5) if muhat > 0 else None,
+                    fallback=lambda o: -1e5 if o <= -1e5 else np.nan,
+                    warn="Cannot find the left root. Check your chi^2 distribution.",
+                ),
+                "right": dict(
+                    inner=1.0 if is_le0 else muhat + 1.5 * sigma,
+                    outer=1.0 if is_le0 else muhat + 2.5 * sigma,
+                    expand=expand,
+                    contract=contract,
+                    outer_stop=lambda h: h >= 1e5,
+                    inner_stop=lambda l: l <= 1e-5,
+                    retry_inner=muhat if muhat < 0 else None,
+                    retry_stop=(lambda l: l >= -1e-5) if muhat < 0 else None,
+                    fallback=lambda o: 1e5 if o >= 1e5 else np.nan,
+                    warn="Cannot find the right root. Check your chi^2 distribution.",
+                ),
+            }
+        else:
+            # -- Nuisance-parameter profiling --------------------------------
+            cfg = self.backend.config()
+            param_idx = self._resolve_parameter_index(parameter, cfg)
 
+            _, mllhd = self.maximize_likelihood(
+                expected=expected, allow_negative_signal=True
+            )
+            theta_hat: float = self.maximize_likelihood(
+                poi_indices=[parameter], expected=expected, allow_negative_signal=True
+            )[0][parameter]
+
+            cfg_lo, cfg_hi = cfg.suggested_bounds[param_idx]
+            abs_lo: float = cfg_lo if cfg_lo is not None else -1e5
+            abs_hi: float = cfg_hi if cfg_hi is not None else 1e5
+
+            def computer(val: float) -> float:
+                nll = self.likelihood(
+                    poi_test={cfg.poi_index: poi_value, param_idx: val}, expected=expected
+                )
+                return 2.0 * (nll - mllhd) - chi2_threshold
+
+            step_l = max(abs(theta_hat - abs_lo) * 0.5, 0.5)
+            step_r = max(abs(abs_hi - theta_hat) * 0.5, 0.5)
+            # Reflect outer through theta_hat each step → doubles distance from center.
+            expand_sym = lambda h: 2.0 * h - theta_hat
+            contract_sym = lambda l: (l + theta_hat) / 2.0
+            sides = {
+                "left": dict(
+                    inner=theta_hat - step_l * 0.5,
+                    outer=theta_hat - step_l,
+                    expand=expand_sym,
+                    contract=contract_sym,
+                    outer_stop=lambda h: h <= abs_lo,
+                    inner_stop=lambda l: l >= theta_hat - 1e-10,
+                    retry_inner=None,
+                    retry_stop=None,
+                    fallback=lambda o: abs_lo if o <= abs_lo else np.nan,
+                    warn="Cannot find the nuisance left root. Profile may be too flat.",
+                ),
+                "right": dict(
+                    inner=theta_hat + step_r * 0.5,
+                    outer=theta_hat + step_r,
+                    expand=expand_sym,
+                    contract=contract_sym,
+                    outer_stop=lambda h: h >= abs_hi,
+                    inner_stop=lambda l: l <= theta_hat + 1e-10,
+                    retry_inner=None,
+                    retry_stop=None,
+                    fallback=lambda o: abs_hi if o >= abs_hi else np.nan,
+                    warn="Cannot find the nuisance right root. Profile may be too flat.",
+                ),
+            }
+
+        # ------------------------------------------------------------------ #
+        # Solve for each requested side                                        #
+        # ------------------------------------------------------------------ #
+        side_order = {
+            "left": ["left"],
+            "right": ["right"],
+            "two-sided": ["left", "right"],
+        }
         results = []
-        if limit_type in ["left", "two-sided"]:
-            is_muhat_gt_0 = np.isclose(muhat, 0.0) or muhat > 0.0
-            low = -1.0 if is_muhat_gt_0 else muhat - 1.5 * sigma_muhat
-            hig = -1.0 if is_muhat_gt_0 else muhat - 2.5 * sigma_muhat
-            hig_bound, low_bound = -1e5, -1e-5
-
-            hig_computer = ComputerWrapper(computer)
-            while hig_computer(hig) < 0.0 and hig > hig_bound:
-                hig *= 2.0
-
-            low_computer = ComputerWrapper(computer)
-            while low_computer(low) > 0.0 and low < low_bound:
-                low *= 0.5
-
-            log.debug(
-                f"Left first attempt:: low: f({low:.5e})={low_computer[-1]:.5e},"
-                f" high: f({hig:.5e})={hig_computer[-1]:.5e}"
-            )
-            if np.sign(low_computer[-1]) == np.sign(hig_computer[-1]) and muhat > 0:
-                low_computer = ComputerWrapper(computer)
-                low = muhat
-                while low_computer(low) > 0.0 and low > 1e-5:
-                    low *= 0.5
-                log.debug(
-                    f"Left second attempt:: low: f({low:.5e})={low_computer[-1]:.5e},"
-                    f" high: f({hig:.5e})={hig_computer[-1]:.5e}"
-                )
-
-            if np.sign(low_computer[-1]) != np.sign(hig_computer[-1]):
-                x0, _ = toms748(
+        for side_name in side_order[limit_type]:
+            s = sides[side_name]
+            with capture_logs(level=logging.ERROR):
+                _, outer_final, x0 = bracket_and_solve(
                     computer,
-                    hig,
-                    low,
-                    k=2,
-                    xtol=2e-12,
-                    rtol=1e-4,
-                    full_output=True,
-                    maxiter=10000,
+                    s["inner"],
+                    s["outer"],
+                    s["expand"],
+                    s["contract"],
+                    s["outer_stop"],
+                    s["inner_stop"],
+                    retry_inner=s["retry_inner"],
+                    retry_stop=s["retry_stop"],
+                    debug_tag=side_name,
                 )
-                results.append(x0)
-            else:
-                log.warning(
-                    "Can not find the roots on the left side."
-                    " Please check your chi^2 distribution, it might be too wide."
-                )
-                results.append(-1e5 if hig <= -1e5 else np.nan)
-
-        if limit_type in ["right", "two-sided"]:
-            is_muhat_le_0 = np.isclose(muhat, 0.0) or muhat < 0.0
-            low = 1.0 if is_muhat_le_0 else muhat + 1.5 * sigma_muhat
-            hig = 1.0 if is_muhat_le_0 else muhat + 2.5 * sigma_muhat
-            hig_bound, low_bound = 1e5, 1e-5
-
-            hig_computer = ComputerWrapper(computer)
-            while hig_computer(hig) < 0.0 and hig < hig_bound:
-                hig *= 2.0
-
-            low_computer = ComputerWrapper(computer)
-            while low_computer(low) > 0.0 and low > low_bound:
-                low *= 0.5
-
-            log.debug(
-                f"Right first attempt:: low: f({low:.5e})={low_computer[-1]:.5e},"
-                f" high: f({hig:.5e})={hig_computer[-1]:.5e}"
-            )
-
-            if np.sign(low_computer[-1]) == np.sign(hig_computer[-1]) and muhat < 0:
-                low_computer = ComputerWrapper(computer)
-                low = muhat
-                while low_computer(low) > 0.0 and low < -1e-5:
-                    low *= 0.5
-                log.debug(
-                    f"Left second attempt:: low: f({low:.5e})={low_computer[-1]:.5e},"
-                    f" high: f({hig:.5e})={hig_computer[-1]:.5e}"
-                )
-
-            if np.sign(low_computer[-1]) != np.sign(hig_computer[-1]):
-                x0, _ = toms748(
-                    computer,
-                    low,
-                    hig,
-                    k=2,
-                    xtol=2e-12,
-                    rtol=1e-4,
-                    full_output=True,
-                    maxiter=10000,
-                )
-                results.append(x0)
-            else:
-                log.warning(
-                    "Can not find the roots on the right side."
-                    " Please check your chi^2 distribution, it might be too wide."
-                )
-                results.append(1e5 if hig >= 1e5 else np.nan)
+            if np.isnan(x0):
+                log.warning(s["warn"])
+                x0 = s["fallback"](outer_final)
+            results.append(x0)
 
         return results
