@@ -248,6 +248,10 @@ def test_normal():
         [left_chi2, right_chi2], chi2_threshold
     ).all(), "chi2 test doesnt match chi2 threshold"
 
+    pull = statistical_model.pull(0.0)
+    pull_analytic = (obs - bkg) / unc
+    assert np.isclose(pull, pull_analytic), "Pull is wrong."
+
 
 def test_multivariate_gauss():
     """tester for multivar gauss"""

@@ -552,6 +552,56 @@ class HypothesisTestingBase(ABC):
 
         return 2.0 * (llhd - denominator)
 
+    def pull(
+        self,
+        poi_test: PoiTest = 1.0,
+        expected: ExpectationType = ExpectationType.observed,
+        allow_negative_signal: bool = True,
+        **kwargs,
+    ) -> float:
+        r"""
+        Pull: measures how many standard deviations the observation
+        is away from the expectation.
+
+        .. math::
+
+            \text{pull}(\mu) = \operatorname{sign}(\hat{\mu}-\mu)
+            \sqrt{-2\log\frac{L(\mu,\hat{\hat{\theta}}(\mu))}{L(\hat{\mu},\hat{\theta})}}
+
+        the square of the pull is the likelihood-ratio test statistic.
+
+        Args:
+            poi_test (:obj:`PoiTest` or ``list[float]``, default ``1.0``): Parameter of interest,
+              :math:`\mu`. A plain ``float`` (or iterable of floats) fixes the primary POI —
+              when iterable, :math:`\chi^2` is computed for each element. Alternatively, a
+              ``dict`` of ``{index_or_name: value}`` fixes multiple parameters simultaneously
+              (iterating over dicts is not supported).
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescription which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescription which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
+              value will be allowed to be negative. Only valid when ``poi_test_denominator=None``.
+            kwargs: keyword arguments for the optimiser.
+
+        Returns:
+            ``float``:
+            value of pull.
+        """
+        muhat, min_nll = self.maximize_likelihood(
+            expected=expected, allow_negative_signal=allow_negative_signal, **kwargs
+        )
+        llhd = self.likelihood(poi_test=poi_test, expected=expected, **kwargs)
+        return np.sign(muhat - poi_test) * np.sqrt(2.0 * (llhd - min_nll))
+
     def _prepare_for_hypotest(
         self,
         expected: ExpectationType = ExpectationType.observed,
