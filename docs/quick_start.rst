@@ -19,7 +19,7 @@ Installation
     >>> pip install spey
 
 
-Python >=3.8 is required. spey heavily relies on `numpy <https://numpy.org/doc/stable/>`_,
+Python ``>=3.9`` is required. spey heavily relies on `numpy <https://numpy.org/doc/stable/>`_,
 `scipy <https://docs.scipy.org/doc/scipy/>`_ and `autograd <https://github.com/HIPS/autograd>`_
 which are all packaged during the installation with the necessary versions. Note that some
 versions may be restricted due to numeric stability and validation.
@@ -66,7 +66,17 @@ function
 For details on all the backends, see `Plug-ins section <plugins.html>`_.
 
 Using ``'default.uncorrelated_background'`` one can simply create single or multi-bin
-statistical models:
+statistical models. This backend implements the following likelihood prescription:
+
+.. math::
+
+    \mathcal{L}(\mu, \theta) = \prod_{i\in{\rm bins}}{\rm Poiss}(n^i|\mu n_s^i + n_b^i +
+    \theta^i\sigma_b^i) \cdot \prod_{j\in{\rm nui}}\mathcal{N}(\theta^j|0, 1)\ ,
+
+where :math:`\mu` is the signal strength (the parameter of interest or POI), :math:`\theta^i` are nuisance parameters
+that represent deviations from the nominal background estimate, :math:`n^i` is the observed event count,
+:math:`n_s^i` and :math:`n_b^i` are the signal and background expected yields, and :math:`\sigma_b^i` are the absolute
+uncertainties. The Gaussian constraint ensures the nuisance parameters remain bounded near zero (nominal values).
 
 .. code:: python
 
@@ -86,29 +96,31 @@ statistical models:
     ...     xsection=0.123,
     ... )
 
-where ``data`` indicates the observed events, ``signal_yields`` and ``background_yields`` represents
-yields for signal and background samples and ``background_unc`` shows the absolute uncertainties on
-the background events, i.e. :math:`2.0\pm1.1` in this particular case. Note that we also introduced
-``analysis`` and ``xsection`` information which are optional where the ``analysis`` indicates an unique
-identifier for the statistical model, and ``xsection`` is the cross-section value of the signal, which is
-only used for the computation of the excluded cross-section value.
+where ``data`` indicates the observed events (:math:`n^i`), ``signal_yields`` and ``background_yields`` represent
+the expected signal and background samples (:math:`n_s^i` and :math:`n_b^i`), and ``background_unc`` denotes the absolute
+uncertainties on the background estimates (:math:`\sigma_b^i`). In this case, the background is :math:`2.0\pm1.1`.
+The ``analysis`` and ``xsection`` arguments are optional: ``analysis`` provides a unique identifier for the statistical model,
+and ``xsection`` specifies the cross-section value of the signal (used only for computing excluded cross-section values).
 
 During the computation of any probability distribution, Spey relies on the so-called "expectation type".
-This can be set via :obj:`~spey.ExpectationType`, which includes three different expectation modes.
+This can be set via :obj:`~spey.ExpectationType`, which includes three different expectation modes that specify which
+dataset to use in the likelihood evaluation.
 
-* :obj:`~spey.ExpectationType.observed`: Indicates that the computation of the log-probability will be
-  achieved by fitting the statistical model on the experimental data. For the exclusion limit computation,
-  this will tell the package to compute observed :math:`1-CL_s` values. :obj:`~spey.ExpectationType.observed`
-  has been set as default throughout the package.
+* :obj:`~spey.ExpectationType.observed`: Uses the actual experimental observation (:math:`n^i`) in the likelihood computation.
+  For exclusion limit computation, this yields the *observed* :math:`1-CL_s` value, which reflects what the experiment
+  has actually measured. This is the default mode and is set as default throughout the package.
 
-* :obj:`~spey.ExpectationType.aposteriori`: This command will result in the same log-probability computation
-  as :obj:`~spey.ExpectationType.observed`. However, the expected exclusion limit will be computed by centralising
-  the statistical model on the background and checking :math:`\pm1\sigma` and :math:`\pm2\sigma` fluctuations.
+* :obj:`~spey.ExpectationType.aposteriori`: Performs post-fit expected limit computation. Rather than using the observed data,
+  the likelihood uses an "Asimov dataset" (synthetic data at the expected value) generated under the background-only hypothesis
+  (:math:`\mu=0`). The expected limits are computed at five discrete points: the central value and :math:`\pm1\sigma` and
+  :math:`\pm2\sigma` fluctuations around the background expectation. This approach assesses the experiment's sensitivity assuming
+  no real signal is present.
 
-* :obj:`~spey.ExpectationType.apriori`: Indicates that the observation has never taken place and the theoretical
-  SM computation is the absolute truth. Thus, it replaces observed values in the statistical model with the
-  background values and computes the log-probability accordingly. Similar to :obj:`~spey.ExpectationType.aposteriori`
-  Exclusion limit computation will return expected limits.
+* :obj:`~spey.ExpectationType.apriori`: Performs pre-fit expected limit computation, assuming the Standard Model predictions
+  are the absolute truth and no experimental observation has occurred. The likelihood replaces the observed data with the
+  background-only expected yields (:math:`n^i = n_b^i`) everywhere. This ignores experimental data and computes expected limits
+  based purely on the theoretical predictions. This mode is primarily used by theory collaborations to estimate expected
+  sensitivity independent of actual observations.
 
 To compute the observed exclusion limit for the above example, one can type
 
@@ -194,31 +206,50 @@ expectation type, and we plot specific standard deviations, which provides the f
     :scale: 70
     :alt: Exclusion confidence level with respect to the parameter of interest, :math:`\mu`.
 
-The excluded value of POI can also be retrieved by :func:`~spey.StatisticalModel.poi_upper_limit` function
+The excluded value of POI can also be retrieved by :func:`~spey.StatisticalModel.poi_upper_limit` function.
+The upper limit :math:`\mu_{\rm UL}` is defined as the smallest signal strength for which the experiment excludes
+the hypothesis at the specified confidence level (typically 95%). Mathematically, it satisfies:
+
+.. math::
+
+    {\rm CL}_s(\mu_{\rm UL}) = 1 - {\rm CL} = 0.05 \quad \text{(for 95\% CL)}
+
+where :math:`{\rm CL}_s = p_{s+b} / p_b` is the CLs ratio (signal+background p-value divided by background-only p-value).
+This ratio protects against excluding signals to which the experiment has no sensitivity.
 
 .. code:: python
 
     >>> print("POI UL: %.3f" % stat_model.poi_upper_limit(expected=spey.ExpectationType.aposteriori))
     >>> # POI UL:  0.920
 
-which is the exact point where the red curve and black dashed line meet. The upper limit for the :math:`\pm1\sigma`
-or :math:`\pm2\sigma` bands can be extracted by setting ``expected_pvalue`` to ``"1sigma"`` or ``"2sigma"``
-respectively, e.g.
+The upper limit is the exact point where the red curve (observed :math:`1-{\rm CL}_s`) and black dashed line (0.05 threshold)
+meet in the plot above. The expected upper limits for the :math:`\pm1\sigma` or :math:`\pm2\sigma` bands can be extracted by
+setting ``expected_pvalue`` to ``"1sigma"`` or ``"2sigma"`` respectively:
 
 .. code:: python
 
     >>> stat_model.poi_upper_limit(expected=spey.ExpectationType.aposteriori, expected_pvalue="1sigma")
     >>> # [0.5507713378348318, 0.9195052042538805, 1.4812721449679866]
 
+The three values correspond to the lower :math:`-1\sigma`, central, and upper :math:`+1\sigma` bounds on the expected limit.
+
 At a lower level, one can extract the likelihood information for the statistical model by calling
 :func:`~spey.StatisticalModel.likelihood` and :func:`~spey.StatisticalModel.maximize_likelihood` functions.
-By default, these will return negative log-likelihood values, but this can be changed via ``return_nll=False``
-argument.
+By default, these return negative log-likelihood (NLL) values, but this can be changed via ``return_nll=False`` to return
+the actual likelihood :math:`\mathcal{L}(\mu, \theta)`.
+
+:func:`~spey.StatisticalModel.maximize_likelihood` performs the global optimization:
+
+.. math::
+
+    (\hat{\mu}, \hat{\theta}) = \arg\max_{\mu, \theta} \log \mathcal{L}(\mu, \theta)
+
+and returns both the optimal POI value :math:`\hat{\mu}` and the corresponding likelihood value.
 
 .. code:: python
     :linenos:
 
-    >>> muhat_obs, maxllhd_obs = stat_model.maximize_likelihood(return_nll=False, )
+    >>> muhat_obs, maxllhd_obs = stat_model.maximize_likelihood(return_nll=False)
     >>> muhat_apri, maxllhd_apri = stat_model.maximize_likelihood(return_nll=False, expected=spey.ExpectationType.apriori)
 
     >>> poi = np.linspace(-3,4,60)
@@ -226,9 +257,9 @@ argument.
     >>> llhd_obs = np.array([stat_model.likelihood(p, return_nll=False) for p in poi])
     >>> llhd_apri = np.array([stat_model.likelihood(p, expected=spey.ExpectationType.apriori, return_nll=False) for p in poi])
 
-Here in first two lines, we extracted maximum likelihood and the POI value that maximises the likelihood for two different
-expectation type. In the following, we computed likelihood distribution for various POI values, which then can be plotted
-as follows
+In the first two lines, we extract the maximum likelihood point :math:`(\hat{\mu}, \mathcal{L}_{\rm max})` for two different
+expectation types. Subsequently, we compute the likelihood function :math:`\mathcal{L}(\mu)` at multiple POI values, which can
+then be plotted and visualized:
 
 .. code:: python
 

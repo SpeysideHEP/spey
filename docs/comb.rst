@@ -7,9 +7,26 @@ Combining Statistical Models
     :property=og:image: https://spey.readthedocs.io/en/main/_static/spey-logo.png
     :property=og:url: https://spey.readthedocs.io/en/main/comb.html
 
-In this section, we will provide a simple statistical model combination example using
-`Path Finder algorithm <https://github.com/J-Yellen/PathFinder>`_
-(For details, see :cite:`Araz:2022vtr`).
+In this section, we demonstrate statistical model combination using the
+`Path Finder algorithm <https://github.com/J-Yellen/PathFinder>`_ (see :cite:`Araz:2022vtr` for details).
+When multiple analyses share the same signal hypothesis but measure different regions of phase space,
+combining them statistically can improve sensitivity. The key mathematical principle is the **factorisation
+of independent likelihoods**: if N analyses are statistically independent (no double-counting of events),
+their joint likelihood factorises as
+
+.. math::
+
+    \mathcal{L}_{\rm comb}(\mu, \{\theta_i\}) = \prod_{i=1}^{N} \mathcal{L}_i(\mu, \theta_i)
+
+where all analyses share the same signal strength :math:`\mu` but have independent nuisance parameters :math:`\theta_i`.
+Taking the natural logarithm and multiplying by -2 shows that **combined test statistics are additive**:
+
+.. math::
+
+    q_{\rm comb}(\mu) = \sum_{i=1}^{N} q_i(\mu)
+
+This is why the combination can be performed as a simple sum of likelihoods—it is mathematically rigorous
+and computationally efficient.
 
 The data, necessary to complete this exercise, has been provided under the ``data/path_finder`` folder of
 `spey's GitHub repository <https://github.com/SpeysideHEP/spey>`_. Here, one will find ``example_data.json``
@@ -56,14 +73,19 @@ Let us first import all the necessary packages and construct the data (please ad
 
     >>>     models.update({data["region"]: {"stat_model": stat_model, "llhr": llhr}})
 
-``example_data`` has two main section which are ``"data"`` including all the information about regions
-and ``"xsec"`` including cross section value in pb. Using the information provided for each region we construct
-an uncorrelated background-based statistical model. ``llhr`` is the log-likelihood ratio of signal+background and
-background-only statistical models given as
+``example_data`` has two main sections: ``"data"`` (containing region-specific information) and ``"xsec"`` (cross section in pb).
+For each region, we construct an uncorrelated background-based statistical model. The ``llhr`` is the log-likelihood ratio
+comparing the signal hypothesis (mu=1) to the background-only hypothesis (mu=0), computed on pre-fit expected data:
 
 .. math::
 
-    {\rm llhr} = -\log\frac{\mathcal{L}(1,\theta_1)}{\mathcal{L}(0,\theta_0)}\ .
+    {\rm llhr} = -\log\frac{\mathcal{L}(\mu=1,\theta_1)}{\mathcal{L}(\mu=0,\theta_0)}
+
+where :math:`\theta_1` and :math:`\theta_0` are the nuisance parameters profiled at :math:`\mu=1` and :math:`\mu=0` respectively.
+
+**Physical interpretation:** A higher llhr value means that region provides better discrimination between signal and background.
+This is used as a weight in the PathFinder algorithm to prioritize regions with high sensitivity when selecting which regions
+to combine. Regions with very small llhr values are less constraining and may be excluded to avoid introducing statistical noise.
 
 Finally, the dictionary called ``models`` is just a container to collect all the models. In the next, let us
 construct a Binary acceptance matrix and compute the best possible paths
@@ -79,20 +101,29 @@ construct a Binary acceptance matrix and compute the best possible paths
     >>> whdfs.find_paths(runs=len(weights), verbose=False)
     >>> plot_results.plot(bam, whdfs)
 
-In the first three lines, we read the overlap matrix, extracted the corresponding weights (``llhr``), and fed these
-into the ``pf.BinaryAcceptance`` function. We use the ``WHDFS`` algorithm to compute the top 5 combinations and plot the
-resulting binary acceptance matrix with the paths.
+In the first three lines, we read the overlap matrix (which encodes which regions can be safely combined),
+extract the corresponding weights (``llhr``), and feed these into the ``pf.BinaryAcceptance`` function.
+
+**What is the overlap matrix?** The overlap matrix is a binary :math:`N \times N` matrix where entry :math:`(i,j) = 1`
+indicates that regions :math:`i` and :math:`j` are statistically independent and can be combined without double-counting.
+A value of 0 means regions share events and cannot both be included in the same analysis.
+
+We use the ``WHDFS`` algorithm (Weighted Hybrid Depth-First Search) to compute the top 5 possible combinations.
+This algorithm finds the highest-weight connected paths through the compatibility graph defined by the overlap matrix.
 
 .. image:: ./figs/bam.png
     :align: center
     :scale: 20
     :alt: Binary Acceptance Matrix
 
-Each column and row corresponds to ``overlap_matrix.columns``, and the coloured lines are the chosen paths
-where the best path can be seen via ``whdfs.best.path``. In this case we find ``"atlas_susy_2018_31::SRA_H"``,
-``"cms_sus_19_006::SR25_Njet23_Nb2_HT6001200_MHT350600"`` and ``'cms_sus_19_006::AGGSR7_Njet2_Nb2_HT600_MHT600'``
-regions as best regions to be combined. For the combination, we will use :obj:`~spey.UnCorrStatisticsCombiner`
-and feed the statistical models as input.
+**Interpreting the Binary Acceptance Matrix (BAM) plot:**
+Each row and column corresponds to one region in ``overlap_matrix.columns``. The coloured lines show the chosen paths
+(sets of compatible regions that can be combined). The best path can be accessed via ``whdfs.best.path``.
+In this example, the algorithm identifies ``"atlas_susy_2018_31::SRA_H"``, ``"cms_sus_19_006::SR25_Njet23_Nb2_HT6001200_MHT350600"``,
+and ``'cms_sus_19_006::AGGSR7_Njet2_Nb2_HT600_MHT600'`` as the regions with the highest combined sensitivity.
+
+For the combination, we use :obj:`~spey.UnCorrStatisticsCombiner`, which implements the mathematical principle
+described earlier: it sums the individual likelihoods of the selected regions and treats them as a single analysis.
 
 .. code-block::
 
@@ -127,7 +158,15 @@ limit can be computed via
     >>> models["atlas_susy_2018_31::SRA_H"]["stat_model"].exclusion_confidence_level(expected=spey.ExpectationType.aposteriori)[2]
     >>> # 0.9445409288935508
 
-Finally, we can compare the likelihood distribution of the two
+Finally, we can compare the likelihood distributions. Under the hood, :obj:`~spey.UnCorrStatisticsCombiner`
+evaluates the combined NLL as the sum of individual profile NLLs:
+
+.. math::
+
+    {\rm NLL}_{\rm comb}(\mu) = \sum_{i \in \text{regions}} {\rm NLL}_i(\mu, \hat{\theta}_{i,\mu})
+
+This additive structure means the combined likelihood is narrower (more constraining) than any individual analysis,
+reflecting improved statistical power from combining independent information.
 
 .. code-block:: python3
     :linenos:
@@ -146,6 +185,11 @@ Finally, we can compare the likelihood distribution of the two
     >>> plt.ylabel(r"$-\log \frac{ \mathcal{L}(\mu, \theta_\mu) }{ \mathcal{L}(\hat{\mu}, \hat{\theta}) }$")
     >>> plt.legend()
     >>> plt.show()
+
+In the plot below, the red curve (combined) is narrower than the blue curve (most sensitive single region),
+demonstrating that combining statistically independent analyses improves sensitivity. The shape of the
+combined likelihood follows from the additive composition of likelihoods, which results in a more sharply
+peaked distribution around the best-fit signal strength.
 
 which gives us the following result:
 
