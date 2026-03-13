@@ -1238,6 +1238,10 @@ class HypothesisTestingBase(ABC):
 
         .. versionadded:: 0.2.0
 
+        .. versionchanged:: 0.2.7
+
+            The ability to profile any given nuisance parameter has been implemented.
+
         .. attention::
 
             The degrees of freedom are set to one, referring to the single profiled
@@ -1256,12 +1260,12 @@ class HypothesisTestingBase(ABC):
               interval.  Must be between 0 and 1.  This refers to the total inner area
               under the bell curve, noted as :math:`CL` below.
 
-            limit_type (``'right'``, ``'left'`` or ``'two-sided'``, default
-              ``"two-sided"``): Specifies which side of the :math:`\chi^2` distribution
-              should be constrained.  For two-sided limits the inner area is set to
-              ``confidence_level``, making the threshold :math:`\alpha=(1-CL)/2`.  For
-              one-sided limits :math:`\alpha=1-CL`.  The :math:`\chi^2`-threshold is
-              computed via the inverse survival function at :math:`\alpha`.
+            limit_type (``'right'``, ``'left'`` or ``'two-sided'``, default ``'two-sided'``):
+              Specifies which side of the :math:`\chi^2` distribution should be constrained.
+              For two-sided limits the inner area is set to ``confidence_level``, making the
+              threshold :math:`\alpha=(1-CL)/2`.  For one-sided limits :math:`\alpha=1-CL`.
+              The :math:`\chi^2`-threshold is computed via the inverse survival function
+              at :math:`\alpha`.
 
             allow_negative_signal (``bool``, default ``None``): Controls whether the POI
               can be negative during the global unconstrained maximisation.  If ``None``,
@@ -1278,7 +1282,8 @@ class HypothesisTestingBase(ABC):
 
             poi_value (``float``, default ``1.0``): Fixed value of the primary POI when
               profiling a nuisance parameter (i.e. when ``parameter`` is not ``None``).
-              Has no effect when ``parameter=None``.
+              Has no effect when ``parameter=None``. If `poi_value=None`, primary POI will
+              also be minimised during optimisation.
 
         Returns:
             ``List[float]``:
@@ -1369,21 +1374,25 @@ class HypothesisTestingBase(ABC):
             cfg = backend.config()  # pylint: disable = no-member
             param_idx = resolve_parameter_index(parameter, cfg)
 
-            _, mllhd = self.maximize_likelihood(
-                expected=expected, allow_negative_signal=True
+            theta_hat, mllhd = self.maximize_likelihood(
+                poi_indices=[parameter],
+                expected=expected,
+                allow_negative_signal=True,
+                fixed_poi_value=poi_value,
             )
-            theta_hat: float = self.maximize_likelihood(
-                poi_indices=[parameter], expected=expected, allow_negative_signal=True
-            )[0][parameter]
+            theta_hat = theta_hat[parameter]
 
             cfg_lo, cfg_hi = cfg.suggested_bounds[param_idx]
             abs_lo: float = cfg_lo if cfg_lo is not None else -1e5
             abs_hi: float = cfg_hi if cfg_hi is not None else 1e5
 
             def computer(val: float) -> float:
-                nll = self.likelihood(
-                    poi_test={cfg.poi_index: poi_value, param_idx: val}, expected=expected
+                poi_test = (
+                    {param_idx: val}
+                    if poi_value is None
+                    else {cfg.poi_index: poi_value, param_idx: val}
                 )
+                nll = self.likelihood(poi_test=poi_test, expected=expected)
                 return 2.0 * (nll - mllhd) - chi2_threshold
 
             step_l = max(abs(theta_hat - abs_lo) * 0.5, 0.5)
