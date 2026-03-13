@@ -1638,13 +1638,17 @@ def _run_hmc_chains(
         k = starts.shape[1] if starts.ndim == 2 and starts.shape[1] > 0 else 1
         return np.empty((0, k), dtype=float)
 
-    k = starts.shape[1]
+    n, k = starts.shape
 
     # Pre-generate per-chain seeds from the main rng *before* forking so
     # the rng state advances deterministically regardless of n_jobs.
-    seeds: List[int] = [int(rng.integers(2**63)) for _ in range(len(starts))]
+    seeds: np.ndarray = np.array(
+        [int(rng.integers(2**63)) for _ in range(n)], dtype=int
+    )
 
-    def _one_chain(start: np.ndarray, seed: int) -> np.ndarray:
+    def _one_chain(starts: np.ndarray, seeds: np.ndarray, idx: int) -> np.ndarray:
+        start = starts[idx]
+        seed = seeds[idx]
         chain_rng = np.random.default_rng(seed)
         return _rattle_walk(
             nll_scalar,
@@ -1659,20 +1663,20 @@ def _run_hmc_chains(
             bounds,
         )
 
+    loop = tqdm(
+        iterable=range(n),
+        total=n,
+        desc="Running HMC Chain",
+        bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}",
+    )
+
     try:
-        trajs = Parallel(n_jobs=n_jobs, prefer="processes")(
-            delayed(_one_chain)(start, seed)
-            for start, seed in tqdm(
-                iterable=zip(starts, seeds), total=len(starts), desc="Running HMC Chain"
-            )
-        )
-    except Exception:
-        trajs = [
-            _one_chain(start, seed)
-            for start, seed in tqdm(
-                iterable=zip(starts, seeds), total=len(starts), desc="Running HMC Chain"
-            )
-        ]
+        trajs = Parallel(
+            n_jobs=n_jobs, prefer="processes", batch_size="auto", max_nbytes="10M"
+        )(delayed(_one_chain)(starts, seeds, idx) for idx in loop)
+    except Exception as err:
+        log.debug("An error has occured: %s", err)
+        trajs = [_one_chain(starts, seeds, idx) for idx in loop]
 
     all_trajs = [t for t in trajs if len(t) > 0]
     if not all_trajs:
