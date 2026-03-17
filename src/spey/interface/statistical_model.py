@@ -419,6 +419,7 @@ class StatisticalModel(HypothesisTestingBase):
                 constraints.append(constraint)
 
         return {
+            **kwargs,
             "func": objective_and_grad,
             "do_grad": do_grad,
             "model_configuration": self.backend.config(
@@ -426,7 +427,6 @@ class StatisticalModel(HypothesisTestingBase):
             ),
             "logpdf": self.backend.get_logpdf_func(expected=expected, data=data),
             "constraints": constraints,
-            **kwargs,
         }
 
     def likelihood(
@@ -470,12 +470,64 @@ class StatisticalModel(HypothesisTestingBase):
             init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
             par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
               the optimiser.
-            kwargs: keyword arguments for the optimiser.
+            kwargs: Keyword arguments forwarded through ``prepare_for_fit`` to the optimiser.
+              The following keys are recognised:
+
+              **Consumed by** ``prepare_for_fit``:
+
+              * ``do_grad`` (``bool``, default ``True``): Whether to request the gradient of the
+                objective function from the backend. Falls back to ``False`` automatically if the
+                backend raises :obj:`NotImplementedError`.
+              * ``constraints`` (``List[Dict]``, default ``[]``): Additional
+                `scipy-style constraint dicts <https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html>`_
+                to pass to the optimiser. Any constraints defined on the backend itself are
+                always appended.
+
+              **Consumed by** ``fit`` (the core optimisation loop):
+
+              * ``minimizer`` (``str``, default ``"scipy"`` or the value of the
+                ``SPEY_OPTIMISER`` environment variable): Selects the numerical minimiser.
+                Accepted values are ``"scipy"`` and ``"minuit"`` (requires ``iminuit``).
+              * ``hessian`` (``Callable[[np.ndarray], np.ndarray]``, default ``None``):
+                Hessian of the objective function with respect to the variational parameters.
+                Passed to scipy as the ``hess`` argument; ignored by the minuit minimiser.
+
+              **Scipy-minimiser options** (used when ``minimizer="scipy"``):
+
+              * ``method`` (``str``, default ``"SLSQP"``): Scipy optimisation method
+                (e.g. ``"SLSQP"``, ``"L-BFGS-B"``, ``"trust-constr"``).
+              * ``maxiter`` (``int``, default ``10000``): Maximum number of iterations.
+              * ``tol`` (``float``, default ``1e-6``): Convergence tolerance.
+              * ``disp`` (``bool``, default ``False``): If ``True``, print convergence
+                messages.
+              * ``ntrials`` (``int``, default ``1``): Number of re-tries with progressively
+                expanded parameter bounds when the minimiser does not converge.
+
+              **Minuit-minimiser options** (used when ``minimizer="minuit"``):
+
+              * ``method`` (``str``, default ``"migrad"``): Minuit algorithm.
+                Accepted values are ``"migrad"`` and ``"simplex"``.
+              * ``maxiter`` (``int``, default ``10000``): Maximum number of function calls.
+              * ``tol`` (``float``, default ``1e-6``): Convergence tolerance.
+              * ``disp`` (``int``, default ``0``): Minuit print level (``0`` = silent).
+              * ``strategy`` (``int``, default ``0``): Minuit strategy
+                (``0`` = fast, ``1`` = default, ``2`` = slow but more accurate).
+              * ``errordef`` (``float``, default ``Minuit.LIKELIHOOD``): Value by which
+                Minuit defines a one-sigma interval (``0.5`` for NLL, ``1.0`` for :math:`\chi^2`).
+
+              Unknown keys are logged as a warning and silently discarded by the minimiser.
 
         Returns:
             ``float``:
             Likelihood of the statistical model at a fixed signal strength.
         """
+        if "fixed_poi_value" in kwargs:
+            log.warning(
+                "Passing 'fixed_poi_value' as a keyword argument to likelihood() is not "
+                "supported and has been ignored. Use the 'poi_test' argument instead."
+            )
+            kwargs.pop("fixed_poi_value")
+
         fit_opts = self.prepare_for_fit(expected=expected, data=data, **kwargs)
 
         if (
@@ -557,6 +609,14 @@ class StatisticalModel(HypothesisTestingBase):
             ``List[float]``:
             Asimov data
         """
+        if "fixed_poi_value" in kwargs:
+            log.warning(
+                "Passing 'fixed_poi_value' as a keyword argument to generate_asimov_data() is "
+                "not supported and has been ignored. The POI value used for Asimov data "
+                "generation is determined by 'test_statistic' (1.0 for 'q0', 0.0 otherwise)."
+            )
+            kwargs.pop("fixed_poi_value")
+
         fit_opts = self.prepare_for_fit(
             expected=expected,
             allow_negative_signal=test_statistic in ["q", "qmu"],
@@ -631,7 +691,62 @@ class StatisticalModel(HypothesisTestingBase):
             init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
             par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
               the optimiser.
-            kwargs: keyword arguments for the optimiser.
+            kwargs: Keyword arguments forwarded to both the Asimov data generation fit
+              (via :func:`~spey.StatisticalModel.generate_asimov_data`) and the subsequent
+              likelihood evaluation (via :func:`~spey.StatisticalModel.likelihood`).
+              Both calls receive an independent copy of ``kwargs``.
+
+              **Consumed by** ``prepare_for_fit``:
+
+              * ``do_grad`` (``bool``, default ``True``): Whether to request the gradient of the
+                objective function from the backend. Falls back to ``False`` automatically if the
+                backend raises :obj:`NotImplementedError`.
+              * ``constraints`` (``List[Dict]``, default ``[]``): Additional
+                `scipy-style constraint dicts <https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html>`_
+                to pass to the optimiser. Any constraints defined on the backend itself are
+                always appended.
+
+              **Consumed by** ``fit`` (the core optimisation loop):
+
+              * ``minimizer`` (``str``, default ``"scipy"`` or the value of the
+                ``SPEY_OPTIMISER`` environment variable): Selects the numerical minimiser.
+                Accepted values are ``"scipy"`` and ``"minuit"`` (requires ``iminuit``).
+              * ``hessian`` (``Callable[[np.ndarray], np.ndarray]``, default ``None``):
+                Hessian of the objective function. Passed to scipy as ``hess``; ignored by
+                minuit.
+
+              **Scipy-minimiser options** (used when ``minimizer="scipy"``):
+
+              * ``method`` (``str``, default ``"SLSQP"``): Scipy optimisation method.
+              * ``maxiter`` (``int``, default ``10000``): Maximum number of iterations.
+              * ``tol`` (``float``, default ``1e-6``): Convergence tolerance.
+              * ``disp`` (``bool``, default ``False``): If ``True``, print convergence messages.
+              * ``ntrials`` (``int``, default ``1``): Number of re-tries with progressively
+                expanded parameter bounds when the minimiser does not converge.
+
+              **Minuit-minimiser options** (used when ``minimizer="minuit"``):
+
+              * ``method`` (``str``, default ``"migrad"``): Minuit algorithm
+                (``"migrad"`` or ``"simplex"``).
+              * ``maxiter`` (``int``, default ``10000``): Maximum number of function calls.
+              * ``tol`` (``float``, default ``1e-6``): Convergence tolerance.
+              * ``disp`` (``int``, default ``0``): Minuit print level (``0`` = silent).
+              * ``strategy`` (``int``, default ``0``): Minuit strategy
+                (``0`` = fast, ``1`` = default, ``2`` = slow but more accurate).
+              * ``errordef`` (``float``, default ``Minuit.LIKELIHOOD``): Value by which
+                Minuit defines a one-sigma interval (``0.5`` for NLL, ``1.0`` for
+                :math:`\chi^2`).
+
+              .. note::
+
+                  ``fixed_poi_value`` is **not** an accepted kwarg here.  The POI used for
+                  Asimov data generation is determined by ``test_statistics`` (``1.0`` for
+                  ``"q0"``, ``0.0`` otherwise), and ``poi_test`` fixes the POI for the
+                  likelihood evaluation.  Passing ``fixed_poi_value`` would cause a
+                  :obj:`TypeError` in both inner calls and is therefore intercepted and
+                  discarded with a warning.
+
+              Unknown keys are logged as a warning and silently discarded by the minimiser.
 
         Returns:
             ``float``:
@@ -695,7 +810,59 @@ class StatisticalModel(HypothesisTestingBase):
               indices (``int``) or names (``str``) is provided, returns a ``dict`` mapping each
               requested key to its fitted value. String keys are resolved via
               :attr:`~spey.base.model_config.ModelConfig.parameter_names`.
-            kwargs: keyword arguments for the optimiser.
+            kwargs: Keyword arguments forwarded through ``prepare_for_fit`` to the optimiser.
+              Accepts the same keys as :func:`~spey.StatisticalModel.likelihood`:
+
+              **Consumed by** ``prepare_for_fit``:
+
+              * ``do_grad`` (``bool``, default ``True``): Whether to request the gradient of the
+                objective function from the backend. Falls back to ``False`` automatically if the
+                backend raises :obj:`NotImplementedError`.
+              * ``constraints`` (``List[Dict]``, default ``[]``): Additional
+                `scipy-style constraint dicts <https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html>`_
+                to pass to the optimiser. Any constraints defined on the backend itself are
+                always appended.
+              * ``fixed_poi_value`` (``Union[float, Dict[int, float]]``, default ``None``):
+                Fix one or more parameters of interest during the optimisation while allowing
+                the remaining parameters (nuisance and other POIs) to be minimised freely.
+                A plain ``float`` fixes the primary POI (identified by
+                :attr:`~spey.base.model_config.ModelConfig.poi_index`); a ``dict`` of
+                ``{index: value}`` fixes multiple POIs simultaneously.  This is particularly
+                useful in multi-POI fits where, for example, one signal strength is held fixed
+                while others are profiled out.
+
+              **Consumed by** ``fit`` (the core optimisation loop):
+
+              * ``minimizer`` (``str``, default ``"scipy"`` or the value of the
+                ``SPEY_OPTIMISER`` environment variable): Selects the numerical minimiser.
+                Accepted values are ``"scipy"`` and ``"minuit"`` (requires ``iminuit``).
+              * ``hessian`` (``Callable[[np.ndarray], np.ndarray]``, default ``None``):
+                Hessian of the objective function with respect to the variational parameters.
+                Passed to scipy as the ``hess`` argument; ignored by the minuit minimiser.
+
+              **Scipy-minimiser options** (used when ``minimizer="scipy"``):
+
+              * ``method`` (``str``, default ``"SLSQP"``): Scipy optimisation method.
+              * ``maxiter`` (``int``, default ``10000``): Maximum number of iterations.
+              * ``tol`` (``float``, default ``1e-6``): Convergence tolerance.
+              * ``disp`` (``bool``, default ``False``): If ``True``, print convergence
+                messages.
+              * ``ntrials`` (``int``, default ``1``): Number of re-tries with progressively
+                expanded parameter bounds when the minimiser does not converge.
+
+              **Minuit-minimiser options** (used when ``minimizer="minuit"``):
+
+              * ``method`` (``str``, default ``"migrad"``): Minuit algorithm
+                (``"migrad"`` or ``"simplex"``).
+              * ``maxiter`` (``int``, default ``10000``): Maximum number of function calls.
+              * ``tol`` (``float``, default ``1e-6``): Convergence tolerance.
+              * ``disp`` (``int``, default ``0``): Minuit print level.
+              * ``strategy`` (``int``, default ``0``): Minuit strategy
+                (``0`` = fast, ``1`` = default, ``2`` = slow but more accurate).
+              * ``errordef`` (``float``, default ``Minuit.LIKELIHOOD``): Value by which
+                Minuit defines a one-sigma interval.
+
+              Unknown keys are logged as a warning and silently discarded by the minimiser.
 
         Returns:
             ``Tuple[Union[float, Dict[Union[int, str], float]], float]``:
@@ -789,7 +956,60 @@ class StatisticalModel(HypothesisTestingBase):
               names (``str``) is provided, returns a ``dict`` mapping each requested key to its
               fitted value. Passed directly to
               :func:`~spey.StatisticalModel.maximize_likelihood`.
-            kwargs: keyword arguments for the optimiser.
+            kwargs: Keyword arguments forwarded to both the Asimov data generation fit
+              (via :func:`~spey.StatisticalModel.generate_asimov_data`) and the subsequent
+              maximisation (via :func:`~spey.StatisticalModel.maximize_likelihood`).
+              Both calls receive an independent copy of ``kwargs``.
+
+              **Consumed by** ``prepare_for_fit``:
+
+              * ``do_grad`` (``bool``, default ``True``): Whether to request the gradient of the
+                objective function from the backend. Falls back to ``False`` automatically if the
+                backend raises :obj:`NotImplementedError`.
+              * ``constraints`` (``List[Dict]``, default ``[]``): Additional
+                `scipy-style constraint dicts <https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html>`_
+                to pass to the optimiser. Any constraints defined on the backend itself are
+                always appended.
+
+              **Consumed by** ``fit`` (the core optimisation loop):
+
+              * ``minimizer`` (``str``, default ``"scipy"`` or the value of the
+                ``SPEY_OPTIMISER`` environment variable): Selects the numerical minimiser.
+                Accepted values are ``"scipy"`` and ``"minuit"`` (requires ``iminuit``).
+              * ``hessian`` (``Callable[[np.ndarray], np.ndarray]``, default ``None``):
+                Hessian of the objective function. Passed to scipy as ``hess``; ignored by
+                minuit.
+              * ``fixed_poi_value`` (``Union[float, Dict[int, float]]``, default ``None``):
+                Fix one or more POIs during the **maximisation** step while allowing the
+                remaining parameters to be profiled freely.  A plain ``float`` fixes the
+                primary POI; a ``dict`` of ``{index: value}`` fixes multiple POIs
+                simultaneously.  This kwarg is intercepted and discarded (with a warning)
+                in the Asimov data generation step, where the POI is already determined by
+                ``test_statistics``.
+
+              **Scipy-minimiser options** (used when ``minimizer="scipy"``):
+
+              * ``method`` (``str``, default ``"SLSQP"``): Scipy optimisation method.
+              * ``maxiter`` (``int``, default ``10000``): Maximum number of iterations.
+              * ``tol`` (``float``, default ``1e-6``): Convergence tolerance.
+              * ``disp`` (``bool``, default ``False``): If ``True``, print convergence messages.
+              * ``ntrials`` (``int``, default ``1``): Number of re-tries with progressively
+                expanded parameter bounds when the minimiser does not converge.
+
+              **Minuit-minimiser options** (used when ``minimizer="minuit"``):
+
+              * ``method`` (``str``, default ``"migrad"``): Minuit algorithm
+                (``"migrad"`` or ``"simplex"``).
+              * ``maxiter`` (``int``, default ``10000``): Maximum number of function calls.
+              * ``tol`` (``float``, default ``1e-6``): Convergence tolerance.
+              * ``disp`` (``int``, default ``0``): Minuit print level (``0`` = silent).
+              * ``strategy`` (``int``, default ``0``): Minuit strategy
+                (``0`` = fast, ``1`` = default, ``2`` = slow but more accurate).
+              * ``errordef`` (``float``, default ``Minuit.LIKELIHOOD``): Value by which
+                Minuit defines a one-sigma interval (``0.5`` for NLL, ``1.0`` for
+                :math:`\chi^2`).
+
+              Unknown keys are logged as a warning and silently discarded by the minimiser.
 
         Returns:
             ``Tuple[Union[float, Dict[Union[int, str], float]], float]``:
@@ -797,7 +1017,7 @@ class StatisticalModel(HypothesisTestingBase):
             log-likelihood. When ``poi_indices`` is provided: a ``dict`` of
             ``{index_or_name: fitted_value}`` and the (negative) log-likelihood.
         """
-        allow_negative_signal: bool = True if test_statistics in ["q", "qmu"] else False
+        allow_negative_signal: bool = test_statistics in ["q", "qmu"]
 
         return self.maximize_likelihood(
             return_nll=return_nll,
