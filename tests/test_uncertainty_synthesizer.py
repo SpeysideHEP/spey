@@ -24,7 +24,10 @@ def test_uncorrelated_background():
         background_yields=background_yields,
         data=data,
         absolute_uncertainties=background_unc,
-        modifiers=[scale_unc, pdf_unc],
+        modifiers=[
+            {"type": "normalization", "name": "scale", "uncertainties": scale_unc},
+            {"type": "normalization", "name": "pdf", "uncertainties": pdf_unc},
+        ],
     )
 
     poi = 1.0
@@ -78,7 +81,10 @@ def test_correlated_background():
         background_yields=background_yields,
         data=data,
         covariance_matrix=covariance_matrix,
-        modifiers=[scale_unc, pdf_unc],
+        modifiers=[
+            {"type": "normalization", "name": "scale", "uncertainties": scale_unc},
+            {"type": "normalization", "name": "pdf", "uncertainties": pdf_unc},
+        ],
     )
 
     delta_up_scale = 1.0 + scale_unc / signal_yields

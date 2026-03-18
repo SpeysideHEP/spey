@@ -565,7 +565,9 @@ def test_uncorrelated_background_callable_signal_yields_modifiers_raises():
             background_yields=[50.0, 48.0],
             data=[36, 33],
             absolute_uncertainties=[12.0, 16.0],
-            modifiers=[[[2.0, 3.0]]],
+            modifiers=[
+                {"type": "normalization", "name": "pdf", "uncertainties": [2.0, 3.0]}
+            ],
             n_signal_parameters=1,
         )
 
@@ -846,26 +848,29 @@ def test_callable_signal_yields_is_alive_default_backends():
 
 def test_uncertainty_synthesizer_n_signal_parameters_domain_shift():
     """
-    signal_uncertainty_synthesizer: n_signal_parameters shifts constraint domains.
+    signal_uncertainty_synthesizer: n_signal_parameters and domain_start shift
+    constraint domains for normalization modifiers.
 
-    With N=2 bins, 1 modifier, and n_signal_parameters=2:
+    With N=2 bins, 1 normalization modifier, and n_signal_parameters=2:
       domain = 1 + 2 + 2 = 5  →  [5]
     With n_signal_parameters=0 (default):
       domain = 1 + 0 + 2 = 3  →  [3]
+    With explicit domain_start=7:
+      domain = 7  →  [7]
     """
     from spey.backends.default_pdf.uncertainty_synthesizer import (
         signal_uncertainty_synthesizer,
     )
 
     signal_yields = [10.0, 20.0]
-    modifiers = [[1.0, 2.0]]  # one symmetric modifier
+    modifiers = [{"type": "normalization", "name": "pdf", "uncertainties": [1.0, 2.0]}]
 
     result_default = signal_uncertainty_synthesizer(signal_yields, modifiers)
     result_shifted = signal_uncertainty_synthesizer(
         signal_yields, modifiers, n_signal_parameters=2
     )
     result_explicit = signal_uncertainty_synthesizer(
-        signal_yields, modifiers, domain=np.array([7])
+        signal_yields, modifiers, domain_start=7
     )
 
     domain_default = result_default["constraint"][0]["kwargs"]["domain"]
@@ -875,6 +880,10 @@ def test_uncertainty_synthesizer_n_signal_parameters_domain_shift():
     assert domain_default[0] == 3, f"Expected domain index 3, got {domain_default[0]}"
     assert domain_shifted[0] == 5, f"Expected domain index 5, got {domain_shifted[0]}"
     assert domain_explicit[0] == 7, f"Expected domain index 7, got {domain_explicit[0]}"
+
+    # normalization: exactly 1 nuisance parameter
+    assert result_default["n_parameters"] == 1
+    assert result_default["parameter_names"] == ["theta_sig_pdf"]
 
 
 def test_correlated_background_modifiers_with_n_signal_parameters_zero():
@@ -895,12 +904,18 @@ def test_correlated_background_modifiers_with_n_signal_parameters_zero():
         background_yields=background_yields,
         data=data,
         covariance_matrix=covariance_matrix,
-        modifiers=[[2.0, 3.0]],  # one symmetric modifier: values per bin for one source
+        modifiers=[{"type": "normalization", "name": "pdf", "uncertainties": [2.0, 3.0]}],
     )
 
     cfg = model.config()
-    # pars = [mu, theta_bkg_0, theta_bkg_1, theta_sig_0]
+    # pars = [mu, theta_bkg_0, theta_bkg_1, theta_sig_pdf]
     assert cfg.npar == 4, f"Expected 4 parameters, got {cfg.npar}"
+    assert cfg.parameter_names == [
+        "mu",
+        "theta_bkg_0",
+        "theta_bkg_1",
+        "theta_sig_pdf",
+    ], f"Unexpected parameter names: {cfg.parameter_names}"
 
     # signal-uncertainty constraint domain must be index 3 (= 1 + 0 + 2)
     sig_unc_constraint = model.signal_uncertainty_configuration["constraint"][0]
@@ -911,6 +926,134 @@ def test_correlated_background_modifiers_with_n_signal_parameters_zero():
     pars = np.array([1.0, 0.0, 0.0, 0.0])
     ll = model.get_logpdf_func()(pars)
     assert np.isfinite(ll), f"logpdf not finite: {ll}"
+
+
+def test_uncertainty_synthesizer_shape_modifier():
+    """
+    signal_uncertainty_synthesizer: shape modifier assigns one nuisance per bin.
+
+    With N=2 bins and one shape modifier:
+      - n_parameters == 2  (one per bin)
+      - constraint domains == [3, 4]  (for n_signal_parameters=0)
+      - parameter_names == ["theta_sig_scale_0", "theta_sig_scale_1"]
+    """
+    from spey.backends.default_pdf.uncertainty_synthesizer import (
+        signal_uncertainty_synthesizer,
+    )
+
+    signal_yields = [10.0, 20.0]
+    modifiers = [{"type": "shape", "name": "scale", "uncertainties": [1.0, 2.0]}]
+
+    result = signal_uncertainty_synthesizer(signal_yields, modifiers)
+
+    assert (
+        result["n_parameters"] == 2
+    ), f"Expected 2 parameters, got {result['n_parameters']}"
+    assert result["parameter_names"] == [
+        "theta_sig_scale_0",
+        "theta_sig_scale_1",
+    ], f"Unexpected names: {result['parameter_names']}"
+    assert len(result["constraint"]) == 2, "Expected 2 constraints for shape modifier"
+    assert result["constraint"][0]["kwargs"]["domain"][0] == 3
+    assert result["constraint"][1]["kwargs"]["domain"][0] == 4
+
+    # lambda must return per-bin array of length 2 at the nominal point (alpha=0)
+    pars = np.zeros(5)  # [mu, theta_bkg_0, theta_bkg_1, alpha_0, alpha_1]
+    val = result["lambda"](pars)
+    assert val.shape == (2,), f"Expected shape (2,), got {val.shape}"
+    assert np.allclose(val, 1.0), f"At alpha=0 modifier must be 1, got {val}"
+
+
+def test_uncertainty_synthesizer_mixed_normalization_shape():
+    """
+    signal_uncertainty_synthesizer: mixed normalization + shape modifiers.
+
+    With N=2 bins, one normalization (1 par) and one shape (2 pars):
+      - n_parameters == 3
+      - normalization domain index == 3
+      - shape domain indices == [4, 5]
+    """
+    from spey.backends.default_pdf.uncertainty_synthesizer import (
+        signal_uncertainty_synthesizer,
+    )
+
+    signal_yields = [10.0, 20.0]
+    modifiers = [
+        {"type": "normalization", "name": "pdf", "uncertainties": [1.0, 2.0]},
+        {"type": "shape", "name": "scale", "uncertainties": [0.5, 1.0]},
+    ]
+
+    result = signal_uncertainty_synthesizer(signal_yields, modifiers)
+
+    assert result["n_parameters"] == 3
+    assert result["parameter_names"] == [
+        "theta_sig_pdf",
+        "theta_sig_scale_0",
+        "theta_sig_scale_1",
+    ]
+    assert len(result["constraint"]) == 3
+    # normalization at index 3
+    assert result["constraint"][0]["kwargs"]["domain"][0] == 3
+    # shape bins at indices 4 and 5
+    assert result["constraint"][1]["kwargs"]["domain"][0] == 4
+    assert result["constraint"][2]["kwargs"]["domain"][0] == 5
+
+    # at alpha=0 for all nuisances the total modifier must be 1
+    pars = np.zeros(6)  # [mu, bkg0, bkg1, theta_pdf, alpha0, alpha1]
+    val = result["lambda"](pars)
+    assert np.allclose(val, 1.0), f"At zero nuisances modifier must be 1, got {val}"
+
+
+def test_correlated_background_shape_modifier_parameter_count():
+    """
+    CorrelatedBackground with a shape modifier produces N nuisance parameters
+    (one per bin), so ModelConfig must reflect the larger parameter count.
+
+    For N=2 bins and one shape modifier:
+      pars = [mu, theta_bkg_0, theta_bkg_1, alpha_scale_0, alpha_scale_1]  (5 total)
+    """
+    from spey.backends.default_pdf import CorrelatedBackground
+
+    signal_yields = np.array([12.0, 15.0])
+    background_yields = np.array([50.0, 48.0])
+    data = np.array([36, 33])
+    covariance_matrix = np.array([[144.0, 13.0], [25.0, 256.0]])
+
+    model = CorrelatedBackground(
+        signal_yields=signal_yields,
+        background_yields=background_yields,
+        data=data,
+        covariance_matrix=covariance_matrix,
+        modifiers=[{"type": "shape", "name": "scale", "uncertainties": [1.0, 2.0]}],
+    )
+
+    cfg = model.config()
+    assert cfg.npar == 5, f"Expected 5 parameters, got {cfg.npar}"
+    assert cfg.parameter_names == [
+        "mu",
+        "theta_bkg_0",
+        "theta_bkg_1",
+        "theta_sig_scale_0",
+        "theta_sig_scale_1",
+    ], f"Unexpected names: {cfg.parameter_names}"
+
+    pars = np.array([1.0, 0.0, 0.0, 0.0, 0.0])
+    ll = model.get_logpdf_func()(pars)
+    assert np.isfinite(ll), f"logpdf not finite at nominal point: {ll}"
+
+
+def test_uncertainty_synthesizer_invalid_type_raises():
+    """signal_uncertainty_synthesizer: unknown modifier type raises InvalidUncertaintyDefinition."""
+    from spey.backends.default_pdf.uncertainty_synthesizer import (
+        signal_uncertainty_synthesizer,
+    )
+    from spey.system.exceptions import InvalidUncertaintyDefinition
+
+    with pytest.raises(InvalidUncertaintyDefinition, match="Unknown modifier type"):
+        signal_uncertainty_synthesizer(
+            signal_yields=[10.0, 20.0],
+            modifiers=[{"type": "unknown", "uncertainties": [1.0, 2.0]}],
+        )
 
 
 def test_bin_merge():
