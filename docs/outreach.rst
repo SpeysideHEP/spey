@@ -13,6 +13,9 @@ Talks
    * - Mar 18, 2026
      - `Monte-Carlo support tools: future-proofing the bridge between theory and experiment <https://conference.ippp.dur.ac.uk/event/1523/contributions/8864/>`_
      - IPPP, Durham University
+   * - Feb 11, 2026
+     - `MadGraph General Meeting 2026 <https://indico.cern.ch/event/1594393/contributions/6884169/>`_
+     - Institut für Theoretische Physik, Universität Heidelberg, Germany
    * - Nov 25, 2025
      - `MC&I XPAG Meeting <https://indico.cern.ch/event/1614906/>`_
      - CERN
