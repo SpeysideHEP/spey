@@ -181,7 +181,8 @@ class TestFitWithDictFixedPoi:
 # StatisticalModel helpers
 # ---------------------------------------------------------------------------
 import spey.interface.statistical_model as sm_mod
-from spey.interface.statistical_model import StatisticalModel, PoiTest
+StatisticalModel = sm_mod.StatisticalModel
+PoiTest = sm_mod.PoiTest
 
 
 def _default_model_config():
