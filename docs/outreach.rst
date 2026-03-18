@@ -10,6 +10,9 @@ Talks
    * - Date
      - Event
      - Location
+   * - Mar 18, 2026
+     - `Monte-Carlo support tools: future-proofing the bridge between theory and experiment <https://conference.ippp.dur.ac.uk/event/1523/contributions/8864/>`_
+     - IPPP, Durham University
    * - Nov 25, 2025
      - `MC&I XPAG Meeting <https://indico.cern.ch/event/1614906/>`_
      - CERN
