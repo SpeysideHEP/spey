@@ -455,9 +455,6 @@ class TestFixedPoiSamplerDictPoiTest:
             fit_called["fixed_poi_value"] = kwargs.get("fixed_poi_value")
             return -1.0, np.array([1.0, 0.5])
 
-        def fake_get_sampler(self_backend, fit_param):
-            return lambda size: np.ones((size, 1))
-
         monkeypatch.setattr(sm_mod, "BackendBase", _FakeBackendBase)
         monkeypatch.setattr(sm_mod, "fit", fake_fit)
 
