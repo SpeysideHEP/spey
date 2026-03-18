@@ -296,7 +296,6 @@ class DefaultPDFBase(BackendBase):
         self.n_signal_parameters = n_signal_parameters
 
         if modifiers is None:
-            modifiers = []
             self.signal_uncertainty_configuration = {}
         else:
             if callable(self.signal_yields):

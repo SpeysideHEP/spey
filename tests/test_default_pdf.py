@@ -2,7 +2,7 @@
 
 import numpy as np
 import pytest
-from scipy.optimize import minimize, minimize_scalar
+from scipy.optimize import minimize_scalar
 from scipy.stats import chi2, multivariate_normal, norm, poisson
 
 import spey
