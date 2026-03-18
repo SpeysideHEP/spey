@@ -1,8 +1,17 @@
 r"""
 This module implements a two-stage algorithm for mapping the boundary of the
 :math:`(1-\alpha)` confidence region in the full parameter space of a
-:class:`~spey.StatisticalModel` whose backend is
-``"default.multivariate_normal"``.
+:class:`~spey.StatisticalModel`. It uses frequentist approach to find the iso-surface of
+the profile likelihood ratio
+
+.. math::
+
+    \Delta\chi^2(\mu) = -2\log\frac{\mathcal{L}(\mu, \hat{\theta})}{\mathcal{L}(\hat{\mu}, \hat{\theta})}
+    = \chi^2_{D,1-\alpha} \ ,
+
+where :math:`\mu` are parameters of interest, :math:`\theta` are the nuisance parameters and
+:math:`\chi^2_{D,1-\alpha}` is the :math:`\chi^2` distribution at :math:`1-\alpha` confidence
+region with D degrees of freedom.
 
 Mathematical Framework
 ======================

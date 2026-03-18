@@ -116,20 +116,6 @@ All backends use the same parameter-vector convention::
 * Indices 1…N: per-bin nuisance parameters :math:`\theta_i`.
 * Remaining indices: optional parameters introduced by signal-uncertainty *modifiers*.
 
-Signal uncertainty modifiers
------------------------------
-
-All backends accept an optional ``modifiers`` argument that adds multiplicative
-signal-yield corrections, allowing the user to propagate signal systematic
-uncertainties.  Supported modifier types are:
-
-* ``absolute_uncertainties``: symmetric absolute uncertainties on the signal.
-* ``absolute_uncertainty_envelops``: asymmetric upper/lower envelopes.
-
-The effective signal yield in bin :math:`i` becomes
-:math:`\mu\, n^s_i \cdot f(\boldsymbol{\theta}_{\rm sig})`, where
-:math:`f` is constructed by :func:`~.signal_uncertainty_synthesizer`.
-
 References
 ----------
 * Collaboration, CMS, *Simplified likelihood for the re-interpretation of public CMS
@@ -138,7 +124,7 @@ References
 """
 
 import logging
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from autograd import hessian, jacobian
 from autograd import numpy as np
@@ -154,10 +140,9 @@ from spey.utils import ExpectationType
 from .third_moment import third_moment_expansion
 from .uncertainty_synthesizer import signal_uncertainty_synthesizer
 
-# pylint: disable=E1101,E1120
 log = logging.getLogger("Spey")
 
-# pylint: disable=W1203
+# pylint: disable=E1101,E1120,W1203
 
 
 class DefaultPDFBase(BackendBase):
@@ -216,15 +201,35 @@ class DefaultPDFBase(BackendBase):
               standard deviations.  For uncorrelated bins pass a diagonal matrix with
               :math:`\Sigma_{ii} = \sigma_i^2`.
 
-        modifiers (``list``, default ``None``): Optional signal-uncertainty
-          modifiers.  Each entry is a dict with one of the following keys:
+        modifiers (``List[Dict[str, Any]]``, default ``None``): Optional list of
+          signal-uncertainty modifier configuration dictionaries.  Each dictionary
+          must contain:
 
-          - ``absolute_uncertainties`` (``List[float]``): symmetric absolute
-            uncertainties on the signal.
-          - ``absolute_uncertainty_envelops`` (``List[Tuple[float, float]]``):
-            asymmetric upper/lower envelopes on the signal.
+          - ``"type"`` (``str``, required): morphing mode, either
+
+            * ``"normalization"`` — one shared nuisance parameter for all bins
+              (e.g. PDF uncertainties, luminosity);
+            * ``"shape"`` — one independent nuisance parameter per bin
+              (e.g. scale uncertainties, theory prediction statistics).
+
+          - ``"uncertainties"`` (``List[float] | List[Tuple[float, float]]``, required):
+            absolute uncertainty values per bin.  Use a flat ``list[float]`` for
+            symmetric uncertainties, or a ``list[(up, down)]`` for asymmetric ones.
+          - ``"name"`` (``str``, optional): label used for parameter naming; defaults
+            to ``"mod0"``, ``"mod1"``, …
 
           Not supported when ``signal_yields`` is a callable.
+
+          **Example:**
+
+          .. code:: python3
+
+              modifiers = [
+                  {"type": "normalization", "name": "pdf",
+                   "uncertainties": [0.6, 1.0]},
+                  {"type": "shape", "name": "scale",
+                   "uncertainties": [(0.3, 0.4), (0.5, 0.6)]},
+              ]
 
         n_signal_parameters (``int``, default ``0``): Number of additional free
           parameters that a callable ``signal_yields`` function accepts.  These
@@ -271,7 +276,7 @@ class DefaultPDFBase(BackendBase):
         background_yields: np.ndarray,
         data: np.ndarray,
         covariance_matrix: Union[np.ndarray, Callable[[np.ndarray], np.ndarray]] = None,
-        modifiers: list[Union[List[float], List[Tuple[float, float]]]] = None,
+        modifiers: Optional[List[Dict[str, Any]]] = None,
         n_signal_parameters: int = 0,
         signal_parameter_bounds: Optional[
             List[Tuple[Optional[float], Optional[float]]]
@@ -296,8 +301,8 @@ class DefaultPDFBase(BackendBase):
         else:
             if callable(self.signal_yields):
                 raise ValueError(
-                    "modifiers cannot be combined with a callable signal_yields. "
-                    "Provide signal_yields as a plain array when using modifiers."
+                    "modifiers cannot be combined with a callable `signal_yields`. "
+                    "Provide `signal_yields` as a plain array when using modifiers."
                 )
             self.signal_uncertainty_configuration = signal_uncertainty_synthesizer(
                 signal_yields=self.signal_yields,
@@ -319,14 +324,15 @@ class DefaultPDFBase(BackendBase):
         """Constraints to be used during optimisation process"""
 
         n_bkg_pars = len(data)
-        n_sig_unc_pars = len(modifiers)
+        n_sig_unc_pars = self.signal_uncertainty_configuration.get("n_parameters", 0)
+        sig_unc_names = self.signal_uncertainty_configuration.get("parameter_names", [])
         parameter_names = None
-        if n_signal_parameters > 0:
+        if n_signal_parameters > 0 or n_sig_unc_pars > 0:
             parameter_names = (
                 ["mu"]
                 + [f"signal_par_{i}" for i in range(n_signal_parameters)]
                 + [f"theta_bkg_{i}" for i in range(n_bkg_pars)]
-                + [f"theta_sig_{i}" for i in range(n_sig_unc_pars)]
+                + sig_unc_names
             )
 
         if signal_parameter_bounds is None:
@@ -789,9 +795,36 @@ class UncorrelatedBackground(DefaultPDFBase):
         absolute_uncertainties (``List[float]``): Absolute (not relative) background
           uncertainties :math:`\{\sigma_i\}`.  Must have the same length as the
           other array inputs.
-        modifiers (``list``, default ``None``): Optional signal-uncertainty modifiers;
-          see :class:`DefaultPDFBase` for the accepted format.  Not supported when
-          ``signal_yields`` is callable.
+        modifiers (``List[Dict[str, Any]]``, default ``None``): Optional list of
+          signal-uncertainty modifier configuration dictionaries.  Each dictionary
+          must contain:
+
+          - ``"type"`` (``str``, required): morphing mode, either
+
+            * ``"normalization"`` — one shared nuisance parameter for all bins
+              (e.g. PDF uncertainties, luminosity);
+            * ``"shape"`` — one independent nuisance parameter per bin
+              (e.g. scale uncertainties, theory prediction statistics).
+
+          - ``"uncertainties"`` (``List[float] | List[Tuple[float, float]]``, required):
+            absolute uncertainty values per bin.  Use a flat ``list[float]`` for
+            symmetric uncertainties, or a ``list[(up, down)]`` for asymmetric ones.
+          - ``"name"`` (``str``, optional): label used for parameter naming; defaults
+            to ``"mod0"``, ``"mod1"``, …
+
+          Not supported when ``signal_yields`` is a callable.
+
+          **Example:**
+
+          .. code:: python3
+
+              modifiers = [
+                  {"type": "normalization", "name": "pdf",
+                   "uncertainties": [0.6, 1.0]},
+                  {"type": "shape", "name": "scale",
+                   "uncertainties": [(0.3, 0.4), (0.5, 0.6)]},
+              ]
+
         n_signal_parameters (``int``, default ``0``): Number of additional free
           parameters accepted by a callable ``signal_yields``.  Has no effect when
           ``signal_yields`` is a plain array.  See :class:`DefaultPDFBase` for the
@@ -837,7 +870,7 @@ class UncorrelatedBackground(DefaultPDFBase):
         background_yields: List[float],
         data: List[int],
         absolute_uncertainties: List[float],
-        modifiers: list[Union[List[float], List[Tuple[float, float]]]] = None,
+        modifiers: Optional[List[Dict[str, Any]]] = None,
         n_signal_parameters: int = 0,
         signal_parameter_bounds: Optional[
             List[Tuple[Optional[float], Optional[float]]]
@@ -936,9 +969,36 @@ class CorrelatedBackground(DefaultPDFBase):
         covariance_matrix (``np.ndarray``): :math:`N \times N` background covariance
           matrix :math:`\Sigma`.  Diagonal entries are squared absolute uncertainties
           :math:`\sigma_i^2`.
-        modifiers (``list``, default ``None``): Optional signal-uncertainty modifiers;
-          see :class:`DefaultPDFBase` for the accepted format.  Not supported when
-          ``signal_yields`` is callable.
+        modifiers (``List[Dict[str, Any]]``, default ``None``): Optional list of
+          signal-uncertainty modifier configuration dictionaries.  Each dictionary
+          must contain:
+
+          - ``"type"`` (``str``, required): morphing mode, either
+
+            * ``"normalization"`` — one shared nuisance parameter for all bins
+              (e.g. PDF uncertainties, luminosity);
+            * ``"shape"`` — one independent nuisance parameter per bin
+              (e.g. scale uncertainties, theory prediction statistics).
+
+          - ``"uncertainties"`` (``List[float] | List[Tuple[float, float]]``, required):
+            absolute uncertainty values per bin.  Use a flat ``list[float]`` for
+            symmetric uncertainties, or a ``list[(up, down)]`` for asymmetric ones.
+          - ``"name"`` (``str``, optional): label used for parameter naming; defaults
+            to ``"mod0"``, ``"mod1"``, …
+
+          Not supported when ``signal_yields`` is a callable.
+
+          **Example:**
+
+          .. code:: python3
+
+              modifiers = [
+                  {"type": "normalization", "name": "pdf",
+                   "uncertainties": [0.6, 1.0]},
+                  {"type": "shape", "name": "scale",
+                   "uncertainties": [(0.3, 0.4), (0.5, 0.6)]},
+              ]
+
         n_signal_parameters (``int``, default ``0``): Number of additional free
           parameters accepted by a callable ``signal_yields``.  Has no effect when
           ``signal_yields`` is a plain array.  See :class:`DefaultPDFBase` for the
@@ -985,7 +1045,7 @@ class CorrelatedBackground(DefaultPDFBase):
         background_yields: np.ndarray,
         data: np.ndarray,
         covariance_matrix: np.ndarray,
-        modifiers: list[Union[List[float], List[Tuple[float, float]]]] = None,
+        modifiers: Optional[List[Dict[str, Any]]] = None,
         n_signal_parameters: int = 0,
         signal_parameter_bounds: Optional[
             List[Tuple[Optional[float], Optional[float]]]
@@ -1068,9 +1128,36 @@ class ThirdMomentExpansion(DefaultPDFBase):
           :math:`\{m^{(2)}_{ij}\}`.
         third_moment (``np.ndarray``): Per-bin diagonal third-moment values
           :math:`\{m^{(3)}_i\}`.  Must have length :math:`N`.
-        modifiers (``list``, default ``None``): Optional signal-uncertainty modifiers;
-          see :class:`DefaultPDFBase` for the accepted format.  Not supported when
-          ``signal_yields`` is callable.
+        modifiers (``List[Dict[str, Any]]``, default ``None``): Optional list of
+          signal-uncertainty modifier configuration dictionaries.  Each dictionary
+          must contain:
+
+          - ``"type"`` (``str``, required): morphing mode, either
+
+            * ``"normalization"`` — one shared nuisance parameter for all bins
+              (e.g. PDF uncertainties, luminosity);
+            * ``"shape"`` — one independent nuisance parameter per bin
+              (e.g. scale uncertainties, theory prediction statistics).
+
+          - ``"uncertainties"`` (``List[float] | List[Tuple[float, float]]``, required):
+            absolute uncertainty values per bin.  Use a flat ``list[float]`` for
+            symmetric uncertainties, or a ``list[(up, down)]`` for asymmetric ones.
+          - ``"name"`` (``str``, optional): label used for parameter naming; defaults
+            to ``"mod0"``, ``"mod1"``, …
+
+          Not supported when ``signal_yields`` is a callable.
+
+          **Example:**
+
+          .. code:: python3
+
+              modifiers = [
+                  {"type": "normalization", "name": "pdf",
+                   "uncertainties": [0.6, 1.0]},
+                  {"type": "shape", "name": "scale",
+                   "uncertainties": [(0.3, 0.4), (0.5, 0.6)]},
+              ]
+
         n_signal_parameters (``int``, default ``0``): Number of additional free
           parameters accepted by a callable ``signal_yields``.  Has no effect when
           ``signal_yields`` is a plain array.  See :class:`DefaultPDFBase` for the
@@ -1110,7 +1197,7 @@ class ThirdMomentExpansion(DefaultPDFBase):
         data: np.ndarray,
         covariance_matrix: np.ndarray,
         third_moment: np.ndarray,
-        modifiers: list[Union[List[float], List[Tuple[float, float]]]] = None,
+        modifiers: Optional[List[Dict[str, Any]]] = None,
         n_signal_parameters: int = 0,
         signal_parameter_bounds: Optional[
             List[Tuple[Optional[float], Optional[float]]]
@@ -1249,9 +1336,36 @@ class EffectiveSigma(DefaultPDFBase):
         absolute_uncertainty_envelops (``List[Tuple[float, float]]``): Per-bin pairs
           :math:`(\sigma^+_i, \sigma^-_i)` of upper and lower absolute background
           uncertainties.  Both values are taken as absolute (sign is ignored).
-        modifiers (``list``, default ``None``): Optional signal-uncertainty modifiers;
-          see :class:`DefaultPDFBase` for the accepted format.  Not supported when
-          ``signal_yields`` is callable.
+        modifiers (``List[Dict[str, Any]]``, default ``None``): Optional list of
+          signal-uncertainty modifier configuration dictionaries.  Each dictionary
+          must contain:
+
+          - ``"type"`` (``str``, required): morphing mode, either
+
+            * ``"normalization"`` — one shared nuisance parameter for all bins
+              (e.g. PDF uncertainties, luminosity);
+            * ``"shape"`` — one independent nuisance parameter per bin
+              (e.g. scale uncertainties, theory prediction statistics).
+
+          - ``"uncertainties"`` (``List[float] | List[Tuple[float, float]]``, required):
+            absolute uncertainty values per bin.  Use a flat ``list[float]`` for
+            symmetric uncertainties, or a ``list[(up, down)]`` for asymmetric ones.
+          - ``"name"`` (``str``, optional): label used for parameter naming; defaults
+            to ``"mod0"``, ``"mod1"``, …
+
+          Not supported when ``signal_yields`` is a callable.
+
+          **Example:**
+
+          .. code:: python3
+
+              modifiers = [
+                  {"type": "normalization", "name": "pdf",
+                   "uncertainties": [0.6, 1.0]},
+                  {"type": "shape", "name": "scale",
+                   "uncertainties": [(0.3, 0.4), (0.5, 0.6)]},
+              ]
+
         n_signal_parameters (``int``, default ``0``): Number of additional free
           parameters accepted by a callable ``signal_yields``.  Has no effect when
           ``signal_yields`` is a plain array.  See :class:`DefaultPDFBase` for the
@@ -1286,7 +1400,7 @@ class EffectiveSigma(DefaultPDFBase):
         data: np.ndarray,
         correlation_matrix: np.ndarray,
         absolute_uncertainty_envelops: List[Tuple[float, float]],
-        modifiers: list[Union[List[float], List[Tuple[float, float]]]] = None,
+        modifiers: Optional[List[Dict[str, Any]]] = None,
         n_signal_parameters: int = 0,
         signal_parameter_bounds: Optional[
             List[Tuple[Optional[float], Optional[float]]]
