@@ -68,6 +68,8 @@ xref_links = {
         "https://10.48550/arXiv.physics/0406120",
     ),
     "2602.18611": ("[arXiv:2602.18611]", "https://arxiv.org/abs/2602.18611"),
+    "1510.03865": ("[arXiv:1510.03865]", "https://arxiv.org/abs/1510.03865"),
+    "1601.03413": ("[arXiv:1601.03413]", "https://arxiv.org/abs/1601.03413"),
 }
 
 source_suffix = {
