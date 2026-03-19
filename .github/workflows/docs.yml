@@ -1,0 +1,31 @@
+name: Docs
+
+on:
+    pull_request:
+        branches: ["main", "releases/**"]
+        types: [opened, review_requested, ready_for_review, synchronize]
+        paths: ["docs/**", "src/**.py", ".readthedocs.yaml"]
+    push:
+        branches: ["main", "releases/**"]
+        paths: ["docs/**", "src/**.py", ".readthedocs.yaml"]
+    workflow_dispatch:
+
+jobs:
+    build:
+        name: Build documentation
+        runs-on: ubuntu-22.04
+
+        steps:
+            - uses: actions/checkout@v3
+            - name: Set up Python 3.11
+              uses: actions/setup-python@v3
+              with:
+                  python-version: "3.11"
+            - name: Install dependencies
+              run: |
+                  python -m pip install --upgrade pip
+                  python -m pip install -r docs/requirements.txt
+                  python -m pip install .
+            - name: Build HTML docs
+              run: make html
+              working-directory: docs
