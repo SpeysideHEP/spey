@@ -151,7 +151,7 @@ class ModelConfig:
                 )
         return bounds
 
-    def change_parameter_names(self, name_map: dict[str, str]) -> None:
+    def change_parameter_names(self, name_map: Dict[str, str]) -> None:
         """Change the parameter names"""
         new_names = []
         for old, new in name_map.items():

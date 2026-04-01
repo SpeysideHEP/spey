@@ -78,9 +78,9 @@ def fit(
     if bounds is not None:
         par_bounds = [*bounds]
     elif isinstance(fixed_poi_value, dict):
-        par_bounds = [*model_configuration.fixed_poi_bounds_multi(fixed_poi_value)]
+        par_bounds = model_configuration.fixed_poi_bounds_multi(fixed_poi_value)
     else:
-        par_bounds = [*model_configuration.fixed_poi_bounds(fixed_poi_value)]
+        par_bounds = model_configuration.fixed_poi_bounds(fixed_poi_value)
 
     minimizer_opt = options.pop(
         "minimizer", os.environ.get("SPEY_OPTIMISER", "scipy").lower()

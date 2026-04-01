@@ -662,7 +662,7 @@ class HypothesisTestingBase(ABC):
             * ``logpdf_asimov(mu)`` — callable returning :math:`-\log\mathcal{L}_A(\mu)`
               on Asimov data.
         """
-        allow_negative_signal = test_statistics in ["q" or "qmu"]
+        allow_negative_signal = test_statistics in ["q", "qmu"]
         log.debug("Computing max-llhd")
         muhat, nll = self.maximize_likelihood(
             expected=expected,

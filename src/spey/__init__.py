@@ -176,7 +176,7 @@ def register_backend(
             + ", ".join(getattr(model, "__abstractmethods__"))
         )
 
-    if all(hasattr(model, meta) for meta in required_meta):
+    if not all(hasattr(model, meta) for meta in required_meta):
         raise MissingMetaData("Required metadata missing: " + ", ".join(required_meta))
 
     name = getattr(model, "name", "__unknown_model__")

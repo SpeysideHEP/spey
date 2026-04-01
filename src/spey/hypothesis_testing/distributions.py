@@ -96,7 +96,7 @@ class EmpricTestStatisticsDistribution:
             p-value
         """
 
-        return np.sum(np.where(self.samples >= value, 1.0, 0.0)) / self.samples.shape[0]
+        return np.sum(self.samples >= value) / self.samples.shape[0]
 
     def expected_value(self, nsigma: float) -> float:
         """
