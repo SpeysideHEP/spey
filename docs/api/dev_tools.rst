@@ -32,3 +32,9 @@ Logging
 
     disable_logging
     capture_logs
+
+
+Caching
+~~~~~~~
+
+.. automodule:: spey.system.cache

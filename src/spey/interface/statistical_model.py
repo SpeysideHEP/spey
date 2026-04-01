@@ -15,6 +15,7 @@ import numpy as np
 from spey.base.backend_base import BackendBase, ModelConfig
 from spey.base.hypotest_base import HypothesisTestingBase
 from spey.optimizer.core import fit
+from spey.system.cache import cache_results
 from spey.system.exceptions import (
     CombinerNotAvailable,
     MethodNotAvailable,
@@ -768,6 +769,7 @@ class StatisticalModel(HypothesisTestingBase):
             **kwargs,
         )
 
+    @cache_results(maxsize=128, copy_on_return=True)
     def maximize_likelihood(  # pylint: disable = arguments-renamed
         self,
         return_nll: Optional[bool] = True,

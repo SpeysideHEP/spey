@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from typing import Any, List
+from typing import Any, List, Dict
 
 from .core import fit
 
