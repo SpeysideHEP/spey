@@ -1,7 +1,7 @@
 """Autograd based differentiable distribution classes"""
 
 import logging
-from typing import Any, Callable, Dict, List, Literal
+from typing import Any, Callable, Dict, List, Literal, Union
 
 import autograd.numpy as np
 from autograd.scipy.special import gammaln
@@ -94,7 +94,8 @@ class Normal:
 
     def log_prob(self, value: float) -> np.ndarray:
         """Compute log-probability"""
-        return logpdf(value[self.domain], self.loc, self.scale(value[self.domain]))
+        x = value[self.domain]
+        return logpdf(x, self.loc, self.scale(x))
 
 
 class MultivariateNormal:
@@ -112,7 +113,7 @@ class MultivariateNormal:
     def __init__(
         self,
         mean: np.ndarray,
-        cov: np.ndarray,
+        cov: Union[np.ndarray, Callable[[np.ndarray], np.ndarray]],
         domain: slice = slice(None, None),
     ):
         self.mean = mean
@@ -158,11 +159,11 @@ class MultivariateNormal:
         #    there is cov_object created and through that object "pseudo logdet is
         #    being computed". This value should match with `np.linalg.slogdet(cov)`
         #    or `np.log(np.prod(np.linalg.eig(cov)[0]))` however it is sligtly different.
-        var = value[self.domain] - self.mean
+        x = value[self.domain]
+        var = x - self.mean
         return (
-            -0.5 * (var @ self._inv_cov(value[self.domain]) @ var)
-            - 0.5
-            * (len(value[self.domain]) * _LOG_2PI + self._logdet_cov(value[self.domain]))
+            -0.5 * (var @ self._inv_cov(x) @ var)
+            - 0.5 * (len(x) * _LOG_2PI + self._logdet_cov(x))
         ).astype(np.float64)
 
 
@@ -179,7 +180,7 @@ class MainModel:
     def __init__(
         self,
         loc: Callable[[np.ndarray], np.ndarray],
-        cov: np.ndarray = None,
+        cov: Union[np.ndarray, Callable[[np.ndarray], np.ndarray]] = None,
         pdf_type: Literal["poiss", "gauss", "multivariategauss"] = "poiss",
     ):
         self.pdf_type = pdf_type
@@ -187,9 +188,27 @@ class MainModel:
         if pdf_type == "poiss":
             self._pdf = lambda pars: Poisson(loc(pars))
         elif pdf_type == "gauss" and cov is not None:
-            self._pdf = lambda pars: Normal(loc=loc(pars), scale=cov)
+            if callable(cov):
+                self._pdf = lambda pars: Normal(loc=loc(pars), scale=cov(pars))
+            else:
+                self._pdf = lambda pars: Normal(loc=loc(pars), scale=cov)
         elif pdf_type == "multivariategauss" and cov is not None:
-            self._pdf = lambda pars: MultivariateNormal(mean=loc(pars), cov=cov)
+            if callable(cov):
+                # Callable cov: may vary with pars, so MultivariateNormal (and its
+                # O(n³) inv/logdet ops) must be reconstructed on every call.
+                self._pdf = lambda pars: MultivariateNormal(mean=loc(pars), cov=cov(pars))
+            else:
+                # Non-callable cov: inv(cov) and logdet(cov) are constant.
+                # Create a single MultivariateNormal once so those O(n³) ops run
+                # exactly once at construction time.  Each call only updates the
+                # mean (loc(pars)) in-place; _inv_cov and _logdet_cov stay cached.
+                _mv = MultivariateNormal(mean=np.zeros(len(cov)), cov=cov)
+
+                def _static_cov_pdf(pars):
+                    _mv.mean = loc(pars)
+                    return _mv
+
+                self._pdf = _static_cov_pdf
         else:
             raise DistributionError("Unknown pdf type or associated input.")
 

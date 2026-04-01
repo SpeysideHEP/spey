@@ -16,13 +16,6 @@ Default Backends
 
 .. automodule:: spey.backends.default_pdf.uncertainty_synthesizer
 
-.. currentmodule:: spey.backends.default_pdf.uncertainty_synthesizer
-
-.. autosummary::
-    :toctree: ../_generated/
-
-    signal_uncertainty_synthesizer
-
 Simple PDFs
 ~~~~~~~~~~~
 
