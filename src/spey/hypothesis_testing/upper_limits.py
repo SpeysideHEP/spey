@@ -1,6 +1,7 @@
 """Tools for computing upper limit on parameter of interest"""
 
 import logging
+from collections import deque
 from functools import partial
 from typing import Callable, List, Literal, Optional, Tuple, Union
 
@@ -35,14 +36,11 @@ class ComputerWrapper:
 
     def __init__(self, computer: Callable[[float], float]):
         self.computer = computer
-        self._results = []
+        self._results = deque(maxlen=10)
 
     def __call__(self, value: float) -> float:
         """Compute the input function and return its value"""
         self._results.append((value, self.computer(value)))
-        if len(self._results) > 10:
-            # Do not keep more than 10 values at a time
-            self._results = self._results[-10:]
         return self[-1]
 
     def __getitem__(self, item: int) -> float:
@@ -190,14 +188,12 @@ def find_poi_upper_limit(
                 asimov_logpdf,
                 test_stat,
             )
-            pvalue = list(
-                map(
-                    lambda x: 1.0 - x,
-                    compute_asymptotic_confidence_level(
-                        sqrt_qmuA, delta_teststat, test_stat
-                    )[0 if expected == ExpectationType.observed else 1],
-                )
-            )
+            pvalue = [
+                1.0 - x
+                for x in compute_asymptotic_confidence_level(
+                    sqrt_qmuA, delta_teststat, test_stat
+                )[0 if expected == ExpectationType.observed else 1]
+            ]
         except AsimovTestStatZero as err:
             log.debug(err)
             pvalue = [0.0] if expected == ExpectationType.observed else [0.0] * 5

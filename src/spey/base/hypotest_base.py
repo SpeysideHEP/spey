@@ -1007,9 +1007,7 @@ class HypothesisTestingBase(ABC):
                 pvalues, expected_pvalues = [1.0], [1.0] * 5
 
         if expected == "all":
-            return list(map(lambda x: 1.0 - x, pvalues)), list(
-                map(lambda x: 1.0 - x, expected_pvalues)
-            )
+            return [1.0 - x for x in pvalues], [1.0 - x for x in expected_pvalues]
 
         return list(
             map(

@@ -21,8 +21,8 @@ class ValidateOpts:
         self.must_list = [] if self.must_list is None else self.must_list
         self.remove_list = [] if self.remove_list is None else self.remove_list
 
-    def __call__(self, options: dict[str, Any]) -> dict[str, Any]:
-        if not all(k in list(options) for k in self.must_list):
+    def __call__(self, options: Dict[str, Any]) -> Dict[str, Any]:
+        if not all(k in options for k in self.must_list):
             raise AssertionError("Options should include " + ", ".join(self.must_list))
         for key in list(options):
             if key not in self.opt_list + self.must_list + self.remove_list:

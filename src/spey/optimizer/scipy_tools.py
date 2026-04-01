@@ -21,7 +21,7 @@ _scipy_opts = ValidateOpts(
 def minimize(
     func: Callable[[np.ndarray], float],
     init_pars: List[float],
-    fixed_vals: list[bool],
+    fixed_vals: List[bool],
     do_grad: bool = False,
     hessian: Callable[[np.ndarray], np.ndarray] = None,
     bounds: List[Tuple[float, float]] = None,
@@ -56,8 +56,8 @@ def minimize(
     ntrials = max(options.pop("ntrials", 1), 1)
     poi_index = options.pop("poi_index")
 
-    options.update({"maxiter": options.get("maxiter", 10000)})
-    options.update({"disp": options.get("disp", False)})
+    options.setdefault("maxiter", 10000)
+    options.setdefault("disp", False)
 
     def make_constraint(index: int, value: float) -> Callable[[np.ndarray], float]:
         def func(vector: np.ndarray) -> float:

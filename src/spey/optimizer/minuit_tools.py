@@ -19,7 +19,7 @@ _minuit_opts = ValidateOpts(
 def minimize(
     func: Callable[[np.ndarray], float],
     init_pars: List[float],
-    fixed_vals: list[bool],
+    fixed_vals: List[bool],
     do_grad: bool = False,
     hessian: Callable[[np.ndarray], np.ndarray] = None,
     bounds: List[Tuple[float, float]] = None,

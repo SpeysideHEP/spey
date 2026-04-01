@@ -54,3 +54,5 @@ class ExpectationType(Enum):
             return False
 
         raise ValueError(f"Unknown comparison: type({other}) = {type(other)}")
+
+    __hash__ = Enum.__hash__

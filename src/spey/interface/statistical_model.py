@@ -768,7 +768,7 @@ class StatisticalModel(HypothesisTestingBase):
             **kwargs,
         )
 
-    def maximize_likelihood(
+    def maximize_likelihood(  # pylint: disable = arguments-renamed
         self,
         return_nll: Optional[bool] = True,
         expected: Optional[ExpectationType] = ExpectationType.observed,
@@ -901,7 +901,7 @@ class StatisticalModel(HypothesisTestingBase):
             result[key] = float(fit_param[idx])
         return result, nll
 
-    def maximize_asimov_likelihood(
+    def maximize_asimov_likelihood(  # pylint: disable = arguments-renamed
         self,
         return_nll: bool = True,
         expected: ExpectationType = ExpectationType.observed,

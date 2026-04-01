@@ -35,8 +35,8 @@ def covariance_to_correlation(covariance_matrix: np.ndarray) -> np.ndarray:
         ``np.ndarray``:
         Correlation matrix
     """
-    sigma = np.linalg.inv(np.diag(np.sqrt(np.diag(covariance_matrix))))
-    return sigma @ covariance_matrix @ sigma
+    sigma_inv = np.diag(1.0 / np.sqrt(np.diag(covariance_matrix)))
+    return sigma_inv @ covariance_matrix @ sigma_inv
 
 
 def merge_correlated_bins(

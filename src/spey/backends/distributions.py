@@ -181,18 +181,18 @@ class MainModel:
         self,
         loc: Callable[[np.ndarray], np.ndarray],
         cov: Union[np.ndarray, Callable[[np.ndarray], np.ndarray]] = None,
-        pdf_type: Literal["poiss", "gauss", "multivariategauss"] = "poiss",
+        pdf_type: Literal["poiss", "normal", "multivariate_normal"] = "poiss",
     ):
         self.pdf_type = pdf_type
         """Type of the PDF"""
         if pdf_type == "poiss":
             self._pdf = lambda pars: Poisson(loc(pars))
-        elif pdf_type == "gauss" and cov is not None:
+        elif pdf_type == "normal" and cov is not None:
             if callable(cov):
                 self._pdf = lambda pars: Normal(loc=loc(pars), scale=cov(pars))
             else:
                 self._pdf = lambda pars: Normal(loc=loc(pars), scale=cov)
-        elif pdf_type == "multivariategauss" and cov is not None:
+        elif pdf_type == "multivariate_normal" and cov is not None:
             if callable(cov):
                 # Callable cov: may vary with pars, so MultivariateNormal (and its
                 # O(n³) inv/logdet ops) must be reconstructed on every call.

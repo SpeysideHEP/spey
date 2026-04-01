@@ -686,12 +686,12 @@ class Gaussian(SimplePDFBase):
         )
         self.absolute_uncertainties = np.array(absolute_uncertainties, dtype=np.float64)
         """absolute uncertainties on the background"""
-        self._main_kwargs = {"cov": self.absolute_uncertainties, "pdf_type": "gauss"}
+        self._main_kwargs = {"cov": self.absolute_uncertainties, "pdf_type": "normal"}
 
 
 class MultivariateNormal(SimplePDFBase):
     r"""
-    Multivariate Gaussian likelihood with optional parameter-dependent covariance
+    Multivariate Normal likelihood with optional parameter-dependent covariance
     (``default.multivariate_normal``).
 
     This backend models the likelihood as a single multivariate normal distribution
@@ -869,5 +869,5 @@ class MultivariateNormal(SimplePDFBase):
 
         self._main_kwargs = {
             "cov": self.covariance_matrix,
-            "pdf_type": "multivariategauss",
+            "pdf_type": "multivariate_normal",
         }
