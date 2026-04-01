@@ -92,7 +92,7 @@ def expected_pvalues(
         p_{s} &=& p_{s+b}/ p_{b}
 
     where :math:`q_\mu` stands for the test statistic and A stands for Assimov.
-    :math:`N\sigma\in[-2,-1,0,1,2]`.
+    :math:`N\sigma\in[-2,-1,0,1,2]`. See also :xref:`1007.1727` Eq. 86 - 89.
 
     Args:
         sig_plus_bkg_distribution (~spey.hypothesis_testing.asymptotic_calculator.AsymptoticTestStatisticsDistribution):

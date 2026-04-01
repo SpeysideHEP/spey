@@ -124,7 +124,7 @@ class MultivariateNormal:
 
         if callable(cov):
             self._inv_cov = lambda val: np.linalg.inv(cov(val))
-            self._det_cov = lambda val: np.clip(
+            self._logdet_cov = lambda val: np.clip(
                 np.linalg.slogdet(cov(val))[1], 1e-20, None
             )
         else:
