@@ -1,7 +1,6 @@
 """Tests for spey.system.cache — correctness, isolation, eviction, thread safety."""
 
 import gc
-import sys
 import threading
 import weakref
 
