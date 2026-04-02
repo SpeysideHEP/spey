@@ -203,13 +203,11 @@ class UnCorrStatisticsCombiner(HypothesisTestingBase):
             :obj:`~spey.system.exceptions.AnalysisQueryError`: If the unique identifier does not match
               any of the statistical models in the stack.
         """
-        to_remove = None
-        for name, model in self.items():
+        for idx, (name, _) in enumerate(self.items()):
             if name == analysis:
-                to_remove = model
-        if to_remove is None:
-            raise AnalysisQueryError(f"'{analysis}' is not among the analyses.")
-        self._statistical_models.remove(to_remove)
+                self._statistical_models.pop(idx)
+                return
+        raise AnalysisQueryError(f"'{analysis}' is not among the analyses.")
 
     @property
     def statistical_models(self) -> Tuple[StatisticalModel]:

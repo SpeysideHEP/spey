@@ -359,6 +359,7 @@ class StatisticalModel(HypothesisTestingBase):
         """
         return self.excluded_cross_section(ExpectationType.observed)
 
+    @cache_results(maxsize=128, copy_on_return=True, per_instance=True)
     def _resolve_poi_test(self, poi_test: PoiTest) -> Union[float, Dict[int, float]]:
         """Resolve a ``poi_test`` dict with string or int keys to ``{index: value}``.
 
@@ -769,7 +770,7 @@ class StatisticalModel(HypothesisTestingBase):
             **kwargs,
         )
 
-    @cache_results(maxsize=128, copy_on_return=True)
+    @cache_results(maxsize=128, copy_on_return=True, per_instance=True)
     def maximize_likelihood(  # pylint: disable = arguments-renamed
         self,
         return_nll: Optional[bool] = True,

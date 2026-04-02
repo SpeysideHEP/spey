@@ -13,12 +13,14 @@ For a step-by-step guide on writing, registering, and packaging a new backend se
 the :ref:`sec_new_plugin` tutorial in the documentation.
 """
 
+import types
 from abc import ABC, abstractmethod
 from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
 
 from spey.base.model_config import ModelConfig
+from spey.system.cache import cache_results, _PerInstanceCacheDescriptor
 from spey.utils import ExpectationType
 
 __all__ = ["BackendBase"]
@@ -164,6 +166,20 @@ class BackendBase(ABC):
         a ``spey`` plugin, including entry-point installation via ``setup.py`` /
         ``pyproject.toml`` and citation metadata.
     """
+
+    def __init_subclass__(cls, **kwargs) -> None:
+        super().__init_subclass__(**kwargs)
+        cfg = cls.__dict__.get("config")
+        if (
+            isinstance(cfg, types.FunctionType)
+            and not getattr(cfg, "__isabstractmethod__", False)
+            and not isinstance(cfg, _PerInstanceCacheDescriptor)
+        ):
+            descriptor = cache_results(maxsize=4, copy_on_return=True, per_instance=True)(
+                cfg
+            )
+            descriptor.__set_name__(cls, "config")
+            cls.config = descriptor
 
     @property
     def is_alive(self) -> bool:
