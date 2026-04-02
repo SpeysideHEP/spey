@@ -154,7 +154,6 @@ class TestInstanceIsolation:
 
     def test_no_shared_mutable_state(self):
         """Mutating a returned value must not corrupt the cache."""
-        a = DummyBackend(1)
 
         @cache_results(maxsize=4, copy_on_return=True)
         def make_list(n):
