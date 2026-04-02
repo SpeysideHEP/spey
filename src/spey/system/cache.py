@@ -190,7 +190,8 @@ class _PerInstanceCacheDescriptor:
 
     def __get__(self, obj: Any, _objtype: type = None) -> Callable:
         if obj is None:
-            return self  # type: ignore[return-value]
+            # When accessed via class, return the ORIGINAL FUNCTION without caching.
+            return self._fn  # type: ignore[return-value]
         # Fast path: try instance __dict__ (available for most classes).
         try:
             inst_dict = obj.__dict__
