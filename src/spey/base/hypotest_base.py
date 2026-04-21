@@ -477,7 +477,10 @@ class HypothesisTestingBase(ABC):
         poi_test_denominator: Optional[PoiTest] = None,
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = False,
-        **kwargs,
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
+        mle_kwargs=None,
+        likelihood_kwargs=None,
     ) -> float:
         r"""
         Compute the profile likelihood ratio :math:`\chi^2` test statistic.
@@ -522,34 +525,147 @@ class HypothesisTestingBase(ABC):
 
             allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
               value will be allowed to be negative. Only valid when ``poi_test_denominator=None``.
-            kwargs: keyword arguments for the optimiser.
+            init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
+            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
+              the optimiser.
+            mle_kwargs (``dict``, default ``None``): Keyword arguments forwarded to the
+              denominator evaluation. When ``poi_test_denominator=None`` they are passed to
+              :func:`~spey.StatisticalModel.maximize_likelihood` (free fit of
+              :math:`\hat\mu,\hat\theta`); otherwise they are passed to
+              :func:`~spey.StatisticalModel.likelihood` at the fixed
+              :math:`\mu_{\rm denom}`. If ``None``, an empty dict is used. Accepted keys:
+
+              **Consumed by** ``prepare_for_fit``:
+
+              * ``do_grad`` (``bool``, default ``True``): Request the gradient of the
+                objective function from the backend. Falls back to ``False`` automatically
+                if the backend raises :obj:`NotImplementedError`.
+              * ``constraints`` (``List[Dict]``, default ``[]``): Additional scipy-style
+                constraint dicts appended to any backend-defined constraints.
+              * ``fixed_poi_value`` (``Union[float, Dict[int, float]]``, default ``None``):
+                Fix one or more POIs during the maximisation while the remaining parameters
+                are profiled freely. Only effective in the ``maximize_likelihood`` branch
+                (i.e. when ``poi_test_denominator=None``); ignored (with a warning) by
+                ``likelihood``, which takes the fixed POIs from ``poi_test_denominator``.
+
+              **Consumed by** ``fit`` (the core optimisation loop):
+
+              * ``minimizer`` (``str``, default ``"scipy"`` or the value of the
+                ``SPEY_OPTIMISER`` environment variable): Selects the numerical minimiser.
+                Accepted values are ``"scipy"`` and ``"minuit"`` (requires ``iminuit``).
+              * ``hessian`` (``Callable[[np.ndarray], np.ndarray]``, default ``None``):
+                Hessian of the objective function. Passed to scipy as the ``hess`` argument;
+                ignored by minuit.
+
+              **Scipy-minimiser options** (used when ``minimizer="scipy"``):
+
+              * ``method`` (``str``, default ``"SLSQP"``): Scipy optimisation method
+                (e.g. ``"SLSQP"``, ``"L-BFGS-B"``, ``"trust-constr"``).
+              * ``maxiter`` (``int``, default ``10000``): Maximum number of iterations.
+              * ``tol`` (``float``, default ``1e-6``): Convergence tolerance.
+              * ``disp`` (``bool``, default ``False``): Print convergence messages if ``True``.
+              * ``ntrials`` (``int``, default ``1``): Number of re-tries with progressively
+                expanded parameter bounds when the minimiser does not converge.
+
+              **Minuit-minimiser options** (used when ``minimizer="minuit"``):
+
+              * ``method`` (``str``, default ``"migrad"``): Minuit algorithm
+                (``"migrad"`` or ``"simplex"``).
+              * ``maxiter`` (``int``, default ``10000``): Maximum number of function calls.
+              * ``tol`` (``float``, default ``1e-6``): Convergence tolerance.
+              * ``disp`` (``int``, default ``0``): Minuit print level (``0`` = silent).
+              * ``strategy`` (``int``, default ``0``): Minuit strategy
+                (``0`` = fast, ``1`` = default, ``2`` = slow but more accurate).
+              * ``errordef`` (``float``, default ``Minuit.LIKELIHOOD``): Value by which
+                Minuit defines a one-sigma interval (``0.5`` for NLL, ``1.0`` for
+                :math:`\chi^2`).
+
+              Unknown keys are logged as a warning and silently discarded by the minimiser.
+
+            likelihood_kwargs (``dict``, default ``None``): Keyword arguments forwarded to
+              :func:`~spey.StatisticalModel.likelihood` when evaluating the numerator at
+              each requested ``poi_test`` value (including every element of an iterable or
+              scan). If ``None``, an empty dict is used. Accepts the same keys as
+              ``mle_kwargs`` above, with one caveat:
+
+              * ``fixed_poi_value`` is **not supported** here — the numerator's fixed POIs
+                are controlled entirely by ``poi_test``. Passing ``fixed_poi_value`` is
+                logged as a warning and discarded.
 
         Returns:
             ``float``:
             value of the :math:`\chi^2`.
         """
+        if mle_kwargs is None:
+            mle_kwargs = {}
+        if likelihood_kwargs is None:
+            likelihood_kwargs = {}
         if poi_test_denominator is None:
             _, denominator = self.maximize_likelihood(
-                expected=expected, allow_negative_signal=allow_negative_signal, **kwargs
+                expected=expected,
+                allow_negative_signal=allow_negative_signal,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
+                **mle_kwargs,
             )
         else:
             denominator = self.likelihood(
-                poi_test=poi_test_denominator, expected=expected, **kwargs
+                poi_test=poi_test_denominator,
+                expected=expected,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
+                **mle_kwargs,
             )
         log.debug(f"denominator: {denominator}")
 
-        if isinstance(poi_test, Iterable):
+        llhd = None
+        if isinstance(poi_test, Iterable) and not isinstance(poi_test, dict):
             with capture_logs(logging.INFO) as _:
                 llhd = np.fromiter(
                     (
-                        self.likelihood(poi_test=float(p), expected=expected, **kwargs)
-                        for p in np.atleast_1d(poi_test)
+                        self.likelihood(
+                            poi_test=p,
+                            expected=expected,
+                            return_nll=True,
+                            init_pars=init_pars,
+                            par_bounds=par_bounds,
+                            **likelihood_kwargs,
+                        )
+                        for p in poi_test
                     ),
                     np.float32,
                 )
-        else:
-            llhd = self.likelihood(poi_test=poi_test, expected=expected, **kwargs)
+        if isinstance(poi_test, dict):
+            scan_list = [
+                i for i, p in poi_test.items() if isinstance(p, (list, tuple, np.ndarray))
+            ]
+            if len(scan_list) == 1:
+                poi_list = np.atleast_1d(poi_test[scan_list[0]])
+                llhd = np.empty(len(poi_list), dtype=np.float32)
+                with capture_logs(logging.INFO) as _:
+                    current_poi_test = poi_test.copy()
+                    for i, param in enumerate(poi_list):
+                        current_poi_test.update({scan_list[0]: float(param)})
+                        llhd[i] = self.likelihood(
+                            poi_test=current_poi_test,
+                            expected=expected,
+                            return_nll=True,
+                            init_pars=init_pars,
+                            par_bounds=par_bounds,
+                            **likelihood_kwargs,
+                        )
+            elif len(scan_list) > 1:
+                raise NotImplementedError("Currently only one POI can be scanned.")
 
+        if llhd is None:
+            llhd = self.likelihood(
+                poi_test=poi_test,
+                expected=expected,
+                return_nll=True,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
+                **likelihood_kwargs,
+            )
         return 2.0 * (llhd - denominator)
 
     def pull(
