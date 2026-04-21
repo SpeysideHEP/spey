@@ -20,7 +20,7 @@ from typing import Callable, List, Optional, Tuple, Union
 import numpy as np
 
 from spey.base.model_config import ModelConfig
-from spey.system.cache import cache_results, _PerInstanceCacheDescriptor
+from spey.system.cache import _PerInstanceCacheDescriptor
 from spey.utils import ExpectationType
 
 __all__ = ["BackendBase"]
