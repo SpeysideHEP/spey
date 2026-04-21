@@ -790,6 +790,12 @@ class MultivariateNormal(SimplePDFBase):
         The resulting :class:`~spey.base.ModelConfig` will contain two parameters:
         ``["mu", "signal_par_0"]``.
 
+    .. attention::
+        The functional ``signal_yields`` is used to compute the expected signal yields in each bin.
+        The optimiser only passes relevant parameter set to ``signal_yields`` function, excluding
+        signal strength (i.e. the first parameter :math:`\mu`). Callable ``covariance_matrix``
+        receives the full parameter vector, including the POI and any extra signal parameters.
+
     .. versionchanged:: 0.2.6
         The ability to input a callable covariance matrix has been added.
 
