@@ -58,7 +58,7 @@ def __dir__():
 
 log = logging.getLogger("Spey")
 
-# pylint: disable=W1203,C0103,possibly-used-before-assignment
+# pylint: disable= W1203, C0103, possibly-used-before-assignment, unnecessary-lambda-assignment
 
 
 class HypothesisTestingBase(ABC):
@@ -1335,6 +1335,7 @@ class HypothesisTestingBase(ABC):
         allow_negative_signal: bool = None,
         parameter: Optional[Union[int, str]] = None,
         poi_value: float = 1.0,
+        **kwargs,
     ) -> List[float]:
         r"""
         Determine parameter value(s) that constrain the :math:`\chi^2` distribution at a
@@ -1398,6 +1399,18 @@ class HypothesisTestingBase(ABC):
               profiling a nuisance parameter (i.e. when ``parameter`` is not ``None``).
               Has no effect when ``parameter=None``. If `poi_value=None`, primary POI will
               also be minimised during optimisation.
+
+        Keyword Args:
+            xtol (``float``, default ``2e-12``): Absolute tolerance passed to
+              :func:`~scipy.optimize.toms748`.  The root-finder stops when the bracket
+              width falls below this value.
+
+            rtol (``float``, default ``1e-4``): Relative tolerance passed to
+              :func:`~scipy.optimize.toms748`.  The root-finder stops when the bracket
+              width is smaller than ``rtol * |root|``.
+
+            maxiter (``int``, default ``10000``): Maximum number of function evaluations
+              allowed inside :func:`~scipy.optimize.toms748`.
 
         Returns:
             ``List[float]``:
@@ -1564,6 +1577,7 @@ class HypothesisTestingBase(ABC):
                     retry_inner=s["retry_inner"],
                     retry_stop=s["retry_stop"],
                     debug_tag=side_name,
+                    **kwargs,
                 )
             if np.isnan(x0):
                 log.warning(s["warn"])

@@ -257,35 +257,69 @@ def bracket_and_solve(
     retry_inner: Optional[float] = None,
     retry_stop: Optional[Callable[[float], bool]] = None,
     debug_tag: str = "",
+    xtol: float = 2e-12,
+    rtol: float = 1e-4,
+    maxiter: int = 10000,
 ) -> Tuple[float, float, float]:
     r"""
     Bracket a root of ``computer`` and solve with :func:`~scipy.optimize.toms748`.
 
-    Starting from ``outer`` (far from the likelihood peak), calls ``expand``
-    repeatedly until ``computer(outer) > 0`` or ``outer_stop(outer)``.
-    Starting from ``inner`` (near the peak), calls ``contract`` repeatedly until
-    ``computer(inner) < 0`` or ``inner_stop(inner)``.  When ``retry_inner`` is
-    given and both bounds share the same sign, a second contraction from
-    ``retry_inner`` is attempted (used in the POI case when :math:`\hat\mu` is
-    far from zero).
+    The function works in two phases:
+
+    1. **Bracketing** — walks ``outer`` outward via ``expand`` until
+       ``computer(outer) > 0`` (outside the confidence interval) or
+       ``outer_stop(outer)`` fires, then walks ``inner`` inward via ``contract``
+       until ``computer(inner) < 0`` (inside the interval) or
+       ``inner_stop(inner)`` fires.  If the two sides still share the same sign
+       and ``retry_inner`` is provided, a second contraction from ``retry_inner``
+       is attempted (used in the POI case when :math:`\hat\mu` is far from zero).
+
+    2. **Root-finding** — once a valid bracket ``[a, b]`` with opposite signs is
+       established, :func:`~scipy.optimize.toms748` (TOMS Algorithm 748, a
+       superlinearly convergent bracketing method) is called to locate the root to
+       the requested tolerances.
 
     Args:
-        computer: Function whose sign changes at the interval boundary.
-            ``computer(val) < 0`` inside the confidence interval and ``> 0`` outside.
-        inner: Initial value near the peak (expected to give ``computer < 0``).
-        outer: Initial value far from the peak (expected to give ``computer > 0``).
-        expand: Moves ``outer`` further from the peak.
-        contract: Moves ``inner`` closer to the peak.
-        outer_stop: Returns ``True`` when ``outer`` has reached the absolute bound.
-        inner_stop: Returns ``True`` when ``inner`` is too close to the peak.
-        retry_inner: Alternative start for a second contraction attempt.
-        retry_stop: Stop condition for the retry contraction.
-        debug_tag: Label used in debug-level log messages.
+        computer (``Callable[[float], float]``): Function whose sign changes at
+            the interval boundary.  By convention ``computer(val) < 0`` *inside*
+            the confidence interval (near the peak) and ``> 0`` *outside*.
+        inner (``float``): Initial bracketing value near the likelihood peak,
+            expected to satisfy ``computer(inner) < 0``.
+        outer (``float``): Initial bracketing value far from the likelihood peak,
+            expected to satisfy ``computer(outer) > 0``.
+        expand (``Callable[[float], float]``): Maps the current ``outer`` to a
+            new value further from the peak (e.g. ``lambda h: h * 2``).
+        contract (``Callable[[float], float]``): Maps the current ``inner`` to a
+            new value closer to the peak (e.g. ``lambda l: l * 0.5``).
+        outer_stop (``Callable[[float], bool]``): Returns ``True`` when ``outer``
+            has reached an absolute boundary beyond which further expansion should
+            not proceed.
+        inner_stop (``Callable[[float], bool]``): Returns ``True`` when ``inner``
+            is so close to the peak that further contraction would be meaningless.
+        retry_inner (``float``, optional): Alternative starting point for a second
+            contraction pass when the first pass fails to produce a valid bracket.
+        retry_stop (``Callable[[float], bool]``, optional): Stop condition applied
+            during the retry contraction; must be provided when ``retry_inner`` is
+            not ``None``.
+        debug_tag (``str``, default ``""``): Short label prepended to debug-level
+            log messages, useful for identifying which root (e.g. ``"left"`` or
+            ``"right"``) is currently being solved.
+        xtol (``float``, default ``2e-12``): Absolute tolerance for
+            :func:`~scipy.optimize.toms748`.  The solver stops when the bracket
+            width drops below this value.
+        rtol (``float``, default ``1e-4``): Relative tolerance for
+            :func:`~scipy.optimize.toms748`.  The solver stops when the bracket
+            width is smaller than ``rtol * |root|``.
+        maxiter (``int``, default ``10000``): Maximum number of function
+            evaluations allowed inside :func:`~scipy.optimize.toms748`.
 
     Returns:
         ``Tuple[float, float, float]``:
-        ``(final_inner, final_outer, root)`` — ``root`` is ``nan`` when no
-        bracket with opposite signs was found.
+        ``(final_inner, final_outer, root)`` where ``final_inner`` and
+        ``final_outer`` are the last bracket endpoints reached during the
+        expansion/contraction phase, and ``root`` is the value returned by
+        :func:`~scipy.optimize.toms748`.  ``root`` is ``nan`` when no bracket
+        with opposite signs could be established.
     """
     outer_cw = ComputerWrapper(computer)
     while outer_cw(outer) < 0.0 and not outer_stop(outer):
@@ -317,10 +351,10 @@ def bracket_and_solve(
             a,
             b,
             k=2,
-            xtol=2e-12,
-            rtol=1e-4,
+            xtol=xtol,
+            rtol=rtol,
             full_output=True,
-            maxiter=10000,
+            maxiter=maxiter,
         )
         return inner, outer, x0
 
