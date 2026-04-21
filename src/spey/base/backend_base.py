@@ -13,7 +13,6 @@ For a step-by-step guide on writing, registering, and packaging a new backend se
 the :ref:`sec_new_plugin` tutorial in the documentation.
 """
 
-import types
 from abc import ABC, abstractmethod
 from typing import Callable, List, Optional, Tuple, Union
 
