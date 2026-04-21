@@ -167,20 +167,6 @@ class BackendBase(ABC):
         ``pyproject.toml`` and citation metadata.
     """
 
-    def __init_subclass__(cls, **kwargs) -> None:
-        super().__init_subclass__(**kwargs)
-        cfg = cls.__dict__.get("config")
-        if (
-            isinstance(cfg, types.FunctionType)
-            and not getattr(cfg, "__isabstractmethod__", False)
-            and not isinstance(cfg, _PerInstanceCacheDescriptor)
-        ):
-            descriptor = cache_results(maxsize=4, copy_on_return=True, per_instance=True)(
-                cfg
-            )
-            descriptor.__set_name__(cls, "config")
-            cls.config = descriptor
-
     @property
     def is_alive(self) -> bool:
         """

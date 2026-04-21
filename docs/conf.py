@@ -96,6 +96,8 @@ bibtex_bibfiles = ["./bib/references.bib", "./bib/cited.bib"]
 # GitHub repo
 issues_github_path = "https://github.com/SpeysideHEP/spey/issues"
 
+main_website_base_url = "https://spey.readthedocs.io/en/stable/"
+
 # Generate the API documentation when building
 autosummary_generate = True
 numpydoc_show_class_members = True

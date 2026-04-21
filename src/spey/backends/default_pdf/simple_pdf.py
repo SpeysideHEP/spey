@@ -742,6 +742,8 @@ class MultivariateNormal(SimplePDFBase):
         >>> covariance_matrix = np.array([[144.0, 13.0], [25.0, 256.0]])
         >>> covariance_signal = np.array([[5.0, 1.0], [2.0, 3.0]])
 
+        >>> # ``pars`` include all the parameters of the model,
+        >>> # including the POI and any extra signal parameters
         >>> def cov_matrix(pars: np.ndarray) -> np.ndarray:
         >>>     return covariance_matrix + covariance_signal * pars[0]**2
 
@@ -787,8 +789,8 @@ class MultivariateNormal(SimplePDFBase):
 
         >>> muhat, nll = model.maximize_likelihood()
 
-        The resulting :class:`~spey.base.ModelConfig` will contain two parameters:
-        ``["mu", "signal_par_0"]``.
+    The resulting :class:`~spey.base.ModelConfig` will contain two parameters:
+    ``["mu", "signal_par_0"]``.
 
     .. attention::
         The functional ``signal_yields`` is used to compute the expected signal yields in each bin.
