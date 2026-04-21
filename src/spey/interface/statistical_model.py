@@ -359,7 +359,6 @@ class StatisticalModel(HypothesisTestingBase):
         """
         return self.excluded_cross_section(ExpectationType.observed)
 
-    @cache_results(maxsize=128, copy_on_return=True, per_instance=True)
     def _resolve_poi_test(self, poi_test: PoiTest) -> Union[float, Dict[int, float]]:
         """Resolve a ``poi_test`` dict with string or int keys to ``{index: value}``.
 
@@ -873,6 +872,10 @@ class StatisticalModel(HypothesisTestingBase):
             log-likelihood. When ``poi_indices`` is provided: a ``dict`` of
             ``{index_or_name: fitted_value}`` and the (negative) log-likelihood.
         """
+        if "fixed_poi_value" in kwargs:
+            kwargs.update(
+                {"fixed_poi_value": self._resolve_poi_test(kwargs["fixed_poi_value"])}
+            )
         fit_opts = self.prepare_for_fit(
             expected=expected,
             allow_negative_signal=allow_negative_signal,
