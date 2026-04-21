@@ -7,6 +7,7 @@ Kitchen Sink
    tutorials/intro_spey
    tutorials/functional_tuto
    tutorials/histogram
+   tutorials/cross-section-limits
    tutorials/gradients
    tutorials/signal_unc
    tutorials/multiparameter_contour
