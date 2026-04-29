@@ -10,6 +10,9 @@ Talks
    * - Date
      - Event
      - Location
+   * - May 27, 2026
+     - `LHC REI WG: HS3 Taskforce - Topical meeting <https://indico.cern.ch/event/1679072/>`_
+     - Online
    * - Mar 18, 2026
      - `Monte-Carlo support tools: future-proofing the bridge between theory and experiment <https://conference.ippp.dur.ac.uk/event/1523/contributions/8864/>`_
      - IPPP, Durham University

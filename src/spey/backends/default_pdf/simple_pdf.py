@@ -684,7 +684,11 @@ class Gaussian(SimplePDFBase):
             n_signal_parameters=n_signal_parameters,
             signal_parameter_bounds=signal_parameter_bounds,
         )
-        self.absolute_uncertainties = np.array(absolute_uncertainties, dtype=np.float64)
+        self.absolute_uncertainties = (
+            absolute_uncertainties
+            if callable(absolute_uncertainties)
+            else np.array(absolute_uncertainties, dtype=np.float64)
+        )
         """absolute uncertainties on the background"""
         self._main_kwargs = {"cov": self.absolute_uncertainties, "pdf_type": "normal"}
 

@@ -92,7 +92,7 @@ class Normal:
 
         return norm(self.loc, self.scale(value[self.domain])).rvs(size=shape)
 
-    def log_prob(self, value: float) -> np.ndarray:
+    def log_prob(self, value: np.ndarray) -> np.ndarray:
         """Compute log-probability"""
         x = value[self.domain]
         return logpdf(x, self.loc, self.scale(x))
