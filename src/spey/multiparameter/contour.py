@@ -245,6 +245,8 @@ def find_contour(
     bounds: Optional[List[Tuple[Optional[float], Optional[float]]]] = None,
     n_coverage_passes: int = 2,
     coverage_knn: int = 5,
+    n_multistart: int = 20,
+    basin_dedup_tol: float = 1e-3,
 ) -> ContourResult:
     r"""
     Find the :math:`(1-\alpha)` chi-squared confidence contour of a
@@ -351,6 +353,20 @@ def find_contour(
             density.  Larger values smooth the density estimate over a wider
             neighbourhood; smaller values focus on very localised gaps.
             Must satisfy ``coverage_knn >= 1``.
+        n_multistart (``int``, default ``20``): Total number of random starts
+            used to discover *disjoint* local minima of the NLL (basins)
+            before the per-basin contour search runs.  When the NLL has more
+            than one local minimum below the confidence threshold — e.g. an
+            EFT likelihood with an interference term — each such minimum
+            contributes its own component to the confidence region, so all
+            of them must be mapped to recover the full contour.  A single
+            start can only ever find one.  Values :math:`\le 1` disable
+            multi-start and reproduce the legacy single-anchor behaviour.
+        basin_dedup_tol (``float``, default ``1e-3``): Euclidean tolerance in
+            contour-parameter space for clustering duplicate minima found by
+            the multi-start search.  Two candidates within this distance are
+            treated as the same basin; only the one with the lower NLL is
+            kept.
 
 
     Returns:
@@ -486,6 +502,11 @@ def find_contour(
     #   k_profile  > 0  — profile parameters are minimised at every NLL
     #                     evaluation; gradient via the envelope theorem.
     # ------------------------------------------------------------------
+    # Will be re-assigned in the k_profile > 0 branch; left as None otherwise
+    # so the name is resolvable from the per-basin loop's closure below
+    # (where it is only called when k_profile > 0).
+    _profile_opt = None
+
     if k_profile == 0:
         # All signal parameters are contour parameters (current behaviour).
         # anp.concatenate keeps the computation graph autograd-differentiable.
@@ -627,6 +648,29 @@ def find_contour(
             return -full_grad_logpdf[_contour_arr]
 
     # ------------------------------------------------------------------
+    # Stage 1c: enumerate disjoint basins of the (profiled) NLL via
+    # multi-start local minimisation.  A non-convex NLL can have more than
+    # one basin below the confidence threshold — e.g. an EFT likelihood
+    # with a quadratic-interference signal — and each such basin contributes
+    # its own component to the boundary.  A single MLE can only discover
+    # one, so we enumerate them here and run the contour search from each.
+    # ------------------------------------------------------------------
+    basins = _find_basins_contour_subspace(
+        nll_scalar,
+        grad_nll,
+        bounds,
+        theta_primary=theta_mle,
+        nll_primary=nll_min,
+        k=k,
+        n_multistart=max(1, n_multistart),
+        rng=rng,
+        dedup_tol=basin_dedup_tol,
+    )
+    # The global minimum may now be at a different basin than the primary fit.
+    nll_min = basins[0][1]
+    theta_mle = basins[0][0].copy()
+
+    # ------------------------------------------------------------------
     # Compute chi-squared threshold
     # DoF = k = number of contour parameters (profiled params are not DoF)
     # ------------------------------------------------------------------
@@ -634,114 +678,134 @@ def find_contour(
     threshold = nll_min + delta / 2.0
     log.debug("delta(chi2, df=%d) = %.4f, NLL threshold = %.6f", k, delta, threshold)
 
-    # ------------------------------------------------------------------
-    # Stage 1 (continued): build whitening transform from Fisher information
-    # Hessian is evaluated at the full parameter vector with mu=1.
-    # When profile parameters exist the Schur complement gives the marginal
-    # precision for the contour subspace; otherwise the contour block is used.
-    # ------------------------------------------------------------------
-    theta_mle_full = np.empty(k_total, dtype=float)
-    theta_mle_full[poi_idx] = 1.0
-    theta_mle_full[np.array(contour_indices)] = theta_mle
-    if profile_indices:
-        theta_mle_full[np.array(profile_indices)] = theta_mle_profile
+    # A basin contributes to the confidence region iff its NLL is below the
+    # threshold.  A small slack absorbs numerical noise from the multi-start
+    # minimiser versus the threshold computation.
+    _basin_slack = 1e-6
+    active_basins: List[Tuple[np.ndarray, float]] = [
+        (t, n) for (t, n) in basins if n <= threshold + _basin_slack
+    ]
+    if not active_basins:
+        active_basins = [(theta_mle, nll_min)]
+    log.debug(
+        "find_contour: %d basin(s) discovered, %d active (NLL ≤ %.6f).",
+        len(basins),
+        len(active_basins),
+        threshold,
+    )
 
     hessian_fn = stat_model.backend.get_hessian_logpdf_func()
-    L, L_inv_T = _build_whitener(
-        hessian_fn,
-        theta_mle_full,
-        contour_indices,
-        profile_indices,
-        k,
-        whitener_regularisation,
+    knn_k = max(1, coverage_knn)
+    _contour_idx_arr = np.array(contour_indices, dtype=int)
+    _profile_idx_arr = (
+        np.array(profile_indices, dtype=int)
+        if profile_indices
+        else np.empty(0, dtype=int)
     )
 
-    def to_theta(phi: np.ndarray) -> np.ndarray:
-        r"""
-        Inverse whitening in signal-parameter space:
-        :math:`\theta_s = \hat\theta_s + L^{-T}\varphi`.
-        """
-        return theta_mle + L_inv_T @ phi
+    def _profile_pp_at(cp: np.ndarray) -> np.ndarray:
+        """Optimum profile-parameter vector at contour point ``cp``."""
+        if k_profile == 0:
+            return np.empty(0, dtype=float)
+        # _profile_opt is bound in the k_profile > 0 branch above.
+        return _profile_opt(cp)  # noqa: E501
 
-    def _max_r_for_dir(e: np.ndarray) -> float:
-        r"""
-        Maximum :math:`r \ge 0` such that
-        :math:`\theta_s(r) = \hat\theta_s + L^{-T}(r\hat{e})`
-        stays within all finite parameter bounds.
+    all_radial_pts_list: List[np.ndarray] = []
+    all_hmc_pts_list: List[np.ndarray] = []
 
-        For each constrained index :math:`i`, the step in original
-        parameter space is :math:`s_i = (L^{-T}\hat{e})_i`.  A positive
-        step hits the upper bound at :math:`r = (u_i - \hat\theta_i)/s_i`;
-        a negative step hits the lower bound at
-        :math:`r = (l_i - \hat\theta_i)/s_i`.  The minimum over all such
-        constraints gives the first boundary encountered along the ray.
-        Returns ``np.inf`` when no bounds are active.
-        """
-        if bounds is None:
-            return np.inf
-        step = L_inv_T @ e
-        r_max = np.inf
-        for i, (lo, hi) in enumerate(bounds):
-            if hi is not None and step[i] > 1e-30:
-                r_max = min(r_max, (hi - theta_mle[i]) / step[i])
-            if lo is not None and step[i] < -1e-30:
-                r_max = min(r_max, (lo - theta_mle[i]) / step[i])
-        return float(r_max)
+    for b_idx, (basin_theta, basin_nll) in enumerate(active_basins):
+        # ------------------------------------------------------------------
+        # Per-basin Stage 1: build whitener from the Fisher information at
+        # this basin's point.  Uses Schur complement when profile parameters
+        # are present.
+        # ------------------------------------------------------------------
+        theta_basin_full = np.empty(k_total, dtype=float)
+        theta_basin_full[poi_idx] = 1.0
+        theta_basin_full[_contour_idx_arr] = basin_theta
+        if k_profile > 0:
+            theta_basin_full[_profile_idx_arr] = _profile_pp_at(basin_theta)
 
-    # ------------------------------------------------------------------
-    # Stage 2: radial search in whitened space
-    # ------------------------------------------------------------------
-    radial_points, radial_dirs = _radial_search(
-        nll_scalar,
-        theta_mle,
-        threshold,
-        to_theta,
-        k,
-        n_radial,
-        max_radial_bracket,
-        rng,
-        _max_r_for_dir,
-    )
-    log.debug(
-        "Radial search: %d / %d directions converged.", len(radial_points), n_radial
-    )
+        L_basin, L_inv_T_basin = _build_whitener(
+            hessian_fn,
+            theta_basin_full,
+            contour_indices,
+            profile_indices,
+            k,
+            whitener_regularisation,
+        )
 
-    # ------------------------------------------------------------------
-    # Stage 3: gap detection — angular gaps in whitened direction space
-    # ------------------------------------------------------------------
-    gap_dirs = _detect_gap_directions(radial_dirs, k, n_gap_candidates, n_hmc_chains, rng)
+        # Whitening closures specific to this basin.
+        def _to_theta(
+            phi: np.ndarray,
+            _anchor: np.ndarray = basin_theta,
+            _M: np.ndarray = L_inv_T_basin,
+        ) -> np.ndarray:
+            return _anchor + _M @ phi
 
-    # ------------------------------------------------------------------
-    # Stage 4: constrained RATTLE HMC from gap seeds
-    #
-    # For each gap direction we first attempt a targeted radial search to
-    # find the exact contour crossing along that direction.  This places
-    # the chain starting point directly in the sparse region rather than
-    # at the nearest (potentially dense) radial point.
-    # ------------------------------------------------------------------
-    hmc_points: np.ndarray
-    if k == 1:
-        # Tangent space is 0-dimensional — RATTLE cannot move; radial search
-        # already found both contour points (±direction).
-        hmc_points = np.empty((0, k), dtype=float)
-        log.debug("k=1: skipping RATTLE (tangent space is trivial).")
-    else:
+        def _max_r_for_dir_basin(
+            e: np.ndarray,
+            _anchor: np.ndarray = basin_theta,
+            _M: np.ndarray = L_inv_T_basin,
+        ) -> float:
+            if bounds is None:
+                return np.inf
+            step = _M @ e
+            r_max = np.inf
+            for i, (lo, hi) in enumerate(bounds):
+                if hi is not None and step[i] > 1e-30:
+                    r_max = min(r_max, (hi - _anchor[i]) / step[i])
+                if lo is not None and step[i] < -1e-30:
+                    r_max = min(r_max, (lo - _anchor[i]) / step[i])
+            return float(r_max)
+
+        # Stage 2: radial search from this basin.
+        basin_radial_pts, basin_radial_dirs = _radial_search(
+            nll_scalar,
+            basin_theta,
+            threshold,
+            _to_theta,
+            k,
+            n_radial,
+            max_radial_bracket,
+            rng,
+            _max_r_for_dir_basin,
+        )
+        log.debug(
+            "Basin %d (NLL=%.6f): radial search %d/%d directions converged.",
+            b_idx,
+            basin_nll,
+            len(basin_radial_pts),
+            n_radial,
+        )
+        if len(basin_radial_pts) > 0:
+            all_radial_pts_list.append(basin_radial_pts)
+
+        # Stages 3–5 are only meaningful when the tangent space is non-trivial.
+        if k == 1 or len(basin_radial_pts) == 0:
+            continue
+
+        # Stage 3: angular gap detection relative to *this* basin's radial set.
+        gap_dirs = _detect_gap_directions(
+            basin_radial_dirs, k, n_gap_candidates, n_hmc_chains, rng
+        )
+
+        # Stage 4: targeted radial crossings at each gap direction → HMC seeds.
         gap_starts = _find_gap_starts(
             gap_dirs,
             nll_scalar,
-            theta_mle,
+            basin_theta,
             threshold,
-            to_theta,
+            _to_theta,
             max_radial_bracket,
-            _max_r_for_dir,
-            radial_points,
-            radial_dirs,
+            _max_r_for_dir_basin,
+            basin_radial_pts,
+            basin_radial_dirs,
         )
-
+        basin_hmc_pts: np.ndarray
         if len(gap_starts) == 0:
-            hmc_pts = np.empty((0, k), dtype=float)
+            basin_hmc_pts = np.empty((0, k), dtype=float)
         else:
-            hmc_pts = _run_hmc_chains(
+            basin_hmc_pts = _run_hmc_chains(
                 nll_scalar,
                 grad_nll,
                 threshold,
@@ -755,32 +819,31 @@ def find_contour(
                 bounds,
             )
         log.debug(
-            "Stage 4: %d gap seeds → %d RATTLE points.",
+            "Basin %d: %d gap seeds → %d RATTLE points.",
+            b_idx,
             len(gap_starts),
-            len(hmc_pts),
+            len(basin_hmc_pts),
         )
 
-        # ------------------------------------------------------------------
-        # Stage 5: adaptive coverage — iterative kNN-based reseeding
-        #
-        # Pool all contour points found so far; use a k-d tree to identify
-        # the most isolated (largest kNN distance) regions and seed new
-        # chains there.  Repeat for n_coverage_passes − 1 additional passes.
-        # ------------------------------------------------------------------
-        knn_k = max(1, coverage_knn)
-        _all_pts: List[np.ndarray] = []
-        if len(radial_points) > 0:
-            _all_pts.append(radial_points)
-        if len(hmc_pts) > 0:
-            _all_pts.append(hmc_pts)
-        collected = np.vstack(_all_pts) if _all_pts else np.empty((0, k), dtype=float)
+        # Stage 5: adaptive kNN-based reseeding, scoped to this basin's cloud.
+        _basin_pts_list: List[np.ndarray] = []
+        if len(basin_radial_pts) > 0:
+            _basin_pts_list.append(basin_radial_pts)
+        if len(basin_hmc_pts) > 0:
+            _basin_pts_list.append(basin_hmc_pts)
+        collected = (
+            np.vstack(_basin_pts_list)
+            if _basin_pts_list
+            else np.empty((0, k), dtype=float)
+        )
 
         for pass_idx in range(n_coverage_passes - 1):
             sparse_starts = _find_sparse_seeds(collected, n_hmc_chains, knn_k, rng)
             if sparse_starts is None or len(sparse_starts) == 0:
                 break
             log.debug(
-                "Stage 5 pass %d/%d: %d sparse seeds.",
+                "Basin %d, Stage 5 pass %d/%d: %d sparse seeds.",
+                b_idx,
                 pass_idx + 2,
                 n_coverage_passes,
                 len(sparse_starts),
@@ -799,12 +862,30 @@ def find_contour(
                 bounds,
             )
             if len(new_pts) > 0:
-                hmc_pts = np.vstack([hmc_pts, new_pts]) if len(hmc_pts) > 0 else new_pts
+                basin_hmc_pts = (
+                    np.vstack([basin_hmc_pts, new_pts])
+                    if len(basin_hmc_pts) > 0
+                    else new_pts
+                )
                 collected = np.vstack([collected, new_pts])
 
-        hmc_points = hmc_pts
+        if len(basin_hmc_pts) > 0:
+            all_hmc_pts_list.append(basin_hmc_pts)
 
-    log.debug("RATTLE+adaptive produced %d additional contour points.", len(hmc_points))
+    radial_points = (
+        np.vstack(all_radial_pts_list)
+        if all_radial_pts_list
+        else np.empty((0, k), dtype=float)
+    )
+    hmc_points = (
+        np.vstack(all_hmc_pts_list) if all_hmc_pts_list else np.empty((0, k), dtype=float)
+    )
+    log.debug(
+        "Across %d basin(s): %d radial + %d HMC contour points.",
+        len(active_basins),
+        len(radial_points),
+        len(hmc_points),
+    )
 
     # ------------------------------------------------------------------
     # Assemble result
@@ -895,6 +976,120 @@ def _find_mle(
             "The model may be ill-conditioned."
         )
     return theta_mle, nll_min
+
+
+def _find_basins_contour_subspace(
+    nll_scalar,
+    grad_nll,
+    bounds: List[Tuple[Optional[float], Optional[float]]],
+    theta_primary: np.ndarray,
+    nll_primary: float,
+    k: int,
+    n_multistart: int,
+    rng: np.random.Generator,
+    fallback_span: float = 5.0,
+    dedup_tol: float = 1e-3,
+) -> List[Tuple[np.ndarray, float]]:
+    r"""
+    Enumerate distinct local minima of the (possibly profiled) contour-space NLL.
+
+    Starting points are drawn as follows: slot ``j`` uses ``U(lo, hi)`` when
+    both bounds are finite, otherwise a finite fallback span around
+    ``theta_primary[j]``.  Each start is polished with L-BFGS-B using the
+    supplied analytic gradient.  Results are merged with ``theta_primary`` and
+    deduplicated in :math:`\theta`-space at tolerance *dedup_tol*, keeping the
+    lowest-NLL representative of each cluster.
+
+    Used to locate *disjoint* basins whose NLL is below the confidence
+    threshold: a single-start MLE cannot discover these, so the radial search
+    anchored only at the primary fit systematically misses parts of the
+    contour.
+
+    Args:
+        nll_scalar: NLL function returning a plain ``float``.
+        grad_nll: Gradient of NLL returning ``np.ndarray``.
+        bounds: Contour-space parameter bounds (one ``(lower, upper)`` per
+          contour parameter; ``None`` entries mean unbounded).
+        theta_primary: Result of the primary single-start MLE.  Always kept
+          in the output unless dominated by a lower-NLL duplicate.
+        nll_primary: NLL at *theta_primary*.
+        k: Number of contour parameters.
+        n_multistart: Total number of random starts (including *theta_primary*).
+          Values below 1 are clamped to 1.
+        rng: Random generator used for starting-point sampling.
+        fallback_span: Half-width used to sample around *theta_primary* when
+          a bound is ``None``.
+        dedup_tol: Euclidean tolerance in :math:`\theta`-space for clustering
+          duplicate minima.
+
+    Returns:
+        Sorted list of ``(theta, nll)`` tuples, ascending by NLL.  The first
+        entry is the global minimum found.
+    """
+    results: List[Tuple[np.ndarray, float]] = [
+        (np.asarray(theta_primary, dtype=float).copy(), float(nll_primary))
+    ]
+
+    n_extra = max(0, int(n_multistart) - 1)
+    for _ in range(n_extra):
+        start = np.empty(k, dtype=float)
+        for j, (lo, hi) in enumerate(bounds):
+            lo_f = lo if (lo is not None and np.isfinite(lo)) else None
+            hi_f = hi if (hi is not None and np.isfinite(hi)) else None
+            if lo_f is not None and hi_f is not None:
+                start[j] = float(rng.uniform(lo_f, hi_f))
+            elif lo_f is not None:
+                start[j] = float(lo_f + rng.uniform(0.0, fallback_span))
+            elif hi_f is not None:
+                start[j] = float(hi_f - rng.uniform(0.0, fallback_span))
+            else:
+                start[j] = float(
+                    theta_primary[j] + rng.uniform(-fallback_span, fallback_span)
+                )
+
+        sp_bounds = [
+            (
+                lo if (lo is not None and np.isfinite(lo)) else None,
+                hi if (hi is not None and np.isfinite(hi)) else None,
+            )
+            for (lo, hi) in bounds
+        ]
+        try:
+            res = _sp_minimize(
+                nll_scalar,
+                x0=start,
+                jac=grad_nll,
+                method="L-BFGS-B",
+                bounds=sp_bounds,
+                options={"maxiter": 500, "ftol": 1e-10, "gtol": 1e-8},
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.debug("_find_basins: L-BFGS-B from start %s failed: %s", start, exc)
+            continue
+        if not np.isfinite(res.fun):
+            continue
+        results.append((np.asarray(res.x, dtype=float).copy(), float(res.fun)))
+
+    results.sort(key=lambda t: t[1])
+
+    unique: List[Tuple[np.ndarray, float]] = []
+    for theta, nll in results:
+        is_new = True
+        for ut, _ in unique:
+            if float(np.linalg.norm(theta - ut)) < dedup_tol:
+                is_new = False
+                break
+        if is_new:
+            unique.append((theta, nll))
+
+    log.debug(
+        "_find_basins: %d starts → %d raw results → %d unique basins " "(best NLL %.6f).",
+        1 + n_extra,
+        len(results),
+        len(unique),
+        unique[0][1] if unique else float("nan"),
+    )
+    return unique
 
 
 def _build_whitener(
