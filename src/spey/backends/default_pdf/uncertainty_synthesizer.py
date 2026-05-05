@@ -135,7 +135,7 @@ the shape of any differential distribution used as a discriminating observable.
 
 **PDF uncertainties** come from the parametric uncertainty in the parton distribution functions.
 Because different parton flavours and momentum fractions dominate different kinematic regimes,
-varying PDF eigenvectors or replicas (following the PDF4LHC prescription in :xref:`1510.03865`)
+varying PDF eigenvectors or replicas (following the PDF4LHC prescription in :cite:`Butterworth:2015oua`)
 changes both the inclusive cross-section and the relative contributions of different kinematic
 regions. In a multi-bin fit over, say, invariant mass or MET, PDF variations therefore produce
 correlated, bin-dependent rate changes that affect the shape of the template.
@@ -145,20 +145,11 @@ of 2) are proxies for missing higher-order corrections. Because fixed-order corr
 themselves kinematic-dependent, e.g., they grow with the hardness of the event, scale variations
 tend to affect the high-end tail of a distribution differently from the bulk. This is well
 documented: for example, ATLAS measurements of t-tbar differential distributions
-:xref:`1601.03413` and inclusive cross-section analyses consistently show bin-dependent
+:cite:`Harland-Lang:2016yfn` and inclusive cross-section analyses consistently show bin-dependent
 scale-variation envelopes.
 
 In both cases, the dominant effect is often a normalisation shift, but the shape change is
 physically real and in a multi-bin analysis, it is generally not safe to discard it.
-
-References
-----------
-
-* J. Butterworth, S. Carrazza, et al. *PDF4LHC recommendations for LHC Run II*, J. Phys. G **43**
-  (2016), 023001 :xref:`1510.03865`
-* L. A. Harland-Lang, A. D. Martin, P. Motylinski and R. S. Thorne, *The impact of the final HERA
-  combined data on PDFs obtained from a global fit*, Eur. Phys. J. C **76** (2016) no.4, 186,
-  :xref:`1601.03413`
 
 """
 
