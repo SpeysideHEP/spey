@@ -9,6 +9,7 @@
 
 [![github](https://img.shields.io/static/v1?style=plastic&label&message=GitHub&logo=github&logoColor=black&color=white)](https://github.com/SpeysideHEP/spey)
 [![PyPI - Version](https://img.shields.io/pypi/v/spey?style=plastic&link=https%3A%2F%2Fpypi.org%2Fproject%2Fspey%2F)](https://pypi.org/project/spey/)
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/spey.svg)](https://anaconda.org/conda-forge/spey)
 ![tests workflow](https://github.com/SpeysideHEP/spey/actions/workflows/tests.yml/badge.svg?branch=main&style=plastic)
 [![Documentation Status](https://readthedocs.org/projects/spey/badge/?style=plastic&version=main)](https://spey.readthedocs.io/)
 [![GitHub License](https://img.shields.io/github/license/SpeysideHEP/spey?style=plastic)](https://github.com/SpeysideHEP/spey/blob/main/LICENSE)
@@ -37,16 +38,35 @@ If you like to use a specific branch, you can either use `make install` or `pip 
 ```bash
 python -m pip install --upgrade "git+https://github.com/SpeysideHEP/spey"
 ```
-
-**Note that `main` branch may not be the stable version.**
+**Note that the `main` branch may not be the stable version.**
 
 To install a specific branch with pip, use the following command:
 
 ```bash
 python -m pip install git+https://github.com/SpeysideHEP/spey@<BRANCH>
 ```
-
 **Please be aware that non-released branches are not stable.**
+
+### Installing Spey with Conda
+
+Installing `spey` from the `conda-forge` channel can be achieved by adding `conda-forge` to your channels with:
+
+```
+conda config --add channels conda-forge
+conda config --set channel_priority strict
+```
+
+Once the `conda-forge` channel has been enabled, `spey` can be installed with `conda`:
+
+```
+conda install spey
+```
+
+or with `mamba`:
+
+```
+mamba install spey
+```
 
 ## What is Spey?
 
