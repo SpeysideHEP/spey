@@ -87,6 +87,17 @@ Specific upgrades for the latest release can be found [here](https://github.com/
   `n_signal_parameters` entries.  These bounds are stored in `ModelConfig.suggested_bounds`
   and propagated to the optimiser automatically.
 
+* For `pdf_type="multivariategauss"` with a non-callable cov, the old code was:
+  `self._pdf = lambda pars: MultivariateNormal(mean=loc(pars), cov=cov)` which re-instantiated
+  MultivariateNormal (and re-ran `np.linalg.inv` + `np.linalg.slogdet`, both O(n³)) on every
+  likelihood call. The fix creates a single MultivariateNormal once at construction time and
+  only updates `_mv.mean = loc(pars)` on each call — the cached `_inv_cov` /`_logdet_cov` closures
+  are reused unchanged. When cov is callable, the original per-call re-instantiation is preserved.
+
+* Minor inefficiencies fixed `Normal.log_prob: value[self.domain]` was sliced twice; now sliced once into x.
+  `MultivariateNormal.log_prob: value[self.domain]` was sliced four times; now sliced once into x.
+  Removed unused from copy import deepcopy import.
+
 ## Bug Fixes
 
 * Control mechanism added in case of infinite determinant in covariance matrix.

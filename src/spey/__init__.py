@@ -111,7 +111,7 @@ def _get_entry_points(group: str, name: Optional[str] = None) -> Iterable[EntryP
             eps = entry_points().select(group=group, name=name)
         else:
             eps = entry_points().select(group=group)
-    return eps
+    return list(set(eps))
 
 
 def _get_backend_entrypoints() -> Dict[str, EntryPoint]:

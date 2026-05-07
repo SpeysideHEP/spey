@@ -394,11 +394,17 @@ def signal_uncertainty_synthesizer(
 
         with warnings.catch_warnings(record=True):
             if values.ndim == 1:
-                delta_up = 1.0 + values / signal_yields_arr
+                delta_up = 1.0 + np.where(
+                    signal_yields_arr != 0.0, values / signal_yields_arr, 0.0
+                )
                 delta_dn = delta_up
             elif values.ndim == 2:
-                delta_up = 1.0 + values[:, 0] / signal_yields_arr
-                delta_dn = 1.0 + values[:, 1] / signal_yields_arr
+                delta_up = 1.0 + np.where(
+                    signal_yields_arr != 0.0, values[:, 0] / signal_yields_arr, 0.0
+                )
+                delta_dn = 1.0 + np.where(
+                    signal_yields_arr != 0.0, values[:, 1] / signal_yields_arr, 0.0
+                )
             else:
                 raise InvalidUncertaintyDefinition(
                     f"Modifier '{mod_name}': unsupported uncertainty shape "
@@ -406,12 +412,8 @@ def signal_uncertainty_synthesizer(
                     "Expected 1D for symmetric or 2D for asymmetric (up, down) uncertainties."
                 )
 
-        delta_up = _validate_delta(
-            np.where(np.isnan(delta_up), 1.0, delta_up), mod_name, "up"
-        )
-        delta_dn = _validate_delta(
-            np.where(np.isnan(delta_dn), 1.0, delta_dn), mod_name, "dn"
-        )
+        delta_up = np.where(np.isnan(delta_up) * (delta_up < 1.0), 1.0, delta_up)
+        delta_dn = np.where(np.isnan(delta_dn) * (delta_dn < 1.0), 1.0, delta_dn)
 
         log_up = np.log(delta_up)
         log_dn = np.log(delta_dn)
@@ -503,12 +505,11 @@ def _validate_delta(delta: np.ndarray, mod_name: str, tag: str) -> np.ndarray:
         ``np.ndarray``:
         validated delta
     """
-    invalid_up = delta <= 0
+    invalid_up = delta < 1
     if np.any(invalid_up):
         log.warning(
             f"Modifier '{mod_name}': non-positive delta_{tag} at bins "
             f"{np.where(invalid_up)[0].tolist()} "
             f"(values={delta[invalid_up].tolist()}); clamping to 1e-6."
         )
-        return np.where(invalid_up, 1 + 1e-6, delta)
-    return delta
+    return np.clip(delta, 1.0, None)
