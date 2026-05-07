@@ -511,3 +511,4 @@ def _validate_delta(delta: np.ndarray, mod_name: str, tag: str) -> np.ndarray:
             f"(values={delta[invalid_up].tolist()}); clamping to 1e-6."
         )
         return np.where(invalid_up, 1 + 1e-6, delta)
+    return delta
