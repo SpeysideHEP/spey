@@ -1,5 +1,5 @@
 import importlib
-import numpy as np
+from importlib.metadata import version
 
 
 def test_about_outputs(capsys):
