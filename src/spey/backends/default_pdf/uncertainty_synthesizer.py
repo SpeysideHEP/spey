@@ -155,6 +155,7 @@ physically real and in a multi-bin analysis, it is generally not safe to discard
 
 import warnings
 from functools import partial, reduce
+import logging
 from typing import Any, Dict, List, Optional
 
 import autograd.numpy as np
@@ -162,6 +163,8 @@ import autograd.numpy as np
 from spey.system.exceptions import InvalidUncertaintyDefinition
 
 # pylint: disable=E1101,E1120
+
+log = logging.getLogger("Spey")
 
 #: Allowed modifier type strings.
 MODIFIER_TYPES = ("normalization", "shape")
@@ -403,8 +406,13 @@ def signal_uncertainty_synthesizer(
                     "Expected 1D for symmetric or 2D for asymmetric (up, down) uncertainties."
                 )
 
-        delta_up = np.where(np.isnan(delta_up), 1.0, delta_up)
-        delta_dn = np.where(np.isnan(delta_dn), 1.0, delta_dn)
+        delta_up = _validate_delta(
+            np.where(np.isnan(delta_up), 1.0, delta_up), mod_name, "up"
+        )
+        delta_dn = _validate_delta(
+            np.where(np.isnan(delta_dn), 1.0, delta_dn), mod_name, "dn"
+        )
+
         log_up = np.log(delta_up)
         log_dn = np.log(delta_dn)
 
@@ -480,3 +488,26 @@ def signal_uncertainty_synthesizer(
         "n_parameters": n_parameters,
         "parameter_names": parameter_names,
     }
+
+
+def _validate_delta(delta: np.ndarray, mod_name: str, tag: str) -> np.ndarray:
+    """
+    Validate absolute uncertainties
+
+    Args:
+        delta (``np.ndarray``): delta up or down
+        mod_name (``str``): modifier name
+        tag (``str``): "up" or "dn"
+
+    Returns:
+        ``np.ndarray``:
+        validated delta
+    """
+    invalid_up = delta <= 0
+    if np.any(invalid_up):
+        log.warning(
+            f"Modifier '{mod_name}': non-positive delta_{tag} at bins "
+            f"{np.where(invalid_up)[0].tolist()} "
+            f"(values={delta[invalid_up].tolist()}); clamping to 1e-6."
+        )
+        return np.where(invalid_up, 1 + 1e-6, delta)
