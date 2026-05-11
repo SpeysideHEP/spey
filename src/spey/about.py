@@ -4,41 +4,54 @@ import platform
 import sys
 from importlib.metadata import distribution, version
 from importlib.util import find_spec
-from subprocess import check_output
 
 
 def about() -> None:
     """Prints the information regarding spey installation"""
 
-    print(check_output([sys.executable, "-m", "pip", "show", "spey"]).decode())
-    print(f"Platform info:            {platform.platform(aliased=True)}")
+    from spey._version import __version__
+
+    spey_meta = distribution("spey").metadata
+    sep = "=" * 62
+
+    print(sep)
+    print(f"  spey v{__version__}")
+    print(f"  {spey_meta['Summary']}")
+    print(f"  {spey_meta['Project-URL']}")
+    print(sep)
+
+    print("\nSystem:")
+    print(f"  Platform:             {platform.platform(aliased=True)}")
     print(
-        f"Python version:           {sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}"
+        f"  Python:               "
+        f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
     )
-    print(f"Numpy version:            {version('numpy')}")
-    print(f"Scipy version:            {version('scipy')}")
+
+    print("\nCore dependencies:")
+    _col = 22
+    for pkg in ("numpy", "scipy", "autograd", "tqdm", "joblib", "semantic_version"):
+        print(f"  {pkg:<{_col}}{version(pkg)}")
     if find_spec("iminuit") is not None:
-        print(f"iminuit version:          {version('iminuit')}")
-    print(f"Autograd version:         {version('autograd')}")
-    print(f"tqdm version:             {version('tqdm')}")
-    print(f"joblib version:           {version('joblib')}")
-    print(f"semantic_version version: {version('semantic_version')}")
+        print(f"  {'iminuit':<{_col}}{version('iminuit')}  (optional)")
 
-    print("\nInstalled backend plug-ins:\n")
+    print("\nInstalled backends:")
 
-    shown = ["spey"]
     from spey import _get_entry_points
 
-    plugin_devices = _get_entry_points("spey.backend.plugins")
-    for d in plugin_devices:
+    by_dist = {}
+    for ep in _get_entry_points("spey.backend.plugins"):
         try:
-            dist_name = d.dist.name
-            dist_version = d.dist.version
+            dist_name = ep.dist.name
+            dist_ver = ep.dist.version
         except AttributeError:
-            dist_name = d.value.split(":")[0].split(".")[0]
-            dist_version = distribution(dist_name).version
-        if dist_name not in shown:
-            print()
-            print(check_output([sys.executable, "-m", "pip", "show", dist_name]).decode())
-            shown.append(dist_name)
-        print(f"- {d.name} ({dist_name}-{dist_version})")
+            dist_name = ep.value.split(":")[0].split(".")[0]
+            dist_ver = distribution(dist_name).version
+        if dist_name not in by_dist:
+            by_dist[dist_name] = (dist_ver, [])
+        by_dist[dist_name][1].append(ep.name)
+
+    for dist_name in sorted(by_dist):
+        dist_ver, ep_names = by_dist[dist_name]
+        print(f"\n  {dist_name} v{dist_ver}:")
+        for ep_name in sorted(ep_names):
+            print(f"    - {ep_name}")
