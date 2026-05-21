@@ -1,6 +1,8 @@
 Developer Tools
 ---------------
 
+.. automodule:: spey.system
+
 Exceptions
 ~~~~~~~~~~
 

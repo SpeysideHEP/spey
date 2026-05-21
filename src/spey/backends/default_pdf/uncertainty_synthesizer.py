@@ -412,8 +412,11 @@ def signal_uncertainty_synthesizer(
                     "Expected 1D for symmetric or 2D for asymmetric (up, down) uncertainties."
                 )
 
-        delta_up = np.where(np.isnan(delta_up) * (delta_up < 1.0), 1.0, delta_up)
-        delta_dn = np.where(np.isnan(delta_dn) * (delta_dn < 1.0), 1.0, delta_dn)
+        # Clamp deltas to >= 1 so log() stays real and bins where the relative
+        # variation would have driven the multiplicative factor non-positive
+        # are treated as "no variation" (factor of 1) rather than NaN.
+        delta_up = _validate_delta(delta_up, mod_name, "up")
+        delta_dn = _validate_delta(delta_dn, mod_name, "dn")
 
         log_up = np.log(delta_up)
         log_dn = np.log(delta_dn)
@@ -494,22 +497,30 @@ def signal_uncertainty_synthesizer(
 
 def _validate_delta(delta: np.ndarray, mod_name: str, tag: str) -> np.ndarray:
     """
-    Validate absolute uncertainties
+    Sanitise a per-bin multiplicative variation factor for log-normal morphing.
+
+    The factor ``delta`` must satisfy ``delta > 0`` so that ``log(delta)`` is
+    finite.  Entries below 1 (which would drive the morphed signal negative
+    at ``alpha = 1``) and any NaN entries are reported and replaced by 1
+    (i.e. "no variation" for that bin).
 
     Args:
-        delta (``np.ndarray``): delta up or down
-        mod_name (``str``): modifier name
-        tag (``str``): "up" or "dn"
+        delta (``np.ndarray``): per-bin variation factor (up or down).
+        mod_name (``str``): modifier name used in the warning message.
+        tag (``str``): ``"up"`` or ``"dn"`` indicating which side.
 
     Returns:
         ``np.ndarray``:
-        validated delta
+        Sanitised delta array of the same shape, with non-finite or sub-1
+        entries replaced by 1.
     """
-    invalid_up = delta < 1
-    if np.any(invalid_up):
+    bad_finite = delta < 1
+    bad_nan = np.isnan(delta)
+    bad = bad_finite | bad_nan
+    if np.any(bad):
         log.warning(
-            f"Modifier '{mod_name}': non-positive delta_{tag} at bins "
-            f"{np.where(invalid_up)[0].tolist()} "
-            f"(values={delta[invalid_up].tolist()}); clamping to 1e-6."
+            f"Modifier '{mod_name}': invalid delta_{tag} at bins "
+            f"{np.where(bad)[0].tolist()}; clamping to 1.0."
         )
+    delta = np.where(bad_nan, 1.0, delta)
     return np.clip(delta, 1.0, None)

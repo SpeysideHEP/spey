@@ -8,32 +8,65 @@ import numpy as np
 def correlation_to_covariance(
     correlation_matrix: np.ndarray, standard_deviations: np.ndarray
 ) -> np.ndarray:
-    """
-    Convert correlation matrix into covariance matrix
+    r"""
+    Convert correlation matrix into covariance matrix.
+
+    Computes :math:`\Sigma_{ij} = \sigma_i \rho_{ij} \sigma_j` where
+    :math:`\sigma_i` are the per-bin standard deviations and :math:`\rho_{ij}`
+    is the input correlation matrix.
 
     Args:
-        correlation_matrix (``np.ndarray``): a real NxN matrix
-        standard_deviations (``np.ndarray``): a real N-dimensional
-          vector representing standard deviations.
+        correlation_matrix (``np.ndarray``): A real NxN correlation matrix
+          :math:`\rho` (diagonal entries equal to one, off-diagonals in
+          ``[-1, 1]``).
+        standard_deviations (``np.ndarray``): A real N-dimensional vector
+          of per-bin standard deviations :math:`\sigma_i`.
 
     Returns:
         ``np.ndarray``:
-        Covariance matrix
+        Covariance matrix :math:`\Sigma` of shape ``(N, N)``.
+
+    Example:
+
+        .. code-block:: python3
+
+            >>> import numpy as np
+            >>> from spey.helper_functions import correlation_to_covariance
+            >>> rho = np.array([[1.0, 0.3], [0.3, 1.0]])
+            >>> sigma = np.array([2.0, 4.0])
+            >>> correlation_to_covariance(rho, sigma)
+            array([[ 4. ,  2.4],
+                   [ 2.4, 16. ]])
     """
     sigma = np.diag(standard_deviations)
     return sigma @ correlation_matrix @ sigma
 
 
 def covariance_to_correlation(covariance_matrix: np.ndarray) -> np.ndarray:
-    """
+    r"""
     Convert covariance matrix into correlation matrix.
 
+    Computes :math:`\rho_{ij} = \Sigma_{ij} / (\sigma_i \sigma_j)` where
+    :math:`\sigma_i = \sqrt{\Sigma_{ii}}` are the per-bin standard deviations.
+
     Args:
-        covariance_matrix (``np.ndarray``): a real NxN matrix
+        covariance_matrix (``np.ndarray``): A real NxN covariance matrix
+          :math:`\Sigma` with strictly positive diagonal entries.
 
     Returns:
         ``np.ndarray``:
-        Correlation matrix
+        Correlation matrix :math:`\rho` of shape ``(N, N)``.
+
+    Example:
+
+        .. code-block:: python3
+
+            >>> import numpy as np
+            >>> from spey.helper_functions import covariance_to_correlation
+            >>> cov = np.array([[4.0, 2.4], [2.4, 16.0]])
+            >>> covariance_to_correlation(cov)
+            array([[1. , 0.3],
+                   [0.3, 1. ]])
     """
     sigma_inv = np.diag(1.0 / np.sqrt(np.diag(covariance_matrix)))
     return sigma_inv @ covariance_matrix @ sigma_inv
@@ -167,7 +200,7 @@ def merge_correlated_bins(
     new_cov = np.zeros((M, M))
     new_background_yields = np.zeros(M)
     new_data = np.zeros(M)
-    new_signal_yields = np.zeros(M)
+    new_signal_yields = np.zeros(M) if signal_yields is not None else None
 
     for i, Gi in enumerate(full_groups):
         new_background_yields[i] = np.sum(background_yields[Gi])

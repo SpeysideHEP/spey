@@ -1,5 +1,6 @@
 Default Backends
 ----------------
+.. automodule:: spey.backends
 
 .. automodule:: spey.backends.default_pdf
 

@@ -29,23 +29,38 @@ def minimize(
     **options,
 ) -> Tuple[float, np.ndarray]:
     """
-    Minimize given function using scipy optimiser functionality
+    Minimise an objective with :func:`scipy.optimize.minimize` and a retry loop.
 
-    Default options:
-        method = "SLSQP"
-        maxiter = 10000
-        disp = False
-        tol = 1e-6
-        ntrials = 1
+    On failed convergence the loop widens the parameter bounds (POI by 2x,
+    others by 10x per side) up to ``ntrials`` times before giving up. The
+    caller-supplied ``init_pars``, ``bounds`` and ``constraints`` lists are
+    copied internally so they are never mutated.
 
-    :param func (`Callable[[np.ndarray], float]`): the objective function to be minimized.
-    :param init_pars (`List[float]`): initial set of parameters
-    :param do_grad (`bool`, default `False`): if true func is expected to return both objective and its gradient
-    :param hessian (`Callable[[np.ndarray], np.ndarray]`, default `None`): hessian matrix of the objective function.
-    :param bounds (`List[Tuple[float, float]]`, default `None`): Bounds on variables for Nelder-Mead, L-BFGS-B, TNC, SLSQP,
-                                                                Powell, and trust-constr methods.
-    :param constraints (`List[Dict]`, default `None`): Constraints definition. Only for COBYLA, SLSQP and trust-constr.
-    :return `Tuple[float, np.ndarray]`: minimum value of the objective function and fit parameters
+    Args:
+        func (``Callable[[np.ndarray], float]``): Objective function. When
+          ``do_grad=True`` it must instead return ``(value, gradient)``.
+        init_pars (``List[float]``): Initial parameter values.
+        fixed_vals (``List[bool]``): Boolean mask the same length as ``init_pars``;
+          entries that are ``True`` are converted into equality constraints that
+          pin the parameter to its initial value.
+        do_grad (``bool``, default ``False``): If ``True``, ``func`` is expected
+          to return ``(value, gradient)``.
+        hessian (``Callable[[np.ndarray], np.ndarray]``, default ``None``):
+          Hessian forwarded to scipy as the ``hess`` argument.
+        bounds (``List[Tuple[float, float]]``, default ``None``): Per-parameter
+          ``(lower, upper)`` bounds for the SLSQP/L-BFGS-B/TNC/Nelder-Mead/Powell/
+          trust-constr methods.
+        constraints (``List[Dict]``, default ``None``): Extra scipy-style
+          constraint dicts (COBYLA/SLSQP/trust-constr only).
+        **options: Recognised keys are ``method`` (default ``"SLSQP"``),
+          ``maxiter`` (default ``10000``), ``disp`` (default ``False``),
+          ``tol`` (default ``1e-6``), and ``ntrials`` (default ``1``).
+          ``poi_index`` is required and is removed before being forwarded to
+          scipy.
+
+    Returns:
+        ``Tuple[float, np.ndarray]``:
+        The minimum objective value and the corresponding fit parameter vector.
     """
     assert "poi_index" in list(options), "Please include `poi_index` in the options."
 
@@ -65,7 +80,11 @@ def minimize(
 
         return func
 
-    constraints = [] if constraints is None else constraints
+    # Copy caller-owned containers so the retry loop's in-place mutations
+    # below don't leak back to the caller across multiple fit() calls.
+    constraints = [] if constraints is None else list(constraints)
+    init_pars = list(init_pars)
+    bounds = [tuple(b) for b in bounds] if bounds is not None else None
     for idx, isfixed in enumerate(fixed_vals):
         if isfixed:
             log.debug(f"Constraining {idx} to value {init_pars[idx]}")
@@ -99,9 +118,9 @@ def minimize(
             # background + mu * signal etc.
             log.warning("Optimiser has not been able to satisfy all the conditions:")
             log.warning(opt.message + " Expanding the bounds...")
-            init_pars = opt.x
+            init_pars = list(opt.x)
             for bdx, bound in enumerate(bounds):
-                if bdx == poi_index and constraints is None:
+                if bdx == poi_index:
                     bounds[bdx] = (bound[0], bound[1] * 2.0)
                 else:
                     bounds[bdx] = (min(bound[0], bound[0] * 10.0), bound[1] * 10.0)

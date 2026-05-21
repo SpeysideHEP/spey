@@ -675,7 +675,7 @@ def find_contour(
     # DoF = k = number of contour parameters (profiled params are not DoF)
     # ------------------------------------------------------------------
     delta = float(chi2_dist.ppf(confidence_level, df=k))
-    threshold = nll_min + delta / 2.0
+    threshold = nll_min + delta
     log.debug("delta(chi2, df=%d) = %.4f, NLL threshold = %.6f", k, delta, threshold)
 
     # A basin contributes to the confidence region iff its NLL is below the

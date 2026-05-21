@@ -360,10 +360,13 @@ class StatisticalModel(HypothesisTestingBase):
         return self.excluded_cross_section(ExpectationType.observed)
 
     def _resolve_poi_test(self, poi_test: PoiTest) -> Union[float, Dict[int, float]]:
-        """Resolve a ``poi_test`` dict with string or int keys to ``{index: value}``.
+        """Normalise a ``poi_test`` for the optimiser's ``fixed_poi_value`` kwarg.
 
-        When ``poi_test`` is a plain ``float`` it is returned unchanged so the
-        existing single-POI code paths stay untouched.
+        * A plain ``float`` is returned unchanged so the single-POI fast path
+          in :func:`spey.optimizer.core.fit` is preserved.
+        * A ``dict`` (string- or int-keyed) is delegated to
+          :meth:`~spey.base.model_config.ModelConfig.resolve_poi_indices`, which
+          translates string POI names to their integer indices.
         """
         if not isinstance(poi_test, dict):
             return poi_test

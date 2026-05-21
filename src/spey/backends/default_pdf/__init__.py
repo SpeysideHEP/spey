@@ -377,6 +377,36 @@ class DefaultPDFBase(BackendBase):
             return True
         return np.any(self.signal_yields > 0.0)
 
+    def _build_signal_evaluator(self) -> Callable[[np.ndarray], np.ndarray]:
+        """
+        Return a callable that maps a full parameter vector to per-bin nominal
+        signal yields.
+
+        Hides the "callable signal_yields vs. plain array" branch that every
+        backend's ``main_model`` would otherwise have to repeat verbatim.
+        """
+        nsp = self.n_signal_parameters
+        if callable(self.signal_yields):
+            sig_fn = self.signal_yields
+            return lambda pars: sig_fn(pars[1 : 1 + nsp])
+        yields = self.signal_yields
+        return lambda _pars, _y=yields: _y
+
+    def _register_positivity_constraint(
+        self, constraint_fn: Callable[[np.ndarray], np.ndarray]
+    ) -> None:
+        """
+        Append ``constraint_fn >= 0`` to :attr:`constraints` with its autograd jacobian.
+
+        Every default PDF backend enforces that the *background-plus-nuisance*
+        contribution to each bin stays non-negative.  Centralising the
+        ``NonlinearConstraint`` construction keeps the four backends' ``__init__``
+        bodies focused on their distinguishing physics.
+        """
+        self.constraints.append(
+            NonlinearConstraint(constraint_fn, 0.0, np.inf, jac=jacobian(constraint_fn))
+        )
+
     def config(
         self, allow_negative_signal: bool = True, poi_upper_bound: float = 10.0
     ) -> ModelConfig:
@@ -474,13 +504,7 @@ class DefaultPDFBase(BackendBase):
                 "lambda", lambda pars: 1.0
             )
 
-            if callable(self.signal_yields):
-                _sig = lambda pars: self.signal_yields(pars[1 : 1 + nsp])  # noqa: E731
-            else:
-                _yields = self.signal_yields
-
-                def _sig(_, _y=_yields):
-                    return _y
+            _sig = self._build_signal_evaluator()
 
             def poiss_lamb(pars: np.ndarray) -> np.ndarray:
                 """
@@ -505,11 +529,7 @@ class DefaultPDFBase(BackendBase):
                 """Compute constraint term"""
                 return A + B * pars[slice(1 + nsp, 1 + nsp + len(B))]
 
-            jac_constr = jacobian(constraint)
-
-            self.constraints.append(
-                NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
-            )
+            self._register_positivity_constraint(constraint)
 
             self._main_model = MainModel(poiss_lamb)
 
@@ -901,11 +921,7 @@ class UncorrelatedBackground(DefaultPDFBase):
 
         signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 1.0)
 
-        if callable(self.signal_yields):
-            _sig = lambda pars: self.signal_yields(pars[1 : 1 + nsp])  # noqa: E731
-        else:
-            _yields = self.signal_yields
-            _sig = lambda pars: _yields  # noqa: E731
+        _sig = self._build_signal_evaluator()
 
         def poiss_lamb(pars: np.ndarray) -> np.ndarray:
             """Compute lambda for Main model"""
@@ -919,11 +935,7 @@ class UncorrelatedBackground(DefaultPDFBase):
             """Compute the constraint term"""
             return self.background_yields + pars[slice(1 + nsp, 1 + nsp + len(B))] * B
 
-        jac_constr = jacobian(constraint)
-
-        self.constraints.append(
-            NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
-        )
+        self._register_positivity_constraint(constraint)
 
         self._main_model = MainModel(poiss_lamb)
 
@@ -1221,13 +1233,7 @@ class ThirdMomentExpansion(DefaultPDFBase):
         nsp = self.n_signal_parameters
         signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 1.0)
 
-        if callable(self.signal_yields):
-            _sig = lambda pars: self.signal_yields(pars[1 : 1 + nsp])  # noqa: E731
-        else:
-            _yields = self.signal_yields
-
-            def _sig(_, _y=_yields):
-                return _y
+        _sig = self._build_signal_evaluator()
 
         def poiss_lamb(pars: np.ndarray) -> np.ndarray:
             """
@@ -1257,11 +1263,7 @@ class ThirdMomentExpansion(DefaultPDFBase):
                 + C * np.square(pars[slice(1 + nsp, 1 + nsp + len(B))])
             )
 
-        jac_constr = jacobian(constraint)
-
-        self.constraints.append(
-            NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
-        )
+        self._register_positivity_constraint(constraint)
 
         self._main_model = MainModel(poiss_lamb)
         self._constraint_model = ConstraintModel(
@@ -1445,13 +1447,7 @@ class EffectiveSigma(DefaultPDFBase):
 
         signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 1.0)
 
-        if callable(self.signal_yields):
-            _sig = lambda pars: self.signal_yields(pars[1 : 1 + nsp])  # noqa: E731
-        else:
-            _yields = self.signal_yields
-
-            def _sig(_, _y=_yields):
-                return _y
+        _sig = self._build_signal_evaluator()
 
         # arXiv:pyhsics/0406120 eq. 18-19
         def effective_sigma(pars: np.ndarray) -> np.ndarray:
@@ -1480,9 +1476,6 @@ class EffectiveSigma(DefaultPDFBase):
             """Compute the constraint term"""
             return A + effective_sigma(pars) * pars[slice(1 + nsp, 1 + nsp + len(A))]
 
-        jac_constr = jacobian(constraint)
-        self.constraints.append(
-            NonlinearConstraint(constraint, 0.0, np.inf, jac=jac_constr)
-        )
+        self._register_positivity_constraint(constraint)
 
         self._main_model = MainModel(poiss_lamb)

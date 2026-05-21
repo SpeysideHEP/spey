@@ -86,6 +86,34 @@ def qmu(
 def qmu_left(
     mu: float, muhat: float, max_logpdf: float, logpdf: Callable[[float], float]
 ) -> float:
+    r"""
+    Left-tail variant of :func:`qmu`.
+
+    Mirror of :math:`q_\mu` (eq. (54) of :xref:`1007.1727`) that suppresses the
+    test statistic on the **right** side of :math:`\hat\mu` instead of the
+    left:
+
+    .. math::
+
+        q_\mu^{\rm left} = \begin{cases}
+            0 & \text{if}\ \hat{\mu} < \mu\ ,\\
+            -2\log\left( \frac{\mathcal{L}(\mu, \theta_\mu)}{\mathcal{L}(\hat{\mu}, \hat{\theta})} \right) & \text{otherwise}
+        \end{cases}
+
+    Useful for one-sided lower limits where evidence *for* values below
+    :math:`\mu` is what should drive the p-value.  Selected by name via
+    :func:`get_test_statistic` with ``test_stat="qmu_left"``.
+
+    Args:
+        mu (``float``): parameter of interest, :math:`\mu`.
+        muhat (``float``): :math:`\hat\mu` value that maximizes the likelihood.
+        max_logpdf (``float``): maximum value of :math:`\log\mathcal{L}`.
+        logpdf (``Callable[[float], float]``): :math:`\log\mathcal{L}(\mu, \theta_\mu)`.
+
+    Returns:
+        ``float``:
+        the value of :math:`q_\mu^{\rm left}`.
+    """
     return 0.0 if muhat < mu else np.clip(-2.0 * (logpdf(mu) - max_logpdf), 0.0, None)
 
 

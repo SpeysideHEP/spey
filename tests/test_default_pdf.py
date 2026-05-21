@@ -210,6 +210,46 @@ def test_poisson():
     ), f"Poisson:: Analytic exclusion limit is wrong {CLs_analytic} != {st_cls}"
 
 
+def test_poisson_with_absolute_uncertainties():
+    """
+    default.poisson with absolute_uncertainties: parameter vector becomes
+    [mu, theta_0, ..., theta_{N-1}] and the log-pdf must match the analytic
+    Poisson-with-shifted-mean expression at a chosen (mu, theta) point.
+
+    Unlike :class:`UncorrelatedBackground`, the Poisson backend leaves the
+    per-bin nuisances **unconstrained**, so the log-pdf has no Gaussian penalty
+    term.
+    """
+    pdf_wrapper = spey.get_backend("default.poisson")
+
+    signal = [12.0, 15.0]
+    background = [50.0, 48.0]
+    data = [36, 33]
+    unc = [12.0, 16.0]
+
+    stat_model = pdf_wrapper(
+        signal_yields=signal,
+        background_yields=background,
+        data=data,
+        absolute_uncertainties=unc,
+    )
+
+    cfg = stat_model.backend.config()
+    assert cfg.npar == 3, f"Expected [mu, theta_0, theta_1], got {cfg.npar} parameters."
+
+    pars = np.array([1.0, 0.5, -0.3])
+    ll_model = stat_model.backend.get_logpdf_func()(pars)
+
+    lam = np.array(signal) * pars[0] + np.array(background) + np.array(unc) * pars[1:]
+    ll_analytic = float(poisson.logpmf(np.array(data), lam).sum())
+    assert np.isclose(
+        ll_model, ll_analytic, rtol=1e-6
+    ), f"Poisson+unc logpdf mismatch: model={ll_model}, analytic={ll_analytic}"
+
+    muhat, nll = stat_model.maximize_likelihood()
+    assert np.isfinite(muhat) and np.isfinite(nll), "Poisson+unc fit failed to converge."
+
+
 def test_normal():
     """tester for gaussian model"""
 

@@ -1433,7 +1433,7 @@ class HypothesisTestingBase(ABC):
         ], f"Invalid limit type: {limit_type}"
 
         # Two-sided threshold halves alpha so the total inner area equals CL.
-        alpha = (1.0 - confidence_level) * (0.5 if limit_type == "two-sided" else 1.0)
+        alpha = 1.0 - confidence_level
         chi2_threshold = chi2.isf(alpha, df=1)  # DoF = 1 (single profiled parameter)
 
         # ------------------------------------------------------------------ #
