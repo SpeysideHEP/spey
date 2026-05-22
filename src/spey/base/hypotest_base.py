@@ -45,7 +45,7 @@ from spey.system.exceptions import (
 from spey.system.logger import capture_logs
 from spey.utils import ExpectationType
 
-from .utils import resolve_parameter_index
+from .utils import resolve_parameter_index, _refine_global_min_1d, _enumerate_crossings_1d
 
 PoiTest = Union[float, Dict[Union[int, str], float]]
 
@@ -1335,6 +1335,8 @@ class HypothesisTestingBase(ABC):
         allow_negative_signal: bool = None,
         parameter: Optional[Union[int, str]] = None,
         poi_value: float = 1.0,
+        n_scan: int = 3,
+        n_multistart: int = 2,
         **kwargs,
     ) -> List[float]:
         r"""
@@ -1356,6 +1358,11 @@ class HypothesisTestingBase(ABC):
         .. versionchanged:: 0.2.7
 
             The ability to profile any given nuisance parameter has been implemented.
+            The 1D profile is now enumerated by coarse scan plus bracketed root
+            refinement, so **non-convex likelihoods with disjoint confidence regions
+            return every crossing in ascending order**.  A small multi-start is
+            performed before the root search to harden the NLL minimum used as the
+            anchor of the :math:`\chi^2` threshold.
 
         .. attention::
 
@@ -1377,10 +1384,6 @@ class HypothesisTestingBase(ABC):
 
             limit_type (``'right'``, ``'left'`` or ``'two-sided'``, default ``'two-sided'``):
               Specifies which side of the :math:`\chi^2` distribution should be constrained.
-              For two-sided limits the inner area is set to ``confidence_level``, making the
-              threshold :math:`\alpha=(1-CL)/2`.  For one-sided limits :math:`\alpha=1-CL`.
-              The :math:`\chi^2`-threshold is computed via the inverse survival function
-              at :math:`\alpha`.
 
             allow_negative_signal (``bool``, default ``None``): Controls whether the POI
               can be negative during the global unconstrained maximisation.  If ``None``,
@@ -1400,6 +1403,21 @@ class HypothesisTestingBase(ABC):
               Has no effect when ``parameter=None``. If `poi_value=None`, primary POI will
               also be minimised during optimisation.
 
+            n_scan (``int``, default ``121``): Number of uniformly-spaced grid points used
+              by the coarse scan that enumerates sign changes of the profile
+              :math:`\chi^2 - \text{threshold}` function.  Each sign-change interval is
+              then refined to full precision with
+              :func:`~scipy.optimize.toms748`.  Increasing this value improves detection
+              of narrow features in non-convex profiles at the cost of additional NLL
+              evaluations; values below 3 are clamped to 3.
+
+            n_multistart (``int``, default ``9``): Number of evenly-spaced evaluations
+              used by the internal multi-start scan that re-anchors the NLL minimum
+              before the root search.  A bounded scalar minimisation is then run around
+              the best point found by the scan.  Increasing this value reduces the risk
+              of the anchor being trapped in a local minimum at the cost of additional
+              NLL evaluations; values below 2 are clamped to 2.
+
         Keyword Args:
             xtol (``float``, default ``2e-12``): Absolute tolerance passed to
               :func:`~scipy.optimize.toms748`.  The root-finder stops when the bracket
@@ -1414,8 +1432,12 @@ class HypothesisTestingBase(ABC):
 
         Returns:
             ``List[float]``:
-            Parameter value(s) at which the profile :math:`\chi^2` equals the threshold.
-            Returns one value for one-sided limits and two values for two-sided limits.
+            Parameter value(s) at which the profile :math:`\chi^2` equals the threshold,
+            in ascending order.  For a convex profile this is one value for one-sided
+            limits and two values for two-sided limits (backwards compatible); for a
+            non-convex profile with disjoint confidence regions **every crossing** is
+            returned, so users that rely on a fixed list length should check
+            ``len(result)`` before unpacking.
 
         Raises:
             :obj:`ValueError`: If ``parameter`` refers to the POI index, if the parameter
@@ -1437,10 +1459,10 @@ class HypothesisTestingBase(ABC):
         chi2_threshold = chi2.isf(alpha, df=1)  # DoF = 1 (single profiled parameter)
 
         # ------------------------------------------------------------------ #
-        # Build the profile computer and per-side bracket parameters          #
+        # Build the profile computer and the 1D search interval               #
         # ------------------------------------------------------------------ #
         if parameter is None:
-            # -- POI profiling (original behaviour) -------------------------
+            # -- POI profiling -------------------------------------------------
             allow_negative_signal = allow_negative_signal or limit_type in [
                 "two-sided",
                 "left",
@@ -1449,23 +1471,31 @@ class HypothesisTestingBase(ABC):
                 expected=expected, allow_negative_signal=allow_negative_signal
             )
 
-            def computer(val: float) -> float:
-                return (
-                    2.0 * (self.likelihood(poi_test=val, expected=expected) - mllhd)
-                    - chi2_threshold
-                )
+            def nll_fn(val: float) -> float:
+                return float(self.likelihood(poi_test=val, expected=expected))
 
             try:
                 sigma = self.sigma_mu(muhat, expected=expected)
             except MethodNotAvailable:
                 sigma = 1.0
+            if not (np.isfinite(sigma) and sigma > 0.0):
+                sigma = 1.0
 
+            span = max(6.0 * abs(sigma), 3.0)
+            scan_lo = muhat - span
+            scan_hi = muhat + span
+            if not allow_negative_signal:
+                scan_lo = max(0.0, scan_lo)
+            scan_lo = max(-1e5, scan_lo)
+            scan_hi = min(1e5, scan_hi)
+            reference = muhat
+
+            # Legacy bracket specification (used only as fallback).
             is_gt0 = np.isclose(muhat, 0.0) or muhat > 0.0
             is_le0 = np.isclose(muhat, 0.0) or muhat < 0.0
-            # Expand/contract via doubling (works for signed POI values).
             expand = lambda h: h * 2.0
             contract = lambda l: l * 0.5
-            sides = {
+            legacy_sides = {
                 "left": dict(
                     inner=-1.0 if is_gt0 else muhat - 1.5 * sigma,
                     outer=-1.0 if is_gt0 else muhat - 2.5 * sigma,
@@ -1492,7 +1522,7 @@ class HypothesisTestingBase(ABC):
                 ),
             }
         else:
-            # -- Nuisance-parameter profiling --------------------------------
+            # -- Nuisance-parameter profiling ---------------------------------
             backend = getattr(self, "backend", None)
             if backend is None:
                 raise NotImplementedError(
@@ -1512,22 +1542,31 @@ class HypothesisTestingBase(ABC):
             cfg_lo, cfg_hi = cfg.suggested_bounds[param_idx]
             abs_lo: float = cfg_lo if cfg_lo is not None else -1e5
             abs_hi: float = cfg_hi if cfg_hi is not None else 1e5
+            # Nuisance bounds are frequently ``(None, None)`` which expands to
+            # the ``[-1e5, 1e5]`` hard limit — a 121-point scan there has a
+            # grid spacing of O(10^3) that cannot resolve O(1) basins.  Shrink
+            # the scan window to an adaptively-widenable scale anchored at
+            # theta_hat while keeping ``abs_lo``/``abs_hi`` as the hard cap
+            # for later widening iterations.
+            soft_span = max(10.0, 5.0 * abs(theta_hat))
+            scan_lo = max(abs_lo, theta_hat - soft_span)
+            scan_hi = min(abs_hi, theta_hat + soft_span)
+            reference = theta_hat
 
-            def computer(val: float) -> float:
+            def nll_fn(val: float) -> float:
                 poi_test = (
                     {param_idx: val}
                     if poi_value is None
                     else {cfg.poi_index: poi_value, param_idx: val}
                 )
-                nll = self.likelihood(poi_test=poi_test, expected=expected)
-                return 2.0 * (nll - mllhd) - chi2_threshold
+                return float(self.likelihood(poi_test=poi_test, expected=expected))
 
             step_l = max(abs(theta_hat - abs_lo) * 0.5, 0.5)
             step_r = max(abs(abs_hi - theta_hat) * 0.5, 0.5)
             # Reflect outer through theta_hat each step → doubles distance from center.
             expand_sym = lambda h: 2.0 * h - theta_hat
             contract_sym = lambda l: (l + theta_hat) / 2.0
-            sides = {
+            legacy_sides = {
                 "left": dict(
                     inner=theta_hat - step_l * 0.5,
                     outer=theta_hat - step_l,
@@ -1555,16 +1594,75 @@ class HypothesisTestingBase(ABC):
             }
 
         # ------------------------------------------------------------------ #
-        # Solve for each requested side                                        #
+        # Re-anchor the NLL minimum against a 1D multi-start scan.            #
+        # Guards against the case where `maximize_likelihood` converged to a  #
+        # strictly-local basin and left `mllhd` too high, which would lower   #
+        # the effective threshold and shrink every interval.                  #
         # ------------------------------------------------------------------ #
-        side_order = {
-            "left": ["left"],
-            "right": ["right"],
-            "two-sided": ["left", "right"],
-        }
-        results = []
-        for side_name in side_order[limit_type]:
-            s = sides[side_name]
+        mllhd, reference = _refine_global_min_1d(
+            nll_fn,
+            mllhd,
+            reference,
+            scan_lo,
+            scan_hi,
+            n_samples=max(2, n_multistart),
+        )
+
+        def computer(val: float) -> float:
+            return 2.0 * (nll_fn(val) - mllhd) - chi2_threshold
+
+        xtol = float(kwargs.get("xtol", 2e-12))
+        rtol = float(kwargs.get("rtol", 1e-4))
+        maxiter = int(kwargs.get("maxiter", 10000))
+
+        # ------------------------------------------------------------------ #
+        # Enumerate every crossing of `computer` on the search interval.     #
+        # This is structurally correct for non-convex profiles with multiple #
+        # disjoint confidence regions.  If the initial scan does not bracket #
+        # the reference point on both sides we widen up to the hard limits.  #
+        # ------------------------------------------------------------------ #
+        if parameter is None:
+            hard_lo, hard_hi = (-1e5 if allow_negative_signal else 0.0), 1e5
+        else:
+            hard_lo, hard_hi = abs_lo, abs_hi
+
+        cur_lo, cur_hi = scan_lo, scan_hi
+        roots_sorted: List[float] = []
+        for _attempt in range(4):
+            roots_sorted = _enumerate_crossings_1d(
+                computer,
+                cur_lo,
+                cur_hi,
+                n_scan=max(3, n_scan),
+                xtol=xtol,
+                rtol=rtol,
+                maxiter=maxiter,
+            )
+            left_found = any(r < reference - 1e-12 for r in roots_sorted)
+            right_found = any(r > reference + 1e-12 for r in roots_sorted)
+            needs_left = limit_type in ("two-sided", "left") and not left_found
+            needs_right = limit_type in ("two-sided", "right") and not right_found
+            if not (needs_left or needs_right):
+                break
+            # Widen the scan window by 3× while respecting the hard limits;
+            # stop when we're already pinned at both walls.
+            new_lo = max(hard_lo, reference - 3.0 * (reference - cur_lo))
+            new_hi = min(hard_hi, reference + 3.0 * (cur_hi - reference))
+            if new_lo >= cur_lo - 1e-12 and new_hi <= cur_hi + 1e-12:
+                break
+            cur_lo, cur_hi = new_lo, new_hi
+
+        left_roots = [r for r in roots_sorted if r < reference - 1e-12]
+        right_roots = [r for r in roots_sorted if r > reference + 1e-12]
+
+        # ------------------------------------------------------------------ #
+        # Select which roots to return per `limit_type`.  Fall back to the   #
+        # legacy bracket+toms748 machinery only if the scan yields nothing   #
+        # on the requested side (pathologically flat NLL, scan too narrow,   #
+        # or monotone profile that only touches the threshold at a bound).   #
+        # ------------------------------------------------------------------ #
+        def _legacy_side(side_name: str) -> float:
+            s = legacy_sides[side_name]
             with capture_logs(level=logging.ERROR):
                 _, outer_final, x0 = bracket_and_solve(
                     computer,
@@ -1582,6 +1680,25 @@ class HypothesisTestingBase(ABC):
             if np.isnan(x0):
                 log.warning(s["warn"])
                 x0 = s["fallback"](outer_final)
-            results.append(x0)
+            return x0
 
-        return results
+        if limit_type == "left":
+            if left_roots:
+                return left_roots
+            return [_legacy_side("left")]
+
+        if limit_type == "right":
+            if right_roots:
+                return right_roots
+            return [_legacy_side("right")]
+
+        # two-sided
+        if left_roots and right_roots:
+            return roots_sorted
+        # Partial failure — fill in the missing side with the legacy fallback
+        # so the classical `left, right = chi2_test()` convex-case idiom keeps
+        # working on unusual boundary-dominated NLLs.
+        out: List[float] = []
+        out.append(left_roots[0] if left_roots else _legacy_side("left"))
+        out.append(right_roots[-1] if right_roots else _legacy_side("right"))
+        return out
