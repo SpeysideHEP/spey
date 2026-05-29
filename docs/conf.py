@@ -16,7 +16,7 @@ from importlib.metadata import version
 sys.path.insert(0, str(Path("./ext").resolve()))
 
 project = "spey"
-copyright = "2026, Jack Y. Araz"
+copyright = "2023 - 2026, Jack Y. Araz"
 author = "Jack Y. Araz"
 release = version("spey")
 version = ".".join(release.split(".")[:3])
