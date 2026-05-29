@@ -221,6 +221,18 @@ class _FakeBackendBase:
     def config(self, allow_negative_signal=True):
         return _default_model_config()
 
+    def negative_loglikelihood(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def asimov_negative_loglikelihood(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def minimize_negative_loglikelihood(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def minimize_asimov_negative_loglikelihood(self, *args, **kwargs):
+        raise NotImplementedError
+
 
 def _make_stat_model(monkeypatch, config_override=None):
     monkeypatch.setattr(sm_mod, "BackendBase", _FakeBackendBase)
@@ -621,3 +633,71 @@ class TestCombinerMaximizeAsimovLikelihoodPoiIndices:
         result, _ = combiner.maximize_asimov_likelihood(poi_indices=[0])
         assert isinstance(result, dict)
         assert result[0] == pytest.approx(0.9)
+
+
+# ---------------------------------------------------------------------------
+# find_best_model
+# ---------------------------------------------------------------------------
+class TestFindBestModel:
+    """Tests for spey.multiparameter.multiparam.find_best_model."""
+
+    @staticmethod
+    def _make_cfg(direction):
+        """
+        Return a duck-typed config: callable + ``number_of_parameters`` attribute.
+
+        Builds a ``default.multivariate_normal`` model whose signal yields equal
+        ``direction * theta[0]``.  Larger projections onto the observed deficit
+        give tighter upper limits, so ``find_best_model`` can be tested by giving
+        it two directions with very different sensitivity.
+        """
+        import spey
+
+        bkg = np.array([50.0, 48.0])
+        data = np.array([36.0, 33.0])
+        cov = np.diag([144.0, 256.0])
+        pdf = spey.get_backend("default.multivariate_normal")
+
+        def cfg(theta):
+            return pdf(
+                signal_yields=direction.copy(),
+                background_yields=bkg,
+                data=data,
+                covariance_matrix=cov,
+            )
+
+        cfg.number_of_parameters = 1
+        return cfg
+
+    def test_returns_summary_with_expected_keys(self):
+        from spey.multiparameter import find_best_model
+
+        cfgs = [
+            self._make_cfg(np.array([10.0, 5.0])),
+            self._make_cfg(np.array([5.0, 10.0])),
+        ]
+        result = find_best_model(cfgs, n_scan=3, random_seed=0)
+        assert set(result.keys()) == {
+            "best_template_index",
+            "best_parameters",
+            "best_upper_limit",
+            "scan_results",
+        }
+        assert result["best_template_index"] in (0, 1)
+        assert np.isfinite(result["best_upper_limit"])
+        assert len(result["scan_results"]) == 3
+
+    def test_empty_list_raises(self):
+        from spey.multiparameter import find_best_model
+
+        with pytest.raises(ValueError, match="non-empty"):
+            find_best_model([], n_scan=1)
+
+    def test_inconsistent_npar_raises(self):
+        from spey.multiparameter import find_best_model
+
+        cfg_a = self._make_cfg(np.array([10.0, 5.0]))
+        cfg_b = self._make_cfg(np.array([5.0, 10.0]))
+        cfg_b.number_of_parameters = 2  # mismatch
+        with pytest.raises(ValueError, match="same"):
+            find_best_model([cfg_a, cfg_b], n_scan=1)

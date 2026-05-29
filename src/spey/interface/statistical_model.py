@@ -525,6 +525,22 @@ class StatisticalModel(HypothesisTestingBase):
             ``float``:
             Likelihood of the statistical model at a fixed signal strength.
         """
+        try:
+            return self.backend.negative_loglikelihood(
+                poi_test=poi_test,
+                expected=expected,
+                data=data,
+                return_parameters=return_parameters,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
+                **kwargs,
+            )
+        except NotImplementedError:
+            log.debug(
+                "Backend does not implement negative_loglikelihood(), "
+                "falling back to numerical optimisation."
+            )
+
         if "fixed_poi_value" in kwargs:
             log.warning(
                 "Passing 'fixed_poi_value' as a keyword argument to likelihood() is not "
@@ -556,6 +572,7 @@ class StatisticalModel(HypothesisTestingBase):
 
         return out
 
+    @cache_results(maxsize=128, copy_on_return=True, per_instance=True)
     def generate_asimov_data(
         self,
         expected: ExpectationType = ExpectationType.observed,
@@ -756,6 +773,21 @@ class StatisticalModel(HypothesisTestingBase):
             ``float``:
             likelihood computed for asimov data
         """
+        try:
+            return self.backend.asimov_negative_loglikelihood(
+                poi_test=poi_test,
+                expected=expected,
+                test_statistics=test_statistics,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
+                **kwargs,
+            )
+        except NotImplementedError:
+            log.debug(
+                "Backend does not implement `asimov_negative_loglikelihood()`, "
+                "falling back to numerical optimisation."
+            )
+
         return self.likelihood(
             poi_test=poi_test,
             expected=expected,
@@ -875,6 +907,21 @@ class StatisticalModel(HypothesisTestingBase):
             log-likelihood. When ``poi_indices`` is provided: a ``dict`` of
             ``{index_or_name: fitted_value}`` and the (negative) log-likelihood.
         """
+        try:
+            return self.backend.minimize_negative_loglikelihood(
+                expected=expected,
+                allow_negative_signal=allow_negative_signal,
+                data=data,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
+                poi_indices=poi_indices,
+                **kwargs,
+            )
+        except NotImplementedError:
+            log.debug(
+                "Backend does not implement `minimize_negative_loglikelihood()`, "
+                "falling back to numerical optimisation."
+            )
         if "fixed_poi_value" in kwargs:
             kwargs.update(
                 {"fixed_poi_value": self._resolve_poi_test(kwargs["fixed_poi_value"])}
@@ -910,6 +957,7 @@ class StatisticalModel(HypothesisTestingBase):
             result[key] = float(fit_param[idx])
         return result, nll
 
+    @cache_results(maxsize=128, copy_on_return=True, per_instance=True)
     def maximize_asimov_likelihood(  # pylint: disable = arguments-renamed
         self,
         return_nll: bool = True,
@@ -1026,6 +1074,21 @@ class StatisticalModel(HypothesisTestingBase):
             log-likelihood. When ``poi_indices`` is provided: a ``dict`` of
             ``{index_or_name: fitted_value}`` and the (negative) log-likelihood.
         """
+        try:
+            return self.backend.minimize_asimov_negative_loglikelihood(
+                expected=expected,
+                test_statistics=test_statistics,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
+                poi_indices=poi_indices,
+                **kwargs,
+            )
+        except NotImplementedError:
+            log.debug(
+                "Backend does not implement `minimize_asimov_negative_loglikelihood()`, "
+                "falling back to numerical optimisation."
+            )
+
         allow_negative_signal: bool = test_statistics in ["q", "qmu"]
 
         return self.maximize_likelihood(
