@@ -2,6 +2,15 @@ span#release {
     font-size: x-small;
 }
 
+.spey-version {
+    margin: -0.4rem 0 0.6rem 0;
+    font-size: 0.8rem;
+    color: var(--pst-color-text-muted, #6c757d);
+    letter-spacing: 0.03em;
+    text-align: center;
+    width: 100%;
+}
+
 .main-container {
     position: relative;
     margin-left: auto;
