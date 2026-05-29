@@ -16,6 +16,10 @@ Welcome to the documentation of Spey
    :alt: GitHub issues
    :target: https://github.com/SpeysideHEP/spey/issues
 
+.. image:: https://img.shields.io/github/issues-pr/SpeysideHEP/spey?style=plastic&logo=github
+   :alt: GitHub Issues or Pull Requests
+   :target: https://github.com/SpeysideHEP/spey/pulls
+
 .. image:: https://img.shields.io/static/v1?style=plastic&label=DOI&message=10.21468/SciPostPhys.16.1.032&color=blue
     :alt: SciPost Phys DOI
     :target: https://scipost.org/10.21468/SciPostPhys.16.1.032
