@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spey"
+dynamic = ["version"]
+description = "Smooth inference for reinterpretation studies"
+readme = {file = "README.md", content-type = "text/markdown"}
+license = {text = "MIT"}
+authors = [
+    {name = "Jack Y. Araz", email = "j.araz@ucl.ac.uk"},
+]
+requires-python = ">3.8, <3.15"
+dependencies = [
+    "numpy>=1.21.6, <3.0.0",
+    "scipy>=1.10.0",
+    "autograd>=1.7.0",
+    "semantic_version~=2.10",
+    "tqdm>=4.64.0",
+    "requests>=2.31.0",
+    "setuptools",
+    "joblib>=1.2.0",
+]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+
+[project.urls]
+Homepage = "https://github.com/SpeysideHEP/spey"
+Repository = "https://github.com/SpeysideHEP/spey"
+Documentation = "https://spey.readthedocs.io"
+"Bug Tracker" = "https://github.com/SpeysideHEP/spey/issues"
+Download = "https://github.com/SpeysideHEP/spey/releases"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.1.2",
+    "pytest-cov>=3.0.0",
+    "twine>=3.7.1",
+    "wheel>=0.37.1",
+]
+iminuit = ["iminuit>=2.22.0"]
+
+[project.entry-points."spey.backend.plugins"]
+"default.uncorrelated_background" = "spey.backends.default_pdf:UncorrelatedBackground"
+"default.correlated_background" = "spey.backends.default_pdf:CorrelatedBackground"
+"default.third_moment_expansion" = "spey.backends.default_pdf:ThirdMomentExpansion"
+"default.effective_sigma" = "spey.backends.default_pdf:EffectiveSigma"
+"default.poisson" = "spey.backends.default_pdf.simple_pdf:Poisson"
+"default.normal" = "spey.backends.default_pdf.simple_pdf:Gaussian"
+"default.multivariate_normal" = "spey.backends.default_pdf.simple_pdf:MultivariateNormal"
+
+[tool.setuptools.dynamic]
+version = {attr = "spey._version.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

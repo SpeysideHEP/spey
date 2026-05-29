@@ -19,13 +19,51 @@ _minuit_opts = ValidateOpts(
 def minimize(
     func: Callable[[np.ndarray], float],
     init_pars: List[float],
-    fixed_vals: list[bool],
+    fixed_vals: List[bool],
     do_grad: bool = False,
     hessian: Callable[[np.ndarray], np.ndarray] = None,
     bounds: List[Tuple[float, float]] = None,
     constraints: List[Dict] = None,
     **options,
 ) -> Tuple[float, np.ndarray]:
+    """
+    Minimise an objective using :class:`iminuit.Minuit`.
+
+    The ``constraints`` and ``hessian`` arguments are accepted for API
+    compatibility with :func:`spey.optimizer.scipy_tools.minimize` but are
+    ignored by minuit (minuit applies bounds and fixed parameters directly).
+
+    Args:
+        func (``Callable[[np.ndarray], float]``): Objective function. When
+          ``do_grad=True`` it must return ``(value, gradient)``; ``gradient``
+          is then forwarded to ``Minuit(..., grad=grad)``.
+        init_pars (``List[float]``): Initial parameter values.
+        fixed_vals (``List[bool]``): Boolean mask the same length as
+          ``init_pars``; ``True`` entries are passed to ``Minuit.fixed``.
+        do_grad (``bool``, default ``False``): Whether ``func`` returns its
+          gradient alongside the objective.
+        hessian (``Callable[[np.ndarray], np.ndarray]``, default ``None``):
+          Accepted for compatibility; not used by minuit.
+        bounds (``List[Tuple[float, float]]``, default ``None``): Per-parameter
+          ``(lower, upper)`` bounds for ``Minuit.limits``. Use ``(None, None)``
+          for an unbounded parameter; when the whole list is ``None`` all
+          parameters become unbounded.
+        constraints (``List[Dict]``, default ``None``): Accepted for
+          compatibility; not used by minuit.
+        **options: Recognised keys are ``method`` (``"migrad"`` (default) or
+          ``"simplex"``), ``maxiter`` (default ``10000``, passed as
+          ``ncall``), ``tol`` (default ``1e-6``), ``disp`` (default ``0``,
+          minuit print level), ``strategy`` (default ``0``), and ``errordef``
+          (default ``Minuit.LIKELIHOOD``). ``poi_index`` is stripped.
+
+    Returns:
+        ``Tuple[float, np.ndarray]``:
+        Final objective value (``opt.fval``) and the corresponding parameter
+        vector (``opt.values``).
+
+    Raises:
+        ``ValueError``: If ``method`` is neither ``"migrad"`` nor ``"simplex"``.
+    """
 
     options = _minuit_opts(options)
     method = options.get("method", "migrad")

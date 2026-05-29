@@ -1,8 +1,9 @@
 """Tools for computing upper limit on parameter of interest"""
 
 import logging
+from collections import deque
 from functools import partial
-from typing import Callable, List, Literal, Tuple, Union
+from typing import Callable, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import scipy
@@ -35,7 +36,7 @@ class ComputerWrapper:
 
     def __init__(self, computer: Callable[[float], float]):
         self.computer = computer
-        self._results = []
+        self._results = deque(maxlen=10)
 
     def __call__(self, value: float) -> float:
         """Compute the input function and return its value"""
@@ -88,17 +89,13 @@ def find_root_limits(
     low, hig = low_ini, hig_ini
 
     low_computer = ComputerWrapper(computer)
-    while low_computer(low) > loc:
-        low *= 0.5
-        if low < low_bound:
-            break
+    while low_computer(low) > loc and low > low_bound:
+        low = max(low * 0.2, low_bound)
     log.debug(f"Low results: {low_computer._results}")
 
     hig_computer = ComputerWrapper(computer)
-    while hig_computer(hig) < loc:
-        hig *= 2.0
-        if hig > hig_bound:
-            break
+    while hig_computer(hig) < loc and hig < hig_bound:
+        hig = min(hig * 5.0, hig_bound)
     log.debug(f"High results: {hig_computer._results}")
 
     return low_computer, hig_computer
@@ -191,14 +188,12 @@ def find_poi_upper_limit(
                 asimov_logpdf,
                 test_stat,
             )
-            pvalue = list(
-                map(
-                    lambda x: 1.0 - x,
-                    compute_asymptotic_confidence_level(
-                        sqrt_qmuA, delta_teststat, test_stat
-                    )[0 if expected == ExpectationType.observed else 1],
-                )
-            )
+            pvalue = [
+                1.0 - x
+                for x in compute_asymptotic_confidence_level(
+                    sqrt_qmuA, delta_teststat, test_stat
+                )[0 if expected == ExpectationType.observed else 1]
+            ]
         except AsimovTestStatZero as err:
             log.debug(err)
             pvalue = [0.0] if expected == ExpectationType.observed else [0.0] * 5
@@ -242,8 +237,125 @@ def find_poi_upper_limit(
             full_output=True,
             maxiter=maxiter,
         )
+        del low, hig
 
         if not r.converged:
             log.warning(f"Optimiser did not converge.\n{r}")
         result.append(x0)
     return result if len(result) > 1 else result[0]
+
+
+def bracket_and_solve(
+    computer: Callable[[float], float],
+    inner: float,
+    outer: float,
+    expand: Callable[[float], float],
+    contract: Callable[[float], float],
+    outer_stop: Callable[[float], bool],
+    inner_stop: Callable[[float], bool],
+    *,
+    retry_inner: Optional[float] = None,
+    retry_stop: Optional[Callable[[float], bool]] = None,
+    debug_tag: str = "",
+    xtol: float = 2e-12,
+    rtol: float = 1e-4,
+    maxiter: int = 10000,
+) -> Tuple[float, float, float]:
+    r"""
+    Bracket a root of ``computer`` and solve with :func:`~scipy.optimize.toms748`.
+
+    The function works in two phases:
+
+    1. **Bracketing** — walks ``outer`` outward via ``expand`` until
+       ``computer(outer) > 0`` (outside the confidence interval) or
+       ``outer_stop(outer)`` fires, then walks ``inner`` inward via ``contract``
+       until ``computer(inner) < 0`` (inside the interval) or
+       ``inner_stop(inner)`` fires.  If the two sides still share the same sign
+       and ``retry_inner`` is provided, a second contraction from ``retry_inner``
+       is attempted (used in the POI case when :math:`\hat\mu` is far from zero).
+
+    2. **Root-finding** — once a valid bracket ``[a, b]`` with opposite signs is
+       established, :func:`~scipy.optimize.toms748` (TOMS Algorithm 748, a
+       superlinearly convergent bracketing method) is called to locate the root to
+       the requested tolerances.
+
+    Args:
+        computer (``Callable[[float], float]``): Function whose sign changes at
+            the interval boundary.  By convention ``computer(val) < 0`` *inside*
+            the confidence interval (near the peak) and ``> 0`` *outside*.
+        inner (``float``): Initial bracketing value near the likelihood peak,
+            expected to satisfy ``computer(inner) < 0``.
+        outer (``float``): Initial bracketing value far from the likelihood peak,
+            expected to satisfy ``computer(outer) > 0``.
+        expand (``Callable[[float], float]``): Maps the current ``outer`` to a
+            new value further from the peak (e.g. ``lambda h: h * 2``).
+        contract (``Callable[[float], float]``): Maps the current ``inner`` to a
+            new value closer to the peak (e.g. ``lambda l: l * 0.5``).
+        outer_stop (``Callable[[float], bool]``): Returns ``True`` when ``outer``
+            has reached an absolute boundary beyond which further expansion should
+            not proceed.
+        inner_stop (``Callable[[float], bool]``): Returns ``True`` when ``inner``
+            is so close to the peak that further contraction would be meaningless.
+        retry_inner (``float``, optional): Alternative starting point for a second
+            contraction pass when the first pass fails to produce a valid bracket.
+        retry_stop (``Callable[[float], bool]``, optional): Stop condition applied
+            during the retry contraction; must be provided when ``retry_inner`` is
+            not ``None``.
+        debug_tag (``str``, default ``""``): Short label prepended to debug-level
+            log messages, useful for identifying which root (e.g. ``"left"`` or
+            ``"right"``) is currently being solved.
+        xtol (``float``, default ``2e-12``): Absolute tolerance for
+            :func:`~scipy.optimize.toms748`.  The solver stops when the bracket
+            width drops below this value.
+        rtol (``float``, default ``1e-4``): Relative tolerance for
+            :func:`~scipy.optimize.toms748`.  The solver stops when the bracket
+            width is smaller than ``rtol * |root|``.
+        maxiter (``int``, default ``10000``): Maximum number of function
+            evaluations allowed inside :func:`~scipy.optimize.toms748`.
+
+    Returns:
+        ``Tuple[float, float, float]``:
+        ``(final_inner, final_outer, root)`` where ``final_inner`` and
+        ``final_outer`` are the last bracket endpoints reached during the
+        expansion/contraction phase, and ``root`` is the value returned by
+        :func:`~scipy.optimize.toms748`.  ``root`` is ``nan`` when no bracket
+        with opposite signs could be established.
+    """
+    outer_cw = ComputerWrapper(computer)
+    while outer_cw(outer) < 0.0 and not outer_stop(outer):
+        outer = expand(outer)
+
+    inner_cw = ComputerWrapper(computer)
+    while inner_cw(inner) > 0.0 and not inner_stop(inner):
+        inner = contract(inner)
+
+    log.debug(
+        f"[{debug_tag}] inner f({inner:.5e})={inner_cw[-1]:.5e},"
+        f" outer f({outer:.5e})={outer_cw[-1]:.5e}"
+    )
+
+    if np.sign(inner_cw[-1]) == np.sign(outer_cw[-1]) and retry_inner is not None:
+        inner = retry_inner
+        inner_cw = ComputerWrapper(computer)
+        while inner_cw(inner) > 0.0 and not retry_stop(inner):
+            inner = contract(inner)
+        log.debug(
+            f"[{debug_tag} retry] inner f({inner:.5e})={inner_cw[-1]:.5e},"
+            f" outer f({outer:.5e})={outer_cw[-1]:.5e}"
+        )
+
+    if np.sign(inner_cw[-1]) != np.sign(outer_cw[-1]):
+        a, b = min(inner, outer), max(inner, outer)
+        x0, _ = scipy.optimize.toms748(
+            computer,
+            a,
+            b,
+            k=2,
+            xtol=xtol,
+            rtol=rtol,
+            full_output=True,
+            maxiter=maxiter,
+        )
+        return inner, outer, x0
+
+    return inner, outer, float("nan")

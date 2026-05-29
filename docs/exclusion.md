@@ -22,7 +22,7 @@ kernelspec:
 
 Any Spey statistical model can compute the exclusion confidence level using three different calculators. The availability of these options depends on the functions used in the likelihood construction (see {ref}`this section <sec_new_plugin>` for details).
 
-The exclusion limits can be calculated for two different test statistic measure i.e. test statistic
+The exclusion limits can be calculated using two different test statistics. The first is the standard profile likelihood ratio:
 
 $$
 q_\mu = \begin{cases}
@@ -31,7 +31,12 @@ q_\mu = \begin{cases}
     \end{cases} \quad ,
 $$
 
-or alternate test statistic
+**Interpretation:** When $\hat{\mu} > \mu$ (data prefer even larger signal), the test statistic is zero because there is no tension
+between the data and the hypothesis. The numerator uses the profile $\theta_\mu$ (nuisances optimized at fixed $\mu$),
+while the denominator uses the global maximum $(\hat{\mu}, \hat{\theta})$. This test statistic allows negative signal strengths,
+which is appropriate when negative contributions can occur (e.g., interference effects in EFT).
+
+The alternate test statistic is designed for cases where the signal strength must be non-negative:
 
 $$
 \tilde{q}_\mu = \begin{cases}
@@ -41,7 +46,13 @@ $$
     \end{cases}\quad .
 $$
 
-The main distinction being, alternate test statistic assumes that the signal can not be negative, for instance in case of negative interference effects in EFT one should use test statistic. By default {func}`~spey.StatisticalModel.exclusion_confidence_level` function assumes alternate test statistic being use and this can be changed with ``allow_negative_signal`` boolean argument.
+**Interpretation:** The key difference is in the denominator when $\hat{\mu} < 0$ (data prefer negative signal):
+- For $q_\mu$: The denominator is at the (unphysical) negative $\hat{\mu}$
+- For $\tilde{q}_\mu$: The denominator is at $\mu=0$ (background-only), treating negative fits as evidence for background-only hypothesis
+
+By default, {func}`~spey.StatisticalModel.exclusion_confidence_level` uses the alternate test statistic $\tilde{q}_\mu$
+(appropriate for physical cross-sections which are always non-negative). This can be changed via the ``allow_negative_signal``
+boolean argument to use $q_\mu$ instead, which is appropriate for EFT scenarios where interference can make effective signals negative.
 
 ````{margin}
 ```{admonition} Tip!
@@ -57,19 +68,78 @@ The {func}`~spey.StatisticalModel.exclusion_confidence_level` function allows us
 ```{admonition} How has the Asimov likelihood been calculated?
 :class: dropdown, attention
 
- For exclusion limits, the first step is to fit the likelihood to the parameter of interest (POI) set to 0, representing the background-only model. Using the fitted parameters, expected data is generated, known as Asimov data. By replacing the observed data with this Asimov data, a new likelihood distribution—referred to as the "Asimov likelihood"—is created. This Asimov likelihood is then used for inference.
+For exclusion limits, the Asimov dataset is constructed by fitting the likelihood to the background-only hypothesis (μ=0).
+The fitted nuisance parameters $\hat{\theta}_0$ are then used to generate expected (mean) data:
+
+$$n_i^{\rm Asimov} = E[n_i | \mu=0, \hat{\theta}_0]$$
+
+By replacing the observed data with this Asimov data, the "Asimov likelihood" $\mathcal{L}_A(\mu)$ is created.
+This approach ensures the expected sensitivity is computed self-consistently with the fitted background model.
 ```
 ````
 
-- **"asymptotic"**: Uses asymptotic formulae to compute p-values (see ref. {cite}`Cowan:2010js` for details). This method requires the likelihood to support sampling capabilities, as it compares the signal-like test statistic to the Asimov test statistic using the formula $t_\mu = \sqrt{\tilde{q}_\mu} - \sqrt{\tilde{q}_{\mu,A}}$. This is the most commonly used method in LHC analyses.
-- **"toy"**: Relies on the likelihood's sampling functionality. It calculates p-values by generating samples from both the signal-plus-background and background-only distributions.
-- **"chi_square"**: Compares the signal hypothesis ($\tilde{q}_{\mu=1}$) to the null hypothesis, with the test statistic $t_\mu = \sqrt{\chi^2(\mu=0)} - \sqrt{\tilde{q}_{\mu=1}}$. This approach was widely used during the Tevatron era.
+- **"asymptotic"**: Uses asymptotic formulae from the CLs method (see ref. {cite}`Cowan:2010js` for details).
+  The p-values are computed using the formula:
 
-The `expected` keyword allows users to select between computing observed or expected exclusion limits. It also supports the calculation of prefit expected exclusion limits, which can be enabled by setting `expected=spey.ExpectationType.apriori`. This option ignores experimental data and computes the expected exclusion limit based solely on the simulated Standard Model (SM) background yields. On the other hand, {obj}`~spey.ExpectationType.observed` (for observed limits) and {obj}`~spey.ExpectationType.aposteriori` (for post-fit expected limits) compute the exclusion confidence limits after fitting the model.
+  $$
+  p_{s+b} = \Phi\left(-\sqrt{\tilde{q}_\mu}\right), \quad p_b = \Phi\left(-\frac{\sqrt{\tilde{q}_\mu} - \sqrt{\tilde{q}_{\mu,A}}}{\text{sensitivity}}\right)
+  $$
 
-In both expected cases, the exclusion limits are returned with $\pm1\sigma$ and $\pm2\sigma$ variations around the background model, resulting in five values: $[-2\sigma, -1\sigma, 0, 1\sigma, 2\sigma]$. However, the observed exclusion limit returns a single value. The ``"chi_square"`` calculator is an exception—it only provides one value for both observed and expected limits.
+  where $\tilde{q}_{\mu,A}$ is the test statistic evaluated on Asimov data (measures expected sensitivity),
+  and the asymptotic normal approximation is applied. This is the most commonly used method in LHC analyses because
+  it is computationally fast and theoretically well-understood.
 
-The `allow_negative_signal` keyword controls which test statistic is used and restricts the values that $\mu$ (the signal strength) can take when computing the maximum likelihood. When `allow_negative_signal=True`, the $q_\mu$ test statistic is applied; otherwise, the $\tilde{q}_\mu$ statistic is used (for further details, see {cite}`Cowan:2010js, Araz:2023bwx`).
+- **"toy"**: Relies on the likelihood's sampling functionality. It calculates p-values by:
+  1. Generating $N_{\rm toy}$ pseudo-datasets from the signal+background hypothesis at the tested $\mu$
+  2. Generating $N_{\rm toy}$ pseudo-datasets from the background-only hypothesis ($\mu=0$)
+  3. Computing the test statistic for each pseudo-dataset
+  4. Building empirical CDFs from the toy distributions
+  5. Computing p-values as the fraction of toys with test statistics at least as extreme as observed
+  This method is more computationally expensive but makes fewer assumptions about the underlying distributions.
+
+- **"chi_square"**: A simplified Tevatron-era approach that directly uses the chi-squared distribution.
+  The test statistic is $t_\mu = \sqrt{\tilde{q}_{\mu=1}} - \sqrt{\chi^2_{\text{crit}}}$ where the denominator
+  compares signal+background to background-only. This method does not require the Asimov likelihood and is useful
+  as a quick diagnostic, though it is generally less accurate than the asymptotic method.
+
+The `expected` keyword allows users to select between computing observed or expected exclusion limits:
+
+**Observed limits** ({obj}`~spey.ExpectationType.observed`):
+Uses the actual experimental data $n^i$ in the likelihood. The test statistic $\tilde{q}_\mu$ is evaluated
+on the real data, not on Asimov data. This reflects what the experiment has actually observed and returns a single value.
+
+**Post-fit expected limits** ({obj}`~spey.ExpectationType.aposteriori`):
+Assumes the background-only hypothesis is true and generates an Asimov dataset at $\mu=0$ to fit the model.
+Expected exclusion limits are then computed at five discrete "sigma levels": $n = -2, -1, 0, +1, +2$.
+These correspond to quantiles of the background-only test statistic distribution, providing a "Brazil band" that
+shows the expected sensitivity and its uncertainty. The return is a list of five values:
+$[-2\sigma, -1\sigma, 0, +1\sigma, +2\sigma]$.
+
+**Pre-fit expected limits** ({obj}`~spey.ExpectationType.apriori`):
+Ignores experimental data entirely and uses background yields as the "observation". This computes expected limits
+based purely on simulated Standard Model (SM) background predictions, useful for theory groups to estimate discovery
+potential independent of actual experimental results. Also returns five values.
+
+**Mathematical details:**
+For expected limits, the test statistic is computed at each sigma level by generating Asimov data at $\mu=0$ with
+the background fluctuated by $n$ standard deviations. The five resulting p-values form the "Brazil band" in exclusion limit plots.
+The observed limit returns a single value. The ``"chi_square"`` calculator is an exception—it only provides one value for both observed and expected limits.
+
+The `allow_negative_signal` keyword controls which test statistic is used and how the parameter of interest (POI) is constrained:
+
+**When `allow_negative_signal=True`** (uses $q_\mu$):
+- The signal strength $\mu$ is allowed to take any real value, including negative values
+- Appropriate for scenarios where the signal can have negative contributions (e.g., interference effects in EFT)
+- During optimization, nuisance parameters and $\mu$ are profiled without lower bounds
+- Results in the standard profile likelihood ratio test
+
+**When `allow_negative_signal=False`** (uses $\tilde{q}_\mu$):
+- The signal strength is constrained to $\mu \geq 0$ during optimization
+- Appropriate for physical cross-sections and rates, which must be non-negative
+- The test statistic changes its denominator when the unconstrained fit yields $\hat{\mu} < 0$ (see definition of $\tilde{q}_\mu$ above)
+- This is the default and recommended choice for most particle physics analyses
+
+(For further details, see {cite}`Cowan:2010js, Araz:2023bwx`.)
 
 For complex statistical models, optimizing the likelihood can be challenging and depends on the choice of optimizer. Spey uses SciPy for optimization and fitting tasks. Any additional keyword arguments not explicitly covered in the {func}`~spey.StatisticalModel.exclusion_confidence_level` function description are passed directly to the optimizer, allowing users to customize its behavior through the interface.
 

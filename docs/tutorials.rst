@@ -7,7 +7,9 @@ Kitchen Sink
    tutorials/intro_spey
    tutorials/functional_tuto
    tutorials/histogram
+   tutorials/cross-section-limits
    tutorials/gradients
-   tutorials/signal_unc
+   tutorials/signal_uncertainties
+   tutorials/multiparameter_contour
    tuto_plugin
    Introduction to Spey (PyHEP 2023) <https://github.com/SpeysideHEP/PyHEP-2023>

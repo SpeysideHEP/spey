@@ -1,4 +1,7 @@
+import json
 import logging
+import pathlib
+from datetime import datetime, timezone
 from platform import python_version
 from typing import Literal
 
@@ -79,6 +82,100 @@ def get_bibtex(
         return ""
 
 
+_SPEY_DIR = pathlib.Path.home() / ".spey"
+_CACHE_MAX_AGE_SECONDS = 86_400  # 24 hours
+
+
+def _load_cached_pypi_info() -> dict:
+    """
+    Return cached PyPI JSON from ``~/.spey/pypi_latest_*.json`` if a file
+    written within the last 24 hours exists, otherwise return ``None``.
+    All filesystem errors are silently swallowed.
+    """
+    try:
+        if not _SPEY_DIR.is_dir():
+            return None
+        now = datetime.now(tz=timezone.utc).timestamp()
+        for cache_file in sorted(_SPEY_DIR.glob("pypi_latest_*.json"), reverse=True):
+            try:
+                age = now - cache_file.stat().st_mtime
+                if age <= _CACHE_MAX_AGE_SECONDS:
+                    data = json.loads(cache_file.read_text(encoding="utf-8"))
+                    log.debug(
+                        "Using cached PyPI info from %s (age %.0fs).",
+                        cache_file.name,
+                        age,
+                    )
+                    return data
+                # File is older than 24 h — stop looking (files are sorted newest-first).
+                break
+            except Exception as err:  # noqa: BLE001
+                log.debug("Could not read cache file %s: %s", cache_file.name, err)
+    except Exception as err:  # noqa: BLE001
+        log.debug("Cache directory scan failed: %s", err)
+    return None
+
+
+def _save_pypi_info(pypi_info: dict) -> None:
+    """
+    Save *pypi_info* to ``~/.spey/pypi_latest_{datetime}.json``.
+    Old cache files (more than 24 h) are removed opportunistically.
+    Silently skips if the directory cannot be created or written to.
+    """
+    try:
+        _SPEY_DIR.mkdir(parents=False, exist_ok=True)
+    except PermissionError as err:
+        log.debug("Cannot create ~/.spey directory: %s", err)
+        return
+    except Exception as err:  # noqa: BLE001
+        log.debug("Unexpected error creating ~/.spey: %s", err)
+        return
+
+    timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
+    cache_file = _SPEY_DIR / f"pypi_latest_{timestamp}.json"
+    try:
+        cache_file.write_text(json.dumps(pypi_info, indent=4), encoding="utf-8")
+        log.debug("Saved PyPI info to %s.", cache_file.name)
+    except Exception as err:  # noqa: BLE001
+        log.debug("Could not write cache file %s: %s", cache_file.name, err)
+
+    # Remove every other cache file so only the latest one is kept.
+    try:
+        for old_file in _SPEY_DIR.glob("pypi_latest_*.json"):
+            if old_file != cache_file:
+                try:
+                    old_file.unlink(missing_ok=True)
+                except Exception:  # noqa: BLE001
+                    pass
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _get_pypi_info() -> dict:
+    """
+    Return PyPI JSON for spey, using a 24-hour on-disk cache.
+    Returns ``None`` if the information cannot be obtained for any reason.
+    """
+    cached = _load_cached_pypi_info()
+    if cached is not None:
+        return cached
+
+    try:
+        response = requests.get(
+            "https://pypi.org/pypi/spey/json",
+            timeout=1,
+            stream=False,
+        )
+        response.encoding = "utf-8"
+        pypi_info = response.json()
+    except Exception as err:  # noqa: BLE001
+        log.debug("PyPI request failed: %s", err)
+        return None
+
+    _save_pypi_info(pypi_info)
+    return pypi_info
+
+
 def check_updates() -> None:
     """
     Check Spey Updates.
@@ -100,12 +197,18 @@ def check_updates() -> None:
         import os
         os.environ["SPEY_CHECKUPDATE"]="OFF"
 
+    PyPI is queried at most once per 24 hours; the response is cached in
+    ``~/.spey/pypi_latest_{datetime}.json``.  If the cache directory cannot
+    be created (e.g. no write permission) the function always attempts a
+    live request.  Any network or filesystem error is logged at DEBUG level
+    and the function returns silently without raising.
     """
-    # pylint: disable=import-outside-toplevel, W1203
+    # pylint: disable=W1203
     try:
-        response = requests.get("https://pypi.org/pypi/spey/json", timeout=1)
-        response.encoding = "utf-8"
-        pypi_info = response.json()
+        pypi_info = _get_pypi_info()
+        if pypi_info is None:
+            return
+
         py_version = Version(python_version())
         pypi_version = pypi_info.get("info", {}).get("version", False)
         version = __version__
@@ -134,5 +237,4 @@ def check_updates() -> None:
                 )
 
     except Exception as err:  # pylint: disable=W0718
-        # Can not retreive updates
         log.debug(str(err))

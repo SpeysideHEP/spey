@@ -10,14 +10,14 @@ class ExpectationType(Enum):
     Expectation type has been used to determine the nature of the statistical model through out the package.
     It consists of three main arguments:
 
-        * :obj:`observed` : indicates that the fit of the statistical model will be done over experimental data
-        * :obj:`aposteriori`: as in :obj:`observed` the fit will be done over data where the likelihood results will
-          be identical to :obj:`observed`, computation of :math:`CL_s` values will be done for by centralising the test
-          statistics around background.
-        * :obj:`apriori`: theorists are generatly interested in difference of their model from the SM simulation. Hence
-          this option will overwrite the observed data in the statistical model with simulated background values and performs
-          the computation with respect to prefit values, meaning prior to the experimental observation. :math:`CL_s` values
-          are again computed by centralising the test statistics around the background i.e. SM background.
+        * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+          prescription which means that the experimental data will be assumed to be the truth
+          (default).
+        * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+          post-fit prescription which means that the experimental data will be assumed to be
+          the truth.
+        * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+          prescription which means that the SM will be assumed to be the truth.
 
     User can simply set the value of :obj:`expected` to a desired :obj:`ExpectationType`:
 
@@ -54,3 +54,5 @@ class ExpectationType(Enum):
             return False
 
         raise ValueError(f"Unknown comparison: type({other}) = {type(other)}")
+
+    __hash__ = Enum.__hash__

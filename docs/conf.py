@@ -16,7 +16,7 @@ from importlib.metadata import version
 sys.path.insert(0, str(Path("./ext").resolve()))
 
 project = "spey"
-copyright = "2025, Jack Y. Araz"
+copyright = "2026, Jack Y. Araz"
 author = "Jack Y. Araz"
 release = version("spey")
 version = ".".join(release.split(".")[:3])
@@ -29,6 +29,7 @@ language = "en"
 
 extensions = [
     "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
     "sphinx.ext.autosummary",
     "sphinx.ext.coverage",
     "sphinx.ext.mathjax",
@@ -66,6 +67,9 @@ xref_links = {
         "[arXiv:physics/0406120]",
         "https://10.48550/arXiv.physics/0406120",
     ),
+    "2602.18611": ("[arXiv:2602.18611]", "https://arxiv.org/abs/2602.18611"),
+    "1510.03865": ("[arXiv:1510.03865]", "https://arxiv.org/abs/1510.03865"),
+    "1601.03413": ("[arXiv:1601.03413]", "https://arxiv.org/abs/1601.03413"),
 }
 
 source_suffix = {
@@ -91,6 +95,8 @@ bibtex_bibfiles = ["./bib/references.bib", "./bib/cited.bib"]
 
 # GitHub repo
 issues_github_path = "https://github.com/SpeysideHEP/spey/issues"
+
+main_website_base_url = "https://spey.readthedocs.io/en/stable/"
 
 # Generate the API documentation when building
 autosummary_generate = True

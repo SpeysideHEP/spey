@@ -2,7 +2,7 @@
 
 import copy
 from dataclasses import dataclass
-from typing import List, Optional, Text, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 
 @dataclass
@@ -81,9 +81,86 @@ class ModelConfig:
         if not bounds[self.poi_index][0] < poi_value < bounds[self.poi_index][1]:
             bounds[self.poi_index] = (
                 self.minimum_poi if poi_value < 0.0 else 0.0,
-                poi_value + 1,
+                max([poi_value + 1, self.minimum_poi if poi_value < 0.0 else 0.0]),
             )
         return bounds
+
+    def resolve_poi_indices(
+        self,
+        poi_test: Union[float, Dict[Union[int, str], float]],
+    ) -> Dict[int, float]:
+        r"""
+        Resolve ``poi_test`` to a mapping of ``{parameter_index: fixed_value}``.
+
+        Args:
+            poi_test (:obj:`Union[float, Dict[Union[int, str], float]]`): parameter of interest
+              value, or a dictionary mapping POI indices (``int``) or names (``str``) to their
+              fixed values.
+
+        Raises:
+            :obj:`ValueError`: If a string key cannot be found in :attr:`parameter_names`.
+
+        Returns:
+            :obj:`Dict[int, float]`:
+            Mapping from parameter index to the value it should be fixed at.
+        """
+        if not isinstance(poi_test, dict):
+            return {self.poi_index: float(poi_test)}
+        resolved: Dict[int, float] = {}
+        for key, val in poi_test.items():
+            if isinstance(key, str):
+                if self.parameter_names is None:
+                    raise ValueError(
+                        "Cannot resolve POI name: parameter_names not set in ModelConfig."
+                    )
+                if key not in self.parameter_names:
+                    raise ValueError(
+                        f"POI name '{key}' not found in parameter_names: "
+                        f"{self.parameter_names}"
+                    )
+                resolved[self.parameter_names.index(key)] = float(val)
+            else:
+                resolved[int(key)] = float(val)
+        return resolved
+
+    def fixed_poi_bounds_multi(
+        self, poi_values: Optional[Dict[int, float]] = None
+    ) -> List[Tuple[float, float]]:
+        r"""
+        Adjust bounds for multiple fixed parameters.
+
+        Args:
+            poi_values (:obj:`Optional[Dict[int, float]]`, default :obj:`None`): mapping of
+              parameter index to fixed value.  If ``None`` the suggested bounds are returned
+              unchanged.
+
+        Returns:
+            :obj:`List[Tuple[float, float]]`:
+            Updated bounds.
+        """
+        if not poi_values:
+            return self.suggested_bounds
+        bounds = copy.deepcopy(self.suggested_bounds)
+        for idx, val in poi_values.items():
+            if any(b is None for b in bounds[idx]):
+                continue
+            if not bounds[idx][0] < val < bounds[idx][1]:
+                bounds[idx] = (
+                    self.minimum_poi if val < 0.0 else 0.0,
+                    val + 1,
+                )
+        return bounds
+
+    def change_parameter_names(self, name_map: Dict[str, str]) -> None:
+        """Change the parameter names"""
+        new_names = []
+        for old, new in name_map.items():
+            if old not in self.parameter_names:
+                raise ValueError(f"Parameter '{old}' does not exist.")
+            if new in new_names:
+                raise ValueError("Each name has to be unique.")
+            new_names.append(new)
+            self.parameter_names[self.parameter_names.index(old)] = new
 
     def rescale_poi_bounds(
         self, allow_negative_signal: bool = True, poi_upper_bound: Optional[float] = None

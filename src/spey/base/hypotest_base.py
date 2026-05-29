@@ -1,16 +1,30 @@
-"""
-Abstract class for Hypothesis base structure. This class contains necessary
-tools to compute exclusion limits and POI upper limits
+r"""
+Abstract base class for hypothesis testing in ``spey``.
+
+This module defines :class:`~spey.base.hypotest_base.HypothesisTestingBase`, which
+provides the complete hypothesis-testing API built on top of any statistical model
+backend.  :class:`~spey.StatisticalModel` inherits from this class, so every backend
+automatically receives the following capabilities as soon as it implements the two
+mandatory methods (:func:`~spey.BackendBase.config` and
+:func:`~spey.BackendBase.get_logpdf_func`):
+
+* :math:`\chi^2` test statistics and profile likelihood ratio computation;
+* exclusion confidence levels (:math:`CL_s`) via asymptotic, toy, or :math:`\chi^2`
+  calculators;
+* one-sided and two-sided :math:`\chi^2` interval finding;
+* POI upper limits at arbitrary confidence levels;
+* discovery significance (:math:`\sqrt{q_0}`).
+
 """
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from functools import partial
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import tqdm
-from scipy.optimize import toms748
 from scipy.stats import chi2
 
 from spey.hypothesis_testing.asymptotic_calculator import (
@@ -21,7 +35,7 @@ from spey.hypothesis_testing.test_statistics import (
     get_test_statistic,
 )
 from spey.hypothesis_testing.toy_calculator import compute_toy_confidence_level
-from spey.hypothesis_testing.upper_limits import ComputerWrapper, find_poi_upper_limit
+from spey.hypothesis_testing.upper_limits import bracket_and_solve, find_poi_upper_limit
 from spey.system.exceptions import (
     AsimovTestStatZero,
     CalculatorNotAvailable,
@@ -30,6 +44,10 @@ from spey.system.exceptions import (
 )
 from spey.system.logger import capture_logs
 from spey.utils import ExpectationType
+
+from .utils import resolve_parameter_index, _refine_global_min_1d, _enumerate_crossings_1d
+
+PoiTest = Union[float, Dict[Union[int, str], float]]
 
 __all__ = ["HypothesisTestingBase"]
 
@@ -40,85 +58,211 @@ def __dir__():
 
 log = logging.getLogger("Spey")
 
-# pylint: disable=W1203,C0103,possibly-used-before-assignment
+# pylint: disable= W1203, C0103, possibly-used-before-assignment, unnecessary-lambda-assignment
 
 
 class HypothesisTestingBase(ABC):
-    """
-    Abstract class that ensures classes that are performing hypothesis teststing includes certain
-    set of function to perform necessary computations. This class gives the ability to compute
-    exclusion limits and upper limits for the class inherits it.
+    r"""
+    Abstract base class that provides the full hypothesis-testing API for ``spey``.
+
+    Any class that inherits :class:`~spey.base.hypotest_base.HypothesisTestingBase`
+    and implements the four abstract properties and four abstract methods listed below
+    gains the complete set of hypothesis-testing utilities shown in the table.
+
+    **Abstract interface** (must be implemented by subclasses)
+
+    .. list-table::
+        :header-rows: 1
+        :widths: 45 55
+
+        * - Member
+          - Description
+        * - :attr:`is_alive`
+          - ``True`` if the signal hypothesis is non-trivially zero.
+        * - :attr:`is_asymptotic_calculator_available`
+          - ``True`` if the asymptotic calculator can be used.
+        * - :attr:`is_toy_calculator_available`
+          - ``True`` if the toy calculator can be used.
+        * - :attr:`is_chi_square_calculator_available`
+          - ``True`` if the :math:`\chi^2` calculator can be used.
+        * - :func:`likelihood`
+          - :math:`-\log\mathcal{L}` or :math:`\mathcal{L}` at fixed :math:`\mu`.
+        * - :func:`maximize_likelihood`
+          - Global minimisation of :math:`-\log\mathcal{L}` (free fit).
+        * - :func:`asimov_likelihood`
+          - :math:`-\log\mathcal{L}` on Asimov data at fixed :math:`\mu`.
+        * - :func:`maximize_asimov_likelihood`
+          - Global minimisation on Asimov data (free fit).
+
+    **Concrete capabilities** (provided automatically)
+
+    .. list-table::
+        :header-rows: 1
+        :widths: 45 55
+
+        * - Method
+          - Description
+        * - :func:`chi2`
+          - Profile likelihood ratio :math:`\chi^2`.
+        * - :func:`exclusion_confidence_level`
+          - :math:`CL_s` at a fixed :math:`\mu` (asymptotic, toy, or :math:`\chi^2`).
+        * - :func:`significance`
+          - Discovery significance :math:`\sqrt{q_0}`.
+        * - :func:`poi_upper_limit`
+          - One-sided 95% (or other) CL upper limit on :math:`\mu`.
+        * - :func:`chi2_test`
+          - One- or two-sided :math:`\chi^2` interval on :math:`\mu`.
+        * - :func:`sigma_mu`
+          - Standard deviation of :math:`\hat\mu` from Hessian or Asimov approximation.
+
+    **Usage examples**
+
+    All of the concrete methods below are available on :class:`~spey.StatisticalModel`,
+    which inherits this class:
+
+    .. code-block:: python
+
+        import spey
+
+        pdf = spey.get_backend("default.poisson")
+        model = pdf(
+            signal_yields=[5.0, 3.0],
+            background_yields=[50.0, 30.0],
+            data=[55, 31],
+            analysis="example",
+            xsection=0.05,
+        )
+
+        # Exclusion confidence level (CLs) at mu = 1
+        cls_obs = model.exclusion_confidence_level(poi_test=1.0)
+
+        # Expected CLs (5 values: -2s, -1s, central, +1s, +2s)
+        cls_exp = model.exclusion_confidence_level(
+            poi_test=1.0, expected=spey.ExpectationType.apriori
+        )
+
+        # 95% CL upper limit on mu
+        mu_ul = model.poi_upper_limit(confidence_level=0.95)
+
+        # Discovery significance
+        sqrt_q0A, sqrt_q0, pvals, exp_pvals = model.significance()
+
+        # Two-sided chi^2 interval at 68% CL
+        mu_lo, mu_hi = model.chi2_test(confidence_level=0.68, limit_type="two-sided")
 
     Args:
-        ntoys (``int``, default ``1000``): Number of toy samples for hypothesis testing.
-          (Only used for toy-based hypothesis testing)
+        ntoys (``int``, default ``1000``): Number of pseudo-experiments (toys) used by
+          the toy-based calculator.  Ignored when the asymptotic or :math:`\chi^2`
+          calculator is selected.
     """
 
     __slots__ = ["ntoys"]
 
     def __init__(self, ntoys: int = 1000):
         self.ntoys = ntoys
-        """Number of toy samples for sample generator during hypothesis testing"""
+        """Number of toy pseudo-experiments used by the toy-based calculator."""
 
     @property
     @abstractmethod
     def is_alive(self) -> bool:
-        """Returns True if at least one bin has non-zero signal yield."""
+        """
+        Whether the signal hypothesis has at least one non-zero bin yield.
+
+        Used as a fast pre-check before expensive likelihood evaluations.
+        Must be implemented as a property by all subclasses.
+
+        Returns:
+            ``bool``:
+            ``True`` if the model has at least one non-zero signal bin.
+        """
         # This method has to be a property
 
     @property
     @abstractmethod
     def is_asymptotic_calculator_available(self) -> bool:
-        """Check if Asymptotic calculator is available for the backend"""
+        """
+        Whether the asymptotic calculator is available for this model.
+
+        Must be implemented as a property by all subclasses.
+
+        Returns:
+            ``bool``:
+            ``True`` if the asymptotic calculator can be used.
+        """
         # This method has to be a property
 
     @property
     @abstractmethod
     def is_toy_calculator_available(self) -> bool:
-        """Check if Toy calculator is available for the backend"""
+        """
+        Whether the toy (pseudo-experiment) calculator is available for this model.
+
+        Must be implemented as a property by all subclasses.
+
+        Returns:
+            ``bool``:
+            ``True`` if the toy calculator can be used.
+        """
         # This method has to be a property
 
     @property
     @abstractmethod
     def is_chi_square_calculator_available(self) -> bool:
-        """Check if chi-square calculator is available for the backend"""
+        r"""
+        Whether the :math:`\chi^2` calculator is available for this model.
+
+        Must be implemented as a property by all subclasses.
+
+        Returns:
+            ``bool``:
+            ``True`` if the :math:`\chi^2` calculator can be used.
+        """
         # This method has to be a property
 
     @abstractmethod
     def likelihood(
         self,
-        poi_test: float = 1.0,
+        poi_test: PoiTest = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
         data: Optional[Union[List[float], np.ndarray]] = None,
+        return_parameters: bool = False,
         **kwargs,
     ) -> float:
         r"""
-        Compute likelihood of the statistical model
+        Compute the (negative) log-likelihood at a fixed parameter of interest.
+
+        The nuisance parameters :math:`\theta` are profiled (i.e. minimised over)
+        at the given :math:`\mu`, returning the profile likelihood
+        :math:`-\log\mathcal{L}(\mu, \hat{\theta}_\mu)`.
 
         Args:
-            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest, :math:`\mu`.
-            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
-              p-values to be computed.
+            poi_test (:obj:`PoiTest`, default ``1.0``): Parameter of interest
+              :math:`\mu`.  A plain ``float`` fixes the primary POI (identified by
+              :attr:`~spey.base.model_config.ModelConfig.poi_index`); a ``dict`` of
+              ``{index_or_name: value}`` fixes multiple parameters simultaneously.
+              String keys are resolved via
+              :attr:`~spey.base.model_config.ModelConfig.parameter_names`.
+            expected (~spey.ExpectationType): Selects which dataset to condition on.
 
-              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
-                (default).
-              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
-                the truth.
-              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
-                prescription which means that the SM will be assumed to be the truth.
+              * :obj:`~spey.ExpectationType.observed`: Use observed data (post-fit,
+                default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Use observed data with
+                post-fit nuisance treatment.
+              * :obj:`~spey.ExpectationType.apriori`: Use background-only prediction
+                (pre-fit / SM hypothesis).
 
-            return_nll (:obj:`bool`, default :obj:`True`): If ``True`` returns negative log-likelihood,
-              else likelihood value.
-            data (``Union[List[float], np.ndarray]``, default ``None``): input data that to fit. If
-              ``None`` data will be set according to ``expected`` input.
-            kwargs: keyword arguments for the optimiser.
+            return_nll (``bool``, default ``True``): If ``True``, return the negative
+              log-likelihood :math:`-\log\mathcal{L}`; if ``False``, return the
+              likelihood :math:`\mathcal{L}`.
+            data (``Union[List[float], np.ndarray]``, default ``None``): Explicit
+              dataset to condition on.  When provided, overrides ``expected``.
+            return_parameters (``bool``, default ``False``): Return fit parameters.
+            kwargs: Additional keyword arguments forwarded to the optimiser.
 
         Returns:
-            :obj:`float`:
-            value of likelihood at fixed :math:`\mu`.
+            ``float``:
+            The (negative) log-likelihood at the fixed signal strength :math:`\mu`.
         """
 
     @abstractmethod
@@ -128,89 +272,102 @@ class HypothesisTestingBase(ABC):
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = True,
         data: Optional[Union[List[float], np.ndarray]] = None,
+        poi_indices: Optional[List[Union[int, str]]] = None,
         **kwargs,
-    ) -> Tuple[float, float]:
+    ) -> Tuple[Union[float, Dict[Union[int, str], float]], float]:
         r"""
-        Compute maximum of the likelihood.
+        Find the global maximum of the likelihood (free fit).
+
+        Minimises :math:`-\log\mathcal{L}(\mu, \theta)` over all parameters,
+        returning :math:`\hat\mu` and the minimum negative log-likelihood
+        :math:`-\log\mathcal{L}(\hat\mu, \hat\theta)`.
 
         Args:
-            return_nll (:obj:`bool`, default :obj:`True`): If ``True`` returns negative log-likelihood,
-              else likelihood value.
-            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
-              p-values to be computed.
+            return_nll (``bool``, default ``True``): If ``True``, return the negative
+              log-likelihood; if ``False``, return the likelihood value.
+            expected (~spey.ExpectationType): Selects which dataset to condition on.
 
-              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
-                (default).
-              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
-                the truth.
-              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
-                prescription which means that the SM will be assumed to be the truth.
+              * :obj:`~spey.ExpectationType.observed`: Use observed data (post-fit,
+                default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Use observed data with
+                post-fit nuisance treatment.
+              * :obj:`~spey.ExpectationType.apriori`: Use background-only prediction
+                (pre-fit / SM hypothesis).
 
-            allow_negative_signal (:obj:`bool`, default :obj:`True`): If :obj:`True` :math:`\hat\mu`
-              value will be allowed to be negative.
-            data (``Union[List[float], np.ndarray]``, default ``None``): input data that to fit. If
-              ``None`` data will be set according to ``expected`` input.
-            kwargs: keyword arguments for the optimiser.
+            allow_negative_signal (``bool``, default ``True``): When ``True``,
+              :math:`\hat\mu` is unconstrained; when ``False`` the fit enforces
+              :math:`\hat\mu \geq 0`.
+            data (``Union[List[float], np.ndarray]``, default ``None``): Explicit
+              dataset to condition on.  When provided, overrides ``expected``.
+            poi_indices (``List[Union[int, str]]``, default ``None``): When ``None``,
+              returns the primary POI value as a single ``float``.  When a list of
+              integer indices or string parameter names is given, returns a ``dict``
+              mapping each requested key to its fitted value.
+            kwargs: Additional keyword arguments forwarded to the optimiser.
 
         Returns:
-            :obj:`Tuple[float, float]`:
-            value of :math:`\hat\mu` and maximum likelihood.
+            ``Tuple[Union[float, Dict[Union[int, str], float]], float]``:
+            ``(muhat, nll)`` where ``muhat`` is either a ``float`` (single POI) or a
+            ``dict`` of ``{index_or_name: fitted_value}`` (multiple POIs), and ``nll``
+            is the (negative) log-likelihood at the optimum.
         """
 
     @abstractmethod
     def asimov_likelihood(
         self,
-        poi_test: float = 1.0,
+        poi_test: PoiTest = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         return_nll: bool = True,
         test_statistics: Literal["qtilde", "q", "q0"] = "qtilde",
         **kwargs,
     ) -> float:
         r"""
-        Compute likelihood at fixed :math:`\mu` for Asimov data
+        Compute the (negative) log-likelihood on Asimov data at a fixed :math:`\mu`.
+
+        The Asimov dataset is generated by fitting the nuisance parameters to the
+        background-only or signal-plus-background hypothesis (controlled by
+        ``test_statistics``) and then computing the expected bin counts.  The
+        likelihood is then evaluated on this synthetic dataset instead of the observed
+        data.
 
         Args:
-            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest, :math:`\mu`.
-            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
-              p-values to be computed.
+            poi_test (:obj:`PoiTest`, default ``1.0``): Parameter of interest
+              :math:`\mu`.  Accepts the same formats as :func:`likelihood`: a plain
+              ``float`` or a ``dict`` of ``{index_or_name: value}`` to fix multiple
+              parameters simultaneously.
+            expected (~spey.ExpectationType): Selects which dataset is used to produce
+              the Asimov data.
 
-              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
-                (default).
-              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
-                the truth.
-              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
-                prescription which means that the SM will be assumed to be the truth.
+              * :obj:`~spey.ExpectationType.observed`: Post-fit (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Post-fit nuisance treatment.
+              * :obj:`~spey.ExpectationType.apriori`: Pre-fit / SM hypothesis.
 
-            return_nll (`bool`, default `True`): If ``True`` returns negative log-likelihood,
-              else likelihood value.
-            test_statistics (`Text`, default `"qtilde"`): test statistics.
+            return_nll (``bool``, default ``True``): If ``True``, return the negative
+              log-likelihood; if ``False``, return the likelihood value.
+            test_statistics (``str``, default ``"qtilde"``): Test statistic that
+              determines the :math:`\mu` value used for Asimov-data generation
+              (``"q0"`` → :math:`\mu=1`; all others → :math:`\mu=0`).
 
-              * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
-                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
-                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+              * ``'qtilde'``: Alternative test statistic :math:`\tilde{q}_\mu`,
+                eq. (62) of :xref:`1007.1727`.
 
                 .. warning::
 
-                    Note that this assumes that :math:`\hat\mu\geq0`, hence :obj:`allow_negative_signal`
-                    assumed to be :obj:`False`. If this function has been executed by user, :obj:`spey`
-                    assumes that this is taken care of throughout the external code consistently.
-                    Whilst computing p-values or upper limit on :math:`\mu` through :obj:`spey` this
-                    is taken care of automatically in the backend.
+                    This assumes :math:`\hat\mu \geq 0` (``allow_negative_signal=False``).
+                    When called through ``spey``'s public API this constraint is enforced
+                    automatically.
 
-              * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
-                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
-              * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
-                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+              * ``'q'``: Standard test statistic :math:`q_\mu`,
+                eq. (54) of :xref:`1007.1727`.
+              * ``'q0'``: Discovery test statistic :math:`q_0`,
+                eq. (47) of :xref:`1007.1727`.
 
-            kwargs: keyword arguments for the optimiser.
+            kwargs: Additional keyword arguments forwarded to the optimiser.
 
         Returns:
-            :obj:`float`:
-            value of the likelihood.
+            ``float``:
+            The (negative) log-likelihood evaluated on the Asimov dataset at the
+            fixed signal strength :math:`\mu`.
         """
 
     @abstractmethod
@@ -219,55 +376,61 @@ class HypothesisTestingBase(ABC):
         return_nll: bool = True,
         expected: ExpectationType = ExpectationType.observed,
         test_statistics: Literal["qtilde", "q", "q0"] = "qtilde",
+        poi_indices: Optional[List[Union[int, str]]] = None,
         **kwargs,
-    ) -> Tuple[float, float]:
+    ) -> Tuple[Union[float, Dict[Union[int, str], float]], float]:
         r"""
-        Compute maximum of the likelihood for Asimov data.
+        Find the global maximum of the likelihood on Asimov data (free fit).
+
+        Analogous to :func:`maximize_likelihood` but evaluated on the Asimov dataset
+        generated according to ``test_statistics``.  The result is used internally
+        by :func:`_prepare_for_hypotest` to build the asymptotic test statistic.
 
         Args:
-            return_nll (:obj:`bool`, default :obj:`True`): If ``True`` returns negative log-likelihood,
-              else likelihood value.
-            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
-              p-values to be computed.
+            return_nll (``bool``, default ``True``): If ``True``, return the negative
+              log-likelihood; if ``False``, return the likelihood value.
+            expected (~spey.ExpectationType): Selects which dataset is used to produce
+              the Asimov data.
 
-              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
-                (default).
-              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
-                the truth.
-              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
-                prescription which means that the SM will be assumed to be the truth.
+              * :obj:`~spey.ExpectationType.observed`: Post-fit (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Post-fit nuisance treatment.
+              * :obj:`~spey.ExpectationType.apriori`: Pre-fit / SM hypothesis.
 
-            test_statistics (`Text`, default `"qtilde"`): test statistics.
+            test_statistics (``str``, default ``"qtilde"``): Test statistic that
+              determines the :math:`\mu` value used for Asimov-data generation
+              (``"q0"`` → :math:`\mu=1`; all others → :math:`\mu=0`).
 
-              * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
-                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
-                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+              * ``'qtilde'``: Alternative test statistic :math:`\tilde{q}_\mu`,
+                eq. (62) of :xref:`1007.1727`.
 
                 .. warning::
 
-                    Note that this assumes that :math:`\hat\mu\geq0`, hence `allow_negative_signal`
-                    assumed to be `False`. If this function has been executed by user, `spey`
-                    assumes that this is taken care of throughout the external code consistently.
-                    Whilst computing p-values or upper limit on :math:`\mu` through `spey` this
-                    is taken care of automatically in the backend.
+                    This assumes :math:`\hat\mu \geq 0` (``allow_negative_signal=False``).
+                    When called through ``spey``'s public API this constraint is enforced
+                    automatically.
 
-              * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
-                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
-              * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
-                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+              * ``'q'``: Standard test statistic :math:`q_\mu`,
+                eq. (54) of :xref:`1007.1727`.
+              * ``'q0'``: Discovery test statistic :math:`q_0`,
+                eq. (47) of :xref:`1007.1727`.
 
-            kwargs: keyword arguments for the optimiser.
+            poi_indices (``List[Union[int, str]]``, default ``None``): When ``None``,
+              returns the primary POI value as a single ``float``.  When a list of
+              integer indices or string parameter names is given, returns a ``dict``
+              mapping each requested key to its fitted value.
+            kwargs: Additional keyword arguments forwarded to the optimiser.
 
         Returns:
-            :obj:`Tuple[float, float]`:
-            value of :math:`\hat\mu` and maximum likelihood.
+            ``Tuple[Union[float, Dict[Union[int, str], float]], float]``:
+            ``(muhat_A, nll_A)`` where ``muhat_A`` is either a ``float`` (single POI)
+            or a ``dict`` of ``{index_or_name: fitted_value}`` (multiple POIs), and
+            ``nll_A`` is the (negative) log-likelihood on the Asimov dataset at the
+            optimum.
         """
 
     def fixed_poi_sampler(
         self,
-        poi_test: float,
+        poi_test: PoiTest,
         size: Optional[int] = None,
         expected: ExpectationType = ExpectationType.observed,
         init_pars: Optional[List[float]] = None,
@@ -278,18 +441,18 @@ class HypothesisTestingBase(ABC):
         Sample data from the statistical model with fixed parameter of interest.
 
         Args:
-            poi_test (``float``, default ``1.0``): parameter of interest or signal strength,
-              :math:`\mu`.
+            poi_test (:obj:`PoiTest`): parameter of interest or signal strength, :math:`\mu`.
+              Either a single ``float`` or a ``dict`` mapping POI indices/names to values.
             size (``int``, default ``None``): sample size. If ``None`` a callable function
               will be returned which takes sample size as input.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
 
               * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
+                prescription which means that the experimental data will be assumed to be the truth
                 (default).
               * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
+                post-fit prescription which means that the experimental data will be assumed to be
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
@@ -299,7 +462,7 @@ class HypothesisTestingBase(ABC):
             kwargs: keyword arguments for the optimiser.
 
         Raises:
-            ~spey.system.exceptions.MethodNotAvailable: If bacend does not have sampler implementation.
+            ~spey.system.exceptions.MethodNotAvailable: If the backend does not have a sampler implementation.
 
         Returns:
             ``Union[np.ndarray, Callable[[int], np.ndarray]]``:
@@ -310,20 +473,27 @@ class HypothesisTestingBase(ABC):
 
     def chi2(
         self,
-        poi_test: float = 1.0,
-        poi_test_denominator: Optional[float] = None,
+        poi_test: PoiTest = 1.0,
+        poi_test_denominator: Optional[PoiTest] = None,
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = False,
-        **kwargs,
+        init_pars: Optional[List[float]] = None,
+        par_bounds: Optional[List[Tuple[float, float]]] = None,
+        mle_kwargs=None,
+        likelihood_kwargs=None,
     ) -> float:
         r"""
-        If ``poi_test_denominator=None`` computes
+        Compute the profile likelihood ratio :math:`\chi^2` test statistic.
+
+        When ``poi_test_denominator=None``, evaluates the profile likelihood ratio
+        against the unconditional maximum:
 
         .. math::
 
-            \chi^2 = -2\log\left(\frac{\mathcal{L}(\mu,\theta_\mu)}{\mathcal{L}(\hat\mu,\hat\theta)}\right)
+            \chi^2 = -2\log\left(\frac{\mathcal{L}(\mu,\hat\theta_\mu)}{\mathcal{L}(\hat\mu,\hat\theta)}\right)
 
-        else
+        When ``poi_test_denominator`` is set, it replaces the denominator with a
+        second fixed-:math:`\mu` likelihood:
 
         .. math::
 
@@ -333,17 +503,203 @@ class HypothesisTestingBase(ABC):
         model with the background only model.
 
         Args:
-            poi_test (``float``, default ``1.0``): parameter of interest, :math:`\mu`.
-            poi_test_denominator (``float``, default ``None``): parameter of interest for the denominator, :math:`\mu`.
-                If ``None`` maximum likelihood will be computed.
+            poi_test (:obj:`PoiTest` or ``list[float]``, default ``1.0``): Parameter of interest,
+              :math:`\mu`. A plain ``float`` (or iterable of floats) fixes the primary POI —
+              when iterable, :math:`\chi^2` is computed for each element. Alternatively, a
+              ``dict`` of ``{index_or_name: value}`` fixes multiple parameters simultaneously
+              (iterating over dicts is not supported).
+            poi_test_denominator (:obj:`PoiTest`, default ``None``): Parameter of interest for the
+              denominator. Accepts the same formats as ``poi_test``.
+              If ``None`` the maximum likelihood is computed instead.
             expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
               p-values to be computed.
 
               * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
+                prescription which means that the experimental data will be assumed to be the truth
                 (default).
               * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
+                post-fit prescription which means that the experimental data will be assumed to be
+                the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
+                prescription which means that the SM will be assumed to be the truth.
+
+            allow_negative_signal (``bool``, default ``True``): If ``True`` :math:`\hat\mu`
+              value will be allowed to be negative. Only valid when ``poi_test_denominator=None``.
+            init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
+            par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
+              the optimiser.
+            mle_kwargs (``dict``, default ``None``): Keyword arguments forwarded to the
+              denominator evaluation. When ``poi_test_denominator=None`` they are passed to
+              :func:`~spey.StatisticalModel.maximize_likelihood` (free fit of
+              :math:`\hat\mu,\hat\theta`); otherwise they are passed to
+              :func:`~spey.StatisticalModel.likelihood` at the fixed
+              :math:`\mu_{\rm denom}`. If ``None``, an empty dict is used. Accepted keys:
+
+              **Consumed by** ``prepare_for_fit``:
+
+              * ``do_grad`` (``bool``, default ``True``): Request the gradient of the
+                objective function from the backend. Falls back to ``False`` automatically
+                if the backend raises :obj:`NotImplementedError`.
+              * ``constraints`` (``List[Dict]``, default ``[]``): Additional scipy-style
+                constraint dicts appended to any backend-defined constraints.
+              * ``fixed_poi_value`` (``Union[float, Dict[int, float]]``, default ``None``):
+                Fix one or more POIs during the maximisation while the remaining parameters
+                are profiled freely. Only effective in the ``maximize_likelihood`` branch
+                (i.e. when ``poi_test_denominator=None``); ignored (with a warning) by
+                ``likelihood``, which takes the fixed POIs from ``poi_test_denominator``.
+
+              **Consumed by** ``fit`` (the core optimisation loop):
+
+              * ``minimizer`` (``str``, default ``"scipy"`` or the value of the
+                ``SPEY_OPTIMISER`` environment variable): Selects the numerical minimiser.
+                Accepted values are ``"scipy"`` and ``"minuit"`` (requires ``iminuit``).
+              * ``hessian`` (``Callable[[np.ndarray], np.ndarray]``, default ``None``):
+                Hessian of the objective function. Passed to scipy as the ``hess`` argument;
+                ignored by minuit.
+
+              **Scipy-minimiser options** (used when ``minimizer="scipy"``):
+
+              * ``method`` (``str``, default ``"SLSQP"``): Scipy optimisation method
+                (e.g. ``"SLSQP"``, ``"L-BFGS-B"``, ``"trust-constr"``).
+              * ``maxiter`` (``int``, default ``10000``): Maximum number of iterations.
+              * ``tol`` (``float``, default ``1e-6``): Convergence tolerance.
+              * ``disp`` (``bool``, default ``False``): Print convergence messages if ``True``.
+              * ``ntrials`` (``int``, default ``1``): Number of re-tries with progressively
+                expanded parameter bounds when the minimiser does not converge.
+
+              **Minuit-minimiser options** (used when ``minimizer="minuit"``):
+
+              * ``method`` (``str``, default ``"migrad"``): Minuit algorithm
+                (``"migrad"`` or ``"simplex"``).
+              * ``maxiter`` (``int``, default ``10000``): Maximum number of function calls.
+              * ``tol`` (``float``, default ``1e-6``): Convergence tolerance.
+              * ``disp`` (``int``, default ``0``): Minuit print level (``0`` = silent).
+              * ``strategy`` (``int``, default ``0``): Minuit strategy
+                (``0`` = fast, ``1`` = default, ``2`` = slow but more accurate).
+              * ``errordef`` (``float``, default ``Minuit.LIKELIHOOD``): Value by which
+                Minuit defines a one-sigma interval (``0.5`` for NLL, ``1.0`` for
+                :math:`\chi^2`).
+
+              Unknown keys are logged as a warning and silently discarded by the minimiser.
+
+            likelihood_kwargs (``dict``, default ``None``): Keyword arguments forwarded to
+              :func:`~spey.StatisticalModel.likelihood` when evaluating the numerator at
+              each requested ``poi_test`` value (including every element of an iterable or
+              scan). If ``None``, an empty dict is used. Accepts the same keys as
+              ``mle_kwargs`` above, with one caveat:
+
+              * ``fixed_poi_value`` is **not supported** here — the numerator's fixed POIs
+                are controlled entirely by ``poi_test``. Passing ``fixed_poi_value`` is
+                logged as a warning and discarded.
+
+        Returns:
+            ``float``:
+            value of the :math:`\chi^2`.
+        """
+        if mle_kwargs is None:
+            mle_kwargs = {}
+        if likelihood_kwargs is None:
+            likelihood_kwargs = {}
+        if poi_test_denominator is None:
+            _, denominator = self.maximize_likelihood(
+                expected=expected,
+                allow_negative_signal=allow_negative_signal,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
+                **mle_kwargs,
+            )
+        else:
+            denominator = self.likelihood(
+                poi_test=poi_test_denominator,
+                expected=expected,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
+                **mle_kwargs,
+            )
+        log.debug(f"denominator: {denominator}")
+
+        llhd = None
+        if isinstance(poi_test, Iterable) and not isinstance(poi_test, dict):
+            with capture_logs(logging.INFO) as _:
+                llhd = np.fromiter(
+                    (
+                        self.likelihood(
+                            poi_test=p,
+                            expected=expected,
+                            return_nll=True,
+                            init_pars=init_pars,
+                            par_bounds=par_bounds,
+                            **likelihood_kwargs,
+                        )
+                        for p in poi_test
+                    ),
+                    np.float32,
+                )
+        if isinstance(poi_test, dict):
+            scan_list = [
+                i for i, p in poi_test.items() if isinstance(p, (list, tuple, np.ndarray))
+            ]
+            if len(scan_list) == 1:
+                poi_list = np.atleast_1d(poi_test[scan_list[0]])
+                llhd = np.empty(len(poi_list), dtype=np.float32)
+                with capture_logs(logging.INFO) as _:
+                    current_poi_test = poi_test.copy()
+                    for i, param in enumerate(poi_list):
+                        current_poi_test.update({scan_list[0]: float(param)})
+                        llhd[i] = self.likelihood(
+                            poi_test=current_poi_test,
+                            expected=expected,
+                            return_nll=True,
+                            init_pars=init_pars,
+                            par_bounds=par_bounds,
+                            **likelihood_kwargs,
+                        )
+            elif len(scan_list) > 1:
+                raise NotImplementedError("Currently only one POI can be scanned.")
+
+        if llhd is None:
+            llhd = self.likelihood(
+                poi_test=poi_test,
+                expected=expected,
+                return_nll=True,
+                init_pars=init_pars,
+                par_bounds=par_bounds,
+                **likelihood_kwargs,
+            )
+        return 2.0 * (llhd - denominator)
+
+    def pull(
+        self,
+        poi_test: PoiTest = 1.0,
+        expected: ExpectationType = ExpectationType.observed,
+        allow_negative_signal: bool = True,
+        **kwargs,
+    ) -> float:
+        r"""
+        Pull: measures how many standard deviations the observation
+        is away from the expectation.
+
+        .. math::
+
+            \text{pull}(\mu) = \operatorname{sign}(\hat{\mu}-\mu)
+            \sqrt{-2\log\frac{L(\mu,\hat{\hat{\theta}}(\mu))}{L(\hat{\mu},\hat{\theta})}}
+
+        the square of the pull is the likelihood-ratio test statistic.
+
+        Args:
+            poi_test (:obj:`PoiTest` or ``list[float]``, default ``1.0``): Parameter of interest,
+              :math:`\mu`. A plain ``float`` (or iterable of floats) fixes the primary POI —
+              when iterable, :math:`\chi^2` is computed for each element. Alternatively, a
+              ``dict`` of ``{index_or_name: value}`` fixes multiple parameters simultaneously
+              (iterating over dicts is not supported).
+            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
+              p-values to be computed.
+
+              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
+                prescription which means that the experimental data will be assumed to be the truth
+                (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
+                post-fit prescription which means that the experimental data will be assumed to be
                 the truth.
               * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
                 prescription which means that the SM will be assumed to be the truth.
@@ -354,21 +710,13 @@ class HypothesisTestingBase(ABC):
 
         Returns:
             ``float``:
-            value of the :math:`\chi^2`.
+            value of pull.
         """
-        if poi_test_denominator is None:
-            _, denominator = self.maximize_likelihood(
-                expected=expected, allow_negative_signal=allow_negative_signal, **kwargs
-            )
-        else:
-            denominator = self.likelihood(
-                poi_test=poi_test_denominator, expected=expected, **kwargs
-            )
-        log.debug(f"denominator: {denominator}")
-
-        return 2.0 * (
-            self.likelihood(poi_test=poi_test, expected=expected, **kwargs) - denominator
+        muhat, min_nll = self.maximize_likelihood(
+            expected=expected, allow_negative_signal=allow_negative_signal, **kwargs
         )
+        llhd = self.likelihood(poi_test=poi_test, expected=expected, **kwargs)
+        return np.sign(muhat - poi_test) * np.sqrt(2.0 * (llhd - min_nll))
 
     def _prepare_for_hypotest(
         self,
@@ -382,59 +730,63 @@ class HypothesisTestingBase(ABC):
         Callable[[float], float],
     ]:
         r"""
-        Prepare necessary computations for hypothesis testing
+        Compute the four ingredients needed for asymptotic hypothesis testing.
+
+        Evaluates :func:`maximize_likelihood` and :func:`maximize_asimov_likelihood`
+        and wraps :func:`likelihood` and :func:`asimov_likelihood` as callables
+        suitable for :func:`~spey.hypothesis_testing.test_statistics.compute_teststatistics`.
+        All public hypothesis-testing methods call this helper internally.
 
         Args:
-            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
-                p-values to be computed.
+            expected (~spey.ExpectationType): Selects which dataset to condition on.
 
-                * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
-                (default).
-                * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
-                the truth.
-                * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
-                prescription which means that the SM will be assumed to be the truth.
+              * :obj:`~spey.ExpectationType.observed`: Use observed data (post-fit,
+                default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Use observed data with
+                post-fit nuisance treatment.
+              * :obj:`~spey.ExpectationType.apriori`: Use background-only prediction
+                (pre-fit / SM hypothesis).
 
-            test_statistics (`Text`, default `"qtilde"`): test statistics.
+            test_statistics (``str``, default ``"qtilde"``): Test statistic choice;
+              controls ``allow_negative_signal`` and Asimov-data generation.
 
-                * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
-                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
-                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+              * ``'qtilde'``: :math:`\tilde{q}_\mu`, eq. (62) of :xref:`1007.1727`.
 
                 .. warning::
 
-                    Note that this assumes that :math:`\hat\mu\geq0`, hence `allow_negative_signal`
-                    assumed to be `False`. If this function has been executed by user, :obj:`spey`
-                    assumes that this is taken care of throughout the external code consistently.
-                    Whilst computing p-values or upper limit on :math:`\mu` through `spey` this
-                    is taken care of automatically in the backend.
+                    This assumes :math:`\hat\mu \geq 0`.  ``spey``'s public API
+                    enforces this automatically.
 
-                * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
-                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
-                * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
-                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+              * ``'q'``: :math:`q_\mu`, eq. (54) of :xref:`1007.1727`.
+              * ``'q0'``: Discovery statistic :math:`q_0`, eq. (47) of :xref:`1007.1727`.
 
-            kwargs: keyword arguments for the optimiser.
+            kwargs: Additional keyword arguments forwarded to the optimiser, including:
 
-              * **init_pars** (``List[float]``, default ``None``): initial parameters for the optimiser
-              * **par_bounds** (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
-                the optimiser.
+              * **init_pars** (``List[float]``, default ``None``): Initial parameter
+                values for the optimiser.
+              * **par_bounds** (``List[Tuple[float, float]]``, default ``None``):
+                Parameter bounds for the optimiser.
 
         Returns:
-            :obj:`Tuple[ Tuple[float, float], Callable[[float], float], Tuple[float, float], Callable[[float], float]]`:
-            (:math:`\hat\mu`, :math:`\arg\min(-\log\mathcal{L})`), :math:`\log\mathcal{L(\mu, \theta_\mu)}`,
-            (:math:`\hat\mu_A`, :math:`\arg\min(-\log\mathcal{L}_A)`), :math:`\log\mathcal{L_A(\mu, \theta_\mu)}`
-        """
-        allow_negative_signal = test_statistics in ["q" or "qmu"]
+            ``Tuple[Tuple[float, float], Callable, Tuple[float, float], Callable]``:
+            A 4-tuple:
 
+            * ``(hat_mu, nll)`` — best-fit POI and minimum NLL on observed data.
+            * ``logpdf(mu)`` — callable returning :math:`-\log\mathcal{L}(\mu)` on
+              observed data.
+            * ``(hat_mu_A, nll_A)`` — best-fit POI and minimum NLL on Asimov data.
+            * ``logpdf_asimov(mu)`` — callable returning :math:`-\log\mathcal{L}_A(\mu)`
+              on Asimov data.
+        """
+        allow_negative_signal = test_statistics in ["q", "qmu"]
+        log.debug("Computing max-llhd")
         muhat, nll = self.maximize_likelihood(
             expected=expected,
             allow_negative_signal=allow_negative_signal,
             **kwargs,
         )
         log.debug(f"muhat: {muhat}, nll: {nll}")
+        log.debug("Computing max-llhd for Asimov data")
         muhatA, nllA = self.maximize_asimov_likelihood(
             expected=expected,
             test_statistics=test_statistics,
@@ -461,64 +813,62 @@ class HypothesisTestingBase(ABC):
 
     def sigma_mu(
         self,
-        poi_test: float,
+        poi_test: PoiTest,
         expected: ExpectationType = ExpectationType.observed,
         test_statistics: Literal["qtilde", "q", "q0"] = "qtilde",
         **kwargs,
     ) -> float:
         r"""
-        If available, :math:`\sigma_\mu` will be computed through Hessian of negative log-likelihood
-        see :func:`spey.StatisticalModel.sigma_mu_from_hessian` for details.
-        However, if not available it will be estimated via :math:`q_{\mu,A}`
+        Estimate the standard deviation of :math:`\hat\mu` at a fixed :math:`\mu`.
+
+        Attempts the Hessian-based estimate first (via
+        :func:`~spey.StatisticalModel.sigma_mu_from_hessian`) if that method exists on
+        the subclass.  When the Hessian is not available, falls back to the Asimov
+        approximation from eq. (31) of :xref:`1007.1727`:
 
         .. math::
 
-            \sigma^2_A = \frac{(\mu - \mu^\prime)^2}{q_{\mu,A}}\quad , \quad q_{\mu,A} = -2\ln\lambda_A(\mu)
+            \sigma_A = \frac{|\mu - \mu^\prime|}{\sqrt{q_{\mu,A}}},
+            \qquad q_{\mu,A} = -2\ln\lambda_A(\mu)
 
-        see eq. (31) in :xref:`1007.1727`
+        where :math:`\mu^\prime` is the best-fit value on the Asimov dataset.
 
         Args:
-            poi_test (:obj:`float`, default :obj:`1.0`): parameter of interest, :math:`\mu`.
-            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
-              p-values to be computed.
+            poi_test (:obj:`PoiTest`): Parameter of interest value :math:`\mu` at
+              which to evaluate :math:`\sigma_\mu`.
+            expected (~spey.ExpectationType): Selects which dataset to condition on.
 
-              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
-                (default).
-              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
-                the truth.
-              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
-                prescription which means that the SM will be assumed to be the truth.
+              * :obj:`~spey.ExpectationType.observed`: Use observed data (post-fit,
+                default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Use observed data with
+                post-fit nuisance treatment.
+              * :obj:`~spey.ExpectationType.apriori`: Use background-only prediction
+                (pre-fit / SM hypothesis).
 
-            test_statistics (`Text`, default `"qtilde"`): test statistics.
+            test_statistics (``str``, default ``"qtilde"``): Test statistic used for
+              the Asimov approximation (ignored when the Hessian path is taken).
 
-              * ``'qtilde'``: (default) performs the calculation using the alternative test statistic,
-                :math:`\tilde{q}_{\mu}`, see eq. (62) of :xref:`1007.1727`
-                (:func:`~spey.hypothesis_testing.test_statistics.qmu_tilde`).
+              * ``'qtilde'``: :math:`\tilde{q}_\mu`, eq. (62) of :xref:`1007.1727`.
 
                 .. warning::
 
-                    Note that this assumes that :math:`\hat\mu\geq0`, hence `allow_negative_signal`
-                    assumed to be `False`. If this function has been executed by user, `spey`
-                    assumes that this is taken care of throughout the external code consistently.
-                    Whilst computing p-values or upper limit on :math:`\mu` through `spey` this
-                    is taken care of automatically in the backend.
+                    This assumes :math:`\hat\mu \geq 0`.  ``spey``'s public API
+                    enforces this automatically.
 
-              * ``'q'``: performs the calculation using the test statistic :math:`q_{\mu}`, see
-                eq. (54) of :xref:`1007.1727` (:func:`~spey.hypothesis_testing.test_statistics.qmu`).
-              * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
-                of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
+              * ``'q'``: :math:`q_\mu`, eq. (54) of :xref:`1007.1727`.
+              * ``'q0'``: Discovery statistic :math:`q_0`, eq. (47) of :xref:`1007.1727`.
 
-            kwargs: keyword arguments for the optimiser.
+            kwargs: Additional keyword arguments forwarded to the optimiser, including:
 
-              * **init_pars** (``List[float]``, default ``None``): initial parameters for the optimiser
-              * **par_bounds** (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
-                the optimiser.
+              * **init_pars** (``List[float]``, default ``None``): Initial parameter
+                values for the optimiser.
+              * **par_bounds** (``List[Tuple[float, float]]``, default ``None``):
+                Parameter bounds for the optimiser.
 
         Returns:
-            :obj:`float`:
-            value of the variance on :math:`\mu`.
+            ``float``:
+            Estimated standard deviation :math:`\sigma_\mu` of the parameter of
+            interest at the given :math:`\mu`.
         """
         if hasattr(self, "sigma_mu_from_hessian"):
             try:
@@ -552,76 +902,73 @@ class HypothesisTestingBase(ABC):
     @warning_tracker
     def exclusion_confidence_level(
         self,
-        poi_test: float = 1.0,
+        poi_test: PoiTest = 1.0,
         expected: ExpectationType = ExpectationType.observed,
         allow_negative_signal: bool = False,
         calculator: Literal["asymptotic", "toy", "chi_square"] = "asymptotic",
         **kwargs,
     ) -> List[float]:
         r"""
-        Compute exclusion confidence level (:math:`CL_s`) at a given POI, :math:`\mu`.
+        Compute the exclusion confidence level :math:`CL_s` at a given :math:`\mu`.
+
+        :math:`CL_s` is defined as
+
+        .. math::
+
+            CL_s = \frac{p_{s+b}}{1 - p_b}
+
+        and is returned as :math:`1 - p\text{-value}`.  The number of returned values
+        depends on the ``expected`` mode:
+
+        * :obj:`~spey.ExpectationType.observed` → one value (fitted to observed data).
+        * :obj:`~spey.ExpectationType.aposteriori` / :obj:`~spey.ExpectationType.apriori`
+          → five values representing :math:`-2\sigma,\,-1\sigma,\,\text{central},\,+1\sigma,\,+2\sigma`
+          fluctuations from the background.
 
         Args:
-            poi_test (``float``, default ``1.0``): parameter of interest, :math:`\mu`.
-            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
-              p-values to be computed. If ``expected`` is set to ``"all"`` it will return both p-values
-              and expected p-values where the likelihood will be fitted to observations.
+            poi_test (:obj:`PoiTest`, default ``1.0``): Parameter of interest
+              :math:`\mu` at which to evaluate :math:`CL_s`.
+            expected (~spey.ExpectationType): Selects the expectation mode.
 
-              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
+              * :obj:`~spey.ExpectationType.observed`: Post-fit, returns one value
                 (default).
+              * :obj:`~spey.ExpectationType.aposteriori`: Post-fit nuisance treatment,
+                returns five expected values.
+              * :obj:`~spey.ExpectationType.apriori`: Pre-fit / SM hypothesis, returns
+                five expected values.
 
-                .. note::
+              Setting :code:`expected="all"` returns both the observed and the five expected
+              values simultaneously.
 
-                    In case of :obj:`~spey.ExpectationType.observed`, function will return one value
-                    which has been fit to the observed data.
+            allow_negative_signal (``bool``, default ``False``): When ``True``,
+              :math:`\hat\mu` is unconstrained, switching the test statistic from
+              :math:`\tilde{q}_\mu` to :math:`q_\mu`.
+            calculator (``'asymptotic'``, ``'toy'`` or ``'chi_square'``, default ``'asymptotic'``):
 
+              * ``"asymptotic"``: Asymptotic formulae from :xref:`1007.1727`.
+              * ``"toy"``: Pseudo-experiment-based p-values (requires
+                :attr:`is_toy_calculator_available`).
+              * ``"chi_square"``: :math:`\chi^2`-based p-values; uses
+                :math:`\chi^2 = -2\log[\mathcal{L}(\mu,\hat\theta_\mu)/\mathcal{L}(0,\hat\theta_0)]`.
 
-              * :obj:`~spey.ExpectationType.aposteriori`: Computes the expected p-values with via
-                post-fit prescriotion which means that the experimental data will be assumed to be
-                the truth.
+            kwargs: Additional keyword arguments forwarded to the optimiser, including:
 
-                .. note::
-
-                    In case of :obj:`~spey.ExpectationType.aposteriori`, function will return five value
-                    for expected p-values which has been fit to the observed data. Values represent
-                    :math:`1\sigma` and :math:`2\sigma` fluctuations from the background. The order of the
-                    output order is :math:`-2\sigma` value, :math:`-1\sigma` value, central value,
-                    :math:`1\sigma` and :math:`2\sigma` value.
-
-              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
-                prescription which means that the SM will be assumed to be the truth.
-
-                .. note::
-
-                    In case of :obj:`~spey.ExpectationType.apriori`, function will return five value
-                    for expected p-values which has been fit to the SM background. Values represent
-                    :math:`1\sigma` and :math:`2\sigma` fluctuations from the background. The
-                    output order is :math:`-2\sigma` value, :math:`-1\sigma` value, central value,
-                    :math:`1\sigma` and :math:`2\sigma` value.
-
-            allow_negative_signal (``bool``, default ``False``): If ``True`` :math:`\hat\mu`
-              value will be allowed to be negative.
-            calculator (``Literal["asymptotic", "toy", "chi_square"]``, default ``"asymptotic"``):
-              Chooses the computation basis for hypothesis testing
-
-              * ``"asymptotic"``: Uses asymptotic hypothesis testing to compute p-values.
-              * ``"toy"``: Uses generated toy samples to compute p-values.
-              * ``"chi_square"``: Computes p-values via chi-square;
-                :math:`\chi^2=-2\log\frac{\mathcal{L}(1,\theta_1)}{\mathcal{L}(0,\theta_0)}`.
-
-            kwargs: keyword arguments for the optimiser.
-
-              * **init_pars** (``List[float]``, default ``None``): initial parameters for the optimiser
-              * **par_bounds** (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
-                the optimiser.
+              * **init_pars** (``List[float]``, default ``None``): Initial parameter
+                values for the optimiser.
+              * **par_bounds** (``List[Tuple[float, float]]``, default ``None``):
+                Parameter bounds for the optimiser.
 
         Raises:
-          :obj:`~spey.system.exceptions.CalculatorNotAvailable`: If calculator is not available.
+            :obj:`~spey.system.exceptions.CalculatorNotAvailable`:
+                If the requested ``calculator`` is not available.
 
         Returns:
             ``List[float]``:
-            Exclusion confidence level i.e. :math:`CL_s`.
+                :math:`CL_s` value(s).  One value for
+                :obj:`~spey.ExpectationType.observed`; five values ordered
+                :math:`(-2\sigma,\,-1\sigma,\,\text{central},\,+1\sigma,\,+2\sigma)` for
+                expected modes.
+
         """
         if not getattr(self, f"is_{calculator}_calculator_available", False):
             raise CalculatorNotAvailable(f"{calculator} calculator is not available.")
@@ -670,6 +1017,10 @@ class HypothesisTestingBase(ABC):
             )
 
             try:
+                log.debug("[asymptotic] - Computing test statistic")
+                log.debug(
+                    f"[asymptotic] - {maximum_likelihood=}, {maximum_asimov_likelihood=}"
+                )
                 _, sqrt_qmuA, delta_teststat = compute_teststatistics(
                     poi_test,
                     maximum_likelihood,
@@ -678,14 +1029,13 @@ class HypothesisTestingBase(ABC):
                     logpdf_asimov,
                     test_stat,
                 )
-                log.debug(
-                    f"<asymptotic> sqrt_qmuA = {sqrt_qmuA}, test statistic = {delta_teststat}"
-                )
 
                 pvalues, expected_pvalues = compute_asymptotic_confidence_level(
                     sqrt_qmuA, delta_teststat, test_stat
                 )
-                log.debug(f"pval = {pvalues}, expected pval = {expected_pvalues}")
+                log.debug(
+                    f"[asymptotic] pval = {pvalues}, expected pval = {expected_pvalues}"
+                )
             except AsimovTestStatZero as err:
                 log.error(str(err))
                 pvalues, expected_pvalues = [1.0], [1.0] * 5
@@ -773,9 +1123,7 @@ class HypothesisTestingBase(ABC):
                 pvalues, expected_pvalues = [1.0], [1.0] * 5
 
         if expected == "all":
-            return list(map(lambda x: 1.0 - x, pvalues)), list(
-                map(lambda x: 1.0 - x, expected_pvalues)
-            )
+            return [1.0 - x for x in pvalues], [1.0 - x for x in expected_pvalues]
 
         return list(
             map(
@@ -788,34 +1136,44 @@ class HypothesisTestingBase(ABC):
         self, expected: ExpectationType = ExpectationType.observed, **kwargs
     ) -> Tuple[float, float, List[float], List[float]]:
         r"""
-        Compute the discovery of a positive signal. See :xref:`1007.1727` eq. (53).
-        and sec. 5.1.
+        Compute the discovery significance of a positive signal.
+
+        Uses the discovery test statistic :math:`q_0` (eq. 47 of :xref:`1007.1727`)
+        to quantify the evidence for a signal above the background-only hypothesis.
+        The Asimov significance :math:`\sqrt{q_{0,A}}` gives the median expected
+        sensitivity, while :math:`\sqrt{q_0}` is computed from the observed data.
+        See sec. 5.1 of :xref:`1007.1727` for details.
+
+        .. note::
+
+            :obj:`~spey.ExpectationType.aposteriori` and
+            :obj:`~spey.ExpectationType.observed` both perform a post-fit computation
+            and therefore return identical results.  The only meaningful distinction is
+            between post-fit (:obj:`~spey.ExpectationType.observed`) and pre-fit
+            (:obj:`~spey.ExpectationType.apriori`) computations.
 
         Args:
-            expected (~spey.ExpectationType): Sets which values the fitting algorithm should focus and
-              p-values to be computed.
+            expected (~spey.ExpectationType): Selects which dataset to condition on.
 
-              * :obj:`~spey.ExpectationType.observed`: Computes the p-values with via post-fit
-                prescriotion which means that the experimental data will be assumed to be the truth
-                (default).
-              * :obj:`~spey.ExpectationType.apriori`: Computes the expected p-values with via pre-fit
-                prescription which means that the SM will be assumed to be the truth.
+              * :obj:`~spey.ExpectationType.observed`: Post-fit (default).
+              * :obj:`~spey.ExpectationType.apriori`: Pre-fit / SM hypothesis.
 
-                .. note::
+            kwargs: Additional keyword arguments forwarded to the optimiser, including:
 
-                    Since :obj:`~spey.ExpectationType.aposteriori` and :obj:`~spey.ExpectationType.observed`
-                    are both represent post-fit computation the result will be the same. The only difference
-                    can be seen via prefit, :obj:`~spey.ExpectationType.apriori`, computation.
-
-            kwargs: keyword arguments for the optimiser.
-
-              * **init_pars** (``List[float]``, default ``None``): initial parameters for the optimiser
-              * **par_bounds** (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
-                the optimiser.
+              * **init_pars** (``List[float]``, default ``None``): Initial parameter
+                values for the optimiser.
+              * **par_bounds** (``List[Tuple[float, float]]``, default ``None``):
+                Parameter bounds for the optimiser.
 
         Returns:
             ``Tuple[float, float, List[float], List[float]]``:
-            (:math:`\sqrt{q_{0,A}}`, :math:`\sqrt{q_0}`, p-values and expected p-values)
+            A 4-tuple ``(sqrt_q0A, sqrt_q0, pvalues, expected_pvalues)`` where:
+
+            * ``sqrt_q0A`` — Asimov discovery significance :math:`\sqrt{q_{0,A}}`.
+            * ``sqrt_q0`` — Observed discovery significance :math:`\sqrt{q_0}`.
+            * ``pvalues`` — Observed p-value(s) for the :math:`q_0` test.
+            * ``expected_pvalues`` — Expected p-value(s) at
+              :math:`-2\sigma,\,-1\sigma,\,\text{central},\,+1\sigma,\,+2\sigma`.
         """
         (
             maximum_likelihood,
@@ -975,45 +1333,117 @@ class HypothesisTestingBase(ABC):
         confidence_level: float = 0.95,
         limit_type: Literal["right", "left", "two-sided"] = "two-sided",
         allow_negative_signal: bool = None,
+        parameter: Optional[Union[int, str]] = None,
+        poi_value: float = 1.0,
+        n_scan: int = 3,
+        n_multistart: int = 2,
+        **kwargs,
     ) -> List[float]:
         r"""
-        Determine the parameter of interest (POI) value(s) that constrain the
-        :math:`\chi^2` distribution at a specified confidence level.
+        Determine parameter value(s) that constrain the :math:`\chi^2` distribution at a
+        specified confidence level via 1D profiling.
+
+        When ``parameter=None`` (default), the method profiles the primary POI and finds
+        the POI values where the profile :math:`\chi^2` equals the threshold
+        ``chi2.isf(alpha, df=1)``.
+
+        When ``parameter`` is set to a nuisance parameter index or name, the POI is fixed
+        to ``poi_value`` (default ``1.0``) and the method profiles the chosen nuisance
+        parameter instead, locating the nuisance value(s) at the same :math:`\chi^2`
+        threshold.  This is useful for setting 1D confidence intervals on any model
+        parameter.
 
         .. versionadded:: 0.2.0
 
+        .. versionchanged:: 0.2.7
+
+            The ability to profile any given nuisance parameter has been implemented.
+            The 1D profile is now enumerated by coarse scan plus bracketed root
+            refinement, so **non-convex likelihoods with disjoint confidence regions
+            return every crossing in ascending order**.  A small multi-start is
+            performed before the root search to harden the NLL minimum used as the
+            anchor of the :math:`\chi^2` threshold.
+
         .. attention::
 
-            The degrees of freedom are set to one, referring to the POI. Currently, spey does not
-            support multiple POIs, but this feature is planned for future releases.
+            The degrees of freedom are set to one, referring to the single profiled
+            parameter (either the POI or the selected nuisance parameter).
 
         Args:
-            expected (~spey.ExpectationType): Specifies the type of expectation for the fitting
-              algorithm and p-value computation.
+            expected (~spey.ExpectationType): Specifies the type of expectation for the
+              fitting algorithm and p-value computation.
 
-              * :obj:`~spey.ExpectationType.observed`: Computes p-values using post-fit prescription,
-                assuming experimental data as the truth.
-              * :obj:`~spey.ExpectationType.apriori`: Computes expected p-values using pre-fit
-                prescription, assuming the Standard Model (SM) as the truth.
+              * :obj:`~spey.ExpectationType.observed`: Computes p-values using post-fit
+                prescription, assuming experimental data as the truth.
+              * :obj:`~spey.ExpectationType.apriori`: Computes expected p-values using
+                pre-fit prescription, assuming the Standard Model (SM) as the truth.
 
-            confidence_level (``float``, default ``0.95``): The confidence level for the upper limit.
-              Must be between 0 and 1. This refers to the total inner area under the bell curve. Noted
-              as :math:`CL` below.
+            confidence_level (``float``, default ``0.95``): The confidence level for the
+              interval.  Must be between 0 and 1.  This refers to the total inner area
+              under the bell curve, noted as :math:`CL` below.
 
-            limit_type (``'right'``, ``'left'`` or ``'two-sided'``, default ``"two-sided"``): Specifies
-              which side of the :math:`\chi^2` distribution should be constrained. For two-sided limits,
-              the inner area of the :math:`\chi^2` distribution is set to ``confidence_level``, making the
-              threshold :math:`\alpha=(1-CL)/2`, where CL is the `confidence_level`. For left or right
-              limits alone, :math:`\alpha=1-CL`. The :math:`\chi^2`-threshold is calculated using
-              inverse survival function at :math:`\alpha`.
+            limit_type (``'right'``, ``'left'`` or ``'two-sided'``, default ``'two-sided'``):
+              Specifies which side of the :math:`\chi^2` distribution should be constrained.
 
-            allow_negative_signal (``bool``, default ``None``): Controls whether the signal can be
-              negative. If ``None``, it will be set to ``True`` for two-sided and left limits, and
-              ``False`` for right limits. Otherwise, user can control this behaviour.
+            allow_negative_signal (``bool``, default ``None``): Controls whether the POI
+              can be negative during the global unconstrained maximisation.  If ``None``,
+              it is set to ``True`` for two-sided and left limits, and ``False`` for right
+              limits.  Ignored when ``parameter`` is not ``None`` (the global fit is
+              always unconstrained in that case).
+
+            parameter (``int`` or ``str``, default ``None``): Index or name of the
+              nuisance parameter to profile.  When ``None`` (default) the primary POI is
+              profiled (existing behaviour).  When set, the POI is fixed to ``poi_value``
+              and the selected nuisance parameter is scanned instead.  String values are
+              resolved via
+              :attr:`~spey.base.model_config.ModelConfig.parameter_names`.
+
+            poi_value (``float``, default ``1.0``): Fixed value of the primary POI when
+              profiling a nuisance parameter (i.e. when ``parameter`` is not ``None``).
+              Has no effect when ``parameter=None``. If `poi_value=None`, primary POI will
+              also be minimised during optimisation.
+
+            n_scan (``int``, default ``121``): Number of uniformly-spaced grid points used
+              by the coarse scan that enumerates sign changes of the profile
+              :math:`\chi^2 - \text{threshold}` function.  Each sign-change interval is
+              then refined to full precision with
+              :func:`~scipy.optimize.toms748`.  Increasing this value improves detection
+              of narrow features in non-convex profiles at the cost of additional NLL
+              evaluations; values below 3 are clamped to 3.
+
+            n_multistart (``int``, default ``9``): Number of evenly-spaced evaluations
+              used by the internal multi-start scan that re-anchors the NLL minimum
+              before the root search.  A bounded scalar minimisation is then run around
+              the best point found by the scan.  Increasing this value reduces the risk
+              of the anchor being trapped in a local minimum at the cost of additional
+              NLL evaluations; values below 2 are clamped to 2.
+
+        Keyword Args:
+            xtol (``float``, default ``2e-12``): Absolute tolerance passed to
+              :func:`~scipy.optimize.toms748`.  The root-finder stops when the bracket
+              width falls below this value.
+
+            rtol (``float``, default ``1e-4``): Relative tolerance passed to
+              :func:`~scipy.optimize.toms748`.  The root-finder stops when the bracket
+              width is smaller than ``rtol * |root|``.
+
+            maxiter (``int``, default ``10000``): Maximum number of function evaluations
+              allowed inside :func:`~scipy.optimize.toms748`.
 
         Returns:
             ``List[float]``:
-            POI value(s) that constrain the :math:`\chi^2` distribution at the given threshold.
+            Parameter value(s) at which the profile :math:`\chi^2` equals the threshold,
+            in ascending order.  For a convex profile this is one value for one-sided
+            limits and two values for two-sided limits (backwards compatible); for a
+            non-convex profile with disjoint confidence regions **every crossing** is
+            returned, so users that rely on a fixed list length should check
+            ``len(result)`` before unpacking.
+
+        Raises:
+            :obj:`ValueError`: If ``parameter`` refers to the POI index, if the parameter
+              name is not found in the model config, if the parameter index is out of
+              range, or if the model has only one parameter (no nuisance parameters to
+              profile).
         """
         assert (
             0.0 <= confidence_level <= 1.0
@@ -1024,125 +1454,251 @@ class HypothesisTestingBase(ABC):
             "two-sided",
         ], f"Invalid limit type: {limit_type}"
 
-        # Two sided test statistic need to be halfed, total area within
-        # two sides should be equal to confidence_level
-        alpha = (1.0 - confidence_level) * (0.5 if limit_type == "two-sided" else 1.0)
+        # Two-sided threshold halves alpha so the total inner area equals CL.
+        alpha = 1.0 - confidence_level
+        chi2_threshold = chi2.isf(alpha, df=1)  # DoF = 1 (single profiled parameter)
 
-        # DoF = # POI
-        chi2_threshold = chi2.isf(alpha, df=1)
-        allow_negative_signal = allow_negative_signal or limit_type in [
-            "two-sided",
-            "left",
-        ]
+        # ------------------------------------------------------------------ #
+        # Build the profile computer and the 1D search interval               #
+        # ------------------------------------------------------------------ #
+        if parameter is None:
+            # -- POI profiling -------------------------------------------------
+            allow_negative_signal = allow_negative_signal or limit_type in [
+                "two-sided",
+                "left",
+            ]
+            muhat, mllhd = self.maximize_likelihood(
+                expected=expected, allow_negative_signal=allow_negative_signal
+            )
 
-        muhat, mllhd = self.maximize_likelihood(
-            expected=expected, allow_negative_signal=allow_negative_signal
+            def nll_fn(val: float) -> float:
+                return float(self.likelihood(poi_test=val, expected=expected))
+
+            try:
+                sigma = self.sigma_mu(muhat, expected=expected)
+            except MethodNotAvailable:
+                sigma = 1.0
+            if not (np.isfinite(sigma) and sigma > 0.0):
+                sigma = 1.0
+
+            span = max(6.0 * abs(sigma), 3.0)
+            scan_lo = muhat - span
+            scan_hi = muhat + span
+            if not allow_negative_signal:
+                scan_lo = max(0.0, scan_lo)
+            scan_lo = max(-1e5, scan_lo)
+            scan_hi = min(1e5, scan_hi)
+            reference = muhat
+
+            # Legacy bracket specification (used only as fallback).
+            is_gt0 = np.isclose(muhat, 0.0) or muhat > 0.0
+            is_le0 = np.isclose(muhat, 0.0) or muhat < 0.0
+            expand = lambda h: h * 2.0
+            contract = lambda l: l * 0.5
+            legacy_sides = {
+                "left": dict(
+                    inner=-1.0 if is_gt0 else muhat - 1.5 * sigma,
+                    outer=-1.0 if is_gt0 else muhat - 2.5 * sigma,
+                    expand=expand,
+                    contract=contract,
+                    outer_stop=lambda h: h <= -1e5,
+                    inner_stop=lambda l: l >= -1e-5,
+                    retry_inner=muhat if muhat > 0 else None,
+                    retry_stop=(lambda l: l <= 1e-5) if muhat > 0 else None,
+                    fallback=lambda o: -1e5 if o <= -1e5 else np.nan,
+                    warn="Cannot find the left root. Check your chi^2 distribution.",
+                ),
+                "right": dict(
+                    inner=1.0 if is_le0 else muhat + 1.5 * sigma,
+                    outer=1.0 if is_le0 else muhat + 2.5 * sigma,
+                    expand=expand,
+                    contract=contract,
+                    outer_stop=lambda h: h >= 1e5,
+                    inner_stop=lambda l: l <= 1e-5,
+                    retry_inner=muhat if muhat < 0 else None,
+                    retry_stop=(lambda l: l >= -1e-5) if muhat < 0 else None,
+                    fallback=lambda o: 1e5 if o >= 1e5 else np.nan,
+                    warn="Cannot find the right root. Check your chi^2 distribution.",
+                ),
+            }
+        else:
+            # -- Nuisance-parameter profiling ---------------------------------
+            backend = getattr(self, "backend", None)
+            if backend is None:
+                raise NotImplementedError(
+                    "`chi2_test` is not available for this backend."
+                )
+            cfg = backend.config()  # pylint: disable = no-member
+            param_idx = resolve_parameter_index(parameter, cfg)
+
+            theta_hat, mllhd = self.maximize_likelihood(
+                poi_indices=[parameter],
+                expected=expected,
+                allow_negative_signal=True,
+                fixed_poi_value=poi_value,
+            )
+            theta_hat = theta_hat[parameter]
+
+            cfg_lo, cfg_hi = cfg.suggested_bounds[param_idx]
+            abs_lo: float = cfg_lo if cfg_lo is not None else -1e5
+            abs_hi: float = cfg_hi if cfg_hi is not None else 1e5
+            # Nuisance bounds are frequently ``(None, None)`` which expands to
+            # the ``[-1e5, 1e5]`` hard limit — a 121-point scan there has a
+            # grid spacing of O(10^3) that cannot resolve O(1) basins.  Shrink
+            # the scan window to an adaptively-widenable scale anchored at
+            # theta_hat while keeping ``abs_lo``/``abs_hi`` as the hard cap
+            # for later widening iterations.
+            soft_span = max(10.0, 5.0 * abs(theta_hat))
+            scan_lo = max(abs_lo, theta_hat - soft_span)
+            scan_hi = min(abs_hi, theta_hat + soft_span)
+            reference = theta_hat
+
+            def nll_fn(val: float) -> float:
+                poi_test = (
+                    {param_idx: val}
+                    if poi_value is None
+                    else {cfg.poi_index: poi_value, param_idx: val}
+                )
+                return float(self.likelihood(poi_test=poi_test, expected=expected))
+
+            step_l = max(abs(theta_hat - abs_lo) * 0.5, 0.5)
+            step_r = max(abs(abs_hi - theta_hat) * 0.5, 0.5)
+            # Reflect outer through theta_hat each step → doubles distance from center.
+            expand_sym = lambda h: 2.0 * h - theta_hat
+            contract_sym = lambda l: (l + theta_hat) / 2.0
+            legacy_sides = {
+                "left": dict(
+                    inner=theta_hat - step_l * 0.5,
+                    outer=theta_hat - step_l,
+                    expand=expand_sym,
+                    contract=contract_sym,
+                    outer_stop=lambda h: h <= abs_lo,
+                    inner_stop=lambda l: l >= theta_hat - 1e-10,
+                    retry_inner=None,
+                    retry_stop=None,
+                    fallback=lambda o: abs_lo if o <= abs_lo else np.nan,
+                    warn="Cannot find the nuisance left root. Profile may be too flat.",
+                ),
+                "right": dict(
+                    inner=theta_hat + step_r * 0.5,
+                    outer=theta_hat + step_r,
+                    expand=expand_sym,
+                    contract=contract_sym,
+                    outer_stop=lambda h: h >= abs_hi,
+                    inner_stop=lambda l: l <= theta_hat + 1e-10,
+                    retry_inner=None,
+                    retry_stop=None,
+                    fallback=lambda o: abs_hi if o >= abs_hi else np.nan,
+                    warn="Cannot find the nuisance right root. Profile may be too flat.",
+                ),
+            }
+
+        # ------------------------------------------------------------------ #
+        # Re-anchor the NLL minimum against a 1D multi-start scan.            #
+        # Guards against the case where `maximize_likelihood` converged to a  #
+        # strictly-local basin and left `mllhd` too high, which would lower   #
+        # the effective threshold and shrink every interval.                  #
+        # ------------------------------------------------------------------ #
+        mllhd, reference = _refine_global_min_1d(
+            nll_fn,
+            mllhd,
+            reference,
+            scan_lo,
+            scan_hi,
+            n_samples=max(2, n_multistart),
         )
 
-        def computer(poi_test: float) -> float:
-            """Compute chi^2 - chi^2 threshold"""
-            llhd = self.likelihood(poi_test=poi_test, expected=expected)
-            return 2.0 * (llhd - mllhd) - chi2_threshold
+        def computer(val: float) -> float:
+            return 2.0 * (nll_fn(val) - mllhd) - chi2_threshold
 
-        try:
-            sigma_muhat = self.sigma_mu(muhat, expected=expected)
-        except MethodNotAvailable:
-            sigma_muhat = 1.0
+        xtol = float(kwargs.get("xtol", 2e-12))
+        rtol = float(kwargs.get("rtol", 1e-4))
+        maxiter = int(kwargs.get("maxiter", 10000))
 
-        results = []
-        if limit_type in ["left", "two-sided"]:
-            is_muhat_gt_0 = np.isclose(muhat, 0.0) or muhat > 0.0
-            low = -1.0 if is_muhat_gt_0 else muhat - 1.5 * sigma_muhat
-            hig = -1.0 if is_muhat_gt_0 else muhat - 2.5 * sigma_muhat
-            hig_bound, low_bound = -1e5, -1e-5
+        # ------------------------------------------------------------------ #
+        # Enumerate every crossing of `computer` on the search interval.     #
+        # This is structurally correct for non-convex profiles with multiple #
+        # disjoint confidence regions.  If the initial scan does not bracket #
+        # the reference point on both sides we widen up to the hard limits.  #
+        # ------------------------------------------------------------------ #
+        if parameter is None:
+            hard_lo, hard_hi = (-1e5 if allow_negative_signal else 0.0), 1e5
+        else:
+            hard_lo, hard_hi = abs_lo, abs_hi
 
-            hig_computer = ComputerWrapper(computer)
-            while hig_computer(hig) < 0.0 and hig > hig_bound:
-                hig *= 2.0
-
-            low_computer = ComputerWrapper(computer)
-            while low_computer(low) > 0.0 and low < low_bound:
-                low *= 0.5
-
-            log.debug(
-                f"Left first attempt:: low: f({low:.5e})={low_computer[-1]:.5e},"
-                f" high: f({hig:.5e})={hig_computer[-1]:.5e}"
+        cur_lo, cur_hi = scan_lo, scan_hi
+        roots_sorted: List[float] = []
+        for _attempt in range(4):
+            roots_sorted = _enumerate_crossings_1d(
+                computer,
+                cur_lo,
+                cur_hi,
+                n_scan=max(3, n_scan),
+                xtol=xtol,
+                rtol=rtol,
+                maxiter=maxiter,
             )
-            if np.sign(low_computer[-1]) == np.sign(hig_computer[-1]) and muhat > 0:
-                low_computer = ComputerWrapper(computer)
-                low = muhat
-                while low_computer(low) > 0.0 and low > 1e-5:
-                    low *= 0.5
-                log.debug(
-                    f"Left second attempt:: low: f({low:.5e})={low_computer[-1]:.5e},"
-                    f" high: f({hig:.5e})={hig_computer[-1]:.5e}"
-                )
+            left_found = any(r < reference - 1e-12 for r in roots_sorted)
+            right_found = any(r > reference + 1e-12 for r in roots_sorted)
+            needs_left = limit_type in ("two-sided", "left") and not left_found
+            needs_right = limit_type in ("two-sided", "right") and not right_found
+            if not (needs_left or needs_right):
+                break
+            # Widen the scan window by 3× while respecting the hard limits;
+            # stop when we're already pinned at both walls.
+            new_lo = max(hard_lo, reference - 3.0 * (reference - cur_lo))
+            new_hi = min(hard_hi, reference + 3.0 * (cur_hi - reference))
+            if new_lo >= cur_lo - 1e-12 and new_hi <= cur_hi + 1e-12:
+                break
+            cur_lo, cur_hi = new_lo, new_hi
 
-            if np.sign(low_computer[-1]) != np.sign(hig_computer[-1]):
-                x0, _ = toms748(
+        left_roots = [r for r in roots_sorted if r < reference - 1e-12]
+        right_roots = [r for r in roots_sorted if r > reference + 1e-12]
+
+        # ------------------------------------------------------------------ #
+        # Select which roots to return per `limit_type`.  Fall back to the   #
+        # legacy bracket+toms748 machinery only if the scan yields nothing   #
+        # on the requested side (pathologically flat NLL, scan too narrow,   #
+        # or monotone profile that only touches the threshold at a bound).   #
+        # ------------------------------------------------------------------ #
+        def _legacy_side(side_name: str) -> float:
+            s = legacy_sides[side_name]
+            with capture_logs(level=logging.ERROR):
+                _, outer_final, x0 = bracket_and_solve(
                     computer,
-                    hig,
-                    low,
-                    k=2,
-                    xtol=2e-12,
-                    rtol=1e-4,
-                    full_output=True,
-                    maxiter=10000,
+                    s["inner"],
+                    s["outer"],
+                    s["expand"],
+                    s["contract"],
+                    s["outer_stop"],
+                    s["inner_stop"],
+                    retry_inner=s["retry_inner"],
+                    retry_stop=s["retry_stop"],
+                    debug_tag=side_name,
+                    **kwargs,
                 )
-                results.append(x0)
-            else:
-                log.warning(
-                    "Can not find the roots on the left side."
-                    " Please check your chi^2 distribution, it might be too wide."
-                )
-                results.append(-1e5 if hig <= -1e5 else np.nan)
+            if np.isnan(x0):
+                log.warning(s["warn"])
+                x0 = s["fallback"](outer_final)
+            return x0
 
-        if limit_type in ["right", "two-sided"]:
-            is_muhat_le_0 = np.isclose(muhat, 0.0) or muhat < 0.0
-            low = 1.0 if is_muhat_le_0 else muhat + 1.5 * sigma_muhat
-            hig = 1.0 if is_muhat_le_0 else muhat + 2.5 * sigma_muhat
-            hig_bound, low_bound = 1e5, 1e-5
+        if limit_type == "left":
+            if left_roots:
+                return left_roots
+            return [_legacy_side("left")]
 
-            hig_computer = ComputerWrapper(computer)
-            while hig_computer(hig) < 0.0 and hig < hig_bound:
-                hig *= 2.0
+        if limit_type == "right":
+            if right_roots:
+                return right_roots
+            return [_legacy_side("right")]
 
-            low_computer = ComputerWrapper(computer)
-            while low_computer(low) > 0.0 and low > low_bound:
-                low *= 0.5
-
-            log.debug(
-                f"Right first attempt:: low: f({low:.5e})={low_computer[-1]:.5e},"
-                f" high: f({hig:.5e})={hig_computer[-1]:.5e}"
-            )
-
-            if np.sign(low_computer[-1]) == np.sign(hig_computer[-1]) and muhat < 0:
-                low_computer = ComputerWrapper(computer)
-                low = muhat
-                while low_computer(low) > 0.0 and low < -1e-5:
-                    low *= 0.5
-                log.debug(
-                    f"Left second attempt:: low: f({low:.5e})={low_computer[-1]:.5e},"
-                    f" high: f({hig:.5e})={hig_computer[-1]:.5e}"
-                )
-
-            if np.sign(low_computer[-1]) != np.sign(hig_computer[-1]):
-                x0, _ = toms748(
-                    computer,
-                    low,
-                    hig,
-                    k=2,
-                    xtol=2e-12,
-                    rtol=1e-4,
-                    full_output=True,
-                    maxiter=10000,
-                )
-                results.append(x0)
-            else:
-                log.warning(
-                    "Can not find the roots on the right side."
-                    " Please check your chi^2 distribution, it might be too wide."
-                )
-                results.append(1e5 if hig >= 1e5 else np.nan)
-
-        return results
+        # two-sided
+        if left_roots and right_roots:
+            return roots_sorted
+        # Partial failure — fill in the missing side with the legacy fallback
+        # so the classical `left, right = chi2_test()` convex-case idiom keeps
+        # working on unusual boundary-dominated NLLs.
+        out: List[float] = []
+        out.append(left_roots[0] if left_roots else _legacy_side("left"))
+        out.append(right_roots[-1] if right_roots else _legacy_side("right"))
+        return out

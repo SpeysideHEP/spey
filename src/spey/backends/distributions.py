@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, List, Literal, Union
 
 import autograd.numpy as np
 from autograd.scipy.special import gammaln
+from autograd.scipy.stats.norm import logpdf
 from autograd.scipy.stats.poisson import logpmf
 from scipy.stats import multivariate_normal, norm, poisson
 
@@ -14,6 +15,8 @@ from spey.system.exceptions import DistributionError
 # pylint: disable=E1101, W1203, E1121
 
 log = logging.getLogger("Spey")
+
+_LOG_2PI = np.log(2.0 * np.pi)
 
 __all__ = ["Poisson", "Normal", "MultivariateNormal", "MainModel", "ConstraintModel"]
 
@@ -58,8 +61,6 @@ class Normal:
     Args:
         loc (``np.ndarray``): Mean of the distribution.
         scale (``np.ndarray``): standard deviation.
-        weight (``Callable[[np.ndarray], float]`` or ``float``, default ``1.0``): weight of
-          the distribution.
         domain (``slice``, default ``slice(None, None)``): set of parameters to be used within
           the distribution.
     """
@@ -68,12 +69,9 @@ class Normal:
         self,
         loc: np.ndarray,
         scale: np.ndarray,
-        weight: Union[Callable[[np.ndarray], float], float] = 1.0,
         domain: slice = slice(None, None),
     ):
         self.loc = loc
-        self.weight = weight if callable(weight) else lambda pars: weight
-        """Weight of the distribution"""
         self.domain = domain
         """Which parameters should be used during the computation of the pdf"""
 
@@ -94,16 +92,10 @@ class Normal:
 
         return norm(self.loc, self.scale(value[self.domain])).rvs(size=shape)
 
-    def log_prob(self, value: float) -> np.ndarray:
+    def log_prob(self, value: np.ndarray) -> np.ndarray:
         """Compute log-probability"""
-        return self.weight(value) * (
-            -np.log(self.scale(value[self.domain]))
-            - 0.5 * np.log(2.0 * np.pi)
-            - 0.5
-            * np.square(
-                np.divide(value[self.domain] - self.loc, self.scale(value[self.domain]))
-            )
-        ).astype(np.float64)
+        x = value[self.domain]
+        return logpdf(x, self.loc, self.scale(x))
 
 
 class MultivariateNormal:
@@ -114,8 +106,6 @@ class MultivariateNormal:
         mean (``np.ndarray``): Mean of the distribution.
         cov (``np.ndarray``): Symmetric positive (semi)definite
           covariance matrix of the distribution.
-        weight (``Callable[[np.ndarray], float]`` or ``float``, default ``1.0``): weight of
-          the distribution.
         domain (``slice``, default ``slice(None, None)``): set of parameters to be used within
           the distribution.
     """
@@ -123,45 +113,33 @@ class MultivariateNormal:
     def __init__(
         self,
         mean: np.ndarray,
-        cov: np.ndarray,
-        weight: Union[Callable[[np.ndarray], float], float] = 1.0,
+        cov: Union[np.ndarray, Callable[[np.ndarray], np.ndarray]],
         domain: slice = slice(None, None),
     ):
         self.mean = mean
         """Mean of the distribution."""
         self.cov = cov if callable(cov) else lambda val: cov
         """Symmetric positive (semi)definite covariance matrix of the distribution."""
-        self.weight = weight if callable(weight) else lambda pars: weight
-        """Weight of the distribution"""
         self.domain = domain
         """Which parameters should be used during the computation of the pdf"""
 
-        # ! the min determinant value of the covariance matrix is artificially set
-        # ! to 1e-10 this might cause problems in the future!!!
-
         if callable(cov):
             self._inv_cov = lambda val: np.linalg.inv(cov(val))
-            self._det_cov = lambda val: np.clip(np.linalg.det(cov(val)), 1e-20, None)
+            self._logdet_cov = lambda val: np.clip(
+                np.linalg.slogdet(cov(val))[1], 1e-20, None
+            )
         else:
             # for code efficiency
             inv = np.linalg.inv(cov)
-            det = np.linalg.det(cov)
-            if det <= 0.0:
-                log_once(
-                    "det(cov) <= 0, this might cause numeric problems. "
-                    "The value of the determinant will be limited to 1e-20. "
-                    "This might be due to non-positive definite correlation matrix input.",
-                    log_type="warning",
-                )
-                det = np.clip(det, 1e-20, None)
-            if np.isinf(det):
+            logdet = np.linalg.slogdet(cov)[1]
+            if np.isinf(logdet):
                 log_once(
                     "det(cov) is infinite, this might cause numeric problems. "
                     "Please check the covariance matrix.",
                     log_type="error",
                 )
             self._inv_cov = lambda val: inv
-            self._det_cov = lambda val: det
+            self._logdet_cov = lambda val: logdet
 
     def expected_data(self) -> np.ndarray:
         """The expectation value of the Multivariate Normal distribution."""
@@ -175,14 +153,17 @@ class MultivariateNormal:
 
     def log_prob(self, value: np.ndarray) -> np.ndarray:
         """Compute log-probability"""
-        var = value[self.domain] - self.mean
-        return self.weight(value) * (
-            -0.5 * (var @ self._inv_cov(value[self.domain]) @ var)
-            - 0.5
-            * (
-                len(value[self.domain]) * np.log(2.0 * np.pi)
-                + np.log(self._det_cov(value[self.domain]))
-            )
+        # NOTE: The reason for not going with multivariate_norm logpdf is two folds
+        # 1) open computation allows for logdet and inverse to be precomputed once
+        # 2) Scipy has an issue with its logdet value. Inside multivariate normal
+        #    there is cov_object created and through that object "pseudo logdet is
+        #    being computed". This value should match with `np.linalg.slogdet(cov)`
+        #    or `np.log(np.prod(np.linalg.eig(cov)[0]))` however it is sligtly different.
+        x = value[self.domain]
+        var = x - self.mean
+        return (
+            -0.5 * (var @ self._inv_cov(x) @ var)
+            - 0.5 * (len(x) * _LOG_2PI + self._logdet_cov(x))
         ).astype(np.float64)
 
 
@@ -199,17 +180,35 @@ class MainModel:
     def __init__(
         self,
         loc: Callable[[np.ndarray], np.ndarray],
-        cov: np.ndarray = None,
-        pdf_type: Literal["poiss", "gauss", "multivariategauss"] = "poiss",
+        cov: Union[np.ndarray, Callable[[np.ndarray], np.ndarray]] = None,
+        pdf_type: Literal["poiss", "normal", "multivariate_normal"] = "poiss",
     ):
         self.pdf_type = pdf_type
         """Type of the PDF"""
         if pdf_type == "poiss":
             self._pdf = lambda pars: Poisson(loc(pars))
-        elif pdf_type == "gauss" and cov is not None:
-            self._pdf = lambda pars: Normal(loc=loc(pars), scale=cov)
-        elif pdf_type == "multivariategauss" and cov is not None:
-            self._pdf = lambda pars: MultivariateNormal(mean=loc(pars), cov=cov)
+        elif pdf_type == "normal" and cov is not None:
+            if callable(cov):
+                self._pdf = lambda pars: Normal(loc=loc(pars), scale=cov(pars))
+            else:
+                self._pdf = lambda pars: Normal(loc=loc(pars), scale=cov)
+        elif pdf_type == "multivariate_normal" and cov is not None:
+            if callable(cov):
+                # Callable cov: may vary with pars, so MultivariateNormal (and its
+                # O(n³) inv/logdet ops) must be reconstructed on every call.
+                self._pdf = lambda pars: MultivariateNormal(mean=loc(pars), cov=cov(pars))
+            else:
+                # Non-callable cov: inv(cov) and logdet(cov) are constant.
+                # Create a single MultivariateNormal once so those O(n³) ops run
+                # exactly once at construction time.  Each call only updates the
+                # mean (loc(pars)) in-place; _inv_cov and _logdet_cov stay cached.
+                _mv = MultivariateNormal(mean=np.zeros(len(cov)), cov=cov)
+
+                def _static_cov_pdf(pars):
+                    _mv.mean = loc(pars)
+                    return _mv
+
+                self._pdf = _static_cov_pdf
         else:
             raise DistributionError("Unknown pdf type or associated input.")
 

@@ -107,33 +107,46 @@ it checks compatibility with the current Spey version to ensure that the plugin 
     parameters and parameters of interest. Initialisation values should be a type of ``List[float, ...]``
     and bounds should have the type of ``List[Tuple[float, float], ...]``.
 
-* :func:`~spey.BackendBase.get_logpdf_func`: This function returns a function that takes a NumPy array
-  as an input which indicates the fit parameters (nuisance, :math:`\theta`, and POI, :math:`\mu`) and returns the
-  value of the natural logarithm of the likelihood function, :math:`\log\mathcal{L}(\mu, \theta)`. The input
-  ``expected`` defines which data to be used in the absence of ``data`` input, i.e. if
-  ``expected=spey.ExpectationType.observed`` yields of observed data should be used to compute the likelihood, but
-  if ``expected=spey.ExpectationType.apriori`` background yields should be used. This ensures the difference between
-  prefit and postfit likelihoods. If ``data`` is provided, it is overwritten; this is for the case where Asimov
-  data is in use.
+* :func:`~spey.BackendBase.get_logpdf_func`: Returns a callable that computes the log-likelihood for any parameter vector.
+  Mathematically, this function should return :math:`\log\mathcal{L}(\mu, \theta)` where the input array contains both
+  the POI (:math:`\mu`) and nuisance parameters (:math:`\theta`). Behind the scenes, Spey uses this function within
+  an optimization loop:
+
+  .. math::
+
+      (\hat{\mu}, \hat{\theta}) = \arg\min_{\mu, \theta} \left[ -\log\mathcal{L}(\mu, \theta) \right]
+
+  The ``expected`` argument determines which data to use in the likelihood computation:
+  if ``expected=spey.ExpectationType.observed``, use actual experimental data; if ``expected=spey.ExpectationType.apriori``,
+  use background yields as the "observed" data. This ensures the function correctly computes both fit and Asimov likelihoods.
+  If ``data`` is provided explicitly, it overrides the default data selection (used for Asimov data in hypothesis testing).
 
 * :func:`~spey.BackendBase.expected_data` (optional): This function is crutial for **asymptotic** hypothesis testing.
   This function is used to generate the expected value of the data with the given fit parameters, i.e. :math:`\theta`
   and :math:`\mu`. If this function does not exist, exclusion limits can still be computed using ``chi_square`` calculator.
   see :func:`~spey.base.hypotest_base.HypothesisTestingBase.exclusion_confidence_level`.
 
-Other available functions that can be implemented are shown in the table below.
+Other available functions that can be implemented are shown in the table below. These are optional optimizations
+that improve computational efficiency or enable advanced features.
 
 .. list-table::
     :header-rows: 1
 
     * - Functions and Properties
-      - Explanation
+      - Mathematical Purpose
+      - Use Case
     * - :func:`~spey.BackendBase.get_objective_function`
-      - Returns the objective function and/or its gradient.
+      - Returns :math:`f(\vec{p}) = -\log\mathcal{L}(\vec{p})` and optionally its gradient :math:`\nabla f`.
+        Enables first-order optimization methods that use analytical gradients instead of numerical differentiation.
+      - Significant speedup for high-dimensional fits; essential for Automatic Differentiation backends
     * - :func:`~spey.BackendBase.get_hessian_logpdf_func`
-      - Returns Hessian of the log-probability
+      - Returns the Hessian matrix :math:`H_{ij} = \frac{\partial^2 \log\mathcal{L}}{\partial p_i \partial p_j}`.
+        The inverse Hessian at the maximum is the Fisher information matrix, used to estimate parameter uncertainties.
+      - Accurate uncertainty estimation via :func:`~spey.StatisticalModel.sigma_mu`; required for confidence intervals
     * - :func:`~spey.BackendBase.get_sampler`
-      - Returns a function to sample from the likelihood distribution.
+      - Returns a function that generates pseudo-datasets by sampling from the likelihood distribution at given parameter values.
+        Enables toy Monte Carlo hypothesis testing (see :func:`~spey.StatisticalModel.exclusion_confidence_level` with ``calculator='toy'``).
+      - Toy-based exclusion limits; empirical p-value computation when asymptotic approximations are insufficient
 
 .. attention::
 
@@ -166,8 +179,10 @@ can be installed and used as a plugin, the entry point method is preferred.
 Identifying and installing your statistical model
 -------------------------------------------------
 
-In order to add your brand new statistical model to the spey interface, all you need to do is to create a ``setup.py`` file,
-which will create an entry point for the statistical model class. So let us assume that you have the following folder structure
+To register your statistical model with Spey, you need to create an entry point. Modern Python projects use ``pyproject.toml``
+(recommended), while legacy projects may use ``setup.py``. Both approaches are shown below.
+
+**Folder structure** (same for both methods):
 
 .. code-block:: bash
 
@@ -175,25 +190,76 @@ which will create an entry point for the statistical model class. So let us assu
     ├── my_subfolder
     │   ├── __init__.py
     │   └── mystat_model.py # this includes class MyStatisticalModel
-    └── setup.py
+    ├── pyproject.toml    # Modern approach (recommended)
+    └── setup.py          # Legacy approach (optional)
 
-The ``setup.py`` file should include the following
+Using ``pyproject.toml`` (Recommended)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The modern, PEP 517/518 compliant approach uses ``pyproject.toml``:
+
+.. code-block:: toml
+
+    [build-system]
+    requires = ["setuptools>=64"]
+    build-backend = "setuptools.build_meta"
+
+    [project]
+    name = "my-spey-plugin"
+    version = "1.0.0"
+    description = "A custom Spey statistical model"
+    requires-python = ">=3.8"
+    dependencies = ["spey>=0.1.0"]
+
+    [project.entry-points."spey.backend.plugins"]
+    "my_stat_model" = "my_subfolder.mystat_model:MyStatisticalModel"
+
+    [tool.setuptools.packages.find]
+    where = ["."]
+
+**Key components:**
+
+* ``[build-system]``: Specifies that the project uses setuptools with PEP 517 backend
+* ``[project]``: Standard project metadata (name, version, dependencies)
+* ``[project.entry-points."spey.backend.plugins"]``: The section where plugins are registered
+  - Key (left of ``=``): The name Spey will use to identify your backend (must match the ``name`` class attribute)
+  - Value (right of ``=``): The module path and class name in the format ``"module.path:ClassName"``
+* ``[tool.setuptools.packages.find]``: Automatically discovers packages in the current directory
+
+After writing ``pyproject.toml``, install with: ``pip install -e .``
+
+The Spey package will automatically discover your plugin, and :func:`~spey.AvailableBackends` will list ``"my_stat_model"``.
+
+Using ``setup.py`` (Legacy)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you prefer the legacy approach or need maximum compatibility with older tools:
 
 .. code-block:: python3
 
-    >>> from setuptools import setup
-    >>> stat_model_list = ["my_stat_model = my_subfolder.mystat_model:MyStatisticalModel"]
-    >>> setup(entry_points={"spey.backend.plugins": stat_model_list})
+    from setuptools import setup
 
-where
+    stat_model_list = ["my_stat_model = my_subfolder.mystat_model:MyStatisticalModel"]
 
-* ``stat_model_list`` is a list of statistical models you would like to register.
-* ``my_stat_model`` is the short name for a statistical model. This should be the same as the ``name`` attribute
-  of the class. Spey will identify the backend with this name.
-* ``my_subfolder.mystat_model`` is the path to your statistical model class, `MyStatisticalModel`_.
+    setup(
+        name="my-spey-plugin",
+        version="1.0.0",
+        description="A custom Spey statistical model",
+        py_modules=["my_subfolder"],
+        install_requires=["spey>=0.1.0"],
+        entry_points={"spey.backend.plugins": stat_model_list}
+    )
 
-Note that ``stat_model_list`` can include as many implementations as desired. After this step is complete, all one needs to do
-is ``pip install -e .`` and :func:`~spey.AvailableBackends` function will include ``mystat_model`` as well.
+**Parameters:**
+
+* ``stat_model_list`` is a list of statistical models to register (can include multiple backends)
+* ``"my_stat_model"`` is the backend identifier (must match the class's ``name`` attribute)
+* ``"my_subfolder.mystat_model:MyStatisticalModel"`` is the module path and class name
+
+After writing ``setup.py``, install with: ``pip install -e .``
+
+Both methods achieve the same result—after installation, your plugin is immediately available through Spey.
+Choose ``pyproject.toml`` for new projects unless you have specific legacy requirements.
 
 Citing Plug-ins
 ---------------

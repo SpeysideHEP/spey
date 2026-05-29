@@ -7,9 +7,16 @@ from contextlib import contextmanager
 
 
 class ColoredFormatter(logging.Formatter):
-    """Coloured logging formatter for spey"""
+    """Coloured logging formatter for spey.
+
+    Wraps the standard :class:`logging.Formatter` with ANSI escape sequences
+    keyed on log level so spey output is visually distinguishable in a
+    terminal.  DEBUG records additionally include the source module, function,
+    file, and line number to help locate noisy call sites.
+    """
 
     def __init__(self, msg):
+        """Initialise the formatter with ``msg`` as the format string."""
         logging.Formatter.__init__(self, msg)
 
     def format(self, record):
@@ -34,7 +41,18 @@ class ColoredFormatter(logging.Formatter):
 
 
 def init(LoggerStream=sys.stdout):
-    """Initialise logger"""
+    """
+    Attach :class:`ColoredFormatter` to the root logger and the dedicated
+    ``"Spey"`` logger.
+
+    Replaces any handlers previously attached to the ``"Spey"`` logger so the
+    formatter is consistent, and disables propagation to the root logger to
+    avoid duplicate output when applications configure both.
+
+    Args:
+        LoggerStream (default ``sys.stdout``): File-like stream the ``"Spey"``
+          logger writes to.
+    """
     rootLogger = logging.getLogger()
     hdlr = logging.StreamHandler()
     fmt = ColoredFormatter("%(message)s")

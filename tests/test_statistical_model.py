@@ -30,6 +30,18 @@ class FakeBackendBase:
     def get_sampler(self, *args, **kwargs):
         raise NotImplementedError
 
+    def negative_loglikelihood(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def asimov_negative_loglikelihood(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def minimize_negative_loglikelihood(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def minimize_asimov_negative_loglikelihood(self, *args, **kwargs):
+        raise NotImplementedError
+
 
 def make_fake_backend(
     *,

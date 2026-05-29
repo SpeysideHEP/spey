@@ -91,25 +91,43 @@ All default plug-ins are defined using the following main likelihood structure
     \mathcal{M}(n_i|\lambda_i(\mu, \theta))}_{\rm main}\cdot
     \underbrace{\prod_{j\in{\rm nui}}\mathcal{C}(\theta_j)}_{\rm constraint} \ ,
 
-The first term represents the primary model, and the second represents the constraint model.
+**Main model term** :math:`\mathcal{M}`: Describes how the signal hypothesis affects the observed event counts in each bin.
+Typically a Poisson or Gaussian distribution where the expected mean depends on both the signal strength :math:`\mu` and
+nuisance parameters :math:`\theta`.
+
+**Constraint model term** :math:`\mathcal{C}`: Encodes our prior knowledge of systematic uncertainties through Gaussian
+or multivariate distributions on the nuisance parameters. These constraints prevent the fit from indefinitely adjusting
+nuisances to arbitrarily improve the likelihood.
 
 .. _uncorrelated_background:
 
 ``'default.uncorrelated_background'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This is a basic PDF where the background is assumed to be not correlated, where the PDF has been
-given as
+This is the simplest PDF where each bin is treated as statistically independent with uncorrelated
+background uncertainties. The likelihood is given as
 
 .. math::
 
     \mathcal{L}(\mu, \theta) = \prod_{i\in{\rm bins}}{\rm Poiss}(n^i|\mu n_s^i + n_b^i +
     \theta^i\sigma_b^i) \cdot \prod_{j\in{\rm nui}}\mathcal{N}(\theta^j|0, 1)\ ,
 
-where :math:`\mu, \theta` are the parameter of interest (signal strength) and nuisance parameters,
-the signal and background yields are given as :math:`n_s^i` and :math:`n_b^i\pm\sigma_b^i` respectively.
-Additionally, absolute uncertainties are modeled as Gaussian distributions. This model can be
-used as follows
+**Physical interpretation:**
+
+- :math:`\mu`: Signal strength (parameter of interest), scales the predicted signal yields
+- :math:`\theta^i`: Nuisance parameter for bin :math:`i`, representing the pull (in units of standard deviations)
+  on the background estimate in that bin. A value :math:`\theta^i = 0` means the background is at its nominal estimate.
+- :math:`n_s^i, n_b^i, \sigma_b^i`: Signal yield, background yield, and absolute uncertainty for bin :math:`i`
+- The expected count in bin :math:`i` is :math:`\lambda_i = \mu n_s^i + n_b^i + \theta^i\sigma_b^i`
+- Each bin's observation follows a Poisson distribution with mean :math:`\lambda_i`
+- The Gaussian constraint :math:`\mathcal{N}(\theta^j|0,1)` enforces that nuisance parameters stay bounded near their
+  nominal values; large deviations are penalized in the likelihood
+
+**Computational details:**
+Since each bin is independent and has an independent nuisance parameter, the joint likelihood factorises into a product.
+The NLL is therefore a sum of individual bin contributions, which simplifies optimization.
+
+This model can be used as follows:
 
 .. code-block:: python3
     :linenos:
@@ -149,17 +167,32 @@ API description.
 ``'default.correlated_background'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This plugin embeds the correlations between each bin using a covariance matrix provided by the user
-which employs the following PDF structure
+This plugin extends the uncorrelated case by embedding correlations between bins through a covariance matrix.
+The likelihood structure is
 
 .. math::
 
     \mathcal{L}(\mu, \theta) = \prod_{i\in{\rm bins}}{\rm Poiss}(n^i|\mu n_s^i + n_b^i +
-    \theta^i\sigma_b^i) \cdot \prod_{j\in{\rm nui}}\mathcal{N}(\theta^j|0, \rho)\ ,
+    \theta^i\sigma_b^i) \cdot \mathcal{N}(\theta|0, \Sigma)\ ,
 
-Notice that the only difference between the uncorrelated case is the constraint term, which includes
-correlations between each bin. Iterating on the same example, a correlated two-bin histogram can be
-defined as
+**Key difference from uncorrelated case:**
+The constraint term changes from independent Gaussians :math:`\prod_j \mathcal{N}(\theta^j|0, 1)` to a
+multivariate Gaussian :math:`\mathcal{N}(\theta|0, \Sigma)` where :math:`\Sigma` is the covariance matrix
+of the nuisance parameters.
+
+**Mathematical details:**
+
+- The covariance matrix :math:`\Sigma` encodes correlations between bin-to-bin systematic uncertainties
+- Diagonal elements :math:`\Sigma_{ii}` capture the variance of bin :math:`i`, so :math:`\sigma_b^i = \sqrt{\Sigma_{ii}}`
+- Off-diagonal elements :math:`\Sigma_{ij}` with :math:`i \neq j` capture correlations: positive values indicate that upward fluctuations in bin :math:`i` are correlated with upward fluctuations in bin :math:`j`
+- The multivariate Gaussian imposes: :math:`-\frac{1}{2}\theta^T \Sigma^{-1} \theta` in the log-likelihood
+
+
+**Physical motivation:**
+Correlated uncertainties arise from shared systematic sources. For example, if bins are in the same physics process,
+they may share energy scale uncertainties, efficiency uncertainties, or other common factors.
+
+Iterating on the same example, a correlated two-bin histogram can be defined as:
 
 .. code-block:: python3
     :linenos:
@@ -200,15 +233,29 @@ as expected.
 ``'default.third_moment_expansion'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This plug-in implements the third-moment expansion presented in :cite:`Buckley:2018vdr`, which expands the
-the main model using the diagonal elements of the third moments
+This plug-in implements the third-moment expansion from :cite:`Buckley:2018vdr`, which captures non-Gaussian
+(asymmetric) effects in the background distribution. When background distributions are skewed, this method provides
+better likelihood estimates than the quadratic approximation (Gaussian constraint).
+
+The likelihood structure is
 
 .. math::
 
     \mathcal{L}(\mu, \theta) = \prod_{i\in{\rm bins}}{\rm Poiss}(n^i|\mu n_s^i + \bar{n}_b^i + B_i\theta_i + S_i\theta_i^2)
-     \cdot \prod_{j\in{\rm nui}}\mathcal{N}(\theta^j|0, \rho)\ ,
+     \cdot \mathcal{N}(\theta|0, \rho)\ ,
 
-where :math:`\bar{n}_b^i,\ B_i,\ S_i` and :math:`\rho` are defined as
+**Mathematical interpretation:**
+Instead of the nominal background estimate :math:`n_b^i` with a linear uncertainty :math:`\theta^i \sigma_b^i`,
+the model expands to include a quadratic term :math:`S_i\theta_i^2` to capture skewness. The coefficients are:
+
+- :math:`\bar{n}_b^i`: Shifted nominal background (accounts for skewness)
+- :math:`B_i`: Linear coefficient (analogous to standard deviation)
+- :math:`S_i`: Quadratic coefficient (encodes the skewness/third moment)
+
+The multivariate Gaussian constraint :math:`\mathcal{N}(\theta|0, \rho)` now has a correlation structure
+:math:`\rho` that is computed from the full third-moment tensor to maintain consistency.
+
+where :math:`\bar{n}_b^i,\ B_i,\ S_i` and :math:`\rho` are defined as:
 
 .. math::
 
@@ -273,23 +320,34 @@ reduced the exclusion limit.
 ``'default.effective_sigma'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The skewness of the PDF distribution can also be captured by building an effective variance
-from the upper (:math:`\sigma^+`) and lower (:math:`\sigma^-`) uncertainty envelops as a
-the function of nuisance parameters,
+The skewness of the PDF distribution can also be captured by building an effective (theta-dependent) variance
+from the asymmetric upper (:math:`\sigma^+`) and lower (:math:`\sigma^-`) uncertainty envelopes, originally
+proposed in :cite:`Barlow:2004wg`. This method provides a simpler alternative to the third-moment expansion.
+
+The effective uncertainty is
 
 .. math::
 
-    \sigma_{\rm eff}^i(\theta^i) = \sqrt{\sigma^+_i\sigma^-_i + (\sigma^+_i - \sigma^-_i)(\theta^i - n_b^i)}
+    \sigma_{\rm eff}^i(\theta^i) = \sqrt{\sigma^+_i\sigma^-_i + (\sigma^+_i - \sigma^-_i)\theta^i}
 
-This method has been proposed in :cite:`Barlow:2004wg` for Gaussian models which can be
-generalised for the Poisson distribution by modifying :math:`\lambda_i(\mu, \theta)` as follows
+**Physical interpretation:**
+- When :math:`\theta^i = 0` (nominal), :math:`\sigma_{\rm eff}^i(0) = \sqrt{\sigma^+_i\sigma^-_i}` is the geometric mean
+- For :math:`\theta^i > 0` (upward fluctuation), the effective uncertainty smoothly increases toward :math:`\sigma^+_i`
+- For :math:`\theta^i < 0` (downward fluctuation), it smoothly increases toward :math:`\sigma^-_i`
+- This naturally captures asymmetric uncertainties without introducing explicit quadratic terms
+
+The Poisson model is generalized as
 
 .. math::
 
     \mathcal{L}(\mu, \theta) = \prod_{i\in{\rm bins}}{\rm Poiss}(n^i|\mu n_s^i + n_b^i + \theta^i\sigma_{\rm eff}^i(\theta^i))
-     \cdot \prod_{j\in{\rm nui}}\mathcal{N}(\theta^j|0, \rho)\ ,
+     \cdot \mathcal{N}(\theta|0, \rho)\ ,
 
-iterating over the same example, this PDF can be utilised as follows;
+where the expected count in bin :math:`i` depends on both the nuisance parameter :math:`\theta^i` and the effective
+uncertainty :math:`\sigma_{\rm eff}^i(\theta^i)`. The correlation matrix :math:`\rho` encodes correlations between
+bins' nuisance parameters.
+
+This PDF can be utilised as follows:
 
 .. code-block:: python3
     :linenos:
@@ -333,13 +391,22 @@ Once again, the exclusion limit can be computed as
 ``'default.poisson'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Simple Poisson implementation without uncertainties which can be described as follows;
+Simple Poisson implementation without any systematic uncertainties or nuisance parameters. This is the simplest
+likelihood model, appropriate when background yields are known with negligible uncertainty.
 
 .. math::
 
     \mathcal{L}(\mu) = \prod_{i\in{\rm bins}}{\rm Poiss}(n^i|\mu n_s^i + n_b^i)
 
-It can take any number of yields.
+**When to use:**
+This model is appropriate when:
+- Background yields are precisely known from Monte Carlo or sideband measurements with negligible uncertainty
+- The analysis is limited by statistical fluctuations in the data, not systematic uncertainties
+- Simplicity is valued over accounting for all sources of uncertainty
+
+The likelihood depends only on the signal strength :math:`\mu` and the fixed background :math:`n_b^i`.
+Each bin's observation follows a Poisson distribution with mean :math:`\lambda_i = \mu n_s^i + n_b^i`.
+It can accommodate any number of bins.
 
 .. code-block:: python3
     :linenos:
@@ -366,13 +433,27 @@ It can take any number of yields.
 ``'default.normal'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Simple Normal distribution implementation;
+Simple univariate Gaussian likelihood without nuisance parameters. Each bin is treated as a normally distributed
+random variable.
 
 .. math::
 
     \mathcal{L}(\mu) = \prod_{i\in{\rm bins}} \frac{1}{\sigma^i \sqrt{2\pi}} \exp\left[-\frac{1}{2} \left(\frac{\mu n_s^i + n_b^i - n^i}{\sigma^i} \right)^2 \right]
 
-It can take any number of yields.
+**When to use:**
+This model is appropriate when:
+- Event counts are large enough that the Poisson distribution is well-approximated by a Gaussian (large-N limit)
+- Bin yields are treated as continuous rather than discrete quantities
+- Background uncertainties are symmetric and well-described by a single absolute uncertainty :math:`\sigma^i`
+- No correlated uncertainties between bins (use `multivariate_normal` if correlations exist)
+
+**Mathematical details:**
+For each bin, the observation :math:`n^i` is normally distributed with:
+- Mean: :math:`\mu n_s^i + n_b^i` (signal-plus-background prediction)
+- Standard deviation: :math:`\sigma^i` (absolute uncertainty on the background)
+
+The log-likelihood is the sum of Gaussian log-pdfs across bins. Each bin's contribution is independent.
+It can accommodate any number of yields.
 
 .. code-block:: python3
     :linenos:
@@ -402,13 +483,31 @@ It can take any number of yields.
 ``'default.multivariate_normal'``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Simple Normal distribution implementation;
+Multivariate Gaussian likelihood that accounts for correlations between bin measurements. This is the proper
+extension of the univariate `normal` backend when bin observations are correlated.
 
 .. math::
 
-    \mathcal{L}(\mu) = \frac{1}{\sqrt{(2\pi)^k {\rm det}[\Sigma] }} \exp\left[-\frac{1}{2} (\mu n_s + n_b - n)\Sigma^{-1} (\mu n_s + n_b - n)^T \right]
+    \mathcal{L}(\mu) = \frac{1}{\sqrt{(2\pi)^k {\rm det}[\Sigma] }} \exp\left[-\frac{1}{2} (\mu \mathbf{n}_s + \mathbf{n}_b - \mathbf{n})^T \Sigma^{-1} (\mu \mathbf{n}_s + \mathbf{n}_b - \mathbf{n}) \right]
 
-It can take any number of yields.
+**Where:**
+- :math:`k` is the number of bins
+- :math:`\mathbf{n}_s, \mathbf{n}_b, \mathbf{n}` are vectors of signal yields, background yields, and observations
+- :math:`\Sigma` is the :math:`k \times k` covariance matrix encoding both bin variances (diagonal) and correlations (off-diagonal elements)
+
+**When to use:**
+This model is appropriate when:
+- Bin measurements are correlated (e.g., from a simultaneous fit to multiple channels or detector regions)
+- The uncertainty structure cannot be factorised into independent components
+- You have a full covariance matrix from your analysis
+
+**Mathematical details:**
+The joint distribution is a multivariate Gaussian with:
+- Mean: :math:`\mu \mathbf{n}_s + \mathbf{n}_b`
+- Covariance: :math:`\Sigma`
+
+The log-likelihood involves inverting the covariance matrix and computing the Mahalanobis distance.
+It can accommodate any number of yields, though the inversion of :math:`\Sigma` becomes numerically expensive for very high dimensions.
 
 .. code-block:: python3
     :linenos:
