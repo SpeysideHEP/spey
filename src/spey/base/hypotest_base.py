@@ -1037,7 +1037,7 @@ class HypothesisTestingBase(ABC):
                     f"[asymptotic] pval = {pvalues}, expected pval = {expected_pvalues}"
                 )
             except AsimovTestStatZero as err:
-                log.error(str(err))
+                log.warning(str(err))
                 pvalues, expected_pvalues = [1.0], [1.0] * 5
 
         elif calculator == "toy":
