@@ -1,3 +1,4 @@
+import atexit
 import logging
 import os
 import re
@@ -129,7 +130,7 @@ def reset_backend_entries() -> None:
 
 
 def register_backend(
-    model: Union[BackendBase, ConverterBase]
+    model: Union[BackendBase, ConverterBase],
 ) -> Union[BackendBase, ConverterBase]:
     """
     A local backend registry for statistical models.
@@ -502,3 +503,16 @@ if int(os.environ.get("SPEY_LOGLEVEL", -1)) >= 0:
 
 if os.environ.get("SPEY_CHECKUPDATE", "ON").upper() != "OFF":
     check_updates()
+
+
+def _print_thanks() -> None:
+    """Print citation reminder when the program exits"""
+    print(
+        f"\nThanks for using Spey {__version__}. \n"
+        "Please make sure to cite the paper:\n"
+        "    SciPost Phys. 16, no.1, 032 (2024) \n"
+        "    http://arxiv.org/abs/arXiv:2307.06996\n"
+    )
+
+
+atexit.register(_print_thanks)
