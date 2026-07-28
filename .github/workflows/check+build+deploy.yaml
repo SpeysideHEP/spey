@@ -76,7 +76,7 @@ jobs:
             - name: Upload dist as artifacts
               uses: actions/upload-artifact@v4
               with:
-                  name: wheel
+                  name: dist
                   path: ./dist/
 
     deploy:
