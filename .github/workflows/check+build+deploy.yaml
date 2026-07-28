@@ -46,10 +46,32 @@ jobs:
               run: |
                   python -m pip install --upgrade pip
                   python -m pip install wheel build
-                  python -m build
+                  # produce both sdist and wheel into a known directory and show verbose output
+                  python -m build --sdist --wheel --outdir dist --verbose
 
-            - name: Debug
-              run: ls -l dist
+            - name: Debug / verify build outputs
+              run: |
+                  echo "Workspace: $(pwd)"
+                  echo "Listing repo root:"
+                  ls -la
+                  echo "Listing dist/ (if any):"
+                  if [ -d dist ]; then
+                    ls -la dist
+                  else
+                    echo "ERROR: ./dist not found after build. Dumping top-level files to help debug:"
+                    find . -maxdepth 2 -type f -print
+                    # fail the job with clear message
+                    exit 1
+                  fi
+
+            - name: Show packaging config
+              run: |
+                  echo "pyproject.toml:"
+                  sed -n '1,200p' pyproject.toml || echo "no pyproject.toml"
+                  echo "setup.cfg:"
+                  sed -n '1,200p' setup.cfg || echo "no setup.cfg"
+                  echo "setup.py:"
+                  sed -n '1,200p' setup.py || echo "no setup.py"
 
             - name: Upload dist as artifacts
               uses: actions/upload-artifact@v4
