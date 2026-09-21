@@ -14,7 +14,7 @@ Correlated Statistical Model Combiner
 
 .. automodule:: spey.combiner.correlated_statistics_combiner
 
-.. autoclass:: spey.CorrelatedStatisticsCombiner
+.. autoclass:: spey.combiner.CorrelatedStatisticsCombiner
     :members:
     :undoc-members:
     :show-inheritance:
