@@ -39,6 +39,29 @@ log = logging.getLogger("Spey")
 # pylint: disable=W1203
 
 
+def _is_implemented(method: Callable, fallback: Callable) -> bool:
+    """
+    Check whether a backend actually implements an optional method.
+
+    Comparing ``backend.method`` directly against ``BackendBase.method`` is always
+    unequal — the former is a *bound method* and the latter a plain function — so the
+    underlying function has to be unwrapped first.  Backends may also disable an
+    optional capability at runtime by binding the base implementation onto the
+    instance (as :class:`~spey.CorrelatedStatisticsCombiner` does when one of its
+    constituent models lacks the capability); unwrapping ``__func__`` covers that too.
+
+    Args:
+        method (``Callable``): Bound method taken from the backend instance.
+        fallback (``Callable``): The corresponding unimplemented
+          :class:`~spey.BackendBase` function.
+
+    Returns:
+        ``bool``:
+        ``True`` when the backend provides its own implementation.
+    """
+    return getattr(method, "__func__", method) is not fallback
+
+
 class StatisticalModel(HypothesisTestingBase):
     r"""
     Unified interface to any ``spey`` statistical model backend.
@@ -227,12 +250,22 @@ class StatisticalModel(HypothesisTestingBase):
         Returns:
             ``bool``:
             ``True`` if the asymptotic calculator is available.
+
+        .. versionchanged:: 0.2.7
+            The capability check now unwraps the bound methods before comparing them.
+            Previously it compared a bound method against a plain function, which is
+            never equal, so every backend reported the asymptotic calculator as
+            available regardless of what it implemented.
         """
-        return self.backend.expected_data != BackendBase.expected_data or (
-            self.backend.asimov_negative_loglikelihood
-            != BackendBase.asimov_negative_loglikelihood
-            and self.backend.minimize_asimov_negative_loglikelihood
-            != BackendBase.minimize_asimov_negative_loglikelihood
+        return _is_implemented(self.backend.expected_data, BackendBase.expected_data) or (
+            _is_implemented(
+                self.backend.asimov_negative_loglikelihood,
+                BackendBase.asimov_negative_loglikelihood,
+            )
+            and _is_implemented(
+                self.backend.minimize_asimov_negative_loglikelihood,
+                BackendBase.minimize_asimov_negative_loglikelihood,
+            )
         )
 
     @property
@@ -245,8 +278,12 @@ class StatisticalModel(HypothesisTestingBase):
         Returns:
             ``bool``:
             ``True`` if the toy calculator is available.
+
+        .. versionchanged:: 0.2.8
+            The capability check now unwraps the bound methods before comparing them;
+            see :func:`~spey.StatisticalModel.is_asymptotic_calculator_available`.
         """
-        return self.backend.get_sampler != BackendBase.get_sampler
+        return _is_implemented(self.backend.get_sampler, BackendBase.get_sampler)
 
     @property
     def is_chi_square_calculator_available(self) -> bool:
@@ -1212,6 +1249,21 @@ class StatisticalModel(HypothesisTestingBase):
         Returns:
             ``float``:
             variance on parameter of interest.
+
+        .. warning::
+
+            The Wald approximation behind eqs. (27-28) of :xref:`1007.1727` assumes a
+            locally Gaussian likelihood, i.e. a positive-definite observed information
+            matrix :math:`-H`.  For strongly non-linear models evaluated far from
+            :math:`\hat\mu` this can fail, in which case
+            :math:`\left[(-H)^{-1}\right]_{\mu\mu}` turns negative and there is no real
+            standard deviation to report.  ``spey`` then logs a warning and returns
+            ``nan`` rather than emitting a bare ``invalid value encountered in sqrt``
+            runtime warning.
+
+        .. versionchanged:: 0.2.8
+            A non-positive variance is now reported through an explicit warning
+            instead of a raw :obj:`RuntimeWarning` from :func:`numpy.sqrt`.
         """
         try:
             hessian_func = self.backend.get_hessian_logpdf_func(expected=expected)
@@ -1235,7 +1287,16 @@ class StatisticalModel(HypothesisTestingBase):
         log.debug(f"full hessian: {hessian}")
 
         poi_index = self.backend.config().poi_index
-        return np.sqrt(np.linalg.inv(hessian)[poi_index, poi_index])
+        variance = np.linalg.inv(hessian)[poi_index, poi_index]
+        if not variance > 0.0:
+            log.warning(
+                "The observed information matrix is not positive definite at the "
+                f"requested point (variance of the POI is {variance}); the Wald "
+                "approximation does not hold here. Returning nan. This typically "
+                "happens for strongly non-linear models evaluated away from muhat."
+            )
+            return np.nan
+        return np.sqrt(variance)
 
     def combine(self, other, **kwargs):
         """
