@@ -251,7 +251,7 @@ class StatisticalModel(HypothesisTestingBase):
             ``bool``:
             ``True`` if the asymptotic calculator is available.
 
-        .. versionchanged:: 0.2.7
+        .. versionchanged:: 0.2.8
             The capability check now unwraps the bound methods before comparing them.
             Previously it compared a bound method against a plain function, which is
             never equal, so every backend reported the asymptotic calculator as

@@ -101,6 +101,63 @@ def find_root_limits(
     return low_computer, hig_computer
 
 
+def _exclusion_persists(
+    computer: Callable[[float], float],
+    root: float,
+    hig_bound: float,
+    probes: Tuple[float, ...] = (1.5, 3.0, 10.0),
+) -> bool:
+    r"""
+    Check that the exclusion still holds above a candidate upper limit.
+
+    A :math:`(1-\alpha)` CL upper limit is the boundary of the excluded set
+    :math:`\{\mu : CL_s(\mu) < \alpha\}`, which is only an *upper* limit when that set
+    is a ray, i.e. when every :math:`\mu` above the root stays excluded.  With the
+    sign convention of :func:`find_poi_upper_limit` — ``computer(mu) > 0`` outside the
+    confidence interval — that means ``computer`` must remain non-negative above the
+    root.
+
+    A root can otherwise be returned for a :math:`CL_s` curve that is not monotonically
+    decreasing.  This happens when the asymptotic approximation degrades, most commonly
+    when :math:`\sqrt{q_{\mu,A}} \to 0` because the Asimov dataset barely constrains
+    :math:`\mu` (e.g. a signal strength nearly degenerate with another free parameter).
+    The test statistic then depends on a near-zero divisor and its sign is numerically
+    meaningless, so a bracketing solver happily converges onto noise.
+
+    Args:
+        computer (``Callable[[float], float]``): Function whose root is the upper
+          limit; negative inside the confidence interval, positive outside.
+        root (``float``): Candidate upper limit returned by the root finder.
+        hig_bound (``float``): Largest :math:`\mu` worth probing.
+        probes (``Tuple[float, ...]``, default ``(1.5, 3.0, 10.0)``): Multiples of
+          ``root`` at which the exclusion is re-tested.
+
+    Returns:
+        ``bool``:
+        ``True`` when the exclusion holds at every probed point above ``root`` (or when
+        no probe is usable), ``False`` when the exclusion is lost, which marks the root
+        as spurious.
+    """
+    if not np.isfinite(root) or root <= 0.0:
+        return True
+
+    for factor in probes:
+        point = root * factor
+        if point > hig_bound:
+            break
+        value = computer(point)
+        if not np.isfinite(value):
+            continue
+        if value < 0.0:
+            log.debug(
+                "Exclusion lost above the candidate limit: f(%.5e) = %.5e < 0",
+                point,
+                value,
+            )
+            return False
+    return True
+
+
 def find_poi_upper_limit(
     maximum_likelihood: Tuple[float, float],
     logpdf: Callable[[float], float],
@@ -113,6 +170,8 @@ def find_poi_upper_limit(
     hig_init: float = 1.0,
     expected_pvalue: Literal["nominal", "1sigma", "2sigma"] = "nominal",
     maxiter: int = 10000,
+    validate_limit: bool = True,
+    asimov_teststat_tolerance: float = 1e-3,
 ) -> Union[float, List[float]]:
     r"""
     Find upper limit for parameter of interest, :math:`\mu`
@@ -159,6 +218,17 @@ def find_poi_upper_limit(
               be overwritten to ``"nominal"``.
 
         maxiter (``int``, default ``10000``): Maximum iteration limit for the optimiser.
+        validate_limit (``bool``, default ``True``): Reject a root that is not a genuine
+          upper limit.  A :math:`CL_s` curve that is not monotonically decreasing can
+          present a sign change to the bracketing solver even though no upper limit
+          exists; when this happens ``inf`` is returned together with a warning.  See
+          :func:`_exclusion_persists` for the failure mode this protects against.  Set
+          to ``False`` to recover the unchecked behaviour.
+        asimov_teststat_tolerance (``float``, default ``1e-3``): Smallest
+          :math:`\sqrt{q_{\mu,A}}` at the root for which the asymptotic :math:`CL_s`
+          is still considered meaningful.  Eq. (66) of :xref:`1007.1727` divides by this
+          quantity, so below the tolerance the p-value is numerical noise and ``inf``
+          is returned.  Only used when ``validate_limit`` is ``True``.
 
     Returns:
         ``Union[float, List[float]]``:
@@ -167,6 +237,12 @@ def find_poi_upper_limit(
         multiple upper limit values for fluctuations as well as the central value. The
         output order is :math:`-2\sigma` value, :math:`-1\sigma` value, central value,
         :math:`1\sigma` and :math:`2\sigma` value.
+
+    .. versionchanged:: 0.2.8
+        Roots found on a non-monotonic :math:`CL_s` curve are rejected: the bracket must
+        be oriented so that the exclusion is *entered* with increasing :math:`\mu`, and
+        the exclusion must persist above the root.  Previously such a root was returned
+        as if it were a valid upper limit.
     """
     assert expected_pvalue in [
         "nominal",
@@ -176,6 +252,34 @@ def find_poi_upper_limit(
     if expected is ExpectationType.observed:
         expected_pvalue = "nominal"
     test_stat = "q" if allow_negative_signal else "qtilde"
+
+    def asimov_teststatistic(poi_test: float) -> float:
+        r"""
+        Evaluate :math:`\sqrt{q_{\mu,A}}`, the Asimov test statistic, at ``poi_test``.
+
+        This is the quantity the asymptotic p-values are built on: eq. (66) of
+        :xref:`1007.1727` divides by it, so when it approaches zero the resulting
+        :math:`CL_s` is dominated by numerical noise rather than by the data.
+
+        Args:
+            poi_test (``float``): Parameter of interest value.
+
+        Returns:
+            ``float``:
+            :math:`\sqrt{q_{\mu,A}}`, or ``0.0`` when the Asimov test statistic vanishes.
+        """
+        try:
+            _, sqrt_qmuA, _ = compute_teststatistics(
+                poi_test,
+                maximum_likelihood,
+                logpdf,
+                maximum_asimov_likelihood,
+                asimov_logpdf,
+                test_stat,
+            )
+        except AsimovTestStatZero:
+            return 0.0
+        return float(sqrt_qmuA)
 
     def computer(poi_test: float, pvalue_idx: int) -> float:
         """Compute 1 - CLs(POI) = `confidence_level`"""
@@ -227,20 +331,64 @@ def find_poi_upper_limit(
             result.append(np.inf)
             continue
 
+        low_poi, hig_poi = low.get_value(-1), hig.get_value(-1)
+        low_val, hig_val = low[-1], hig[-1]
+        del low, hig
+
+        # The bracket has to be oriented so that increasing mu *enters* the exclusion:
+        # negative (inside the interval) at the low end, positive (excluded) at the
+        # high end. The reverse ordering is a sign change of the CLs curve in the wrong
+        # direction, which is not an upper limit.
+        if validate_limit and low_poi < hig_poi and not low_val < 0.0 < hig_val:
+            log.warning(
+                "CLs is not decreasing with the parameter of interest "
+                f"(f({low_poi:.5e})={low_val:.5e}, f({hig_poi:.5e})={hig_val:.5e}), "
+                "so the sign change is not an upper limit. Returning `inf`."
+            )
+            result.append(np.inf)
+            continue
+
         x0, r = scipy.optimize.toms748(
             comp,
-            low.get_value(-1),
-            hig.get_value(-1),
+            low_poi,
+            hig_poi,
             k=2,
             xtol=2e-12,
             rtol=1e-4,
             full_output=True,
             maxiter=maxiter,
         )
-        del low, hig
 
         if not r.converged:
             log.warning(f"Optimiser did not converge.\n{r}")
+
+        if validate_limit:
+            # The asymptotic CLs is only meaningful while sqrt(q_{mu,A}) stays away
+            # from zero; eq. (66) of arXiv:1007.1727 divides by it. A vanishing Asimov
+            # test statistic means the Asimov dataset does not constrain the POI, and
+            # the sign changes the solver locks onto are then numerical noise.
+            sqrt_qmuA = asimov_teststatistic(x0)
+            if sqrt_qmuA < asimov_teststat_tolerance:
+                log.warning(
+                    f"The Asimov test statistic at mu = {x0:.5e} is numerically zero "
+                    f"(sqrt(q_muA) = {sqrt_qmuA:.3e} < {asimov_teststat_tolerance:.1e}), "
+                    "so the asymptotic CLs is dominated by numerical noise and this root "
+                    "is not a meaningful upper limit. Returning `inf`. This happens when "
+                    "the Asimov dataset barely constrains the parameter of interest, for "
+                    "instance when it is nearly degenerate with another free parameter."
+                )
+                result.append(np.inf)
+                continue
+
+            if not _exclusion_persists(comp, x0, hig_bound):
+                log.warning(
+                    f"The exclusion does not hold above mu = {x0:.5e}, so the CLs curve "
+                    "is not monotonically decreasing and this root is not an upper "
+                    "limit. Returning `inf`."
+                )
+                result.append(np.inf)
+                continue
+
         result.append(x0)
     return result if len(result) > 1 else result[0]
 

@@ -104,7 +104,7 @@ backend uses internally: a backend is only ever called with a concrete
     :obj:`NotImplementedError`, and ``spey`` transparently falls back to its
     numerical optimiser.
 
-.. versionadded:: 0.2.7
+.. versionadded:: 0.2.8
 
 References
 ----------
@@ -340,14 +340,6 @@ class CorrelatedStatisticsCombiner(BackendBase):
         >>> combined.backend.parameter_names
         ['mu', 'signal_par_0']
         >>> combined.maximize_likelihood()
-
-    The class is also exported at the top level, which is convenient when the backend
-    entry points have not been refreshed (e.g. in a fresh working tree):
-
-    .. code-block:: python3
-
-        >>> from spey.interface.statistical_model import statistical_model_wrapper
-        >>> combiner = statistical_model_wrapper(spey.CorrelatedStatisticsCombiner)
 
     .. seealso::
 

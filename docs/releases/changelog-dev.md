@@ -50,6 +50,18 @@
   `ImportError` propagate out of the fit.
   ([#TBD](https://github.com/SpeysideHEP/spey/pull/))
 
+* `find_poi_upper_limit` now validates the root it finds. A bracketing solver converges
+  on any sign change, including one that is not an upper limit, so the returned value is
+  now rejected (returning `inf` with a warning) when the exclusion does not persist above
+  it, when the bracket is oriented so that increasing `mu` *leaves* the exclusion, or
+  when the Asimov test statistic at the root is numerically zero. The last case is the
+  common one: eq. (66) of arXiv:1007.1727 divides by `sqrt(q_mu,A)`, so a model whose
+  Asimov dataset barely constrains `mu` — for instance a signal strength nearly
+  degenerate with another free parameter — produced a `CL_s` curve driven by numerical
+  noise, and a finite but meaningless limit. Pass `validate_limit=False` to recover the
+  previous behaviour, and `asimov_teststat_tolerance` to tune the threshold.
+  ([#TBD](https://github.com/SpeysideHEP/spey/pull/))
+
 ## Bug fixes
 
 * `spey.get_backend` could not resolve a backend registered with
