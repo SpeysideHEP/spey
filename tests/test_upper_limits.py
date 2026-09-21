@@ -22,10 +22,12 @@ import pytest
 from scipy.stats import norm
 
 import spey
+from spey.hypothesis_testing.test_statistics import compute_teststatistics
 from spey.hypothesis_testing.upper_limits import (
     _exclusion_persists,
     find_poi_upper_limit,
 )
+from spey.system.exceptions import AsimovTestStatZero
 from spey.utils import ExpectationType
 
 
@@ -130,9 +132,13 @@ class TestHealthyLimit:
 
 class TestDegenerateAsimov:
     r"""
-    When :math:`\sqrt{q_{\mu,A}} \to 0` the asymptotic :math:`CL_s` is meaningless.
+    A vanishing :math:`\sqrt{q_{\mu,A}}` must never yield a finite limit.
 
-    The root finder still sees a sign change and used to return it as an upper limit.
+    The degenerate regime is caught one layer down, by
+    :func:`~spey.hypothesis_testing.test_statistics.compute_teststatistics`, which
+    raises :obj:`~spey.system.exceptions.AsimovTestStatZero` rather than dividing eq.
+    (66) of :xref:`1007.1727` by a near-zero number.  ``find_poi_upper_limit`` then
+    finds no root at all.  These tests pin the end-to-end outcome.
     """
 
     MODEL = dict(sigma=1.0, sigma_asimov=1e8)
@@ -141,26 +147,83 @@ class TestDegenerateAsimov:
         assert upper_limit(gaussian_model(**self.MODEL)) == np.inf
 
     def test_is_reproducible(self):
-        """The unguarded result rides on numerical noise; the guard must not."""
+        """The unguarded result used to ride on numerical noise; this must not."""
         model = gaussian_model(**self.MODEL)
         assert [upper_limit(model) for _ in range(3)] == [np.inf] * 3
 
-    def test_warns_about_the_asimov_test_statistic(self, caplog):
+    def test_still_inf_without_the_monotonicity_guard(self):
+        """The protection comes from the test statistic, not from `validate_limit`."""
+        assert upper_limit(gaussian_model(**self.MODEL), validate_limit=False) == np.inf
+
+    def test_raises_at_the_test_statistic_level(self):
+        """The underlying call raises instead of returning a noisy delta."""
+        maximum_likelihood, logpdf, maximum_asimov, asimov_logpdf = gaussian_model(
+            **self.MODEL
+        )
+        with pytest.raises(AsimovTestStatZero, match="numerically zero"):
+            compute_teststatistics(
+                1.0,
+                maximum_likelihood,
+                logpdf,
+                maximum_asimov,
+                asimov_logpdf,
+                "qtilde",
+            )
+
+    def test_unguarded_tolerance_reproduces_the_spurious_root(self):
+        """With the tolerance switched off the old, meaningless limit comes back."""
+        maximum_likelihood, logpdf, maximum_asimov, asimov_logpdf = gaussian_model(
+            **self.MODEL
+        )
+        _, sqrt_qmuA, delta = compute_teststatistics(
+            1.0,
+            maximum_likelihood,
+            logpdf,
+            maximum_asimov,
+            asimov_logpdf,
+            "qtilde",
+            asimov_teststat_tolerance=0.0,
+        )
+        # a near-zero divisor inflates the test statistic by ~8 orders of magnitude
+        assert sqrt_qmuA < 1e-7
+        assert delta > 1e6
+
+
+class TestNonMonotonicCLs:
+    r"""
+    A bimodal likelihood gives a well-defined but non-monotonic :math:`CL_s`.
+
+    The Asimov statistic stays healthy here, so the degenerate-Asimov protection does
+    not apply; the root is rejected by the monotonicity guard instead.  A second,
+    narrow likelihood peak far from :math:`\hat\mu` is a realistic shape — sign or
+    solution degeneracies in EFT fits produce exactly this.
+    """
+
+    @staticmethod
+    def _bimodal_model():
+        """Gaussian at 0 plus a narrow secondary peak at mu = 6."""
+
+        def logpdf(mu):
+            mu = float(mu)
+            return max(-0.5 * mu**2, -0.5 * ((mu - 6.0) / 0.25) ** 2 - 0.05)
+
+        def asimov_logpdf(mu):
+            return -0.5 * float(mu) ** 2
+
+        return (0.0, 0.0), logpdf, (0.0, 0.0), asimov_logpdf
+
+    def test_root_is_rejected(self):
+        assert upper_limit(self._bimodal_model()) == np.inf
+
+    def test_unguarded_returns_the_first_crossing(self):
+        """Without the guard the solver reports the first crossing regardless."""
+        unguarded = upper_limit(self._bimodal_model(), validate_limit=False)
+        assert np.isfinite(unguarded)
+
+    def test_warns_about_the_lost_exclusion(self, caplog):
         with capture_spey_warnings(caplog):
-            upper_limit(gaussian_model(**self.MODEL))
-        assert "Asimov test statistic" in caplog.text
-        assert "numerically zero" in caplog.text
-
-    def test_unguarded_result_is_spurious(self):
-        """Without the guard a nonsensically small 'limit' comes back."""
-        spurious = upper_limit(gaussian_model(**self.MODEL), validate_limit=False)
-        assert np.isfinite(spurious)
-        assert spurious < 1e-3  # orders of magnitude below any sensible limit
-
-    def test_tolerance_is_configurable(self):
-        """Lowering the tolerance below the actual value disables the rejection."""
-        model = gaussian_model(**self.MODEL)
-        assert np.isfinite(upper_limit(model, asimov_teststat_tolerance=0.0))
+            upper_limit(self._bimodal_model())
+        assert "exclusion does not hold" in caplog.text
 
 
 class TestExclusionPersists:

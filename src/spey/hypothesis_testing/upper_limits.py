@@ -171,7 +171,6 @@ def find_poi_upper_limit(
     expected_pvalue: Literal["nominal", "1sigma", "2sigma"] = "nominal",
     maxiter: int = 10000,
     validate_limit: bool = True,
-    asimov_teststat_tolerance: float = 1e-3,
 ) -> Union[float, List[float]]:
     r"""
     Find upper limit for parameter of interest, :math:`\mu`
@@ -224,11 +223,15 @@ def find_poi_upper_limit(
           exists; when this happens ``inf`` is returned together with a warning.  See
           :func:`_exclusion_persists` for the failure mode this protects against.  Set
           to ``False`` to recover the unchecked behaviour.
-        asimov_teststat_tolerance (``float``, default ``1e-3``): Smallest
-          :math:`\sqrt{q_{\mu,A}}` at the root for which the asymptotic :math:`CL_s`
-          is still considered meaningful.  Eq. (66) of :xref:`1007.1727` divides by this
-          quantity, so below the tolerance the p-value is numerical noise and ``inf``
-          is returned.  Only used when ``validate_limit`` is ``True``.
+
+          .. note::
+
+            The most common cause of a meaningless :math:`CL_s` — a vanishing Asimov
+            test statistic — is handled one layer down by
+            :func:`~spey.hypothesis_testing.test_statistics.compute_teststatistics`,
+            which raises :obj:`~spey.system.exceptions.AsimovTestStatZero` instead of
+            dividing by it.  This check covers what remains: a well-defined but
+            non-monotonic curve.
 
     Returns:
         ``Union[float, List[float]]``:
@@ -252,34 +255,6 @@ def find_poi_upper_limit(
     if expected is ExpectationType.observed:
         expected_pvalue = "nominal"
     test_stat = "q" if allow_negative_signal else "qtilde"
-
-    def asimov_teststatistic(poi_test: float) -> float:
-        r"""
-        Evaluate :math:`\sqrt{q_{\mu,A}}`, the Asimov test statistic, at ``poi_test``.
-
-        This is the quantity the asymptotic p-values are built on: eq. (66) of
-        :xref:`1007.1727` divides by it, so when it approaches zero the resulting
-        :math:`CL_s` is dominated by numerical noise rather than by the data.
-
-        Args:
-            poi_test (``float``): Parameter of interest value.
-
-        Returns:
-            ``float``:
-            :math:`\sqrt{q_{\mu,A}}`, or ``0.0`` when the Asimov test statistic vanishes.
-        """
-        try:
-            _, sqrt_qmuA, _ = compute_teststatistics(
-                poi_test,
-                maximum_likelihood,
-                logpdf,
-                maximum_asimov_likelihood,
-                asimov_logpdf,
-                test_stat,
-            )
-        except AsimovTestStatZero:
-            return 0.0
-        return float(sqrt_qmuA)
 
     def computer(poi_test: float, pvalue_idx: int) -> float:
         """Compute 1 - CLs(POI) = `confidence_level`"""
@@ -362,32 +337,14 @@ def find_poi_upper_limit(
         if not r.converged:
             log.warning(f"Optimiser did not converge.\n{r}")
 
-        if validate_limit:
-            # The asymptotic CLs is only meaningful while sqrt(q_{mu,A}) stays away
-            # from zero; eq. (66) of arXiv:1007.1727 divides by it. A vanishing Asimov
-            # test statistic means the Asimov dataset does not constrain the POI, and
-            # the sign changes the solver locks onto are then numerical noise.
-            sqrt_qmuA = asimov_teststatistic(x0)
-            if sqrt_qmuA < asimov_teststat_tolerance:
-                log.warning(
-                    f"The Asimov test statistic at mu = {x0:.5e} is numerically zero "
-                    f"(sqrt(q_muA) = {sqrt_qmuA:.3e} < {asimov_teststat_tolerance:.1e}), "
-                    "so the asymptotic CLs is dominated by numerical noise and this root "
-                    "is not a meaningful upper limit. Returning `inf`. This happens when "
-                    "the Asimov dataset barely constrains the parameter of interest, for "
-                    "instance when it is nearly degenerate with another free parameter."
-                )
-                result.append(np.inf)
-                continue
-
-            if not _exclusion_persists(comp, x0, hig_bound):
-                log.warning(
-                    f"The exclusion does not hold above mu = {x0:.5e}, so the CLs curve "
-                    "is not monotonically decreasing and this root is not an upper "
-                    "limit. Returning `inf`."
-                )
-                result.append(np.inf)
-                continue
+        if validate_limit and not _exclusion_persists(comp, x0, hig_bound):
+            log.warning(
+                f"The exclusion does not hold above mu = {x0:.5e}, so the CLs curve is "
+                "not monotonically decreasing and this root is not an upper limit. "
+                "Returning `inf`."
+            )
+            result.append(np.inf)
+            continue
 
         result.append(x0)
     return result if len(result) > 1 else result[0]
