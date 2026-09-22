@@ -76,6 +76,29 @@
 
 ## Bug fixes
 
+* `HypothesisTestingBase.exclusion_confidence_level` and `sigma_mu` crashed with
+  `TypeError: '>' not supported between instances of 'float' and 'dict'` whenever
+  `poi_test` was a `dict` — the value meant to identify and fix a multi-POI point (e.g.
+  EFT coefficients shared with other analyses) was passed straight into the `qmu`/
+  `qmu_tilde`/`q0` scalar comparisons instead of being resolved first. A new
+  `HypothesisTestingBase._split_poi_test` helper now splits a dict-valued `poi_test`
+  into the scalar value of the primary POI (used for the test-statistic comparisons)
+  and any other parameters to keep fixed, and threads the latter through the
+  unconstrained fits and every constrained likelihood evaluation — including the `toy`
+  and `chi_square` calculators — so the extra parameters stay fixed throughout the test,
+  not just at the tested point.
+  ([#TBD](https://github.com/SpeysideHEP/spey/pull/))
+
+* `StatisticalModel.generate_asimov_data` silently discarded any `fixed_poi_value`
+  keyword argument (with a warning), so a multi-POI `poi_test` lost its extra fixed
+  parameters specifically during Asimov data generation, even though the same fit
+  respected them everywhere else. `fixed_poi_value` may now be a `dict`: the primary POI
+  still keeps its canonical Asimov value (`1.0` for `test_statistic="q0"`, `0.0`
+  otherwise) unless the dict explicitly overrides it, while any other entries are
+  applied to the fit as before. A plain `float` (which can only refer to the primary
+  POI) is still ignored with a warning.
+  ([#TBD](https://github.com/SpeysideHEP/spey/pull/))
+
 * `spey.get_backend` could not resolve a backend registered with
   `spey.register_backend`. The registry stores a *class* for a locally registered
   backend and an `importlib` `EntryPoint` for a discovered plug-in, but the lookup

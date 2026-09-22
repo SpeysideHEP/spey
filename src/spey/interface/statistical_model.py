@@ -661,19 +661,51 @@ class StatisticalModel(HypothesisTestingBase):
             init_pars (``List[float]``, default ``None``): initial parameters for the optimiser
             par_bounds (``List[Tuple[float, float]]``, default ``None``): parameter bounds for
               the optimiser.
-            kwargs: keyword arguments for the optimiser.
+            kwargs: keyword arguments for the optimiser, including:
+
+              * ``fixed_poi_value`` (``Dict[int, float]``, default ``None``): Extra
+                parameters -- other than the primary POI, identified by
+                :attr:`~spey.base.model_config.ModelConfig.poi_index` -- to hold fixed
+                at the given values while generating the Asimov dataset, e.g. EFT
+                coefficients a multi-POI ``poi_test`` pins alongside :math:`\mu`. The
+                primary POI itself is **not** taken from this dict: it keeps its
+                canonical Asimov value (``1.0`` for ``test_statistic="q0"``, ``0.0``
+                otherwise), unless the dict explicitly provides a value for
+                :attr:`~spey.base.model_config.ModelConfig.poi_index`, in which case
+                that value is used instead. A plain ``float`` is not supported (there is
+                only one POI to fix here) and is ignored with a warning, exactly as
+                before.
 
         Returns:
             ``List[float]``:
             Asimov data
+
+        .. versionchanged:: 0.2.8
+
+            ``fixed_poi_value`` may now be a ``dict``, letting a multi-POI
+            ``poi_test`` keep its extra fixed parameters in place while generating the
+            Asimov dataset. Previously any ``fixed_poi_value`` -- dict or float -- was
+            silently discarded.
         """
-        if "fixed_poi_value" in kwargs:
+        poi_index = self.backend.config().poi_index
+        default_poi_value = 1.0 if test_statistic == "q0" else 0.0
+
+        fixed_poi_value = kwargs.pop("fixed_poi_value", None)
+        if isinstance(fixed_poi_value, dict):
+            asimov_fixed_poi_value = {**fixed_poi_value}
+            asimov_fixed_poi_value.setdefault(poi_index, default_poi_value)
+        elif fixed_poi_value is None:
+            asimov_fixed_poi_value = default_poi_value
+        else:
             log.warning(
-                "Passing 'fixed_poi_value' as a keyword argument to generate_asimov_data() is "
-                "not supported and has been ignored. The POI value used for Asimov data "
-                "generation is determined by 'test_statistic' (1.0 for 'q0', 0.0 otherwise)."
+                "Passing a plain-float 'fixed_poi_value' as a keyword argument to "
+                "generate_asimov_data() is not supported and has been ignored. The POI "
+                "value used for Asimov data generation is determined by "
+                "'test_statistic' (1.0 for 'q0', 0.0 otherwise); pass a dict to "
+                "additionally fix other parameters while keeping the primary POI at "
+                "its canonical Asimov value."
             )
-            kwargs.pop("fixed_poi_value")
+            asimov_fixed_poi_value = default_poi_value
 
         fit_opts = self.prepare_for_fit(
             expected=expected,
@@ -685,7 +717,7 @@ class StatisticalModel(HypothesisTestingBase):
             **fit_opts,
             initial_parameters=init_pars,
             bounds=par_bounds,
-            fixed_poi_value=1.0 if test_statistic == "q0" else 0.0,
+            fixed_poi_value=asimov_fixed_poi_value,
         )
         log.debug(f"fit parameters:\n\t {fit_pars}")
 
@@ -1077,9 +1109,13 @@ class StatisticalModel(HypothesisTestingBase):
                 Fix one or more POIs during the **maximisation** step while allowing the
                 remaining parameters to be profiled freely.  A plain ``float`` fixes the
                 primary POI; a ``dict`` of ``{index: value}`` fixes multiple POIs
-                simultaneously.  This kwarg is intercepted and discarded (with a warning)
-                in the Asimov data generation step, where the POI is already determined by
-                ``test_statistics``.
+                simultaneously.  In the Asimov data generation step the primary POI
+                (:attr:`~spey.base.model_config.ModelConfig.poi_index`) keeps its
+                canonical Asimov value (determined by ``test_statistics``) rather than
+                whatever this kwarg says, but a ``dict``'s other entries are still
+                honoured there, so extra fixed parameters stay in place throughout.  A
+                plain ``float`` is intercepted and discarded (with a warning) in that
+                step instead, since it can only refer to the primary POI.
 
               **Scipy-minimiser options** (used when ``minimizer="scipy"``):
 
