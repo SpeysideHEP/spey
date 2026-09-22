@@ -76,6 +76,97 @@
 
 ## Bug fixes
 
+* The Asimov dataset built by the `default_pdf` backends kept the auxiliary measurements
+  at the centre of the constraint instead of moving them with the nuisance parameters,
+  so it did not satisfy the defining property of an Asimov dataset — that the maximum
+  likelihood estimators of the parameters equal the values it was generated at, eq. (25)
+  of arXiv:1007.1727.
+
+  `ConstraintModel.log_prob` took no data argument, and `DefaultPDFBase.get_logpdf_func`
+  sliced the data vector as `data[: len(self.data)]`, so the auxiliary half of the vector
+  that `expected_data` had just produced was discarded on the way back in. The main
+  counts of the Asimov set were built at the profiled `theta_hat_hat(mu=0)` while the
+  constraint kept pulling the fit back towards `theta = 0`. Refitting the Asimov data of
+  the two-bin `default.uncorrelated_background` example returned `theta = (0.007, -0.220)`
+  where it was generated at `(0.050, -0.738)`.
+
+  `Normal.log_prob`, `MultivariateNormal.log_prob` and `ConstraintModel.log_prob` now
+  accept the auxiliary measurements; `ConstraintModel.expected_data(pars)` returns the
+  Asimov auxiliary data for a parameter point; `ConstraintModel.sample` draws
+  pseudo-experiments from `p(a | theta)` around the hypothesis rather than around the
+  nominal centre, which also fixes the auxiliary half of the toy calculator; and
+  `DefaultPDFBase._split_data` splits a data vector into its main and auxiliary parts.
+  A vector carrying only the bin counts is still accepted and falls back to the nominal
+  auxiliary data, so existing calls such as `model.likelihood(data=[...])` keep working;
+  a vector whose auxiliary part has the wrong length now raises `InvalidInput` instead of
+  being silently truncated.
+
+  This changes results. `sigma_mu` is unaffected (it is computed from the observed
+  information matrix), as are all quantities in `apriori` mode, where the conditional
+  MLE is `theta = 0` and the old convention happened to be correct. Post-fit quantities
+  move, by an amount that grows with how hard the data pull the nuisance parameters —
+  for the two-bin test models with 24-33% background uncertainties:
+
+  | model | quantity | before | after |
+  |---|---|---|---|
+  | `default.uncorrelated_background` | `1 - CLs` | 0.97018 | 0.94662 |
+  | `default.uncorrelated_background` | `poi_upper_limit` | 0.85633 | 1.01810 |
+  | `default.correlated_background` | `1 - CLs` | 0.96351 | 0.93529 |
+  | `default.correlated_background` | `poi_upper_limit` | 0.90710 | 1.07561 |
+  | `default.third_moment_expansion` | `1 - CLs` | 0.96143 | 0.93181 |
+  | `default.effective_sigma` | `1 - CLs` | 0.85670 | 0.77355 |
+
+  The new values were verified against `pyhf`, which implements the same convention: for
+  an equivalent `histosys` workspace the two log-likelihoods agree to `1e-14` at
+  arbitrary parameter points, the Asimov datasets are identical entry by entry, and
+  `1 - CLs` agrees to `7e-8` (0.94661532 against 0.94661539). Note that this comparison
+  must not be made against `pyhf.uncorrelated_background`, which is a `shapesys` model
+  with an asymmetric Poisson constraint on a multiplicative nuisance parameter and is a
+  genuinely different likelihood — see
+  `spey-pyhf/docs/tutorials/uncorrelated_background_comparison.ipynb`.
+  ([#TBD](https://github.com/SpeysideHEP/spey/pull/))
+
+* `covariance_to_correlation` did not enforce symmetry, so an asymmetric covariance
+  matrix silently produced an asymmetric "correlation" matrix and, through it, an
+  ill-defined multivariate normal: the quadratic form of a Gaussian only sees the
+  symmetric part of a matrix, but its inverse and its determinant do not, so the
+  resulting likelihood was neither the one implied by `Sigma` nor the one implied by
+  `Sigma^T`.
+
+  A new helper, `spey.helper_functions.symmetrise_matrix`, replaces such an input with
+  `(Sigma + Sigma.T) / 2` — the closest symmetric matrix in the Frobenius norm, and
+  therefore the least-assumption reading of an input whose two off-diagonal entries
+  disagree — and warns that it did so. It is applied to `covariance_to_correlation`,
+  `correlation_to_covariance`, the `covariance_matrix` of `DefaultPDFBase` (hence
+  `default.correlated_background` and `default.third_moment_expansion`) and of
+  `default.multivariate_normal`, and the `correlation_matrix` of
+  `default.effective_sigma`. A non-square matrix now raises `InvalidInput`.
+
+  On top of symmetry, the matrix is now also required to be **positive definite** by a
+  second helper, `spey.helper_functions.ensure_positive_definite`, which is what the
+  model ingestion points call. Positive *semi*-definiteness is not enough: a singular
+  matrix has `det(Sigma) = 0` and no inverse, so the multivariate normal has no density,
+  and a negative eigenvalue leaves the exponent unbounded above, so the "likelihood" can
+  be made arbitrarily large. The test is whether a Cholesky decomposition exists — the
+  condition under which the inverse and determinant the likelihood needs can be computed
+  — and eigenvalues are only computed when it fails, to distinguish a singular matrix
+  from an indefinite one and to name the offending eigenvalue. An ill-conditioned but
+  positive definite matrix is still accepted; the condition number is not policed.
+
+  `default.third_moment_expansion` validates the correlation matrix it *derives* from
+  the third moments, not just the covariance matrix it is given: the derived matrix is
+  assembled element by element from a discriminant, so a valid input does not guarantee
+  a valid constraint. A `callable` covariance matrix is exempt from both checks, since
+  validating it would break the `autograd` trace.
+
+  Several docstring examples and most of the test suite used the asymmetric matrix
+  `[[144, 13], [25, 256]]`, which is how the pattern spread; they now use its symmetric
+  part `[[144, 19], [19, 256]]`. Results obtained with an asymmetric matrix change to
+  the values its symmetric part gives — for `default.correlated_background` with the
+  matrix above, `1 - CLs` moves from 0.93529 to 0.93542 and `poi_upper_limit` from
+  1.07561 to 1.07500, both now agreeing with `pyhf` to `7e-8`.
+  ([#TBD](https://github.com/SpeysideHEP/spey/pull/))
+
 * `HypothesisTestingBase.exclusion_confidence_level` and `sigma_mu` crashed with
   `TypeError: '>' not supported between instances of 'float' and 'dict'` whenever
   `poi_test` was a `dict` — the value meant to identify and fix a multi-POI point (e.g.
