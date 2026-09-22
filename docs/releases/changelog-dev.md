@@ -64,7 +64,7 @@
   at 1e-5 to 1e-4. Sweeping all seven built-in backends, the only quantity that changes
   is `CLs` at `mu = 1e-6`, which moves from ~3e-6 to exactly 0 — both meaning "not
   excluded". All upper limits, expected bands and significances are unchanged.
-  ([#TBD](https://github.com/SpeysideHEP/spey/pull/))
+  ([#67](https://github.com/SpeysideHEP/spey/pull/67))
 
 * `find_poi_upper_limit` now validates the root it finds. A bracketing solver converges
   on any sign change, including one that is not an upper limit, so the returned value is
@@ -124,7 +124,7 @@
   with an asymmetric Poisson constraint on a multiplicative nuisance parameter and is a
   genuinely different likelihood — see
   `spey-pyhf/docs/tutorials/uncorrelated_background_comparison.ipynb`.
-  ([#TBD](https://github.com/SpeysideHEP/spey/pull/))
+  ([#67](https://github.com/SpeysideHEP/spey/pull/67))
 
 * `covariance_to_correlation` did not enforce symmetry, so an asymmetric covariance
   matrix silently produced an asymmetric "correlation" matrix and, through it, an
@@ -165,7 +165,7 @@
   the values its symmetric part gives — for `default.correlated_background` with the
   matrix above, `1 - CLs` moves from 0.93529 to 0.93542 and `poi_upper_limit` from
   1.07561 to 1.07500, both now agreeing with `pyhf` to `7e-8`.
-  ([#TBD](https://github.com/SpeysideHEP/spey/pull/))
+  ([#67](https://github.com/SpeysideHEP/spey/pull/67))
 
 * `HypothesisTestingBase.exclusion_confidence_level` and `sigma_mu` crashed with
   `TypeError: '>' not supported between instances of 'float' and 'dict'` whenever
