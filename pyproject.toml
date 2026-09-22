@@ -67,3 +67,10 @@ version = {attr = "spey._version.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.black]
+line-length = 90
+target-version = ["py38"]
