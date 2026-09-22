@@ -278,7 +278,9 @@ class TestRealBackendsAreUnaffected:
             absolute_uncertainties=[12.0, 13.0],
             analysis="uncorrelated",
         )
-        assert model.poi_upper_limit() == pytest.approx(0.748390, rel=1e-4)
+        # Changed in v0.2.8 with the Asimov auxiliary-data fix; cross-checked
+        # against pyhf with an equivalent `histosys` workspace.
+        assert model.poi_upper_limit() == pytest.approx(0.895455, rel=1e-4)
         expected = model.poi_upper_limit(
             expected=spey.ExpectationType.apriori, expected_pvalue="1sigma"
         )

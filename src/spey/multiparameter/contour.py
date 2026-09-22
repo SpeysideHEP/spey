@@ -394,7 +394,7 @@ def find_contour(
             base_signal = np.array([12.0, 15.0])
             bkg   = np.array([50.0, 48.0])
             data  = np.array([36.0, 33.0])
-            cov   = np.array([[144.0, 13.0], [25.0, 256.0]])
+            cov   = np.array([[144.0, 19.0], [19.0, 256.0]])
 
             def signal(pars):
                 return base_signal * (1.0 + pars[0])

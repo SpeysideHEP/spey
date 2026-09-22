@@ -110,3 +110,90 @@ def test_mixture_model_log_prob_sum():
     mix = MixtureModel(d1, d2)
     got = float(mix.log_prob(onp.array([0.0])))
     assert pytest.approx(-3.0, rel=1e-12) == got
+
+
+def test_constraint_model_uses_the_auxiliary_data():
+    """The constraint term must compare the parameters against the given data."""
+    descs = [
+        {
+            "distribution_type": "normal",
+            "args": [onp.array([0.0]), onp.array([1.0])],
+            "kwargs": {"domain": slice(0, 1)},
+        },
+        {
+            "distribution_type": "multivariatenormal",
+            "args": [onp.array([0.0, 0.0]), onp.eye(2)],
+            "kwargs": {"domain": slice(1, 3)},
+        },
+    ]
+    cm = ConstraintModel(descs)
+    pars = onp.array([0.3, -0.7, 1.1])
+
+    # auxiliary data equal to the parameters sits exactly at the maximum of
+    # every constraint term
+    at_maximum = float(cm.log_prob(pars, pars))
+    expected = -0.5 * math.log(2.0 * math.pi) + (-math.log(2.0 * math.pi))
+    assert pytest.approx(expected, rel=1e-7) == at_maximum
+
+    # and it must differ from the nominal, all-zero auxiliary data
+    assert float(cm.log_prob(pars)) < at_maximum
+    assert pytest.approx(float(cm.log_prob(pars, onp.zeros(3)))) == float(
+        cm.log_prob(pars)
+    )
+
+
+def test_constraint_model_asimov_auxiliary_data_follow_the_parameters():
+    """``expected_data(pars)`` returns the Asimov auxiliary measurements."""
+    descs = [
+        {
+            "distribution_type": "normal",
+            "args": [onp.array([0.0]), onp.array([1.0])],
+            "kwargs": {"domain": slice(0, 1)},
+        },
+        {
+            "distribution_type": "multivariatenormal",
+            "args": [onp.array([0.0, 0.0]), onp.eye(2)],
+            "kwargs": {"domain": slice(1, 3)},
+        },
+    ]
+    cm = ConstraintModel(descs)
+    pars = onp.array([0.3, -0.7, 1.1])
+
+    assert onp.allclose(cm.expected_data(), onp.zeros(3))
+    assert onp.allclose(cm.expected_data(pars), pars)
+    assert cm.auxiliary_sizes == [1, 2]
+
+
+def test_constraint_model_rejects_mismatched_auxiliary_data():
+    """A data vector of the wrong length must not be silently ignored."""
+    from spey.system.exceptions import DistributionError
+
+    cm = ConstraintModel(
+        [
+            {
+                "distribution_type": "normal",
+                "args": [onp.array([0.0, 0.0]), onp.array([1.0, 1.0])],
+                "kwargs": {"domain": slice(0, 2)},
+            }
+        ]
+    )
+    with pytest.raises(DistributionError, match="auxiliary measurement"):
+        cm.log_prob(onp.array([0.0, 0.0]), onp.array([0.0]))
+
+
+def test_constraint_model_samples_around_the_hypothesis():
+    """Pseudo-data must be drawn from p(a|theta), not around the nominal centre."""
+    cm = ConstraintModel(
+        [
+            {
+                "distribution_type": "normal",
+                "args": [onp.array([0.0, 0.0]), onp.array([1.0, 1.0])],
+                "kwargs": {"domain": slice(1, 3)},
+            }
+        ]
+    )
+    pars = onp.array([1.0, 2.5, -1.5])
+    onp.random.seed(12)
+    sample = cm.sample(pars, 20000)
+    assert sample.shape == (20000, 2)
+    assert onp.allclose(sample.mean(axis=0), onp.array([2.5, -1.5]), atol=0.05)

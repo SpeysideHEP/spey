@@ -113,6 +113,7 @@ from scipy.optimize import NonlinearConstraint
 from spey._version import __version__
 from spey.backends.distributions import MainModel
 from spey.base import BackendBase, ModelConfig
+from spey.helper_functions import ensure_positive_definite
 from spey.system.exceptions import InvalidInput
 from spey.utils import ExpectationType
 
@@ -743,8 +744,8 @@ class MultivariateNormal(SimplePDFBase):
         >>> signal_yields = np.array([12.0, 15.0])
         >>> background_yields = np.array([50.0, 48.0])
         >>> data = np.array([36., 33.])
-        >>> covariance_matrix = np.array([[144.0, 13.0], [25.0, 256.0]])
-        >>> covariance_signal = np.array([[5.0, 1.0], [2.0, 3.0]])
+        >>> covariance_matrix = np.array([[144.0, 19.0], [19.0, 256.0]])
+        >>> covariance_signal = np.array([[5.0, 1.5], [1.5, 3.0]])
 
         >>> # ``pars`` include all the parameters of the model,
         >>> # including the POI and any extra signal parameters
@@ -775,7 +776,7 @@ class MultivariateNormal(SimplePDFBase):
 
         >>> background_yields = np.array([50.0, 48.0])
         >>> data = np.array([36., 33.])
-        >>> covariance_matrix = np.array([[144.0, 13.0], [25.0, 256.0]])
+        >>> covariance_matrix = np.array([[144.0, 19.0], [19.0, 256.0]])
         >>> base_signal = np.array([12.0, 15.0])
 
         >>> # signal_yields is a function of one extra parameter (signal_par_0)
@@ -876,6 +877,9 @@ class MultivariateNormal(SimplePDFBase):
                 raise InvalidInput(
                     "Dimensionality of the covariance matrix should match to the background"
                 )
+            # A covariance matrix has to be symmetric and positive definite for
+            # the multivariate normal to have a density at all.
+            self.covariance_matrix = ensure_positive_definite(self.covariance_matrix)
         else:
             self.covariance_matrix = covariance_matrix
 
