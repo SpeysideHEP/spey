@@ -134,7 +134,8 @@ from scipy.optimize import NonlinearConstraint
 from spey._version import __version__
 from spey.backends.distributions import ConstraintModel, MainModel
 from spey.base import BackendBase, ModelConfig
-from spey.helper_functions import covariance_to_correlation
+from spey.helper_functions import covariance_to_correlation, ensure_positive_definite
+from spey.system.exceptions import InvalidInput
 from spey.utils import ExpectationType
 
 from .third_moment import third_moment_expansion
@@ -289,7 +290,7 @@ class DefaultPDFBase(BackendBase):
             self.signal_yields = np.array(signal_yields, dtype=np.float64)
         self.background_yields = np.array(background_yields, dtype=np.float64)
         self.covariance_matrix = (
-            np.array(covariance_matrix, dtype=np.float64)
+            ensure_positive_definite(np.array(covariance_matrix, dtype=np.float64))
             if not callable(covariance_matrix) and covariance_matrix is not None
             else covariance_matrix
         )
@@ -535,6 +536,45 @@ class DefaultPDFBase(BackendBase):
 
         return self._main_model
 
+    def _split_data(self, data: np.ndarray) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+        r"""
+        Split a data vector into main counts and auxiliary measurements.
+
+        The full data vector of the model is the bin counts followed by the
+        auxiliary measurements of the constraint terms, which is what
+        :meth:`expected_data` produces. A vector holding only the bin counts is
+        also accepted, in which case the auxiliary measurements fall back to the
+        nominal location of each constraint term.
+
+        Args:
+            data (``np.ndarray``): data vector to split.
+
+        Raises:
+            ``InvalidInput``: if the auxiliary part is present but does not have
+              one entry per auxiliary measurement of the constraint model.
+
+        Returns:
+            ``Tuple[np.ndarray, Optional[np.ndarray]]``:
+            Bin counts, and auxiliary measurements or ``None`` when the input
+            carried none.
+
+        .. versionadded:: 0.2.8
+        """
+        data = np.asarray(data, dtype=np.float64).ravel()
+        main, auxiliary = data[: len(self.data)], data[len(self.data) :]
+        if auxiliary.size == 0:
+            return main, None
+
+        expected = sum(self.constraint_model.auxiliary_sizes)
+        if auxiliary.size != expected:
+            raise InvalidInput(
+                f"Data vector has {data.size} entries: {len(self.data)} bin counts "
+                f"followed by {auxiliary.size} auxiliary measurement(s), but the "
+                f"model has {expected} auxiliary measurement(s). Provide either "
+                f"{len(self.data)} or {len(self.data) + expected} values."
+            )
+        return main, auxiliary
+
     def get_objective_function(
         self,
         expected: ExpectationType = ExpectationType.observed,
@@ -588,11 +628,13 @@ class DefaultPDFBase(BackendBase):
         data = current_data if data is None else data
         log.debug(f"Data: {data}")
 
+        main_data, auxiliary_data = self._split_data(data)
+
         def negative_loglikelihood(pars: np.ndarray) -> np.ndarray:
             """Compute twice negative log-likelihood"""
             return -self.main_model.log_prob(
-                pars, data[: len(self.data)]
-            ) - self.constraint_model.log_prob(pars)
+                pars, main_data
+            ) - self.constraint_model.log_prob(pars, auxiliary_data)
 
         if do_grad:
             return value_and_grad(negative_loglikelihood, argnum=0)
@@ -641,9 +683,11 @@ class DefaultPDFBase(BackendBase):
         data = current_data if data is None else data
         log.debug(f"Data: {data}")
 
+        main_data, auxiliary_data = self._split_data(data)
+
         return lambda pars: self.main_model.log_prob(
-            pars, data[: len(self.data)]
-        ) + self.constraint_model.log_prob(pars)
+            pars, main_data
+        ) + self.constraint_model.log_prob(pars, auxiliary_data)
 
     def get_hessian_logpdf_func(
         self,
@@ -686,11 +730,13 @@ class DefaultPDFBase(BackendBase):
         data = current_data if data is None else data
         log.debug(f"Data: {data}")
 
+        main_data, auxiliary_data = self._split_data(data)
+
         def log_prob(pars: np.ndarray) -> np.ndarray:
             """Compute log-probability"""
             return self.main_model.log_prob(
-                pars, data[: len(self.data)]
-            ) + self.constraint_model.log_prob(pars)
+                pars, main_data
+            ) + self.constraint_model.log_prob(pars, auxiliary_data)
 
         return hessian(log_prob, argnum=0)
 
@@ -733,7 +779,7 @@ class DefaultPDFBase(BackendBase):
             sample = self.main_model.sample(pars, sample_size)
 
             if include_auxiliary:
-                constraint_sample = self.constraint_model.sample(pars[1:], sample_size)
+                constraint_sample = self.constraint_model.sample(pars, sample_size)
                 sample = np.hstack([sample, constraint_sample])
 
             return sample
@@ -747,9 +793,11 @@ class DefaultPDFBase(BackendBase):
         Compute the expected data vector at the given parameter point.
 
         Returns the expectation values :math:`\lambda_i(\mu, \boldsymbol{\theta})`
-        for all bins, and optionally the auxiliary expected values from the constraint
-        model (i.e. the mean of the constraint distribution, which is zero for all
-        built-in backends).
+        for all bins and, optionally, the auxiliary measurements of the constraint
+        terms. The latter are the values the auxiliary measurements take when the
+        nuisance parameters are assumed to be ``pars``, i.e. :math:`a=\theta` for the
+        built-in backends, which is what makes the resulting dataset an Asimov dataset
+        in the sense of eq. (25) of :xref:`1007.1727`: refitting it returns ``pars``.
 
         Args:
             pars (``List[float]``): Full parameter vector
@@ -761,11 +809,19 @@ class DefaultPDFBase(BackendBase):
             ``List[float]``:
             Expected bin counts (length :math:`N`), plus auxiliary data if
             ``include_auxiliary=True``.
+
+        .. versionchanged:: 0.2.8
+            The auxiliary data now follow the nuisance parameters. They used to be
+            fixed at the centre of each constraint term, which broke the defining
+            property of the Asimov dataset whenever the nuisance parameters were
+            profiled away from their nominal values.
         """
         data = self.main_model.expected_data(pars)
 
         if include_auxiliary:
-            data = np.hstack([data, self.constraint_model.expected_data()])
+            data = np.hstack(
+                [data, self.constraint_model.expected_data(np.asarray(pars))]
+            )
         return data
 
 
@@ -1034,7 +1090,7 @@ class CorrelatedBackground(DefaultPDFBase):
         >>> signal_yields = [12.0, 11.0]
         >>> background_yields = [50.0, 52.0]
         >>> data = [51, 48]
-        >>> covariance_matrix = [[3., 0.5], [0.6, 7.]]
+        >>> covariance_matrix = [[3., 0.55], [0.55, 7.]]
         >>> statistical_model = stat_wrapper(
         ...     signal_yields, background_yields, data, covariance_matrix
         ... )
@@ -1229,6 +1285,12 @@ class ThirdMomentExpansion(DefaultPDFBase):
         A, B, C, corr = third_moment_expansion(
             self.background_yields, self.covariance_matrix, third_moments, True
         )
+        # `corr` is assembled element by element from a discriminant, so a valid
+        # covariance matrix does not guarantee a valid correlation matrix: it is
+        # the derived one that enters the likelihood.
+        corr = ensure_positive_definite(
+            corr, "correlation matrix derived from the third moments"
+        )
 
         nsp = self.n_signal_parameters
         signal_unc = self.signal_uncertainty_configuration.get("lambda", lambda pars: 1.0)
@@ -1420,7 +1482,9 @@ class EffectiveSigma(DefaultPDFBase):
             sigma_minus.append(abs(lower))
         sigma_plus = np.array(sigma_plus)
         sigma_minus = np.array(sigma_minus)
-        correlation_matrix = np.array(correlation_matrix)
+        correlation_matrix = ensure_positive_definite(
+            np.array(correlation_matrix), "correlation matrix"
+        )
 
         super().__init__(
             signal_yields=signal_yields,

@@ -11,5 +11,6 @@ Kitchen Sink
    tutorials/gradients
    tutorials/signal_uncertainties
    tutorials/multiparameter_contour
+   tutorials/correlated_combination
    tuto_plugin
    Introduction to Spey (PyHEP 2023) <https://github.com/SpeysideHEP/PyHEP-2023>

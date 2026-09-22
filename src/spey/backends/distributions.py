@@ -1,7 +1,7 @@
 """Autograd based differentiable distribution classes"""
 
 import logging
-from typing import Any, Callable, Dict, List, Literal, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Union
 
 import autograd.numpy as np
 from autograd.scipy.special import gammaln
@@ -84,18 +84,55 @@ class Normal:
         """The expectation value of the Normal distribution."""
         return np.array(self.loc)
 
-    def sample(self, value: np.ndarray, sample_size: int) -> np.ndarray:
-        """Generate samples"""
+    def sample(
+        self,
+        value: np.ndarray,
+        sample_size: int,
+        loc: Optional[np.ndarray] = None,
+    ) -> np.ndarray:
+        r"""
+        Generate samples
+
+        Args:
+            value (``np.ndarray``): parameter vector; the entries selected by
+              :attr:`domain` set the width of the distribution.
+            sample_size (``int``): number of samples to draw.
+            loc (``np.ndarray``, default ``None``): centre to draw around,
+              overriding :attr:`loc`. Used when the distribution acts as a
+              constraint term, where the pseudo-data have to be generated from
+              :math:`p(a\vert\theta)` for the hypothesis being tested.
+
+        Returns:
+            ``np.ndarray``:
+            Generated samples.
+        """
         shape = [sample_size]
         if isinstance(self.loc, np.ndarray):
             shape += [len(self.loc)]
 
-        return norm(self.loc, self.scale(value[self.domain])).rvs(size=shape)
+        return norm(self.loc if loc is None else loc, self.scale(value[self.domain])).rvs(
+            size=shape
+        )
 
-    def log_prob(self, value: np.ndarray) -> np.ndarray:
-        """Compute log-probability"""
+    def log_prob(
+        self, value: np.ndarray, data: Optional[np.ndarray] = None
+    ) -> np.ndarray:
+        r"""
+        Compute log-probability
+
+        Args:
+            value (``np.ndarray``): parameter vector; the entries selected by
+              :attr:`domain` are used as the variate.
+            data (``np.ndarray``, default ``None``): auxiliary measurement to
+              compare the parameters against. The nominal location of the
+              distribution, :attr:`loc`, is used when ``None``.
+
+        Returns:
+            ``np.ndarray``:
+            Log-probability of the distribution.
+        """
         x = value[self.domain]
-        return logpdf(x, self.loc, self.scale(x))
+        return logpdf(x, self.loc if data is None else data, self.scale(x))
 
 
 class MultivariateNormal:
@@ -145,14 +182,49 @@ class MultivariateNormal:
         """The expectation value of the Multivariate Normal distribution."""
         return self.mean
 
-    def sample(self, value: np.ndarray, sample_size: int) -> np.ndarray:
-        """Generate samples"""
-        return multivariate_normal(self.mean, self.cov(value[self.domain])).rvs(
-            size=(sample_size,)
-        )
+    def sample(
+        self,
+        value: np.ndarray,
+        sample_size: int,
+        mean: Optional[np.ndarray] = None,
+    ) -> np.ndarray:
+        r"""
+        Generate samples
 
-    def log_prob(self, value: np.ndarray) -> np.ndarray:
-        """Compute log-probability"""
+        Args:
+            value (``np.ndarray``): parameter vector; the entries selected by
+              :attr:`domain` set the covariance of the distribution.
+            sample_size (``int``): number of samples to draw.
+            mean (``np.ndarray``, default ``None``): centre to draw around,
+              overriding :attr:`mean`. Used when the distribution acts as a
+              constraint term, where the pseudo-data have to be generated from
+              :math:`p(a\vert\theta)` for the hypothesis being tested.
+
+        Returns:
+            ``np.ndarray``:
+            Generated samples.
+        """
+        return multivariate_normal(
+            self.mean if mean is None else mean, self.cov(value[self.domain])
+        ).rvs(size=(sample_size,))
+
+    def log_prob(
+        self, value: np.ndarray, data: Optional[np.ndarray] = None
+    ) -> np.ndarray:
+        r"""
+        Compute log-probability
+
+        Args:
+            value (``np.ndarray``): parameter vector; the entries selected by
+              :attr:`domain` are used as the variate.
+            data (``np.ndarray``, default ``None``): auxiliary measurement to
+              compare the parameters against. The nominal mean of the
+              distribution is used when ``None``.
+
+        Returns:
+            ``np.ndarray``:
+            Log-probability of the distribution.
+        """
         # NOTE: The reason for not going with multivariate_norm logpdf is two folds
         # 1) open computation allows for logdet and inverse to be precomputed once
         # 2) Scipy has an issue with its logdet value. Inside multivariate normal
@@ -160,7 +232,7 @@ class MultivariateNormal:
         #    being computed". This value should match with `np.linalg.slogdet(cov)`
         #    or `np.log(np.prod(np.linalg.eig(cov)[0]))` however it is sligtly different.
         x = value[self.domain]
-        var = x - self.mean
+        var = x - (self.mean if data is None else data)
         return (
             -0.5 * (var @ self._inv_cov(x) @ var)
             - 0.5 * (len(x) * _LOG_2PI + self._logdet_cov(x))
@@ -283,12 +355,74 @@ class ConstraintModel:
     def __len__(self):
         return len(self._pdfs)
 
-    def expected_data(self) -> np.ndarray:
-        """The expectation value of the constraint model."""
-        if len(self) > 1:
-            return np.hstack([pdf.expected_data() for pdf in self._pdfs])
+    @staticmethod
+    def _auxiliary_of(pdf: Any, pars: np.ndarray) -> np.ndarray:
+        r"""
+        Auxiliary measurement a constraint term is centred on for a hypothesis.
 
-        return self._pdfs[0].expected_data()
+        A constraint term compares an auxiliary measurement :math:`a` against
+        the nuisance parameters it constrains. Under the hypothesis
+        :math:`\theta` the auxiliary measurement is distributed around
+        :math:`\theta` itself, which is both the Asimov value of :math:`a` —
+        eq. (25) of :xref:`1007.1727` — and the centre pseudo-experiments have
+        to be drawn from.
+
+        Args:
+            pdf (``Any``): constraint term; its ``domain`` selects the
+              parameters it constrains.
+            pars (``np.ndarray``): parameter of interest and nuisance
+              parameters, :math:`\mu` and :math:`\theta` combined.
+
+        Returns:
+            ``np.ndarray``:
+            Auxiliary measurement, shaped like the nominal location of ``pdf``.
+        """
+        values = np.asarray(pars, dtype=np.float64)[pdf.domain]
+        return np.broadcast_to(
+            values, np.shape(np.atleast_1d(pdf.expected_data()))
+        ).copy()
+
+    @property
+    def auxiliary_sizes(self) -> List[int]:
+        """
+        Number of auxiliary measurements carried by each constraint term.
+
+        Returns:
+            ``List[int]``:
+            One entry per constraint term, used to split a flat auxiliary data
+            vector across the terms.
+        """
+        return [int(np.atleast_1d(pdf.expected_data()).size) for pdf in self._pdfs]
+
+    def expected_data(self, pars: Optional[np.ndarray] = None) -> np.ndarray:
+        r"""
+        The expectation value of the constraint model.
+
+        With ``pars`` given, the Asimov auxiliary data are returned: the value
+        each auxiliary measurement takes when the nuisance parameters are
+        assumed to be ``pars``, see eq. (25) of :xref:`1007.1727`. Without it,
+        the nominal location of every constraint term is returned.
+
+        Args:
+            pars (``np.ndarray``, default ``None``): parameter of interest and
+              nuisance parameters, :math:`\mu` and :math:`\theta` combined.
+
+        Returns:
+            ``np.ndarray``:
+            Auxiliary data of the constraint model.
+
+        .. versionchanged:: 0.2.8
+            Accepts ``pars`` and returns the Asimov auxiliary data, which do
+            depend on the nuisance parameters. Previously the nominal location
+            was returned unconditionally.
+        """
+        if pars is None:
+            if len(self) > 1:
+                return np.hstack([pdf.expected_data() for pdf in self._pdfs])
+            return self._pdfs[0].expected_data()
+
+        asimov = [self._auxiliary_of(pdf, pars) for pdf in self._pdfs]
+        return np.hstack(asimov) if len(self) > 1 else asimov[0]
 
     def sample(self, pars: np.ndarray, sample_size: int) -> np.ndarray:
         r"""
@@ -302,26 +436,56 @@ class ConstraintModel:
         Returns:
             ``np.ndarray``:
             sampled data
+
+        .. versionchanged:: 0.2.8
+            Auxiliary measurements are drawn around the nuisance parameter
+            values given in ``pars`` rather than around the nominal location of
+            each constraint term.
         """
-        if len(self) > 1:
-            return np.hstack([pdf.sample(pars, sample_size) for pdf in self._pdfs])
+        samples = [
+            pdf.sample(pars, sample_size, self._auxiliary_of(pdf, pars))
+            for pdf in self._pdfs
+        ]
+        return np.hstack(samples) if len(self) > 1 else samples[0]
 
-        return self._pdfs[0].sample(pars, sample_size)
-
-    def log_prob(self, pars: np.ndarray) -> np.ndarray:
+    def log_prob(self, pars: np.ndarray, data: Optional[np.ndarray] = None) -> np.ndarray:
         r"""
         Compute log-probability
 
         Args:
             pars (``np.ndarray``): parameter of interest and nuisance parameters
               :math:`\mu` and :math:`\theta` combined.
-            data (``np.ndarray``): actual data
+            data (``np.ndarray``, default ``None``): auxiliary measurements, one
+              flat vector covering every constraint term in the order the terms
+              were declared. The nominal location of each term is used when
+              ``None``.
+
+        Raises:
+            ``DistributionError``: if ``data`` does not have one entry per
+              auxiliary measurement of the model.
 
         Returns:
             ``np.ndarray``:
-            log-probability of the main model
+            log-probability of the constraint model.
+
+        .. versionchanged:: 0.2.8
+            Accepts ``data``. The auxiliary measurements used to be fixed at the
+            nominal location of each constraint term, which made the Asimov
+            likelihood inconsistent with eq. (25) of :xref:`1007.1727`.
         """
-        return sum(pdf.log_prob(pars).sum() for pdf in self._pdfs)
+        if data is None:
+            return sum(pdf.log_prob(pars).sum() for pdf in self._pdfs)
+
+        sizes = self.auxiliary_sizes
+        if len(data) != sum(sizes):
+            raise DistributionError(
+                f"Constraint model expects {sum(sizes)} auxiliary measurement(s) "
+                f"but {len(data)} were given."
+            )
+        chunks = np.split(np.asarray(data, dtype=np.float64), np.cumsum(sizes)[:-1])
+        return sum(
+            pdf.log_prob(pars, chunk).sum() for pdf, chunk in zip(self._pdfs, chunks)
+        )
 
 
 class MixtureModel:

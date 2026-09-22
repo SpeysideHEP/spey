@@ -718,10 +718,69 @@ class HypothesisTestingBase(ABC):
         llhd = self.likelihood(poi_test=poi_test, expected=expected, **kwargs)
         return np.sign(muhat - poi_test) * np.sqrt(2.0 * (llhd - min_nll))
 
+    def _split_poi_test(
+        self, poi_test: PoiTest
+    ) -> Tuple[float, Optional[Dict[int, float]], Optional[int]]:
+        r"""
+        Split a possibly dict-valued ``poi_test`` into the scalar value of the primary
+        parameter of interest and any additional parameters that must stay fixed
+        throughout the hypothesis test.
+
+        The asymptotic/toy/:math:`\chi^2` machinery in this class (:func:`qmu_tilde`,
+        :func:`qmu`, :func:`q0`) fundamentally scans/tests a single scalar :math:`\mu`
+        and compares it against a scalar :math:`\hat\mu`. A ``dict``-valued
+        :obj:`PoiTest` (see the module docstring convention) can additionally pin other
+        parameters -- e.g. EFT coefficients shared with other analyses -- at fixed
+        values while :math:`\mu` itself is still the one being tested.
+
+        Args:
+            poi_test (:obj:`PoiTest`): parameter of interest value(s). A plain ``float``
+              fixes only the primary POI, unchanged from before. A ``dict`` of
+              ``{index_or_name: value}`` must include the primary POI; any remaining
+              entries are treated as extra fixed parameters.
+
+        Raises:
+            :obj:`~spey.system.exceptions.MethodNotAvailable`: If ``poi_test`` is a
+              ``dict`` but this model does not expose a ``config()`` method, so it
+              cannot be resolved.
+            ``ValueError``: If a ``dict`` ``poi_test`` does not include the primary POI.
+
+        Returns:
+            ``Tuple[float, Optional[Dict[int, float]], Optional[int]]``:
+            ``(mu, extra_fixed, poi_index)`` where ``mu`` is the tested value of the
+            primary POI, ``extra_fixed`` is a ``{index: value}`` mapping of any other
+            parameters to keep fixed (``None`` when ``poi_test`` only specifies the
+            primary POI), and ``poi_index`` is the primary POI's integer index
+            (``None`` whenever ``extra_fixed`` is ``None``, since it is then unused).
+        """
+        if not isinstance(poi_test, dict):
+            return float(poi_test), None, None
+        config_fn = getattr(self, "config", None)
+        if config_fn is None:
+            raise MethodNotAvailable(
+                f"{type(self).__name__} cannot resolve a dict-valued 'poi_test': "
+                "no model configuration is available."
+            )
+        cfg = config_fn()
+        resolved = cfg.resolve_poi_indices(poi_test)
+        if cfg.poi_index not in resolved:
+            name = (
+                cfg.parameter_names[cfg.poi_index]
+                if cfg.parameter_names
+                else cfg.poi_index
+            )
+            raise ValueError(
+                f"poi_test dict must fix the primary parameter of interest ('{name}')."
+            )
+        mu = resolved.pop(cfg.poi_index)
+        return mu, (resolved or None), cfg.poi_index
+
     def _prepare_for_hypotest(
         self,
         expected: ExpectationType = ExpectationType.observed,
         test_statistics: Literal["qtilde", "q", "q0"] = "qtilde",
+        fixed_poi_value: Optional[Dict[int, float]] = None,
+        poi_index: Optional[int] = None,
         **kwargs,
     ) -> Tuple[
         Tuple[float, float],
@@ -767,6 +826,17 @@ class HypothesisTestingBase(ABC):
               * **par_bounds** (``List[Tuple[float, float]]``, default ``None``):
                 Parameter bounds for the optimiser.
 
+            fixed_poi_value (``Dict[int, float]``, default ``None``): Extra parameters
+              to keep fixed at the given values throughout -- both in the unconstrained
+              fits and in every ``logpdf``/``logpdf_asimov`` evaluation -- while
+              ``mu`` is still the value being scanned/tested. Produced by
+              :func:`_split_poi_test` from a dict-valued ``poi_test``; ``None``
+              preserves the original single-POI behaviour.
+            poi_index (``int``, default ``None``): Index of the primary POI within the
+              model's parameter vector. Only required (and used) when
+              ``fixed_poi_value`` is not ``None``, to merge the scanned ``mu`` back
+              into a full parameter dict for the ``logpdf`` calls.
+
         Returns:
             ``Tuple[Tuple[float, float], Callable, Tuple[float, float], Callable]``:
             A 4-tuple:
@@ -779,31 +849,38 @@ class HypothesisTestingBase(ABC):
               on Asimov data.
         """
         allow_negative_signal = test_statistics in ["q", "qmu"]
+        mle_kwargs = dict(kwargs)
+        if fixed_poi_value:
+            mle_kwargs["fixed_poi_value"] = fixed_poi_value
         log.debug("Computing max-llhd")
         muhat, nll = self.maximize_likelihood(
             expected=expected,
             allow_negative_signal=allow_negative_signal,
-            **kwargs,
+            **mle_kwargs,
         )
         log.debug(f"muhat: {muhat}, nll: {nll}")
         log.debug("Computing max-llhd for Asimov data")
         muhatA, nllA = self.maximize_asimov_likelihood(
             expected=expected,
             test_statistics=test_statistics,
-            **kwargs,
+            **mle_kwargs,
         )
         log.debug(f"muhatA: {muhatA}, nllA: {nllA}")
 
+        def _poi_arg(mu: Union[float, np.ndarray]) -> Union[float, Dict[int, float]]:
+            mu_val = float(mu) if isinstance(mu, (float, int)) else mu[0]
+            return {**fixed_poi_value, poi_index: mu_val} if fixed_poi_value else mu_val
+
         def logpdf(mu: Union[float, np.ndarray]) -> float:
             return -self.likelihood(
-                poi_test=float(mu) if isinstance(mu, (float, int)) else mu[0],
+                poi_test=_poi_arg(mu),
                 expected=expected,
                 **kwargs,
             )
 
         def logpdf_asimov(mu: Union[float, np.ndarray]) -> float:
             return -self.asimov_likelihood(
-                poi_test=float(mu) if isinstance(mu, (float, int)) else mu[0],
+                poi_test=_poi_arg(mu),
                 expected=expected,
                 test_statistics=test_statistics,
                 **kwargs,
@@ -882,22 +959,29 @@ class HypothesisTestingBase(ABC):
                 )
         teststat_func = get_test_statistic(test_statistics)
 
+        mu, extra_fixed, poi_index = self._split_poi_test(poi_test)
+
+        mle_kwargs = dict(kwargs)
+        if extra_fixed:
+            mle_kwargs["fixed_poi_value"] = extra_fixed
         muhatA, min_nllA = self.maximize_asimov_likelihood(
-            expected=expected, test_statistics=test_statistics, **kwargs
+            expected=expected, test_statistics=test_statistics, **mle_kwargs
         )
         log.debug(f"muhatA: {muhatA}, min_nllA: {min_nllA}")
 
-        def logpdf_asimov(mu: Union[float, np.ndarray]) -> float:
+        def logpdf_asimov(mu_: Union[float, np.ndarray]) -> float:
+            mu_val = float(mu_) if isinstance(mu_, (float, int)) else mu_[0]
+            poi_arg = {**extra_fixed, poi_index: mu_val} if extra_fixed else mu_val
             return -self.asimov_likelihood(
-                poi_test=mu if isinstance(mu, float) else mu[0],
+                poi_test=poi_arg,
                 expected=expected,
                 test_statistics=test_statistics,
                 **kwargs,
             )
 
-        qmuA = teststat_func(poi_test, muhatA, -min_nllA, logpdf_asimov)
+        qmuA = teststat_func(mu, muhatA, -min_nllA, logpdf_asimov)
 
-        return 1.0 if qmuA <= 0.0 else np.true_divide(poi_test, np.sqrt(qmuA))
+        return 1.0 if qmuA <= 0.0 else np.true_divide(mu, np.sqrt(qmuA))
 
     @warning_tracker
     def exclusion_confidence_level(
@@ -927,7 +1011,12 @@ class HypothesisTestingBase(ABC):
 
         Args:
             poi_test (:obj:`PoiTest`, default ``1.0``): Parameter of interest
-              :math:`\mu` at which to evaluate :math:`CL_s`.
+              :math:`\mu` at which to evaluate :math:`CL_s`. A plain ``float`` fixes
+              only :math:`\mu`. A ``dict`` of ``{index_or_name: value}`` must include
+              the primary POI and may additionally pin other parameters -- e.g. EFT
+              coefficients shared with other analyses -- at fixed values throughout
+              the test, while :math:`CL_s` is still evaluated with respect to
+              :math:`\mu` alone.
             expected (~spey.ExpectationType): Selects the expectation mode.
 
               * :obj:`~spey.ExpectationType.observed`: Post-fit, returns one value
@@ -976,16 +1065,25 @@ class HypothesisTestingBase(ABC):
         test_stat = "q" if allow_negative_signal else "qtilde"
         verbose = kwargs.pop("verbose", True)
 
+        # `mu` is the scalar value of the primary POI being tested; `extra_fixed`
+        # holds any other parameters a dict-valued `poi_test` pins at fixed values
+        # (e.g. EFT coefficients shared with other analyses) throughout the test.
+        mu, extra_fixed, poi_index = self._split_poi_test(poi_test)
+
+        def _poi_arg(mu_: Union[float, np.ndarray]) -> Union[float, Dict[int, float]]:
+            mu_val = float(mu_) if isinstance(mu_, (float, int)) else mu_[0]
+            return {**extra_fixed, poi_index: mu_val} if extra_fixed else mu_val
+
         # NOTE Improve code efficiency, these are not necessary for asymptotic calculator
         if calculator in ["toy", "chi_square"]:
             test_stat_func = get_test_statistic(test_stat)
 
             def logpdf(
-                mu: Union[float, np.ndarray], data: Union[float, np.ndarray]
+                mu_: Union[float, np.ndarray], data: Union[float, np.ndarray]
             ) -> float:
                 """Compute logpdf with respect to poi and given data"""
                 return -self.likelihood(
-                    poi_test=float(mu) if isinstance(mu, (float, int)) else mu[0],
+                    poi_test=_poi_arg(mu_),
                     expected=expected,
                     data=data,
                     **kwargs,
@@ -995,11 +1093,14 @@ class HypothesisTestingBase(ABC):
                 data: Union[float, np.ndarray]
             ) -> Tuple[float, float]:
                 """Compute maximum likelihood with respect to given data"""
+                mle_kwargs = dict(kwargs)
+                if extra_fixed:
+                    mle_kwargs["fixed_poi_value"] = extra_fixed
                 return self.maximize_likelihood(
                     expected=expected,
                     allow_negative_signal=allow_negative_signal,
                     data=data,
-                    **kwargs,
+                    **mle_kwargs,
                 )
 
             muhat, min_negloglike = maximize_likelihood(None)
@@ -1013,6 +1114,8 @@ class HypothesisTestingBase(ABC):
             ) = self._prepare_for_hypotest(
                 expected=expected,
                 test_statistics=test_stat,
+                fixed_poi_value=extra_fixed,
+                poi_index=poi_index,
                 **kwargs,
             )
 
@@ -1022,7 +1125,7 @@ class HypothesisTestingBase(ABC):
                     f"[asymptotic] - {maximum_likelihood=}, {maximum_asimov_likelihood=}"
                 )
                 _, sqrt_qmuA, delta_teststat = compute_teststatistics(
-                    poi_test,
+                    mu,
                     maximum_likelihood,
                     logpdf,
                     maximum_asimov_likelihood,
@@ -1042,11 +1145,11 @@ class HypothesisTestingBase(ABC):
 
         elif calculator == "toy":
             signal_samples = self.fixed_poi_sampler(
-                poi_test=poi_test, size=self.ntoys, expected=expected, **kwargs
+                poi_test=_poi_arg(mu), size=self.ntoys, expected=expected, **kwargs
             )
 
             bkg_samples = self.fixed_poi_sampler(
-                poi_test=0.0, size=self.ntoys, expected=expected, **kwargs
+                poi_test=_poi_arg(0.0), size=self.ntoys, expected=expected, **kwargs
             )
 
             signal_like_test_stat, bkg_like_test_stat = [], []
@@ -1060,7 +1163,7 @@ class HypothesisTestingBase(ABC):
                     muhat_s_b, min_negloglike_s_b = maximize_likelihood(data=sig_smp)
                     signal_like_test_stat.append(
                         test_stat_func(
-                            poi_test,
+                            mu,
                             muhat_s_b,
                             -min_negloglike_s_b,
                             partial(logpdf, data=sig_smp),
@@ -1070,7 +1173,7 @@ class HypothesisTestingBase(ABC):
                     muhat_b, min_negloglike_b = maximize_likelihood(data=bkg_smp)
                     bkg_like_test_stat.append(
                         test_stat_func(
-                            poi_test,
+                            mu,
                             muhat_b,
                             -min_negloglike_b,
                             partial(logpdf, data=bkg_smp),
@@ -1083,7 +1186,7 @@ class HypothesisTestingBase(ABC):
                 signal_like_test_stat,
                 bkg_like_test_stat,
                 test_statistic=test_stat_func(
-                    poi_test, muhat, -min_negloglike, partial(logpdf, data=None)
+                    mu, muhat, -min_negloglike, partial(logpdf, data=None)
                 ),
                 test_stat=test_stat,
             )
@@ -1093,7 +1196,7 @@ class HypothesisTestingBase(ABC):
 
         elif calculator == "chi_square":
             ts_s_b = test_stat_func(
-                poi_test, muhat, -min_negloglike, partial(logpdf, data=None)
+                mu, muhat, -min_negloglike, partial(logpdf, data=None)
             )
             null_logpdf = logpdf(0.0, None)
             max_logpdf = (

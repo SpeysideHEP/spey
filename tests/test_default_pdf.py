@@ -42,9 +42,12 @@ def test_uncorrelated_background():
     assert np.isclose(
         model_nll, exact_nll, rtol=0.00001
     ), f"Correlated background NLL is wrong. {model_nll=}, {exact_nll=}"
-    assert np.isclose(stat_model.poi_upper_limit(), 0.8563345655114185), "POI is wrong."
+    # Reference values changed in v0.2.8: the Asimov dataset now carries the
+    # profiled auxiliary measurements, see eq. (25) of arXiv:1007.1727.
+    # Cross-checked against pyhf with an equivalent `histosys` workspace.
+    assert np.isclose(stat_model.poi_upper_limit(), 1.0181004899610766), "POI is wrong."
     assert np.isclose(
-        stat_model.exclusion_confidence_level()[0], 0.9701795436411219
+        stat_model.exclusion_confidence_level()[0], 0.9466153179667957
     ), "CLs is wrong"
 
 
@@ -54,7 +57,7 @@ def test_correlated_background():
     signal_yields = np.array([12.0, 15.0])
     background_yields = np.array([50.0, 48.0])
     data = np.array([36, 33])
-    covariance_matrix = np.array([[144.0, 13.0], [25.0, 256.0]])
+    covariance_matrix = np.array([[144.0, 19.0], [19.0, 256.0]])
 
     pdf_wrapper = spey.get_backend("default.correlated_background")
     statistical_model = pdf_wrapper(
@@ -86,12 +89,17 @@ def test_correlated_background():
     assert np.isclose(
         model_nll, exact_nll, rtol=0.001
     ), f"Correlated background NLL is wrong. {model_nll=}, {exact_nll=}"
-    assert np.isclose(statistical_model.poi_upper_limit(), 0.907104376899138), "POI wrong"
+    # Reference values changed in v0.2.8: the Asimov dataset now carries the
+    # profiled auxiliary measurements, see eq. (25) of arXiv:1007.1727.
+    # Cross-checked against pyhf with an equivalent `histosys` workspace.
     assert np.isclose(
-        statistical_model.exclusion_confidence_level()[0], 0.9635100547173434
+        statistical_model.poi_upper_limit(), 1.0749973689229049
+    ), "POI wrong"
+    assert np.isclose(
+        statistical_model.exclusion_confidence_level()[0], 0.9354174469703362
     ), "CLs is wrong"
     assert np.isclose(
-        statistical_model.sigma_mu(1.0), 0.8456469932844632
+        statistical_model.sigma_mu(1.0), 0.8453199797841435
     ), "Sigma mu is wrong"
 
 
@@ -103,24 +111,27 @@ def test_third_moment():
         signal_yields=[12.0, 15.0],
         background_yields=[50.0, 48.0],
         data=[36, 33],
-        covariance_matrix=[[144.0, 13.0], [25.0, 256.0]],
+        covariance_matrix=[[144.0, 19.0], [19.0, 256.0]],
         third_moment=[0.5, 0.8],
         analysis="example",
         xsection=0.123,
     )
 
+    # Reference values changed in v0.2.8: the Asimov dataset now carries the
+    # profiled auxiliary measurements, see eq. (25) of arXiv:1007.1727.
+    # Cross-checked against pyhf with an equivalent `histosys` workspace.
     CLs = statistical_model.exclusion_confidence_level()[0]
     assert np.isclose(
-        CLs, 0.961432961, rtol=1e-4
-    ), f"CLs is wrong, expected 0.961432961 got {CLs}"
+        CLs, 0.93543558, rtol=1e-4
+    ), f"CLs is wrong, expected 0.93543558 got {CLs}"
     poi_ul = statistical_model.poi_upper_limit()
     assert np.isclose(
-        poi_ul, 0.9221339, rtol=1e-4
-    ), f"POI is wrong, expected 0.9221339 got {poi_ul}"
+        poi_ul, 1.0749055, rtol=1e-4
+    ), f"POI is wrong, expected 1.0749055 got {poi_ul}"
     sigma_mu = statistical_model.sigma_mu(1.0)
     assert np.isclose(
-        sigma_mu, 0.85455, rtol=1e-4
-    ), f"Sigma mu is wrong, expected 0.85455 got {sigma_mu}"
+        sigma_mu, 0.84518, rtol=1e-4
+    ), f"Sigma mu is wrong, expected 0.84518 got {sigma_mu}"
 
 
 def test_effective_sigma():
@@ -131,19 +142,22 @@ def test_effective_sigma():
         signal_yields=[12.0, 15.0],
         background_yields=[50.0, 48.0],
         data=[36, 33],
-        correlation_matrix=[[1.0, 0.06770833], [0.13020833, 1.0]],
+        correlation_matrix=[[1.0, 0.09895833], [0.09895833, 1.0]],
         absolute_uncertainty_envelops=[(10.0, 15.0), (13.0, 18.0)],
         analysis="example",
         xsection=0.123,
     )
 
+    # Reference values changed in v0.2.8: the Asimov dataset now carries the
+    # profiled auxiliary measurements, see eq. (25) of arXiv:1007.1727.
+    # Cross-checked against pyhf with an equivalent `histosys` workspace.
     assert (
-        pytest.approx(0.8567, 1e-4) == statistical_model.exclusion_confidence_level()[0]
+        pytest.approx(0.77380, 1e-4) == statistical_model.exclusion_confidence_level()[0]
     ), "CLs is wrong"
     assert (
-        pytest.approx(1.5298, 1e-4) == statistical_model.poi_upper_limit()
+        pytest.approx(1.75618, 1e-4) == statistical_model.poi_upper_limit()
     ), "POI is wrong."
-    assert pytest.approx(1.2152, 1e-4) == statistical_model.sigma_mu(
+    assert pytest.approx(1.21472, 1e-4) == statistical_model.sigma_mu(
         1.0
     ), "Sigma mu is wrong"
 
@@ -299,7 +313,7 @@ def test_multivariate_gauss():
     signal = np.array([12.0, 15.0])
     bkg = np.array([50.0, 48.0])
     data = np.array([36, 33])
-    cov = np.array([[144.0, 13.0], [25.0, 256.0]])
+    cov = np.array([[144.0, 19.0], [19.0, 256.0]])
 
     statistical_model = spey.get_backend("default.multivariate_normal")(
         signal_yields=signal,
@@ -332,7 +346,7 @@ def test_multivariate_gauss_array_signal_yields_is_alive():
 
     bkg = np.array([50.0, 48.0])
     data = np.array([36.0, 33.0])
-    cov = np.array([[144.0, 13.0], [25.0, 256.0]])
+    cov = np.array([[144.0, 19.0], [19.0, 256.0]])
 
     m_alive = MultivariateNormal(
         signal_yields=np.array([12.0, 15.0]),
@@ -357,7 +371,7 @@ def test_multivariate_gauss_callable_signal_yields_is_always_alive():
 
     bkg = np.array([50.0, 48.0])
     data = np.array([36.0, 33.0])
-    cov = np.array([[144.0, 13.0], [25.0, 256.0]])
+    cov = np.array([[144.0, 19.0], [19.0, 256.0]])
 
     # even a callable that would return zeros must report is_alive=True
     model = MultivariateNormal(
@@ -376,7 +390,7 @@ def test_multivariate_gauss_callable_signal_yields_model_config():
 
     bkg = np.array([50.0, 48.0])
     data = np.array([36.0, 33.0])
-    cov = np.array([[144.0, 13.0], [25.0, 256.0]])
+    cov = np.array([[144.0, 19.0], [19.0, 256.0]])
 
     model = MultivariateNormal(
         signal_yields=lambda pars: np.array([12.0, 15.0]),
@@ -402,7 +416,7 @@ def test_multivariate_gauss_n_signal_parameters_zero_no_extra_params():
 
     bkg = np.array([50.0, 48.0])
     data = np.array([36.0, 33.0])
-    cov = np.array([[144.0, 13.0], [25.0, 256.0]])
+    cov = np.array([[144.0, 19.0], [19.0, 256.0]])
 
     model = MultivariateNormal(
         signal_yields=np.array([12.0, 15.0]),
@@ -423,7 +437,7 @@ def test_multivariate_gauss_callable_signal_yields_logpdf_matches_array():
     signal = np.array([12.0, 15.0])
     bkg = np.array([50.0, 48.0])
     data = np.array([36.0, 33.0])
-    cov = np.array([[144.0, 13.0], [25.0, 256.0]])
+    cov = np.array([[144.0, 19.0], [19.0, 256.0]])
 
     model_array = MultivariateNormal(
         signal_yields=signal, background_yields=bkg, data=data, covariance_matrix=cov
@@ -453,7 +467,7 @@ def test_multivariate_gauss_callable_signal_yields_maximize_likelihood():
     base_signal = np.array([12.0, 15.0])
     bkg = np.array([50.0, 48.0])
     data = np.array([36.0, 33.0])
-    cov = np.array([[144.0, 13.0], [25.0, 256.0]])
+    cov = np.array([[144.0, 19.0], [19.0, 256.0]])
 
     def signal_yields(extra_pars):
         # scale signal by (1 + extra_pars[0])
@@ -479,7 +493,7 @@ def test_multivariate_gauss_config_preserves_extra_bounds_when_allow_negative_si
 
     bkg = np.array([50.0, 48.0])
     data = np.array([36.0, 33.0])
-    cov = np.array([[144.0, 13.0], [25.0, 256.0]])
+    cov = np.array([[144.0, 19.0], [19.0, 256.0]])
 
     model = MultivariateNormal(
         signal_yields=lambda pars: np.array([12.0, 15.0]) * (1.0 + pars[0]),
@@ -625,7 +639,7 @@ def test_correlated_background_callable_signal_yields_logpdf():
     signal_yields = np.array([12.0, 15.0])
     background_yields = np.array([50.0, 48.0])
     data = np.array([36, 33])
-    covariance_matrix = np.array([[144.0, 13.0], [25.0, 256.0]])
+    covariance_matrix = np.array([[144.0, 19.0], [19.0, 256.0]])
 
     sigma = np.sqrt(np.diag(covariance_matrix))
     corr = covariance_to_correlation(covariance_matrix)
@@ -705,7 +719,7 @@ def test_third_moment_expansion_callable_signal_yields_logpdf():
     base_signal = np.array([12.0, 15.0])
     background_yields = np.array([50.0, 48.0])
     data = np.array([36, 33])
-    covariance_matrix = np.array([[144.0, 13.0], [25.0, 256.0]])
+    covariance_matrix = np.array([[144.0, 19.0], [19.0, 256.0]])
     third_moment = np.array([0.5, 0.8])
 
     def signal_fn(extra):
@@ -772,7 +786,7 @@ def test_effective_sigma_callable_signal_yields_logpdf():
     base_signal = np.array([12.0, 15.0])
     background_yields = np.array([50.0, 48.0])
     data = np.array([36, 33])
-    correlation_matrix = np.array([[1.0, 0.06770833], [0.13020833, 1.0]])
+    correlation_matrix = np.array([[1.0, 0.09895833], [0.09895833, 1.0]])
     envelops = [(10.0, 15.0), (13.0, 18.0)]  # (sigma_plus, sigma_minus) per bin
 
     sigma_plus = np.array([10.0, 13.0])
@@ -849,7 +863,7 @@ def test_callable_signal_yields_is_alive_default_backends():
     sig_fn = lambda p: np.zeros(2)  # noqa: E731
     bkg = [50.0, 48.0]
     data = [36, 33]
-    cov = [[144.0, 13.0], [25.0, 256.0]]
+    cov = [[144.0, 19.0], [19.0, 256.0]]
 
     assert UncorrelatedBackground(
         signal_yields=sig_fn,
@@ -880,7 +894,7 @@ def test_callable_signal_yields_is_alive_default_backends():
         signal_yields=sig_fn,
         background_yields=bkg,
         data=data,
-        correlation_matrix=[[1.0, 0.07], [0.13, 1.0]],
+        correlation_matrix=[[1.0, 0.1], [0.1, 1.0]],
         absolute_uncertainty_envelops=[(10.0, 15.0), (13.0, 18.0)],
         n_signal_parameters=1,
     ).is_alive
@@ -937,7 +951,7 @@ def test_correlated_background_modifiers_with_n_signal_parameters_zero():
     signal_yields = np.array([12.0, 15.0])
     background_yields = np.array([50.0, 48.0])
     data = np.array([36, 33])
-    covariance_matrix = np.array([[144.0, 13.0], [25.0, 256.0]])
+    covariance_matrix = np.array([[144.0, 19.0], [19.0, 256.0]])
 
     model = CorrelatedBackground(
         signal_yields=signal_yields,
@@ -1057,7 +1071,7 @@ def test_correlated_background_shape_modifier_parameter_count():
     signal_yields = np.array([12.0, 15.0])
     background_yields = np.array([50.0, 48.0])
     data = np.array([36, 33])
-    covariance_matrix = np.array([[144.0, 13.0], [25.0, 256.0]])
+    covariance_matrix = np.array([[144.0, 19.0], [19.0, 256.0]])
 
     model = CorrelatedBackground(
         signal_yields=signal_yields,
@@ -1138,3 +1152,120 @@ def test_bin_merge():
         assert np.allclose(
             results["signal_yields"], np.array([20.0, 60.0, 45.0, 55.0, 65.0])
         ), "Signal yields after merging are incorrect"
+
+
+@pytest.mark.parametrize(
+    "backend, kwargs",
+    [
+        (
+            "default.uncorrelated_background",
+            {"absolute_uncertainties": [12.0, 16.0]},
+        ),
+        (
+            "default.correlated_background",
+            {"covariance_matrix": [[144.0, 19.0], [19.0, 256.0]]},
+        ),
+        (
+            "default.third_moment_expansion",
+            {
+                "covariance_matrix": [[144.0, 19.0], [19.0, 256.0]],
+                "third_moment": [0.5, 0.8],
+            },
+        ),
+        (
+            "default.effective_sigma",
+            {
+                "correlation_matrix": [[1.0, 0.1], [0.1, 1.0]],
+                "absolute_uncertainty_envelops": [(10.0, 15.0), (13.0, 18.0)],
+            },
+        ),
+    ],
+)
+def test_asimov_dataset_is_self_consistent(backend, kwargs):
+    r"""
+    The Asimov dataset must have the parameters it was built at as its MLE.
+
+    This is the defining property of the Asimov dataset, eq. (25) of
+    :xref:`1007.1727`. It only holds if the auxiliary measurements follow the
+    nuisance parameters; keeping them at the centre of the constraint makes the
+    constraint pull :math:`\hat\theta` back towards zero.
+    """
+    from spey.optimizer import fit
+
+    model = spey.get_backend(backend)(
+        signal_yields=[12.0, 15.0],
+        background_yields=[50.0, 48.0],
+        data=[36, 33],
+        **kwargs,
+    )
+
+    options = model.prepare_for_fit(allow_negative_signal=False)
+    _, generated = fit(**options, fixed_poi_value=0.0)
+    asimov = np.array(model.backend.expected_data(generated))
+
+    # the nuisance parameters must genuinely be pulled away from zero,
+    # otherwise the test would pass for the wrong reason
+    assert np.max(np.abs(generated[1:])) > 0.1
+
+    options = model.prepare_for_fit(data=asimov, allow_negative_signal=False)
+    _, refitted = fit(**options, fixed_poi_value=0.0)
+    assert refitted[1:] == pytest.approx(generated[1:], abs=1e-3)
+
+
+def test_expected_data_auxiliary_follows_the_nuisance_parameters():
+    """Asimov auxiliary measurements equal the nuisance parameters they constrain."""
+    model = spey.get_backend("default.uncorrelated_background")(
+        signal_yields=[12.0, 15.0],
+        background_yields=[50.0, 48.0],
+        data=[36, 33],
+        absolute_uncertainties=[12.0, 16.0],
+    )
+    pars = [1.0, 0.4, -0.8]
+    expected = model.backend.expected_data(pars)
+
+    assert len(expected) == 4
+    assert expected[:2] == pytest.approx(
+        [
+            1.0 * 12.0 + 50.0 + 0.4 * 12.0,
+            1.0 * 15.0 + 48.0 - 0.8 * 16.0,
+        ]
+    )
+    assert expected[2:] == pytest.approx(pars[1:])
+    assert model.backend.expected_data(pars, include_auxiliary=False) == pytest.approx(
+        expected[:2]
+    )
+
+
+def test_logpdf_uses_the_auxiliary_data():
+    """The likelihood must react to the auxiliary part of the data vector."""
+    model = spey.get_backend("default.uncorrelated_background")(
+        signal_yields=[12.0, 15.0],
+        background_yields=[50.0, 48.0],
+        data=[36, 33],
+        absolute_uncertainties=[12.0, 16.0],
+    )
+    backend = model.backend
+    pars = np.array([1.0, 0.4, -0.8])
+    main = [36.0, 33.0]
+
+    nominal = backend.get_logpdf_func(data=np.array(main + [0.0, 0.0]))(pars)
+    shifted = backend.get_logpdf_func(data=np.array(main + [0.4, -0.8]))(pars)
+    assert shifted > nominal, "auxiliary data sitting at theta must be more likely"
+
+    # a data vector without the auxiliary part falls back to the nominal one
+    main_only = backend.get_logpdf_func(data=np.array(main))(pars)
+    assert main_only == pytest.approx(nominal)
+
+
+def test_split_data_rejects_a_malformed_data_vector():
+    """A data vector that is neither main-only nor main+auxiliary is an error."""
+    from spey.system.exceptions import InvalidInput
+
+    model = spey.get_backend("default.uncorrelated_background")(
+        signal_yields=[12.0, 15.0],
+        background_yields=[50.0, 48.0],
+        data=[36, 33],
+        absolute_uncertainties=[12.0, 16.0],
+    )
+    with pytest.raises(InvalidInput, match="auxiliary measurement"):
+        model.backend.get_logpdf_func(data=np.array([36.0, 33.0, 0.0]))

@@ -60,9 +60,17 @@ iminuit = ["iminuit>=2.22.0"]
 "default.poisson" = "spey.backends.default_pdf.simple_pdf:Poisson"
 "default.normal" = "spey.backends.default_pdf.simple_pdf:Gaussian"
 "default.multivariate_normal" = "spey.backends.default_pdf.simple_pdf:MultivariateNormal"
+"default.correlated_combiner" = "spey.combiner.correlated_statistics_combiner:CorrelatedStatisticsCombiner"
 
 [tool.setuptools.dynamic]
 version = {attr = "spey._version.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.black]
+line-length = 90
+target-version = ["py38"]

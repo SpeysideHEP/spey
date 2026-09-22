@@ -2,6 +2,7 @@ import types
 import numpy as np
 import pytest
 
+import spey
 import spey.interface.statistical_model as sm_mod
 from spey.interface.statistical_model import StatisticalModel
 from spey.system.exceptions import MethodNotAvailable, UnknownCrossSection
@@ -205,3 +206,101 @@ def test_excluded_cross_section_raises_on_nan_xsection(monkeypatch):
     sm = StatisticalModel(backend=fb, analysis="xs_test", xsection=np.nan)
     with pytest.raises(UnknownCrossSection):
         _ = sm.excluded_cross_section()
+
+
+# ---------------------------------------------------------------------------
+# Capability reporting (regression: bound method vs plain function comparison)
+# ---------------------------------------------------------------------------
+class _BareBackend(spey.BackendBase):
+    """Backend implementing only the two abstract methods."""
+
+    name = "test.bare"
+    version = "1.0.0"
+    author = "test"
+    spey_requires = spey.__version__
+
+    def config(self, allow_negative_signal=True, poi_upper_bound=10.0):
+        from spey.base.model_config import ModelConfig
+
+        return ModelConfig(0, -1.0, [1.0], [(-1.0, poi_upper_bound)])
+
+    def get_logpdf_func(self, expected=spey.ExpectationType.observed, data=None):
+        return lambda pars: -0.5 * (pars[0] - 0.5) ** 2
+
+
+class _RicherBackend(_BareBackend):
+    """Backend that also implements the optional Asimov and sampling hooks."""
+
+    name = "test.richer"
+
+    def expected_data(self, pars, **kwargs):
+        return [float(pars[0])]
+
+    def get_sampler(self, pars):
+        return lambda size, *args, **kwargs: np.zeros((size, 1))
+
+
+def test_calculator_availability_reflects_the_backend():
+    """A backend that implements nothing optional only offers the chi-square path."""
+    bare = StatisticalModel(backend=_BareBackend(), analysis="bare")
+    assert bare.is_asymptotic_calculator_available is False
+    assert bare.is_toy_calculator_available is False
+    assert bare.is_chi_square_calculator_available is True
+    assert bare.available_calculators == ["chi_square"]
+
+    richer = StatisticalModel(backend=_RicherBackend(), analysis="richer")
+    assert richer.is_asymptotic_calculator_available is True
+    assert richer.is_toy_calculator_available is True
+    assert sorted(richer.available_calculators) == ["asymptotic", "chi_square", "toy"]
+
+
+def test_calculator_availability_of_default_backends():
+    """The built-in backends must keep advertising every calculator."""
+    model = spey.get_backend("default.poisson")(
+        signal_yields=[3.0], background_yields=[10.0], data=[11], analysis="p"
+    )
+    assert model.is_asymptotic_calculator_available
+    assert model.is_toy_calculator_available
+
+
+def test_capability_can_be_disabled_per_instance():
+    """Binding the base implementation onto an instance disables the capability.
+
+    This is how `CorrelatedStatisticsCombiner` reports that one of its constituent
+    models cannot generate expected data.
+    """
+    backend = _RicherBackend()
+    backend.expected_data = spey.BackendBase.expected_data.__get__(backend, type(backend))
+    model = StatisticalModel(backend=backend, analysis="disabled")
+    assert model.is_asymptotic_calculator_available is False
+    assert model.is_toy_calculator_available is True
+
+
+def test_sigma_mu_from_hessian_warns_on_indefinite_information(monkeypatch, caplog):
+    """A negative POI variance is reported explicitly rather than as a bare nan."""
+    import logging
+
+    monkeypatch.setattr(sm_mod, "BackendBase", FakeBackendBase)
+    fb = make_fake_backend()
+    # log-likelihood Hessian whose sign-flipped inverse has a negative (0, 0) entry
+    fb.get_hessian_logpdf_func = lambda *args, **kwargs: (
+        lambda pars: np.array([[4.0, 0.0], [0.0, -9.0]])
+    )
+    fb.config = lambda *args, **kwargs: types.SimpleNamespace(
+        npar=2, poi_index=0, suggested_init=[1.0, 0.0]
+    )
+    monkeypatch.setattr(sm_mod, "fit", lambda **kwargs: (-2.0, [0.0, 0.0]))
+
+    model = StatisticalModel(backend=fb, analysis="indefinite")
+
+    spey_logger = logging.getLogger("Spey")
+    previous = spey_logger.propagate
+    spey_logger.propagate = True
+    try:
+        with caplog.at_level(logging.WARNING, logger="Spey"):
+            sigma = model.sigma_mu_from_hessian(poi_test=1.0)
+    finally:
+        spey_logger.propagate = previous
+
+    assert np.isnan(sigma)
+    assert "not positive definite" in caplog.text
