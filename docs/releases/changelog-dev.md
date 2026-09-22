@@ -10,7 +10,7 @@
   `UnCorrStatisticsCombiner`, the class is a `BackendBase` plug-in, hence the result is
   an ordinary `StatisticalModel` that works with the full hypothesis-testing toolchain
   and with `spey.multiparameter.find_contour`.
-  ([#TBD](https://github.com/SpeysideHEP/spey/pull/))
+  ([#66](https://github.com/SpeysideHEP/spey/pull/66))
 
   ```python
   import spey
@@ -43,12 +43,12 @@
 
 * Added a tutorial on correlated combinations,
   `docs/tutorials/correlated_combination.ipynb`.
-  ([#TBD](https://github.com/SpeysideHEP/spey/pull/))
+  ([#66](https://github.com/SpeysideHEP/spey/pull/66))
 
 * `spey.optimizer.core.fit` now falls back to `scipy` when `iminuit` is installed but
   cannot be imported (e.g. built against a different `numpy`), instead of letting the
   `ImportError` propagate out of the fit.
-  ([#TBD](https://github.com/SpeysideHEP/spey/pull/))
+  ([#66](https://github.com/SpeysideHEP/spey/pull/66))
 
 * `compute_teststatistics` no longer tests the Asimov test statistic for *exact*
   equality with zero. Eq. (66) of arXiv:1007.1727 divides by `2 * sqrt(q_mu,A)`, and
@@ -72,7 +72,7 @@
   increasing `mu` *leaves* the exclusion, or when the exclusion does not persist above
   the root — the signature of a non-monotonic `CL_s` curve, which a bimodal likelihood
   can produce. Pass `validate_limit=False` to recover the previous behaviour.
-  ([#TBD](https://github.com/SpeysideHEP/spey/pull/))
+  ([#66](https://github.com/SpeysideHEP/spey/pull/66))
 
 ## Bug fixes
 
@@ -178,7 +178,7 @@
   unconstrained fits and every constrained likelihood evaluation — including the `toy`
   and `chi_square` calculators — so the extra parameters stay fixed throughout the test,
   not just at the tested point.
-  ([#TBD](https://github.com/SpeysideHEP/spey/pull/))
+  ([#66](https://github.com/SpeysideHEP/spey/pull/66))
 
 * `StatisticalModel.generate_asimov_data` silently discarded any `fixed_poi_value`
   keyword argument (with a warning), so a multi-POI `poi_test` lost its extra fixed
@@ -188,7 +188,7 @@
   otherwise) unless the dict explicitly overrides it, while any other entries are
   applied to the fit as before. A plain `float` (which can only refer to the primary
   POI) is still ignored with a warning.
-  ([#TBD](https://github.com/SpeysideHEP/spey/pull/))
+  ([#66](https://github.com/SpeysideHEP/spey/pull/66))
 
 * `spey.get_backend` could not resolve a backend registered with
   `spey.register_backend`. The registry stores a *class* for a locally registered
@@ -196,20 +196,20 @@
   tested `isinstance(backend, BackendBase)`, which is `False` for a class, and then
   called `backend.load()` on it. Every locally registered backend was therefore
   unreachable through `get_backend`.
-  ([#TBD](https://github.com/SpeysideHEP/spey/pull/))
+  ([#66](https://github.com/SpeysideHEP/spey/pull/66))
 
 * `StatisticalModel.is_asymptotic_calculator_available` and
   `is_toy_calculator_available` always returned `True`. They compared a *bound method*
   (`self.backend.expected_data`) against a plain function
   (`BackendBase.expected_data`), which can never be equal, so every backend advertised
   every calculator regardless of what it implemented.
-  ([#TBD](https://github.com/SpeysideHEP/spey/pull/))
+  ([#66](https://github.com/SpeysideHEP/spey/pull/66))
 
 * `StatisticalModel.sigma_mu_from_hessian` returned a bare `nan` accompanied by a raw
   `invalid value encountered in sqrt` runtime warning whenever the observed information
   matrix was not positive definite at the requested point. It now logs an explanatory
   warning and returns `nan` explicitly.
-  ([#TBD](https://github.com/SpeysideHEP/spey/pull/))
+  ([#66](https://github.com/SpeysideHEP/spey/pull/66))
 
 ## Contributors
 
