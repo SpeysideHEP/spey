@@ -264,6 +264,37 @@ def test_poisson_with_absolute_uncertainties():
     assert np.isfinite(muhat) and np.isfinite(nll), "Poisson+unc fit failed to converge."
 
 
+def test_poisson_absolute_uncertainties_constraint():
+    """
+    The positivity constraint of default.poisson with absolute_uncertainties must
+    evaluate n^b_i + theta_i * sigma_i, i.e. the background part of the expected count.
+    """
+    background = np.array([50.0, 48.0])
+    unc = np.array([12.0, 16.0])
+
+    stat_model = spey.get_backend("default.poisson")(
+        signal_yields=[12.0, 15.0],
+        background_yields=background.tolist(),
+        data=[36, 33],
+        absolute_uncertainties=unc.tolist(),
+    )
+
+    constraints = stat_model.backend.constraints
+    assert len(constraints) == 1, "Expected a single positivity constraint."
+
+    pars = np.array([1.0, 0.5, -3.5])
+    expected = background + pars[1:] * unc
+    assert np.allclose(
+        constraints[0].fun(pars), expected
+    ), f"Constraint mismatch: {constraints[0].fun(pars)} != {expected}"
+    # theta_1 = -3.5 makes n^b_1 + theta_1 * sigma_1 negative, so the constraint
+    # must flag this point as infeasible.
+    assert constraints[0].fun(pars)[1] < 0.0
+    assert np.allclose(
+        constraints[0].jac(pars), np.hstack([np.zeros((2, 1)), np.diag(unc)])
+    )
+
+
 def test_poisson_callable_signal_yields():
     """default.poisson forwards n_signal_parameters and signal_parameter_bounds."""
     background = np.array([3.6, 5.0])

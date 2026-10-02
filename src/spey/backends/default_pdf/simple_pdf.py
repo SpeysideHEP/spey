@@ -639,7 +639,7 @@ class Poisson(SimplePDFBase):
                 """Compute the constraint term"""
                 return (
                     self.background_yields
-                    + pars[slice(1, len(self.data) + 1)] * self.background_yields
+                    + pars[slice(1, len(self.data) + 1)] * self.absolute_uncertainties
                 )
 
             jac_constr = jacobian(constraint)

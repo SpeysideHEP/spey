@@ -279,6 +279,14 @@
   warning and returns `nan` explicitly.
   ([#66](https://github.com/SpeysideHEP/spey/pull/66))
 
+* The positivity constraint of `default.poisson` with `absolute_uncertainties` returned
+  `n^b_i + theta_i * n^b_i` instead of `n^b_i + theta_i * sigma_i`, so it did not guard
+  the background part of the expected count `mu * n^s_i + n^b_i + theta_i * sigma_i`:
+  it enforced `theta_i >= -1` rather than `theta_i >= -n^b_i / sigma_i`. The optimiser
+  could therefore step into points with a negative background contribution whenever
+  `sigma_i > n^b_i`, and rejected admissible ones whenever `sigma_i < n^b_i`.
+  The constraint (and its Jacobian) now uses `sigma_i`, as stated in the docstring.
+
 ## Contributors
 
 This release contains contributions from (in alphabetical order):
