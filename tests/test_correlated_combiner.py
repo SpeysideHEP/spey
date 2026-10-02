@@ -727,7 +727,9 @@ class TestSharedNuisanceParameters:
             shared_parameters=["mu", {"name": "theta", "members": {"A": 1, "B": 1}}],
             analysis="correlated",
         )
-        uncorrelated = spey.UnCorrStatisticsCombiner(first, second)
+        uncorrelated = spey.get_backend("default.uncorrelated_combiner")(
+            statistical_models=[first, second], analysis="uncorrelated"
+        )
         assert correlated.likelihood(1.0) != pytest.approx(
             uncorrelated.likelihood(1.0), rel=1e-6
         )

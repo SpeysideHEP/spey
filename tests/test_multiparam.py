@@ -519,117 +519,62 @@ class TestSigmaMuFromHessianDictPoiTest:
 # ---------------------------------------------------------------------------
 # UnCorrStatisticsCombiner.maximize_likelihood with poi_indices
 # ---------------------------------------------------------------------------
-from spey.combiner import uncorrelated_statistics_combiner as combiner_mod
-from spey.combiner.uncorrelated_statistics_combiner import UnCorrStatisticsCombiner
+import spey
+from spey.combiner import UnCorrStatisticsCombiner
 
 
-class _FakeStatModel:
-    """Minimal fake StatisticalModel for combiner tests."""
-
-    def __init__(self, muhat=0.5, sigma=1.0, likelihood_val=1.0, minimum_poi=-5.0):
-        self.analysis = "fake"
-        self.backend_type = "fake"
-        self.is_alive = True
-        self.is_asymptotic_calculator_available = True
-        self.is_chi_square_calculator_available = True
-        self._muhat = muhat
-        self._sigma = sigma
-        self._likelihood_val = likelihood_val
-
-        class _FB:
-            def config(self):
-                return types.SimpleNamespace(minimum_poi=minimum_poi)
-
-        self.backend = _FB()
-
-    def maximize_likelihood(self, expected=None, **kwargs):
-        return float(self._muhat), 0.0
-
-    def sigma_mu(self, poi_test=0.0, expected=None, **kwargs):
-        return float(self._sigma)
-
-    def likelihood(
-        self, poi_test=1.0, expected=None, data=None, return_nll=True, **kwargs
-    ):
-        return float(self._likelihood_val)
-
-    def generate_asimov_data(self, expected=None, test_statistic="qtilde", **kwargs):
-        return []
-
-
-def _make_combiner(monkeypatch, muhat=0.5, sigma=1.0):
-    monkeypatch.setattr(combiner_mod, "StatisticalModel", _FakeStatModel)
-    model = _FakeStatModel(muhat=muhat, sigma=sigma)
-    combiner = UnCorrStatisticsCombiner(model)
-    return combiner
+def _make_combiner():
+    """Deprecated combiner over two independent Poisson counting experiments."""
+    poisson = spey.get_backend("default.poisson")
+    with pytest.warns(FutureWarning):
+        return UnCorrStatisticsCombiner(
+            poisson(
+                signal_yields=[3.0], background_yields=[50.0], data=[55], analysis="a"
+            ),
+            poisson(
+                signal_yields=[2.0], background_yields=[20.0], data=[22], analysis="b"
+            ),
+        )
 
 
 class TestCombinerMaximizeLikelihoodPoiIndices:
-    def test_none_returns_float(self, monkeypatch):
-        combiner = _make_combiner(monkeypatch)
-
-        def fake_fit(func, model_configuration, **kwargs):
-            return 2.0, np.array([0.5])
-
-        monkeypatch.setattr(combiner_mod, "fit", fake_fit)
-        result, nll = combiner.maximize_likelihood(poi_indices=None)
+    def test_none_returns_float(self):
+        result, nll = _make_combiner().maximize_likelihood(poi_indices=None)
         assert isinstance(result, float)
-        assert result == pytest.approx(0.5)
+        assert np.isfinite(nll)
 
-    def test_int_key_list_returns_dict(self, monkeypatch):
-        combiner = _make_combiner(monkeypatch)
-
-        def fake_fit(func, model_configuration, **kwargs):
-            return 2.0, np.array([0.5])
-
-        monkeypatch.setattr(combiner_mod, "fit", fake_fit)
+    def test_int_key_list_returns_dict(self):
+        combiner = _make_combiner()
+        muhat, _ = combiner.maximize_likelihood()
         result, nll = combiner.maximize_likelihood(poi_indices=[0])
         assert isinstance(result, dict)
-        assert result[0] == pytest.approx(0.5)
+        assert result[0] == pytest.approx(muhat)
 
-    def test_str_key_list_returns_dict_with_str_keys(self, monkeypatch):
-        combiner = _make_combiner(monkeypatch)
-
-        def fake_fit(func, model_configuration, **kwargs):
-            return 2.0, np.array([0.75])
-
-        monkeypatch.setattr(combiner_mod, "fit", fake_fit)
+    def test_str_key_list_returns_dict_with_str_keys(self):
+        combiner = _make_combiner()
+        muhat, _ = combiner.maximize_likelihood()
         result, nll = combiner.maximize_likelihood(poi_indices=["mu"])
         assert isinstance(result, dict)
-        assert result["mu"] == pytest.approx(0.75)
+        assert result["mu"] == pytest.approx(muhat)
 
-    def test_multiple_keys_all_get_same_value(self, monkeypatch):
+    def test_multiple_keys_all_get_same_value(self):
         """Combiner has a single scalar POI; all requested keys map to it."""
-        combiner = _make_combiner(monkeypatch)
-
-        def fake_fit(func, model_configuration, **kwargs):
-            return 2.0, np.array([1.23])
-
-        monkeypatch.setattr(combiner_mod, "fit", fake_fit)
+        combiner = _make_combiner()
+        muhat, _ = combiner.maximize_likelihood()
         result, _ = combiner.maximize_likelihood(poi_indices=[0, "mu", "sig"])
         assert set(result.keys()) == {0, "mu", "sig"}
         for v in result.values():
-            assert v == pytest.approx(1.23)
+            assert v == pytest.approx(muhat)
 
 
 class TestCombinerMaximizeAsimovLikelihoodPoiIndices:
-    def test_none_returns_float(self, monkeypatch):
-        combiner = _make_combiner(monkeypatch)
-
-        def fake_fit(func, model_configuration, **kwargs):
-            return 3.0, np.array([0.0])
-
-        monkeypatch.setattr(combiner_mod, "fit", fake_fit)
-        result, nll = combiner.maximize_asimov_likelihood(poi_indices=None)
+    def test_none_returns_float(self):
+        result, nll = _make_combiner().maximize_asimov_likelihood(poi_indices=None)
         assert isinstance(result, float)
 
-    def test_int_key_returns_dict(self, monkeypatch):
-        combiner = _make_combiner(monkeypatch)
-
-        def fake_fit(func, model_configuration, **kwargs):
-            return 3.0, np.array([0.9])
-
-        monkeypatch.setattr(combiner_mod, "fit", fake_fit)
+    def test_int_key_returns_dict(self):
+        combiner = _make_combiner()
+        muhat, _ = combiner.maximize_asimov_likelihood()
         result, _ = combiner.maximize_asimov_likelihood(poi_indices=[0])
         assert isinstance(result, dict)
-        assert result[0] == pytest.approx(0.9)
+        assert result[0] == pytest.approx(muhat)
