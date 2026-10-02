@@ -19,14 +19,17 @@ their joint likelihood factorises as
     \mathcal{L}_{\rm comb}(\mu, \{\theta_i\}) = \prod_{i=1}^{N} \mathcal{L}_i(\mu, \theta_i)
 
 where all analyses share the same signal strength :math:`\mu` but have independent nuisance parameters :math:`\theta_i`.
-Taking the natural logarithm and multiplying by -2 shows that **combined test statistics are additive**:
+Because no nuisance parameter is shared, the conditional fit at fixed :math:`\mu` decouples into independent
+fits, and taking the natural logarithm shows that the **profile negative log-likelihood is additive**:
 
 .. math::
 
-    q_{\rm comb}(\mu) = \sum_{i=1}^{N} q_i(\mu)
+    -\ln\mathcal{L}_{\rm comb}(\mu, \hat{\hat{\theta}}(\mu))
+    = \sum_{i=1}^{N} -\ln\mathcal{L}_i(\mu, \hat{\hat{\theta}}_i(\mu))
 
 This is why the combination can be performed as a simple sum of likelihoods—it is mathematically rigorous
-and computationally efficient.
+and computationally efficient. In Spey, this combination is provided by the ``default.uncorrelated_combiner``
+plug-in (:class:`~spey.combiner.UncorrelatedStatisticsCombiner`).
 
 The data, necessary to complete this exercise, has been provided under the ``data/path_finder`` folder of
 `spey's GitHub repository <https://github.com/SpeysideHEP/spey>`_. Here, one will find ``example_data.json``
@@ -122,27 +125,47 @@ Each row and column corresponds to one region in ``overlap_matrix.columns``. The
 In this example, the algorithm identifies ``"atlas_susy_2018_31::SRA_H"``, ``"cms_sus_19_006::SR25_Njet23_Nb2_HT6001200_MHT350600"``,
 and ``'cms_sus_19_006::AGGSR7_Njet2_Nb2_HT600_MHT600'`` as the regions with the highest combined sensitivity.
 
-For the combination, we use :obj:`~spey.UnCorrStatisticsCombiner`, which implements the mathematical principle
-described earlier: it sums the individual likelihoods of the selected regions and treats them as a single analysis.
+For the combination, we use the ``default.uncorrelated_combiner`` plug-in
+(:class:`~spey.combiner.UncorrelatedStatisticsCombiner`), which implements the mathematical principle
+described earlier: the selected regions share the signal strength :math:`\mu`, every region keeps its own
+nuisance parameters, and their likelihoods are multiplied into a single analysis. Like any other plug-in, it is
+retrieved through :func:`~spey.get_backend` and takes the statistical models to combine as its input.
 
-.. code-block::
+.. code-block:: python3
+    :linenos:
 
     >>> regions = [
     ...      "atlas_susy_2018_31::SRA_H",
     ...      "cms_sus_19_006::SR25_Njet23_Nb2_HT6001200_MHT350600",
     ...      "cms_sus_19_006::AGGSR7_Njet2_Nb2_HT600_MHT600"
     ...  ]
-    >>> combined = spey.UnCorrStatisticsCombiner(*[models[reg]["stat_model"] for reg in regions])
+    >>> combiner = spey.get_backend("default.uncorrelated_combiner")
+    >>> combined = combiner(
+    ...     statistical_models=[models[reg]["stat_model"] for reg in regions],
+    ...     analysis="pathfinder_best_path",
+    ... )
     >>> combined.exclusion_confidence_level(expected=spey.ExpectationType.aposteriori)[2]
-    >>> # 0.9858284831278277
+    >>> # 0.9495433489961339
 
 .. note::
 
-    :obj:`~spey.UnCorrStatisticsCombiner` can be used for any backend retrieved via :func:`spey.get_backend`
-    function, which wraps the likelihood prescription with :obj:`~spey.StatisticalModel`.
+    Any model retrieved via :func:`spey.get_backend`, i.e. any likelihood prescription wrapped by
+    :obj:`~spey.StatisticalModel`, can be combined, and the constituent models do not need to use the same
+    backend. The :attr:`~spey.StatisticalModel.analysis` names of the combined models must be unique.
 
-:obj:`~spey.UnCorrStatisticsCombiner` has exact same structure as :obj:`~spey.StatisticalModel` hence one
-can use the same functionalities. Further mode, we can compare it with the most sensitive signal region within
+Since the combiner is a plug-in, ``combined`` is an ordinary :obj:`~spey.StatisticalModel`, hence all of its
+functionalities — upper limits, significance, Asimov data, toy calculators, :math:`\chi^2` tests — are
+available. Its parameter vector holds the shared :math:`\mu` followed by the nuisance parameters of every
+region, which can be inspected through the backend:
+
+.. code-block:: python3
+
+    >>> combined.backend.parameter_names
+    >>> # ['mu', 'atlas_susy_2018_31::SRA_H_par_1', 'cms_sus_19_006::SR25_..._par_1', ...]
+    >>> combined.backend.index_map["atlas_susy_2018_31::SRA_H"]
+    >>> # array([0, 1])
+
+Further more, we can compare it with the most sensitive signal region within
 the stack, which can be found via
 
 .. code-block:: python3
@@ -156,14 +179,17 @@ limit can be computed via
 .. code-block:: python3
 
     >>> models["atlas_susy_2018_31::SRA_H"]["stat_model"].exclusion_confidence_level(expected=spey.ExpectationType.aposteriori)[2]
-    >>> # 0.9445409288935508
+    >>> # 0.9246291035466717
 
-Finally, we can compare the likelihood distributions. Under the hood, :obj:`~spey.UnCorrStatisticsCombiner`
-evaluates the combined NLL as the sum of individual profile NLLs:
+Finally, we can compare the likelihood distributions. The combined NLL is the sum of individual profile NLLs:
 
 .. math::
 
     {\rm NLL}_{\rm comb}(\mu) = \sum_{i \in \text{regions}} {\rm NLL}_i(\mu, \hat{\theta}_{i,\mu})
+
+Under the hood, the plug-in evaluates it as a single fit over :math:`\mu` and all nuisance parameters, using
+the gradients and Hessians supplied by the constituent backends. Since no nuisance parameter is shared, this
+joint fit is equivalent to profiling every region separately.
 
 This additive structure means the combined likelihood is narrower (more constraining) than any individual analysis,
 reflecting improved statistical power from combining independent information.
@@ -202,3 +228,52 @@ which gives us the following result:
 
     The results can vary between scipy versions and the versions of its compilers due to their effect on
     optimisation algorithm.
+
+Correlated analyses
+-------------------
+
+The uncorrelated combination assumes that the analyses share **no** nuisance parameters; otherwise the shared
+uncertainties are counted as independent and the result is over-confident. When analyses do share parameters —
+a luminosity uncertainty, a common systematic, or EFT Wilson coefficients — use the
+``default.correlated_combiner`` plug-in (:class:`~spey.combiner.CorrelatedStatisticsCombiner`), which profiles
+the declared shared parameters jointly:
+
+.. code-block:: python3
+
+    >>> combiner = spey.get_backend("default.correlated_combiner")
+    >>> combined = combiner(
+    ...     statistical_models=[model_a, model_b],
+    ...     shared_parameters=["mu", {"name": "lumi", "members": {"SR_A": 1, "SR_B": 1}}],
+    ...     analysis="SR_A+SR_B",
+    ... )
+
+``default.uncorrelated_combiner`` is the special case in which only :math:`\mu` is shared. See the
+:doc:`correlated combination tutorial <tutorials/correlated_combination>` for a worked example. Both plug-ins
+are built on :class:`~spey.combiner.combiner_core.CombinerBase`, which a new combination prescription can
+subclass by implementing a single method that decides which parameters are shared.
+
+Migrating from ``UnCorrStatisticsCombiner``
+-------------------------------------------
+
+.. deprecated:: 0.2.8
+
+    :class:`~spey.UnCorrStatisticsCombiner` is deprecated and will not be available in future versions of
+    Spey. It now emits a ``FutureWarning`` and delegates every computation to the
+    ``default.uncorrelated_combiner`` plug-in.
+
+The migration is a one-line change:
+
+.. code-block:: python3
+
+    >>> # before
+    >>> combined = spey.UnCorrStatisticsCombiner(model_a, model_b)
+    >>> # after
+    >>> combined = spey.get_backend("default.uncorrelated_combiner")(
+    ...     statistical_models=[model_a, model_b], analysis="combined"
+    ... )
+
+The plug-in is immutable: instead of :meth:`~spey.UnCorrStatisticsCombiner.append` or
+:meth:`~spey.UnCorrStatisticsCombiner.remove`, build a new combination from the desired list of models. Two
+combinations can be merged with the ``@`` operator. Per-analysis data overrides are passed as a dictionary
+keyed by analysis name, e.g. ``combined.likelihood(1.0, data={"SR_A": [...]})``, and the
+``statistical_model_options`` argument is no longer needed since all models are fitted jointly.

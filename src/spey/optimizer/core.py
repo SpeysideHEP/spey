@@ -19,9 +19,15 @@ def _get_minimizer(name: str):
         return minimize
     elif name == "minuit":
         if find_spec("iminuit") is not None:
-            from .minuit_tools import minimize as minuit_opt
+            try:
+                from .minuit_tools import minimize as minuit_opt
 
-            return minuit_opt
+                return minuit_opt
+            except ImportError as exc:
+                # `iminuit` is installed but unusable, e.g. built against a different
+                # numpy. Degrade to scipy rather than taking the whole fit down.
+                log.warning(f"iminuit can not be imported ({exc}), using scipy")
+                return minimize
 
         log.warning("minuit optimiser is not available, using scipy")
         return minimize

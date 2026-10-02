@@ -1,7 +1,14 @@
 import numpy as np
 import pytest
 
-from spey.optimizer import minuit_tools as mt
+# iminuit is an optional dependency and may also be present but unimportable (e.g.
+# built against a different numpy); skip the module instead of failing collection.
+try:
+    import iminuit  # noqa: F401
+except ImportError as exc:  # pragma: no cover - depends on the environment
+    pytest.skip(f"iminuit is not usable: {exc}", allow_module_level=True)
+
+from spey.optimizer import minuit_tools as mt  # noqa: E402
 
 
 def test_minimize_simple_quadratic_migrad():
