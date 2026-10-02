@@ -47,8 +47,9 @@ def _is_implemented(method: Callable, fallback: Callable) -> bool:
     unequal — the former is a *bound method* and the latter a plain function — so the
     underlying function has to be unwrapped first.  Backends may also disable an
     optional capability at runtime by binding the base implementation onto the
-    instance (as :class:`~spey.combiner.CorrelatedStatisticsCombiner` does when one of its
-    constituent models lacks the capability); unwrapping ``__func__`` covers that too.
+    instance (as the combiner plug-ins built on
+    :class:`~spey.combiner.combiner_core.CombinerBase` do when one of their constituent
+    models lacks the capability); unwrapping ``__func__`` covers that too.
 
     Args:
         method (``Callable``): Bound method taken from the backend instance.
