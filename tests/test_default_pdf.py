@@ -264,6 +264,44 @@ def test_poisson_with_absolute_uncertainties():
     assert np.isfinite(muhat) and np.isfinite(nll), "Poisson+unc fit failed to converge."
 
 
+def test_poisson_callable_signal_yields():
+    """default.poisson forwards n_signal_parameters and signal_parameter_bounds."""
+    background = np.array([3.6, 5.0])
+    data = np.array([3, 7])
+
+    def signal(pars):
+        return np.array([2.5, 1.0]) * pars[0] ** 2 + np.array([3.7, 0.5]) * pars[1] ** 2
+
+    stat_model = spey.get_backend("default.poisson")(
+        signal_yields=signal,
+        background_yields=background,
+        data=data,
+        n_signal_parameters=2,
+        signal_parameter_bounds=[(-2.0, 2.0), None],
+    )
+    cfg = stat_model.backend.config()
+    assert cfg.parameter_names == ["mu", "signal_par_0", "signal_par_1"]
+    assert cfg.suggested_bounds[1:] == [(-2.0, 2.0), (None, None)]
+
+    pars = np.array([0.8, 0.6, -0.4])
+    lam = pars[0] * signal(pars[1:]) + background
+    assert np.isclose(
+        stat_model.backend.get_logpdf_func()(pars), poisson.logpmf(data, lam).sum()
+    )
+
+
+def test_poisson_callable_signal_yields_with_uncertainties_raises():
+    """The uncertainty extension has a fixed parameter layout; reject callables."""
+    with pytest.raises(NotImplementedError, match="uncorrelated_background"):
+        spey.get_backend("default.poisson")(
+            signal_yields=lambda pars: np.array([pars[0]]),
+            background_yields=[3.6],
+            data=[3],
+            absolute_uncertainties=[1.0],
+            n_signal_parameters=1,
+        )
+
+
 def test_normal():
     """tester for gaussian model"""
 

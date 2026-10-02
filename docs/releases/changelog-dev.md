@@ -77,6 +77,17 @@
   `docs/tutorials/correlated_combination.ipynb`.
   ([#66](https://github.com/SpeysideHEP/spey/pull/66))
 
+* `default.poisson` accepts a callable `signal_yields` with `n_signal_parameters` and
+  `signal_parameter_bounds`, like `default.normal` and `default.multivariate_normal`, so
+  parameter-dependent signals (e.g. EFT coefficients) can be fitted and passed to
+  `find_contour`. Combining a callable signal with `absolute_uncertainties` raises
+  `NotImplementedError`; use `default.uncorrelated_background` for that case.
+
+* The functional-signal tutorial, `docs/tutorials/functional_tuto.ipynb`, now maps the
+  95% CL region in `(c1, c2)` with `find_contour` instead of interpolating a grid scan,
+  and combines its two likelihoods with `default.correlated_combiner`, which shares
+  `c1` and `c2` between them.
+
 * `spey.optimizer.core.fit` now falls back to `scipy` when `iminuit` is installed but
   cannot be imported (e.g. built against a different `numpy`), instead of letting the
   `ImportError` propagate out of the fit.
@@ -214,6 +225,15 @@
   matrix above, `1 - CLs` moves from 0.93529 to 0.93542 and `poi_upper_limit` from
   1.07561 to 1.07500, both now agreeing with `pyhf` to `7e-8`.
   ([#67](https://github.com/SpeysideHEP/spey/pull/67))
+
+* `find_contour` crashed with `TypeError: 'NonlinearConstraint' object is not
+  subscriptable` whenever `poi_indices` left parameters to be profiled in a model whose
+  constraints are `scipy.optimize.NonlinearConstraint` objects — e.g. the background
+  nuisance parameters of `default.uncorrelated_background`, or any combination
+  containing such a model. The profile fit assumed dictionary constraints. Both forms
+  are now restricted to the profile subspace, and a callable constraint Jacobian is
+  reduced to the profile-parameter columns, which the dictionary path previously left
+  in the full parameter space.
 
 * `HypothesisTestingBase.exclusion_confidence_level` and `sigma_mu` crashed with
   `TypeError: '>' not supported between instances of 'float' and 'dict'` whenever

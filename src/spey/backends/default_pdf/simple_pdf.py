@@ -548,14 +548,34 @@ class Poisson(SimplePDFBase):
     The positivity constraint :math:`n^b_i + \theta_i \sigma_i \geq 0` is
     enforced via :class:`~scipy.optimize.NonlinearConstraint`.
 
+    .. versionchanged:: 0.2.8
+        Callable ``signal_yields`` with ``n_signal_parameters`` and
+        ``signal_parameter_bounds``, as for :class:`Gaussian`.
+
     Args:
-        signal_yields (``List[float]``): Per-bin signal yields :math:`\{n^s_i\}`.
+        signal_yields (``List[float]`` or ``Callable[[np.ndarray], np.ndarray]``):
+          Per-bin signal yields :math:`\{n^s_i\}`, or a callable that returns them
+          given the extra signal parameters.
         background_yields (``List[float]``): Per-bin expected background yields
           :math:`\{n^b_i\}`.
         data (``List[int]``): Per-bin observed counts :math:`\{n^{\rm obs}_i\}`.
         absolute_uncertainties (``List[float]``, default ``None``): Per-bin absolute
           background uncertainties :math:`\{\sigma_i\}`.  When provided, the model
-          gains :math:`N` additional unconstrained nuisance parameters.
+          gains :math:`N` additional unconstrained nuisance parameters.  Can not be
+          combined with a callable ``signal_yields``.
+        n_signal_parameters (``int``, default ``0``): number of additional free parameters
+          to pass to a callable ``signal_yields``.  Has no effect when ``signal_yields``
+          is a plain array.  When greater than zero the optimiser parameter vector is
+          extended to ``[mu, signal_par_0, ..., signal_par_{n-1}]``.
+        signal_parameter_bounds (:code:`List[Tuple[Optional[float], Optional[float]]] | None`):
+          Optimiser bounds for each extra signal parameter.  Each entry
+          is a ``(lower, upper)`` pair; use ``None`` for an unbounded side.  When
+          ``None``, every extra signal parameter receives ``(None, None)``.  Must have
+          exactly ``n_signal_parameters`` entries when provided.
+
+    Raises:
+        ``NotImplementedError``: If a callable ``signal_yields`` is combined with
+          ``absolute_uncertainties``.
     """
 
     name: str = "default.poisson"
@@ -569,13 +589,27 @@ class Poisson(SimplePDFBase):
 
     def __init__(
         self,
-        signal_yields: List[float],
+        signal_yields: Union[List[float], Callable[[np.ndarray], np.ndarray]],
         background_yields: List[float],
         data: List[int],
         absolute_uncertainties: Optional[List[float]] = None,
+        n_signal_parameters: int = 0,
+        signal_parameter_bounds: Optional[
+            List[Tuple[Optional[float], Optional[float]]]
+        ] = None,
     ):
+        if absolute_uncertainties is not None and callable(signal_yields):
+            raise NotImplementedError(
+                "default.poisson does not support a callable `signal_yields` together "
+                "with `absolute_uncertainties`; use default.uncorrelated_background "
+                "for parameter-dependent signals with background uncertainties."
+            )
         super().__init__(
-            signal_yields=signal_yields, background_yields=background_yields, data=data
+            signal_yields=signal_yields,
+            background_yields=background_yields,
+            data=data,
+            n_signal_parameters=n_signal_parameters,
+            signal_parameter_bounds=signal_parameter_bounds,
         )
 
         if absolute_uncertainties is not None:

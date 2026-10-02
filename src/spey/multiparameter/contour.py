@@ -171,6 +171,7 @@ import autograd
 import autograd.numpy as anp
 import numpy as np
 from joblib import Parallel, cpu_count, delayed
+from scipy.optimize import NonlinearConstraint
 from scipy.optimize import minimize as _sp_minimize
 from scipy.optimize import root_scalar
 from scipy.stats import chi2 as chi2_dist
@@ -597,14 +598,10 @@ def find_contour(
                 return float(-logpdf_fn(_assemble(cp, pp)))
 
             # Adapt backend constraints (full-param) to profile-param space.
-            constraints = []
-            for c in _backend_constraints:
-                orig_fun = c["fun"]
-
-                def _wrapped(pp, _f=orig_fun, _cp=cp):
-                    return _f(_assemble(_cp, pp))
-
-                constraints.append({**c, "fun": _wrapped})
+            constraints = [
+                _restrict_constraint(c, lambda pp: _assemble(cp, pp), _profile_arr)
+                for c in _backend_constraints
+            ]
 
             res = _sp_minimize(
                 obj,
@@ -976,6 +973,62 @@ def _find_mle(
             "The model may be ill-conditioned."
         )
     return theta_mle, nll_min
+
+
+def _restrict_constraint(constraint, embed, profile_indices: np.ndarray):
+    r"""
+    Restrict a full-parameter-space constraint to the profile subspace.
+
+    Backend constraints are functions of the full parameter vector
+    :math:`\theta`.  The inner profile fit only varies the profile
+    parameters :math:`\theta_p`, so each constraint is composed with the
+    embedding :math:`\theta_p \mapsto \theta(\theta_p)` (``embed``) and a
+    callable Jacobian is reduced to its profile-parameter columns.
+
+    Args:
+        constraint: Either a scipy-style constraint ``dict`` (keys ``type``,
+            ``fun`` and optionally ``jac``) or a
+            :class:`~scipy.optimize.NonlinearConstraint`, as returned by a
+            backend through :meth:`~spey.StatisticalModel.prepare_for_fit`.
+        embed (``Callable[[np.ndarray], np.ndarray]``): Maps a profile-parameter
+            vector to the full parameter vector (contour values and
+            :math:`\mu` held fixed).
+        profile_indices (``np.ndarray``): Positions of the profile parameters
+            in the full parameter vector.
+
+    Returns:
+        A constraint of the same kind acting on the profile parameters only.
+
+    Raises:
+        TypeError: If the constraint is of any other type.
+    """
+
+    def _restrict_jac(jac):
+        if not callable(jac):
+            return jac  # finite-difference keyword such as "2-point"
+        return lambda pp: np.atleast_2d(np.asarray(jac(embed(pp)), dtype=float))[
+            :, profile_indices
+        ]
+
+    if isinstance(constraint, dict):
+        restricted = {**constraint, "fun": lambda pp: constraint["fun"](embed(pp))}
+        if "jac" in constraint:
+            restricted["jac"] = _restrict_jac(constraint["jac"])
+        return restricted
+
+    if isinstance(constraint, NonlinearConstraint):
+        return NonlinearConstraint(
+            lambda pp: constraint.fun(embed(pp)),
+            constraint.lb,
+            constraint.ub,
+            jac=_restrict_jac(constraint.jac),
+            keep_feasible=constraint.keep_feasible,
+        )
+
+    raise TypeError(
+        f"find_contour can not profile over a constraint of type {type(constraint)}; "
+        "only scipy-style dicts and scipy.optimize.NonlinearConstraint are supported."
+    )
 
 
 def _find_basins_contour_subspace(
