@@ -39,7 +39,39 @@
   constituent model cannot provide a gradient or Hessian, the combination reports the
   corresponding method as unavailable and spey falls back to its numerical optimiser.
 
+* Added `UncorrelatedStatisticsCombiner` (`default.uncorrelated_combiner`), a plug-in
+  that combines independent `StatisticalModel` instances sharing only their parameter of
+  interest. It replaces `UnCorrStatisticsCombiner`: being a `BackendBase`, the result is
+  an ordinary `StatisticalModel`, so the toy calculator, `sigma_mu_from_hessian` and
+  `find_contour` become available for uncorrelated combinations, and the fit is a single
+  joint optimisation over `mu` and every nuisance parameter driven by the analytic
+  gradients of the constituent backends (equivalent to profiling each model separately,
+  since no nuisance parameter is shared). Combined CLs, upper limits, significances and
+  profile likelihoods agree with the previous implementation to within `5e-5` relative
+  across all seven built-in backends; best-fit `mu` values move by at most `5e-4` on
+  flat minima, i.e. within the optimiser tolerance.
+
+  ```python
+  import spey
+
+  combiner = spey.get_backend("default.uncorrelated_combiner")
+  combined = combiner(statistical_models=[model_a, model_b], analysis="combination")
+  combined.poi_upper_limit()
+  ```
+
 ## Improvements
+
+* The two combiner plug-ins now share their implementation through
+  `spey.combiner.combiner_core.CombinerBase`, which provides the joint likelihood,
+  gradient, Hessian, Asimov data, sampling, constraint lifting and introspection. A
+  combiner only has to implement `_build_parameter_map`, which decides which local
+  parameters are identified across models; `correlated_statistics_combiner.py` shrank
+  from 1635 to about 400 lines, all of them `shared_parameters` parsing.
+
+* Combined models accept per-analysis data as a dictionary,
+  `combined.likelihood(1.0, data={"SR_A": [...]})`; analyses that are not listed use
+  their own data. `CombinerBase.split_data` splits a flat combined dataset (e.g. Asimov
+  data) back into per-analysis pieces.
 
 * Added a tutorial on correlated combinations,
   `docs/tutorials/correlated_combination.ipynb`.
@@ -74,7 +106,23 @@
   can produce. Pass `validate_limit=False` to recover the previous behaviour.
   ([#66](https://github.com/SpeysideHEP/spey/pull/66))
 
+## Deprecations
+
+* `spey.UnCorrStatisticsCombiner` is deprecated and will not be available in future
+  versions; constructing it emits a `FutureWarning`. It is now a thin wrapper around the
+  `default.uncorrelated_combiner` plug-in that keeps the mutable `append` / `remove` / `@`
+  interface, accepts per-analysis data dictionaries, and returns the same `NaN` on
+  `NegativeExpectedYields` as before. `statistical_model_options` is ignored (with a
+  warning) since the models are now fitted jointly. The equivalent plug-in model is
+  available as `UnCorrStatisticsCombiner.combined_model`.
+
 ## Bug fixes
+
+* `UnCorrStatisticsCombiner.chi2` (and every other `HypothesisTestingBase` method
+  that forwards `init_pars` to `maximize_likelihood`) raised
+  `TypeError: minimize() got multiple values for keyword argument 'init_pars'`, because
+  the explicit `init_pars` reached the optimiser alongside the combiner's own initial
+  value. The calls are now translated to the plug-in's full parameter vector.
 
 * The Asimov dataset built by the `default_pdf` backends kept the auxiliary measurements
   at the centre of the constraint instead of moving them with the nuisance parameters,
