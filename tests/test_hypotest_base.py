@@ -119,3 +119,143 @@ def test_exclusion_confidence_level_raises_when_calculator_not_available():
         hypo.exclusion_confidence_level(
             poi_test=1.0, expected=None, calculator="asymptotic"
         )
+
+
+def _two_well_model():
+    """Single-parameter EFT-style fit whose NLL has two wells of different depth.
+
+    The global minimum sits at ``c ~ -0.29`` and a local one at ``c ~ +0.31``;
+    the default start ``[1, 1]`` lands in the local one (issue #69).
+    """
+    import numpy as np
+    import spey
+
+    interference = np.array([1.0, 0.0, -1.0])
+    quadratic = np.array([2.0, 4.0, 3.0])
+    model = spey.get_backend("default.multivariate_normal")(
+        signal_yields=lambda pars: pars[0] * interference + pars[0] ** 2 * quadratic,
+        background_yields=np.zeros(3),
+        data=np.array([0.2, 0.5, 0.4]),
+        covariance_matrix=np.eye(3),
+        n_signal_parameters=1,
+    )
+    model.backend.config().change_parameter_names({"signal_par_0": "c"})
+    return model, interference, quadratic, np.array([0.2, 0.5, 0.4])
+
+
+def test_chi2_test_init_pars_selects_basin():
+    """``init_pars`` must reach the optimiser inside ``chi2_test`` (issue #69)."""
+    import numpy as np
+    from scipy.stats import chi2
+
+    _, interference, quadratic, data = _two_well_model()
+
+    # Brute-force 95% interval around the *global* minimum.
+    grid = np.linspace(-3.0, 3.0, 600001)
+    nll = 0.5 * np.sum(
+        (data[None] - (grid[:, None] * interference + grid[:, None] ** 2 * quadratic))
+        ** 2,
+        axis=1,
+    )
+    inside = grid[nll <= nll.min() + 0.5 * chi2.isf(0.05, df=1)]
+    expected = [inside.min(), inside.max()]
+
+    kwargs = dict(parameter="c", poi_value=1.0, allow_negative_signal=True)
+    default = _two_well_model()[0].chi2_test(**kwargs)
+    steered = _two_well_model()[0].chi2_test(init_pars=[1.0, 0.0], **kwargs)
+    steered_other = _two_well_model()[0].chi2_test(init_pars=[1.0, -0.3], **kwargs)
+
+    assert np.allclose(steered, expected, atol=1e-3), "init_pars was not honoured"
+    assert np.allclose(steered_other, expected, atol=1e-3)
+    assert not np.allclose(default, steered, atol=1e-3), "init_pars had no effect"
+
+
+def test_chi2_test_init_pars_does_not_mutate_input():
+    """The caller's ``init_pars`` list must be left untouched."""
+    init = [1.0, 0.0]
+    _two_well_model()[0].chi2_test(
+        parameter="c", poi_value=1.0, allow_negative_signal=True, init_pars=init
+    )
+    assert init == [1.0, 0.0]
+
+
+def test_chi2_test_par_bounds_limit_profiled_parameter():
+    """``par_bounds`` of the profiled parameter caps the returned crossings."""
+    model = _two_well_model()[0]
+    limits = model.chi2_test(
+        parameter="c",
+        poi_value=1.0,
+        init_pars=[1.0, 1.0],
+        par_bounds=[(None, None), (0.0, 2.0)],
+    )
+    assert all(0.0 - 1e-9 <= lim <= 2.0 + 1e-9 for lim in limits)
+
+
+def test_chi2_test_poi_profile_accepts_init_pars():
+    """The POI-profiling branch forwards ``init_pars`` / ``par_bounds`` as well."""
+    import numpy as np
+    import spey
+
+    model = spey.get_backend("default.normal")(
+        signal_yields=[12.0],
+        background_yields=[50.0],
+        data=[36.0],
+        absolute_uncertainties=[20.0],
+    )
+    reference = model.chi2_test()
+    with_kwargs = model.chi2_test(init_pars=[0.5], par_bounds=[(-10.0, 10.0)])
+    assert np.allclose(reference, with_kwargs, rtol=1e-3)
+
+
+def test_chi2_test_n_multistart_finds_global_basin_without_init_pars():
+    """Opt-in multi-start recovers the global basin from the default start."""
+    import numpy as np
+    from scipy.stats import chi2
+
+    _, interference, quadratic, data = _two_well_model()
+    grid = np.linspace(-3.0, 3.0, 600001)
+    nll = 0.5 * np.sum(
+        (data[None] - (grid[:, None] * interference + grid[:, None] ** 2 * quadratic))
+        ** 2,
+        axis=1,
+    )
+    inside = grid[nll <= nll.min() + 0.5 * chi2.isf(0.05, df=1)]
+
+    kwargs = dict(parameter="c", poi_value=1.0, allow_negative_signal=True)
+    default = _two_well_model()[0].chi2_test(**kwargs)
+    searched = _two_well_model()[0].chi2_test(n_multistart=9, **kwargs)
+
+    assert np.allclose(searched, [inside.min(), inside.max()], atol=1e-3)
+    assert not np.allclose(default, searched, atol=1e-3), "default must stay single-start"
+
+
+def test_chi2_test_n_multistart_unimodal_unchanged():
+    """The multi-start search must not alter a well-behaved (convex) profile."""
+    import numpy as np
+    import spey
+
+    model = spey.get_backend("default.normal")(
+        signal_yields=[12.0],
+        background_yields=[50.0],
+        data=[36.0],
+        absolute_uncertainties=[20.0],
+    )
+    assert np.allclose(model.chi2_test(), model.chi2_test(n_multistart=7), rtol=1e-6)
+
+
+def test_refine_global_min_1d_resolves_narrow_basin():
+    """A basin narrower than the cell width is found; a worse search is a no-op."""
+    import numpy as np
+
+    from spey.base.utils import _refine_global_min_1d
+
+    f = lambda x: 0.01 * x**2 - 3.0 * np.exp(-(((x - 7.0) / 0.5) ** 2))
+    # incumbent: the shallow minimum at x = 0; the deep basin (width 0.5) is 10x
+    # narrower than the cell width (5)
+    mll, ref = _refine_global_min_1d(f, f(0.0), 0.0, -10.0, 10.0, n_samples=1)
+    assert (mll, ref) == (f(0.0), 0.0), "n_samples < 2 must be a no-op"
+    mll, ref = _refine_global_min_1d(f, f(0.0), 0.0, -10.0, 10.0, n_samples=5)
+    assert mll < f(0.0) - 1.0 and abs(ref - 7.0) < 0.1
+    assert mll <= f(ref) + 1e-12
+    mll2, ref2 = _refine_global_min_1d(lambda x: x**2, 0.0, 0.0, -10.0, 10.0, 9)
+    assert (mll2, ref2) == (0.0, 0.0)
