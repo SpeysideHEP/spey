@@ -150,3 +150,31 @@ def test_invalid_minimizer_option_is_replaced_with_scipy(monkeypatch):
     # _get_minimizer should have been called with 'scipy' after the fallback
     assert seen.get("name") == "scipy"
     assert pytest.approx(0.0, rel=1e-12) == fun
+
+
+def test_fit_does_not_modify_suggested_init_or_initial_parameters(monkeypatch):
+    def fake_minimizer(
+        func, init_pars, fixed_vals, do_grad, hessian, bounds, constraints, **kwargs
+    ):
+        return 0.0, np.asarray(init_pars)
+
+    monkeypatch.setattr(core_mod, "_get_minimizer", lambda name: fake_minimizer)
+
+    cfg = FakeModelConfig(suggested_init=[1.0, 1.0], poi_index=0)
+    user_init = [1.0, 0.0]
+
+    common = dict(
+        func=lambda p: np.sum(np.asarray(p) ** 2),
+        model_configuration=cfg,
+        do_grad=False,
+        hessian=None,
+        bounds=None,
+        fixed_poi_value=-0.5,
+        logpdf=None,
+        constraints=None,
+    )
+    core_mod.fit(initial_parameters=None, **common)
+    assert cfg.suggested_init == [1.0, 1.0]
+
+    core_mod.fit(initial_parameters=user_init, **common)
+    assert user_init == [1.0, 0.0]

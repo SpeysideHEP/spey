@@ -95,7 +95,9 @@ def fit(
         provided) and the corresponding fit parameter vector.
     """
 
-    init_pars = (
+    # list() makes init_pars a copy. Without this, the fixed values written below
+    # would overwrite the model configuration's suggested_init.
+    init_pars = list(
         initial_parameters
         if isinstance(initial_parameters, (list, tuple, np.ndarray))
         else model_configuration.suggested_init
