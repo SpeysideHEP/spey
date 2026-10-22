@@ -11,7 +11,7 @@ multiparam-fit branch.  The tests cover:
   * StatisticalModel.sigma_mu_from_hessian with dict poi_test
   * StatisticalModel.maximize_likelihood with poi_indices
   * StatisticalModel.maximize_asimov_likelihood with poi_indices
-  * UnCorrStatisticsCombiner.maximize_likelihood with poi_indices
+  * UnCorrStatisticsCombiner.maximize_likelihood with poi_indices (forwarded)
   * UnCorrStatisticsCombiner.maximize_asimov_likelihood with poi_indices
 """
 
@@ -557,14 +557,18 @@ class TestCombinerMaximizeLikelihoodPoiIndices:
         assert isinstance(result, dict)
         assert result["mu"] == pytest.approx(muhat)
 
-    def test_multiple_keys_all_get_same_value(self):
-        """Combiner has a single scalar POI; all requested keys map to it."""
+    def test_int_and_name_keys_agree(self):
+        """Index and name of the shared POI resolve to the same fitted value."""
         combiner = _make_combiner()
         muhat, _ = combiner.maximize_likelihood()
-        result, _ = combiner.maximize_likelihood(poi_indices=[0, "mu", "sig"])
-        assert set(result.keys()) == {0, "mu", "sig"}
+        result, _ = combiner.maximize_likelihood(poi_indices=[0, "mu"])
+        assert set(result.keys()) == {0, "mu"}
         for v in result.values():
             assert v == pytest.approx(muhat)
+
+    def test_unknown_key_raises(self):
+        with pytest.raises(ValueError):
+            _make_combiner().maximize_likelihood(poi_indices=["not_a_parameter"])
 
 
 class TestCombinerMaximizeAsimovLikelihoodPoiIndices:
