@@ -6,8 +6,8 @@ Statistical model combination.
 * :class:`~spey.combiner.CorrelatedStatisticsCombiner` — ``default.correlated_combiner``
   plug-in: analyses sharing any declared parameters.
 * :class:`~spey.combiner.combiner_core.CombinerBase` — common base class of both.
-* :class:`~spey.UnCorrStatisticsCombiner` — deprecated wrapper around
-  ``default.uncorrelated_combiner``.
+* :func:`~spey.UnCorrStatisticsCombiner` — deprecated function that returns the
+  ``default.uncorrelated_combiner`` model.
 """
 
 from .combiner_core import CombinerBase

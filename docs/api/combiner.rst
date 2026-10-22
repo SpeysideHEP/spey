@@ -49,8 +49,4 @@ Deprecated: UnCorrStatisticsCombiner
 
 .. automodule:: spey.combiner.deprecated_combiner
 
-.. autoclass:: spey.UnCorrStatisticsCombiner
-    :members:
-    :undoc-members:
-    :show-inheritance:
-    :inherited-members:
+.. autofunction:: spey.UnCorrStatisticsCombiner

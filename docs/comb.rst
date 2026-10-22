@@ -257,8 +257,8 @@ Migrating from ``UnCorrStatisticsCombiner``
 
 .. deprecated:: 0.2.8
 
-    :class:`~spey.UnCorrStatisticsCombiner` is deprecated and will not be available in future versions of
-    Spey. It now emits a ``FutureWarning`` and delegates every computation to the
+    :func:`~spey.UnCorrStatisticsCombiner` is deprecated and will not be available in future versions of
+    Spey. It now emits a ``FutureWarning`` and returns the model built by the
     ``default.uncorrelated_combiner`` plug-in.
 
 The migration is a one-line change:
@@ -272,8 +272,11 @@ The migration is a one-line change:
     ...     statistical_models=[model_a, model_b], analysis="combined"
     ... )
 
-The plug-in is immutable: instead of :meth:`~spey.UnCorrStatisticsCombiner.append` or
-:meth:`~spey.UnCorrStatisticsCombiner.remove`, build a new combination from the desired list of models. Two
-combinations can be merged with the ``@`` operator. Per-analysis data overrides are passed as a dictionary
-keyed by analysis name, e.g. ``combined.likelihood(1.0, data={"SR_A": [...]})``, and the
-``statistical_model_options`` argument is no longer needed since all models are fitted jointly.
+The returned object is an ordinary :class:`~spey.StatisticalModel` and is immutable: the ``append``,
+``remove`` and indexing interface of the old class is gone, so build a new combination from the desired list of
+models. Two combinations can be merged with the ``@`` operator. Per-analysis data overrides are passed as a
+dictionary keyed by analysis name, e.g. ``combined.likelihood(1.0, data={"SR_A": [...]})``, and the
+``statistical_model_options`` argument is no longer needed since all models are fitted jointly. The options that
+only the old class understood (``initial_muhat_value``, a one-element ``par_bounds`` for :math:`\mu`, ``NaN`` for
+negative yields) are gone as well: pass ``init_pars`` / ``par_bounds`` for the joint parameter vector as for any
+other statistical model.

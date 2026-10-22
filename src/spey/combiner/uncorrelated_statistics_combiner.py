@@ -64,7 +64,7 @@ the per-analysis pieces.
 
 .. versionadded:: 0.2.8
 
-    Replaces :class:`~spey.UnCorrStatisticsCombiner`, which is deprecated.
+    Replaces :func:`~spey.UnCorrStatisticsCombiner`, which is deprecated.
 
 References
 ----------
