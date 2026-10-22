@@ -6,6 +6,7 @@ model combination.  The module also exposes :func:`statistical_model_wrapper`, t
 decorator that backends are registered with, and the :data:`PoiTest` type alias used
 throughout.
 """
+
 import logging
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
