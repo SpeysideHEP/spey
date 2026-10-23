@@ -1,6 +1,7 @@
 """Test uncorrelated statistics combiner"""
 
 import numpy as np
+import pytest
 
 import spey
 from spey.combiner.uncorrelated_statistics_combiner import UnCorrStatisticsCombiner
@@ -49,7 +50,15 @@ def test_combiner():
         absolute_uncertainties=[1],
         analysis="norm3",
     )
-    combined = UnCorrStatisticsCombiner(normal1, normal2, normal3)
+    with pytest.warns(FutureWarning):
+        combined = UnCorrStatisticsCombiner(normal1, normal2, normal3)
     combined_cls = combined.exclusion_confidence_level()[0]
 
     assert np.isclose(multivar_norm_cls, combined_cls), "Combined CLs is wrong"
+
+    plugin = spey.get_backend("default.uncorrelated_combiner")(
+        statistical_models=[normal1, normal2, normal3], analysis="combined"
+    )
+    assert np.isclose(
+        multivar_norm_cls, plugin.exclusion_confidence_level()[0]
+    ), "Combined CLs is wrong"

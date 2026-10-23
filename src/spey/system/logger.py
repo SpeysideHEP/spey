@@ -1,4 +1,5 @@
 """Logging style for spey"""
+
 import logging
 import sys
 from contextlib import contextmanager

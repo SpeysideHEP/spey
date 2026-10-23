@@ -631,6 +631,31 @@ class BackendBase(ABC):
         """
         raise NotImplementedError("This method has not been implemented")
 
+    # TODO: model serialisation, work in progress.
+    #
+    # .. warning::
+    #
+    #     Do not re-enable these without adjusting :func:`spey.get_backend`: it
+    #     resolves a locally registered backend *class* by calling ``backend.load()``
+    #     (the plugin-registry protocol for an ``importlib`` ``EntryPoint``), so a
+    #     ``load`` attribute on ``BackendBase`` shadows that protocol.
+    #
+    # def load(file_name: str) -> None:
+    #     raise NotImplementedError("This backend does not have a `load` method.")
+    #
+    # def save(file_name: str, format: str) -> None:
+    #     """
+    #     Store the model
+    #
+    #     Args:
+    #         file_name (``str``): file name to be saved.
+    #         format (``str``): Output format.
+    #
+    #     Raises:
+    #         ``NotImplementedError``: If the backend has no serialisation routine.
+    #     """
+    #     raise NotImplementedError("This backend does not have a `save` method.")
+
 
 class ConverterBase(ABC):
     """
