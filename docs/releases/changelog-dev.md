@@ -129,6 +129,12 @@
 
 ## Bug fixes
 
+* The minuit optimiser no longer caps Migrad at 10000 function calls by default. Without
+  `maxiter`, Minuit's own budget ($200 + 100n + 5n^2$ calls for $n$ free parameters) is
+  used, so large likelihoods with numerical derivatives (e.g. 150-parameter
+  HistFactory workspaces) converge instead of stopping at the call limit. `maxiter`
+  still sets an explicit limit, and the warning now says how many calls were made.
+
 * `UnCorrStatisticsCombiner.chi2` (and every other `HypothesisTestingBase` method
   that forwards `init_pars` to `maximize_likelihood`) raised
   `TypeError: minimize() got multiple values for keyword argument 'init_pars'`, because
