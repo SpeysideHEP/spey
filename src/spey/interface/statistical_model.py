@@ -550,7 +550,9 @@ class StatisticalModel(HypothesisTestingBase):
 
               * ``method`` (``str``, default ``"migrad"``): Minuit algorithm.
                 Accepted values are ``"migrad"`` and ``"simplex"``.
-              * ``maxiter`` (``int``, default ``10000``): Maximum number of function calls.
+              * ``maxiter`` (``int``, default ``None``): Maximum number of function calls.
+                ``None`` uses Minuit's own budget, :math:`200 + 100n + 5n^2` for
+                :math:`n` free parameters.
               * ``tol`` (``float``, default ``1e-6``): Convergence tolerance.
               * ``disp`` (``int``, default ``0``): Minuit print level (``0`` = silent).
               * ``strategy`` (``int``, default ``0``): Minuit strategy
@@ -820,7 +822,9 @@ class StatisticalModel(HypothesisTestingBase):
 
               * ``method`` (``str``, default ``"migrad"``): Minuit algorithm
                 (``"migrad"`` or ``"simplex"``).
-              * ``maxiter`` (``int``, default ``10000``): Maximum number of function calls.
+              * ``maxiter`` (``int``, default ``None``): Maximum number of function calls.
+                ``None`` uses Minuit's own budget, :math:`200 + 100n + 5n^2` for
+                :math:`n` free parameters.
               * ``tol`` (``float``, default ``1e-6``): Convergence tolerance.
               * ``disp`` (``int``, default ``0``): Minuit print level (``0`` = silent).
               * ``strategy`` (``int``, default ``0``): Minuit strategy
@@ -962,7 +966,9 @@ class StatisticalModel(HypothesisTestingBase):
 
               * ``method`` (``str``, default ``"migrad"``): Minuit algorithm
                 (``"migrad"`` or ``"simplex"``).
-              * ``maxiter`` (``int``, default ``10000``): Maximum number of function calls.
+              * ``maxiter`` (``int``, default ``None``): Maximum number of function calls.
+                ``None`` uses Minuit's own budget, :math:`200 + 100n + 5n^2` for
+                :math:`n` free parameters.
               * ``tol`` (``float``, default ``1e-6``): Convergence tolerance.
               * ``disp`` (``int``, default ``0``): Minuit print level.
               * ``strategy`` (``int``, default ``0``): Minuit strategy
@@ -1132,7 +1138,9 @@ class StatisticalModel(HypothesisTestingBase):
 
               * ``method`` (``str``, default ``"migrad"``): Minuit algorithm
                 (``"migrad"`` or ``"simplex"``).
-              * ``maxiter`` (``int``, default ``10000``): Maximum number of function calls.
+              * ``maxiter`` (``int``, default ``None``): Maximum number of function calls.
+                ``None`` uses Minuit's own budget, :math:`200 + 100n + 5n^2` for
+                :math:`n` free parameters.
               * ``tol`` (``float``, default ``1e-6``): Convergence tolerance.
               * ``disp`` (``int``, default ``0``): Minuit print level (``0`` = silent).
               * ``strategy`` (``int``, default ``0``): Minuit strategy
