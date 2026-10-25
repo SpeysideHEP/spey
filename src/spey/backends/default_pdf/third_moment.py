@@ -108,6 +108,7 @@ References
   production and decay in proton-proton collisions at* :math:`\sqrt{s} = 13` TeV,
   :xref:`2602.18611`
 """
+
 import logging
 from typing import Optional, Tuple, Union
 

@@ -270,11 +270,15 @@ def get_backend(name: str) -> Callable[[Any], StatisticalModel]:
     backend = _backend_entries.get(name, False)
 
     if backend:
-        statistical_model = (
-            backend
-            if isinstance(backend, (BackendBase, ConverterBase))
-            else backend.load()
-        )
+        # A locally registered backend (see `register_backend`) is stored as the class
+        # itself, whereas a plugin discovered through the entry-point group is stored
+        # as an `importlib` EntryPoint that has to be resolved with `.load()`.
+        if isinstance(backend, type) and issubclass(
+            backend, (BackendBase, ConverterBase)
+        ):
+            statistical_model = backend
+        else:
+            statistical_model = backend.load()
 
         assert hasattr(
             statistical_model, "spey_requires"

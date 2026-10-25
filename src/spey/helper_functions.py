@@ -1,8 +1,187 @@
 """Various helper functions"""
 
-from typing import List, Dict
+from typing import Dict, List
 
 import numpy as np
+
+
+def symmetrise_matrix(matrix: np.ndarray, name: str = "covariance matrix") -> np.ndarray:
+    r"""
+    Return the symmetric part of a square matrix.
+
+    A covariance or correlation matrix is symmetric by construction. An
+    asymmetric input is therefore ill-defined, and silently computing with it
+    is worse than it looks: the quadratic form of a multivariate normal only
+    sees the symmetric part, but its inverse and its determinant do not, so the
+    resulting likelihood is neither the one implied by
+    :math:`\Sigma` nor the one implied by :math:`\Sigma^T`.
+
+    This function replaces such an input with
+
+    .. math::
+
+        \Sigma_{\rm sym} = \frac{1}{2}\left(\Sigma + \Sigma^T \right)\ ,
+
+    which is the closest symmetric matrix to :math:`\Sigma` in the Frobenius
+    norm, and therefore the least-assumption reading of an input whose two
+    off-diagonal entries disagree. A warning is issued whenever the input has
+    to be modified.
+
+    .. versionadded:: 0.2.8
+
+    Args:
+        matrix (``np.ndarray``): a square matrix.
+        name (``str``, default ``"covariance matrix"``): how to refer to the
+          matrix in the warning message.
+
+    Raises:
+        ``InvalidInput``: if ``matrix`` is not square.
+
+    Returns:
+        ``np.ndarray``:
+        The symmetric part of ``matrix``, or ``matrix`` itself when it is
+        already symmetric.
+
+    Example:
+
+        .. code-block:: python3
+
+            >>> import numpy as np
+            >>> from spey.helper_functions import symmetrise_matrix
+            >>> symmetrise_matrix(np.array([[144.0, 13.0], [25.0, 256.0]]))
+            array([[144.,  19.],
+                   [ 19., 256.]])
+
+    .. note::
+
+        Symmetry is necessary but not sufficient: the function does not check
+        that the result is positive semi-definite.
+    """
+    from spey.system.exceptions import InvalidInput  # avoids a circular import
+
+    matrix = np.asarray(matrix, dtype=np.float64)
+    if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
+        raise InvalidInput(
+            f"The {name} has to be a square matrix, got shape {matrix.shape}."
+        )
+    if np.allclose(matrix, matrix.T):
+        return matrix
+
+    from spey import log_once  # avoids a circular import
+
+    symmetric = 0.5 * (matrix + matrix.T)
+    log_once(
+        f"The {name} is not symmetric; using its symmetric part "
+        "(cov + cov.T) / 2 instead. Please check the input.",
+        log_type="warning",
+    )
+    return symmetric
+
+
+def ensure_positive_definite(
+    matrix: np.ndarray, name: str = "covariance matrix", tolerance: float = 1e-8
+) -> np.ndarray:
+    r"""
+    Validate that a covariance or correlation matrix defines a normal distribution.
+
+    The matrix is first replaced by its symmetric part, see
+    :func:`~spey.helper_functions.symmetrise_matrix`, and is then required to be
+    **positive definite**. Positive *semi*-definiteness alone is not enough: a
+    singular matrix has a zero eigenvalue, so
+    :math:`\det\Sigma = 0` and :math:`\Sigma^{-1}` does not exist, and the
+    multivariate normal
+
+    .. math::
+
+        \mathcal{N}(x\vert\mu,\Sigma)\propto
+        \frac{1}{\sqrt{\det\Sigma}}
+        \exp\left[-\frac{1}{2}(x-\mu)^T\Sigma^{-1}(x-\mu)\right]
+
+    has no density. A negative eigenvalue is worse still: the exponent is then
+    unbounded above, so the "likelihood" can be made arbitrarily large.
+
+    The test is whether a Cholesky decomposition exists. That is the operative
+    criterion rather than a convenience: it holds exactly when the inverse and
+    the determinant the likelihood needs can be computed, and it costs about a
+    third of an eigendecomposition. Eigenvalues are only computed when the
+    decomposition fails, to decide whether the matrix is merely badly
+    conditioned and to report what is wrong.
+
+    .. versionadded:: 0.2.8
+
+    Args:
+        matrix (``np.ndarray``): a square covariance or correlation matrix.
+        name (``str``, default ``"covariance matrix"``): how to refer to the
+          matrix in the error message.
+        tolerance (``float``, default ``1e-8``): only consulted when the Cholesky
+          decomposition fails. The matrix is still accepted if every eigenvalue
+          exceeds ``tolerance * max(1, largest eigenvalue)``, which rescues a
+          matrix that is positive definite but too badly conditioned for the
+          decomposition to go through.
+
+    Raises:
+        ``InvalidInput``: if ``matrix`` is not square, or is not positive
+          definite.
+
+    Returns:
+        ``np.ndarray``:
+        The symmetric part of ``matrix``, validated.
+
+    Example:
+
+        .. code-block:: python3
+
+            >>> import numpy as np
+            >>> from spey.helper_functions import ensure_positive_definite
+            >>> ensure_positive_definite(np.array([[4.0, 2.4], [2.4, 16.0]]))
+            array([[ 4. ,  2.4],
+                   [ 2.4, 16. ]])
+
+    .. note::
+
+        A ``callable`` covariance matrix cannot be validated ahead of time and
+        is left to the user; it has to return a positive definite matrix for
+        every parameter point the optimiser visits.
+
+    .. note::
+
+        The condition number is not checked. A matrix can be positive definite
+        and still be ill-conditioned enough to make the likelihood numerically
+        unreliable.
+    """
+    from spey.system.exceptions import InvalidInput  # avoids a circular import
+
+    matrix = symmetrise_matrix(matrix, name)
+    try:
+        np.linalg.cholesky(matrix)
+        return matrix
+    except np.linalg.LinAlgError:
+        pass
+
+    eigenvalues = np.linalg.eigvalsh(matrix)
+    smallest = float(np.min(eigenvalues))
+    threshold = tolerance * max(1.0, float(np.max(eigenvalues)))
+    if smallest > threshold:
+        # Cholesky can fail on a badly conditioned but still positive definite
+        # matrix; the eigenvalues are the authority.
+        return matrix
+
+    if smallest < -threshold:
+        detail = (
+            f"it has a negative eigenvalue ({smallest:.6g}), so the exponent of the "
+            "normal distribution is unbounded above"
+        )
+    else:
+        detail = (
+            f"it is singular (smallest eigenvalue {smallest:.6g}), so it has no "
+            "inverse and the normal distribution has no density"
+        )
+    raise InvalidInput(
+        f"The {name} is not positive definite: {detail}. Eigenvalues: "
+        f"{np.array2string(eigenvalues, precision=4)}. A rank-deficient matrix "
+        "usually means two or more bins are perfectly correlated; they can be "
+        "merged with spey.helper_functions.merge_correlated_bins."
+    )
 
 
 def correlation_to_covariance(
@@ -38,6 +217,7 @@ def correlation_to_covariance(
             array([[ 4. ,  2.4],
                    [ 2.4, 16. ]])
     """
+    correlation_matrix = symmetrise_matrix(correlation_matrix, "correlation matrix")
     sigma = np.diag(standard_deviations)
     return sigma @ correlation_matrix @ sigma
 
@@ -68,6 +248,7 @@ def covariance_to_correlation(covariance_matrix: np.ndarray) -> np.ndarray:
             array([[1. , 0.3],
                    [0.3, 1. ]])
     """
+    covariance_matrix = symmetrise_matrix(covariance_matrix)
     sigma_inv = np.diag(1.0 / np.sqrt(np.diag(covariance_matrix)))
     return sigma_inv @ covariance_matrix @ sigma_inv
 
