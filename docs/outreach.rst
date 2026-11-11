@@ -10,6 +10,9 @@ Talks
    * - Date
      - Event
      - Location
+   * - Nov 12, 2026
+     - `Reinterpretation of LHC results for new physics: unlocking the LHC legacy <https://indico.cern.ch/event/1665816/timetable/#12-spey-smooth-inference-for-r>`_
+     - CERN
    * - May 27, 2026
      - `LHC REI WG: HS3 Taskforce - Topical meeting <https://indico.cern.ch/event/1679072/>`_
      - Online
