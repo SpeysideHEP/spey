@@ -58,27 +58,33 @@ def _refine_global_min_1d(
     n_samples: int = 9,
 ) -> Tuple[float, float]:
     r"""
-    Re-anchor a 1D NLL minimum against a coarse multi-start scan.
+    Re-anchor a 1D NLL minimum against a multi-start local search.
 
     When the optimiser behind :meth:`HypothesisTestingBase.maximize_likelihood`
     converges to a strictly-local basin, ``mllhd`` is above the true global
     minimum.  Using that value as the :math:`\chi^2` anchor makes the profile
     :math:`2(\mathrm{NLL}(\theta)-\mathrm{NLL}_{\min})` negative at the other
     basin's minimum — i.e. the threshold is too low and the confidence region
-    shrinks (or disappears).  A cheap evenly-spaced scan of ``nll_fn`` on
-    ``[lo, hi]`` detects any lower minimum; a bounded scalar minimisation
-    around the best scan point refines it.  The returned ``(mllhd, reference)``
-    is guaranteed to satisfy ``mllhd <= nll_fn(x)`` for every point sampled so
-    far, up to numerical noise.
+    shrinks (or disappears).
+
+    The interval ``[lo, hi]`` is split into ``n_samples - 1`` equal cells and a
+    bounded scalar minimisation is started in each of them, so a basin is found
+    as long as it lies inside one of the cells, however narrow it is compared to
+    the cell spacing (sampling ``nll_fn`` on a grid cannot do this: a grid point
+    on the slope of a narrow basin never beats the incumbent minimum).  The best
+    local minimum is then polished to high precision.  The returned
+    ``(mllhd, reference)`` is never worse than the input.  The cost is roughly
+    ``n_samples - 1`` local minimisations, which makes this opt-in; it is skipped
+    entirely for ``n_samples < 2``.
 
     Args:
         nll_fn: 1D negative log-likelihood function.
         mllhd: NLL value at the current (possibly local) estimate.
         reference: Argument value associated with ``mllhd`` — used downstream
             to split two-sided intervals into left/right roots.
-        lo, hi: Search range for the scan.
-        n_samples: Number of evenly-spaced evaluations of ``nll_fn`` on
-            ``[lo, hi]``.  Values below 2 are clamped.
+        lo, hi: Search range.
+        n_samples: Number of cell edges; ``n_samples - 1`` local searches are
+            performed.  Values below 2 disable the search.
 
     Returns:
         ``Tuple[float, float]`` — the re-anchored ``(mllhd, reference)``.
@@ -88,39 +94,43 @@ def _refine_global_min_1d(
     if not (hi > lo) or n_samples < 2:
         return mllhd, reference
 
-    xs = np.linspace(float(lo), float(hi), int(n_samples))
-    best_x, best_f = reference, mllhd
-    for x in xs:
+    def safe_nll(x: float) -> float:
         try:
             fv = float(nll_fn(float(x)))
         except Exception:  # noqa: BLE001
-            continue
-        if not np.isfinite(fv):
-            continue
-        if fv < best_f:
-            best_x, best_f = float(x), fv
+            return np.inf
+        return fv if np.isfinite(fv) else np.inf
 
-    # Only re-anchor if the scan found a genuinely lower minimum.
+    def local_min(a: float, b: float, xatol: float) -> Tuple[float, float]:
+        try:
+            res = _opt.minimize_scalar(
+                safe_nll, bounds=(a, b), method="bounded", options={"xatol": xatol}
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.debug("_refine_global_min_1d minimize_scalar failed: %s", exc)
+            return np.inf, a
+        return float(res.fun), float(res.x)
+
+    edges = np.linspace(float(lo), float(hi), int(n_samples))
+    width = edges[1] - edges[0]
+    best_x, best_f = reference, mllhd
+    for a, b in zip(edges[:-1], edges[1:]):
+        fv, xv = local_min(a, b, xatol=1e-3 * width)
+        if fv < best_f:
+            best_x, best_f = xv, fv
+
+    # Only re-anchor if the search found a genuinely lower minimum.
     if best_f >= mllhd - 1e-9:
         return mllhd, reference
 
-    # Refine around the best scan point with a bounded 1D minimiser so the
-    # new anchor is accurate to machine precision, not just the scan step.
-    width = (float(hi) - float(lo)) / max(1, int(n_samples) - 1)
-    lo2 = max(float(lo), best_x - width)
-    hi2 = min(float(hi), best_x + width)
-    if hi2 > lo2:
-        try:
-            res = _opt.minimize_scalar(
-                lambda v: float(nll_fn(float(v))),
-                bounds=(lo2, hi2),
-                method="bounded",
-                options={"xatol": 1e-10},
-            )
-            if np.isfinite(res.fun) and float(res.fun) < best_f:
-                best_x, best_f = float(res.x), float(res.fun)
-        except Exception as exc:  # noqa: BLE001
-            log.debug("_refine_global_min_1d minimize_scalar failed: %s", exc)
+    # Polish: the cell searches are only accurate to ``1e-3 * width``.
+    fv, xv = local_min(
+        max(float(lo), best_x - 2e-3 * width),
+        min(float(hi), best_x + 2e-3 * width),
+        xatol=1e-10,
+    )
+    if fv < best_f:
+        best_x, best_f = xv, fv
 
     log.debug(
         "_refine_global_min_1d: re-anchored NLL_min %.9g -> %.9g at arg %.9g",

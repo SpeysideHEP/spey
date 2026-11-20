@@ -51,9 +51,10 @@ def minimize(
         constraints (``List[Dict]``, default ``None``): Accepted for
           compatibility; not used by minuit.
         **options: Recognised keys are ``method`` (``"migrad"`` (default) or
-          ``"simplex"``), ``maxiter`` (default ``10000``, passed as
-          ``ncall``), ``tol`` (default ``1e-6``), ``disp`` (default ``0``,
-          minuit print level), ``strategy`` (default ``0``), and ``errordef``
+          ``"simplex"``), ``maxiter`` (default ``None``, passed as
+          ``ncall``; ``None`` lets Minuit pick its own call budget,
+          :math:`200 + 100n + 5n^2` for :math:`n` free parameters), ``tol``
+          (default ``1e-6``), ``disp`` (default ``0``, minuit print level), ``strategy`` (default ``0``), and ``errordef``
           (default ``Minuit.LIKELIHOOD``). ``poi_index`` is stripped.
 
     Returns:
@@ -82,7 +83,9 @@ def minimize(
     opt.errordef = options.get("errordef", Minuit.LIKELIHOOD)
     opt.strategy = options.get("strategy", 0)
     opt.tol = options.get("tol", 1e-6)
-    ncall = options.get("maxiter", 10000)
+    # ncall=None uses Minuit's own budget, which scales with the number of free
+    # parameters; a fixed cap stops large fits with numerical derivatives early.
+    ncall = options.get("maxiter", None)
     if method == "migrad":
         opt.migrad(ncall=ncall)
     elif method == "simplex":
@@ -102,7 +105,10 @@ def minimize(
         message = "Optimization failed."
         fmin = opt.fmin
         if fmin.has_reached_call_limit:
-            message += " Call limit was reached."
+            message += (
+                f" Call limit was reached after {fmin.nfcn} function calls;"
+                " increase `maxiter` to allow more calls."
+            )
         if fmin.is_above_max_edm:
             message += " Estimated distance to minimum too large."
         log.warning(message)

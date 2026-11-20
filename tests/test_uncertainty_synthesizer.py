@@ -69,7 +69,7 @@ def test_correlated_background():
     data = np.array([36, 33])
     signal_yields = np.array([12.0, 15.0])
     background_yields = np.array([50.0, 48.0])
-    covariance_matrix = np.array([[144.0, 13.0], [25.0, 256.0]])
+    covariance_matrix = np.array([[144.0, 19.0], [19.0, 256.0]])
     scale_unc = np.array([2.0, 3.0])
 
     pdf_up = np.array([1.0, 5.0])

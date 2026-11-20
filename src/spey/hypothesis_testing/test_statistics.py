@@ -200,6 +200,22 @@ def get_test_statistic(
     return _options[test_stat]
 
 
+#: Smallest :math:`\sqrt{q_{\mu,A}}` for which the asymptotic formulae are trusted.
+#:
+#: Eq. (66) of :xref:`1007.1727` divides by :math:`2\sqrt{q_{\mu,A}}`, so the resulting
+#: p-value is meaningless once the Asimov test statistic approaches zero — a regime that
+#: signals the Asimov dataset carries no information about :math:`\mu`.  Values at or
+#: below this threshold raise :obj:`~spey.system.exceptions.AsimovTestStatZero`, which
+#: every caller in ``spey`` interprets as "no exclusion".
+#:
+#: For reference, at a genuine 95% CL upper limit :math:`\sqrt{q_{\mu,A}}` is of order
+#: one (0.8-2.1 for the built-in backends), i.e. three orders of magnitude above this
+#: threshold, while the degenerate regime sits three orders of magnitude below it.
+#:
+#: .. versionadded:: 0.2.8
+ASIMOV_TESTSTAT_TOLERANCE: float = 1e-3
+
+
 def compute_teststatistics(
     mu: float,
     maximum_likelihood: Tuple[float, float],
@@ -207,6 +223,7 @@ def compute_teststatistics(
     maximum_asimov_likelihood: Tuple[float, float],
     asimov_logpdf: Callable[[float], float],
     teststat: str,
+    asimov_teststat_tolerance: float = ASIMOV_TESTSTAT_TOLERANCE,
 ) -> Tuple[float, float, float]:
     r"""
     Compute test statistics
@@ -236,12 +253,26 @@ def compute_teststatistics(
           * ``'q0'``: performs the calculation using the discovery test statistic, see eq. (47)
             of :xref:`1007.1727` :math:`q_{0}` (:func:`~spey.hypothesis_testing.test_statistics.q0`).
 
+        asimov_teststat_tolerance (``float``, default :obj:`ASIMOV_TESTSTAT_TOLERANCE`):
+          Smallest :math:`\sqrt{q_{\mu,A}}` for which eq. (66) is evaluated.  At or below
+          this value the division by :math:`2\sqrt{q_{\mu,A}}` is numerically degenerate
+          and :obj:`~spey.system.exceptions.AsimovTestStatZero` is raised instead.
+
     Raises:
-        :obj:`~spey.system.exceptions.AsimovTestStatZero`: Raised if Asimov test statistic is zero.
+        :obj:`~spey.system.exceptions.AsimovTestStatZero`: Raised when the Asimov test
+          statistic is numerically zero, i.e. :math:`\sqrt{q_{\mu,A}}` does not exceed
+          ``asimov_teststat_tolerance``.
 
     Returns:
         ``Tuple[float, float, float]``:
         :math:`\sqrt{q_\mu}`, :math:`\sqrt{q_{\mu,A}}` and :math:`\Delta(\sqrt{q_\mu}, \sqrt{q_{\mu,A}})`
+
+    .. versionchanged:: 0.2.8
+        The Asimov test statistic is now compared against
+        ``asimov_teststat_tolerance`` instead of being tested for exact equality with
+        zero.  Exact equality never fired for a merely *tiny* :math:`\sqrt{q_{\mu,A}}`,
+        so eq. (66) was evaluated with a near-zero divisor and returned a p-value
+        dominated by numerical noise — typically a spurious, near-certain exclusion.
     """
     teststat_func = get_test_statistic(teststat)
 
@@ -260,10 +291,17 @@ def compute_teststatistics(
         if sqrt_qmu <= sqrt_qmuA:
             delta_teststat = sqrt_qmu - sqrt_qmuA
         else:
+            # Checked *before* the division: a near-zero divisor does not raise, it
+            # silently returns a huge delta and hence a spurious exclusion.
+            if sqrt_qmuA <= asimov_teststat_tolerance:
+                raise AsimovTestStatZero(
+                    f"Asimov test statistic is numerically zero: sqrt(q_muA) = "
+                    f"{sqrt_qmuA:.5e} <= {asimov_teststat_tolerance:.1e}. "
+                    "Note: an Asimov test statistic of zero indicates a lack of "
+                    "evidence for a signal or deviation from a null hypothesis."
+                )
             with warnings.catch_warnings(record=True):
                 delta_teststat = np.true_divide(qmu_ - qmuA, 2.0 * sqrt_qmuA)
-            if sqrt_qmuA == 0:
-                raise AsimovTestStatZero()
     log.debug(
         f"sqrt_qmu = {sqrt_qmu}, sqrt_qmuA = {sqrt_qmuA}, delta_teststat = {delta_teststat}"
     )

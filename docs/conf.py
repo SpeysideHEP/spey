@@ -103,7 +103,7 @@ autosummary_generate = True
 numpydoc_show_class_members = True
 
 templates_path = ["_templates"]
-exclude_patterns = ["introduction.rst", "requirements.txt"]
+exclude_patterns = ["_build", "introduction.rst", "requirements.txt"]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:

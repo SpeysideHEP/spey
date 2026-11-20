@@ -3,38 +3,6 @@
 Plug-ins
 ========
 
-.. contents::
-    :backlinks: none
-    :depth: 3
-
-.. list-table::
-   :header-rows: 1
-
-   * - Keyword
-     - Summary
-   * - ``'default.uncorrelated_background'``
-     - :ref:`Combination of Poisson and Gaussian PDF, assuming uncorrelated bins. <uncorrelated_background>`
-   * - ``'default.correlated_background'``
-     - :ref:`Combination of Poisson and Gaussian PDF, with correlated bins. <correlated_background>`
-   * - ``'default.third_moment_expansion'``
-     - :ref:`Simplified likelihood, extended with third moments of the background. <third_moment_expansion>`
-   * - ``'default.effective_sigma'``
-     - :ref:`Simplified likelihood, extended with asymmetric uncertainties.  <effective_sigma>`
-   * - ``'default.poisson'``
-     - :ref:`Poisson distribution, without uncertainties.  <poisson>`
-   * - ``'default.normal'``
-     - :ref:`Gaussian distribution.  <normal>`
-   * - ``'default.multivariate_normal'``
-     - :ref:`Multivariate Normal distribution.  <multinormal>`
-   * - ``'pyhf'``
-     - `External plug-in <https://spey-pyhf.readthedocs.io>`_ uses ``pyhf`` to construct the likelihoods.
-   * - ``'pyhf.uncorrelated_background'``
-     - `External plug-in <https://spey-pyhf.readthedocs.io>`_ constructs ``pyhf``-based uncorrelated likelihoods.
-   * - ``'pyhf.simplify'``
-     - `See doc. <https://spey-pyhf.readthedocs.io/en/main/simplify.html>`_ converts full ``pyhf`` likelihoods into simplified framework.
-   * - ``'strathisla.full_nuisance_parameters'``, ``'strathisla.simple_multivariate_gaussian_eft'``, ``'strathisla.multivariate_gaussian_scaled_covariance_eft'``
-     - `EFT plug-in <https://github.com/joes-git/spey-strathisla>`_ provides tools for full modeling of nuisance parameters and setting limits on Effective Field Theories. By `Joe Egan <mailto:joseph.caimin.egan@cern.ch>`_.
-
 .. meta::
     :property=og:title: Plug-ins
     :property=og:description: Currently supported likelihood prescriptions.
@@ -539,8 +507,8 @@ External Plug-ins
 .. toctree::
 
    Spey-pyhf plug-in documentation <https://spey-pyhf.readthedocs.io>
+   Spey-RooFit plug-in documentation <https://spey-roofit.readthedocs.io>
    Spey-strathisla <https://pypi.org/project/strathisla/>
-   Spey-fastprof: TBA <https://spey.readthedocs.io>
 
 **Useful links:**
 

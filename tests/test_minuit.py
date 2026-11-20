@@ -1,7 +1,14 @@
 import numpy as np
 import pytest
 
-from spey.optimizer import minuit_tools as mt
+# iminuit is an optional dependency and may also be present but unimportable (e.g.
+# built against a different numpy); skip the module instead of failing collection.
+try:
+    import iminuit  # noqa: F401
+except ImportError as exc:  # pragma: no cover - depends on the environment
+    pytest.skip(f"iminuit is not usable: {exc}", allow_module_level=True)
+
+from spey.optimizer import minuit_tools as mt  # noqa: E402
 
 
 def test_minimize_simple_quadratic_migrad():
@@ -175,3 +182,36 @@ def test_minimize_extracts_options():
         assert captured["args"][0] is not None
     finally:
         mt.Minuit = original_minuit
+
+
+def _correlated_quadratic(npars: int = 100):
+    """Ill-conditioned, fully correlated quadratic with a known minimum."""
+    rng = np.random.default_rng(0)
+    rot, _ = np.linalg.qr(rng.normal(size=(npars, npars)))
+    mat = rot @ np.diag(np.logspace(0, 3, npars)) @ rot.T
+    target = rng.normal(size=npars)
+
+    def obj(pars):
+        diff = np.asarray(pars) - target
+        return float(0.5 * diff @ mat @ diff)
+
+    return obj, target
+
+
+def test_minimize_default_call_budget_scales_with_npars(monkeypatch):
+    """Without analytic gradients, 100 correlated parameters need more than the old
+    fixed 10k-call cap; the default budget must let migrad converge."""
+    obj, target = _correlated_quadratic()
+    kwargs = dict(init_pars=np.zeros(len(target)), fixed_vals=[False] * len(target))
+    warnings = []
+    monkeypatch.setattr(mt.log, "warning", lambda msg, *args: warnings.append(msg))
+
+    fval, _ = mt.minimize(func=obj, maxiter=10000, **kwargs)
+    assert len(warnings) == 1 and "Call limit was reached" in warnings[0]
+    assert fval > 1e-4
+
+    warnings.clear()
+    fval, x = mt.minimize(func=obj, **kwargs)
+    assert warnings == []
+    assert fval == pytest.approx(0.0, abs=1e-6)
+    assert np.allclose(x, target, atol=1e-3)
